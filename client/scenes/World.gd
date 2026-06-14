@@ -4,30 +4,36 @@ extends Node2D
 
 const PlayerScene := preload("res://scripts/Player.gd")
 const INPUT_SEND_INTERVAL := 0.05 # seconds (~20Hz, matches server tick)
+const _WS_STATES: PackedStringArray = ["closed", "connecting", "open", "closing"]
 
 @onready var _camera: Camera2D = $Camera2D
 @onready var _players_root: Node2D = $Players
 @onready var _status: Label = $UI/Status
 @onready var _hud: Label = $UI/Hud
+@onready var _hotbar: Hotbar = $UI/Hotbar
 
 var _players := {} # id (int) -> Player node
 var _send_accum := 0.0
 var _last_dir := Vector2.ZERO
 var _local_pos := Vector2.ZERO
+var _player_count := 0
 
 
 func _ready() -> void:
+	_camera.make_current()
 	Net.snapshot.connect(_on_snapshot)
 	Net.disconnected.connect(_on_disconnected)
 	_status.text = "Connected. Move with WASD / arrow keys."
+
+	# Welcome may have arrived before this scene loaded (returning player).
+	if Net.local_id != -1 and not _players.has(Net.local_id):
+		_spawn(Net.local_id, Net.spawn_name, Vector2(Net.spawn_x, Net.spawn_y))
+
 	_update_hud(Vector2.ZERO, Vector2.ZERO)
 
 
 func _process(delta: float) -> void:
-	var dir := Vector2(
-		Input.get_axis("ui_left", "ui_right"),
-		Input.get_axis("ui_up", "ui_down")
-	)
+	var dir := _read_move_dir()
 
 	_send_accum += delta
 	# Send when due, or immediately when the input direction changes.
@@ -40,17 +46,31 @@ func _process(delta: float) -> void:
 		var local_player = _players[Net.local_id]
 		_camera.position = local_player.position
 		_local_pos = local_player.position
-		_update_hud(_local_pos, _last_dir)
+
+	_update_hud(_local_pos, _last_dir)
+
+
+func _read_move_dir() -> Vector2:
+	# Godot's built-in ui_* actions only map arrow keys by default — not WASD.
+	# Use dedicated move_* actions (WASD + arrows in project.godot).
+	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if dir.length_squared() > 1.0:
+		dir = dir.normalized()
+	return dir
 
 
 func _update_hud(pos: Vector2, dir: Vector2) -> void:
 	var moving := "moving" if dir.length() > 0.05 else "idle"
-	_hud.text = "Position: (%d, %d)   Input: (%+.1f, %+.1f)   %s" % [
-		int(round(pos.x)), int(round(pos.y)), dir.x, dir.y, moving
+	var state := Net.get_ws_state()
+	var ws_state: String = _WS_STATES[state] if state < _WS_STATES.size() else "unknown"
+	_hud.text = "Pos: (%d, %d)  Input: (%+.1f, %+.1f)  %s  id=%d  players=%d  ws=%s" % [
+		int(round(pos.x)), int(round(pos.y)), dir.x, dir.y, moving,
+		Net.local_id, _player_count, ws_state
 	]
 
 
 func _on_snapshot(players: Array) -> void:
+	_player_count = players.size()
 	var seen := {}
 	for p in players:
 		var id := int(p.get("id", -1))

@@ -30,6 +30,9 @@ signal snapshot(players: Array)
 signal disconnected()
 
 var local_id: int = -1
+var spawn_name: String = ""
+var spawn_x: float = 0.0
+var spawn_y: float = 0.0
 
 var _token: String = ""
 var _ws := WebSocketPeer.new()
@@ -95,7 +98,13 @@ func _reset_ws() -> void:
 	_prev_state = WebSocketPeer.STATE_CLOSED
 
 
+func get_ws_state() -> int:
+	return _ws.get_ready_state()
+
+
 func send_input(dir_x: float, dir_y: float) -> void:
+	if local_id == -1:
+		return
 	_send("input", {"dirX": dir_x, "dirY": dir_y})
 
 
@@ -130,11 +139,14 @@ func _handle_message(text: String) -> void:
 	var env: Variant = JSON.parse_string(text)
 	if not (env is Dictionary) or not env.has("type"):
 		return
-	var data: Variant = env.get("data", {})
+	var data := _parse_data(env.get("data"))
 	match String(env["type"]):
 		"welcome":
 			local_id = int(data.get("characterId", -1))
-			welcome.emit(local_id, float(data.get("x", 0.0)), float(data.get("y", 0.0)), String(data.get("name", "")))
+			spawn_x = float(data.get("x", 0.0))
+			spawn_y = float(data.get("y", 0.0))
+			spawn_name = String(data.get("name", ""))
+			welcome.emit(local_id, spawn_x, spawn_y, spawn_name)
 		"need_character":
 			need_character.emit()
 		"snapshot":
@@ -142,3 +154,13 @@ func _handle_message(text: String) -> void:
 			snapshot.emit(players)
 		"error":
 			server_error.emit(String(data.get("message", "error")))
+
+
+func _parse_data(raw: Variant) -> Dictionary:
+	if raw is Dictionary:
+		return raw
+	if raw is String and not raw.is_empty():
+		var parsed: Variant = JSON.parse_string(raw)
+		if parsed is Dictionary:
+			return parsed
+	return {}
