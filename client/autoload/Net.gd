@@ -77,6 +77,7 @@ func connect_world() -> void:
 		auth_result.emit(false, "not authenticated")
 		return
 	local_id = -1
+	_reset_ws()
 	var url := WS_BASE + "?token=" + _token.uri_encode()
 	var err := _ws.connect_to_url(url)
 	if err == OK:
@@ -84,6 +85,14 @@ func connect_world() -> void:
 		_prev_state = WebSocketPeer.STATE_CONNECTING
 	else:
 		disconnected.emit()
+
+
+func _reset_ws() -> void:
+	if _ws.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+		_ws.close()
+	_ws = WebSocketPeer.new()
+	_ws_active = false
+	_prev_state = WebSocketPeer.STATE_CLOSED
 
 
 func send_input(dir_x: float, dir_y: float) -> void:

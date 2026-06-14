@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -55,6 +56,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("account registered id=%d email=%s", acc.ID, acc.Email)
 	h.issue(w, acc.ID)
 }
 
@@ -79,6 +81,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("account login id=%d email=%s", acc.ID, acc.Email)
 	h.issue(w, acc.ID)
 }
 

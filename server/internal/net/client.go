@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -85,6 +86,7 @@ func ServeWS(hub *Hub, database *db.DB, secret string) http.HandlerFunc {
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
+			log.Printf("ws upgrade failed account_id=%d: %v", accountID, err)
 			return // upgrader already wrote the response
 		}
 
@@ -97,6 +99,7 @@ func ServeWS(hub *Hub, database *db.DB, secret string) http.HandlerFunc {
 		}
 
 		hub.register <- c
+		log.Printf("ws connected account_id=%d", accountID)
 		go c.writePump()
 		go c.readPump(database)
 
@@ -116,6 +119,8 @@ func (c *Client) spawn(ch db.Character) {
 	c.characterID = ch.ID
 	c.spawned = true
 	c.hub.world.AddPlayer(ch.ID, ch.Name, ch.X, ch.Y)
+	log.Printf("character spawned account_id=%d character_id=%d name=%q pos=(%.0f,%.0f)",
+		c.accountID, ch.ID, ch.Name, ch.X, ch.Y)
 	c.safeSend(encode("welcome", WelcomeData{
 		CharacterID: ch.ID,
 		X:           ch.X,
@@ -126,13 +131,19 @@ func (c *Client) spawn(ch db.Character) {
 
 func (c *Client) readPump(database *db.DB) {
 	defer func() {
-		c.hub.unregister <- c
 		if c.spawned {
 			if x, y, ok := c.hub.world.Position(c.characterID); ok {
 				_ = database.SaveCharacterPosition(context.Background(), c.characterID, x, y)
+				log.Printf("ws disconnected account_id=%d character_id=%d saved_pos=(%.0f,%.0f)",
+					c.accountID, c.characterID, x, y)
+			} else {
+				log.Printf("ws disconnected account_id=%d character_id=%d", c.accountID, c.characterID)
 			}
 			c.hub.world.RemovePlayer(c.characterID)
+		} else {
+			log.Printf("ws disconnected account_id=%d (no character)", c.accountID)
 		}
+		c.hub.unregister <- c
 		c.close()
 	}()
 
@@ -172,9 +183,11 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			ch, err := database.CreateCharacter(context.Background(), c.accountID, name, spawnX, spawnY)
 			if err != nil {
+				log.Printf("character create failed account_id=%d name=%q: %v", c.accountID, name, err)
 				c.safeSend(encode("error", MessageData{Message: "could not create character"}))
 				continue
 			}
+			log.Printf("character created account_id=%d character_id=%d name=%q", c.accountID, ch.ID, ch.Name)
 			c.spawn(ch)
 		}
 	}

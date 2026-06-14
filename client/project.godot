@@ -31,3 +31,7 @@ window/stretch/mode="canvas_items"
 [dotnet]
 
 project/assembly_name="Deathborn"
+
+[rendering]
+
+environment/defaults/default_clear_color=Color(0.08, 0.1, 0.08, 1)

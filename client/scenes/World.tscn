@@ -1,9 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/World.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/WorldBackground.gd" id="2_bg"]
 
 [node name="World" type="Node2D"]
 script = ExtResource("1_world")
+
+[node name="Background" type="Node2D" parent="."]
+script = ExtResource("2_bg")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 
@@ -15,5 +19,12 @@ script = ExtResource("1_world")
 offset_left = 12.0
 offset_top = 12.0
 offset_right = 700.0
-offset_bottom = 40.0
+offset_bottom = 36.0
 text = "Connecting..."
+
+[node name="Hud" type="Label" parent="UI"]
+offset_left = 12.0
+offset_top = 40.0
+offset_right = 900.0
+offset_bottom = 64.0
+text = "Position: (0, 0)"

@@ -34,18 +34,32 @@ func _on_auth_result(success: bool, info: String) -> void:
 	_status.text = "Entering world..."
 	Net.welcome.connect(_go_world, CONNECT_ONE_SHOT)
 	Net.need_character.connect(_go_character_create, CONNECT_ONE_SHOT)
+	Net.disconnected.connect(_on_world_connect_failed, CONNECT_ONE_SHOT)
 	Net.connect_world()
 
 
-func _go_world(_id: int, _x: float, _y: float, _char_name: String) -> void:
+func _on_world_connect_failed() -> void:
+	_clear_world_listeners()
+	_status.text = "Error: could not connect to world server (check server logs)"
+	_set_enabled(true)
+
+
+func _clear_world_listeners() -> void:
+	if Net.welcome.is_connected(_go_world):
+		Net.welcome.disconnect(_go_world)
 	if Net.need_character.is_connected(_go_character_create):
 		Net.need_character.disconnect(_go_character_create)
+	if Net.disconnected.is_connected(_on_world_connect_failed):
+		Net.disconnected.disconnect(_on_world_connect_failed)
+
+
+func _go_world(_id: int, _x: float, _y: float, _char_name: String) -> void:
+	_clear_world_listeners()
 	get_tree().change_scene_to_file("res://scenes/World.tscn")
 
 
 func _go_character_create() -> void:
-	if Net.welcome.is_connected(_go_world):
-		Net.welcome.disconnect(_go_world)
+	_clear_world_listeners()
 	get_tree().change_scene_to_file("res://scenes/CharacterCreate.tscn")
 
 

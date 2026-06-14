@@ -8,16 +8,19 @@ const INPUT_SEND_INTERVAL := 0.05 # seconds (~20Hz, matches server tick)
 @onready var _camera: Camera2D = $Camera2D
 @onready var _players_root: Node2D = $Players
 @onready var _status: Label = $UI/Status
+@onready var _hud: Label = $UI/Hud
 
 var _players := {} # id (int) -> Player node
 var _send_accum := 0.0
 var _last_dir := Vector2.ZERO
+var _local_pos := Vector2.ZERO
 
 
 func _ready() -> void:
 	Net.snapshot.connect(_on_snapshot)
 	Net.disconnected.connect(_on_disconnected)
 	_status.text = "Connected. Move with WASD / arrow keys."
+	_update_hud(Vector2.ZERO, Vector2.ZERO)
 
 
 func _process(delta: float) -> void:
@@ -34,7 +37,17 @@ func _process(delta: float) -> void:
 		Net.send_input(dir.x, dir.y)
 
 	if Net.local_id != -1 and _players.has(Net.local_id):
-		_camera.position = _players[Net.local_id].position
+		var local_player = _players[Net.local_id]
+		_camera.position = local_player.position
+		_local_pos = local_player.position
+		_update_hud(_local_pos, _last_dir)
+
+
+func _update_hud(pos: Vector2, dir: Vector2) -> void:
+	var moving := "moving" if dir.length() > 0.05 else "idle"
+	_hud.text = "Position: (%d, %d)   Input: (%+.1f, %+.1f)   %s" % [
+		int(round(pos.x)), int(round(pos.y)), dir.x, dir.y, moving
+	]
 
 
 func _on_snapshot(players: Array) -> void:
