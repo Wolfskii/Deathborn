@@ -1,0 +1,24 @@
+# Go
+/server/deathborn
+/server/deathborn.exe
+*.exe
+*.test
+*.out
+
+# Build artifacts
+/bin/
+/dist/
+
+# Environment
+.env
+
+# Godot 4 editor/import cache
+client/.godot/
+client/export_presets.cfg
+client/*.translation
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

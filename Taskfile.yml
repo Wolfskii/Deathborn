@@ -1,0 +1,149 @@
+# DEATHBORN task runner (https://taskfile.dev).
+# Install: https://taskfile.dev/installation/  then run `task` to list tasks.
+version: "3"
+
+vars:
+  SERVER_DIR: server
+  BINARY: deathborn
+  IMAGE: deathborn-server
+  # Version derived from git tags; falls back to "dev" outside a repo.
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+  LDFLAGS: -s -w -X main.version={{.VERSION}}
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  # --- Run the full stack (Docker Compose) ---
+  start:
+    desc: Build and run the full stack (Postgres + server) in the foreground
+    cmds:
+      - docker compose up --build
+
+  up:
+    desc: Start the full stack in the background
+    cmds:
+      - docker compose up --build -d
+
+  stop:
+    desc: Stop and remove the stack containers
+    cmds:
+      - docker compose down
+
+  restart:
+    desc: Restart the stack in the background
+    cmds:
+      - task: stop
+      - task: up
+
+  logs:
+    desc: Follow the server logs
+    cmds:
+      - docker compose logs -f server
+
+  ps:
+    desc: Show stack container status
+    cmds:
+      - docker compose ps
+
+  # --- Local development (server on host, DB in Docker) ---
+  db:
+    desc: Start only PostgreSQL (for running the server locally)
+    cmds:
+      - docker compose up -d db
+
+  dev:
+    desc: Run the server locally via `go run` against the Dockerized DB
+    deps: [db]
+    dir: "{{.SERVER_DIR}}"
+    env:
+      DATABASE_URL: postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable
+      JWT_SECRET: dev-secret-change-me
+      PORT: "8080"
+    cmds:
+      - go run ./cmd/deathborn
+
+  # --- Build ---
+  build:
+    desc: Build the server binary into ./bin (version-stamped)
+    dir: "{{.SERVER_DIR}}"
+    env:
+      CGO_ENABLED: "0"
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o ../bin/{{.BINARY}} ./cmd/deathborn
+    generates:
+      - ../bin/{{.BINARY}}
+
+  build:image:
+    desc: Build the server Docker image, tagged with the current version and latest
+    cmds:
+      - docker build -t {{.IMAGE}}:{{.VERSION}} -t {{.IMAGE}}:latest {{.SERVER_DIR}}
+
+  # --- Quality ---
+  fmt:
+    desc: Format Go code
+    dir: "{{.SERVER_DIR}}"
+    cmds:
+      - gofmt -w .
+
+  fmt:check:
+    desc: Fail if any Go file is not gofmt-clean
+    dir: "{{.SERVER_DIR}}"
+    cmds:
+      - test -z "$(gofmt -l .)" || (echo "Run 'task fmt' on:"; gofmt -l .; exit 1)
+
+  vet:
+    desc: Run go vet
+    dir: "{{.SERVER_DIR}}"
+    cmds:
+      - go vet ./...
+
+  test:
+    desc: Run Go tests
+    dir: "{{.SERVER_DIR}}"
+    cmds:
+      - go test ./...
+
+  tidy:
+    desc: Tidy Go modules
+    dir: "{{.SERVER_DIR}}"
+    cmds:
+      - go mod tidy
+
+  check:
+    desc: Run all checks (fmt check, vet, test) — mirrors CI
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: test
+
+  # --- Deploy / release ---
+  publish:image:
+    desc: 'Push the image to a registry. Set REGISTRY, e.g. REGISTRY=ghcr.io/you task publish:image'
+    requires:
+      vars: [REGISTRY]
+    cmds:
+      - docker build -t {{.REGISTRY}}/{{.IMAGE}}:{{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE}}:latest {{.SERVER_DIR}}
+      - docker push {{.REGISTRY}}/{{.IMAGE}}:{{.VERSION}}
+      - docker push {{.REGISTRY}}/{{.IMAGE}}:latest
+
+  release:
+    desc: "Tag and push a release (triggers the Release workflow): task release -- v0.1.0"
+    cmds:
+      - cmd: 'test -n "{{.CLI_ARGS}}" || (echo "Usage: task release -- vX.Y.Z"; exit 1)'
+        silent: true
+      - cmd: 'echo "{{.CLI_ARGS}}" | grep -Eq "^v[0-9]+\.[0-9]+\.[0-9]+" || (echo "Tag must look like vX.Y.Z"; exit 1)'
+        silent: true
+      - git tag -a {{.CLI_ARGS}} -m "Release {{.CLI_ARGS}}"
+      - git push origin {{.CLI_ARGS}}
+
+  # --- Cleanup ---
+  clean:
+    desc: Remove build artifacts and tear down the stack (including the DB volume)
+    cmds:
+      - docker compose down -v
+      - rm -rf bin dist

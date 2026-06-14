@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: deathborn
+      POSTGRES_PASSWORD: deathborn
+      POSTGRES_DB: deathborn
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deathborn -d deathborn"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build: ./server
+    environment:
+      DATABASE_URL: postgres://deathborn:deathborn@db:5432/deathborn?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  dbdata:
