@@ -189,6 +189,17 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			log.Printf("character created account_id=%d character_id=%d name=%q", c.accountID, ch.ID, ch.Name)
 			c.spawn(ch)
+
+		case "interact":
+			if !c.spawned {
+				continue
+			}
+			var d InteractData
+			if json.Unmarshal(env.Data, &d) != nil || d.TargetID == "" {
+				continue
+			}
+			log.Printf("interact account_id=%d character_id=%d target=%q", c.accountID, c.characterID, d.TargetID)
+			// Range validation and gameplay effects come in later milestones.
 		}
 	}
 }

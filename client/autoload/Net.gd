@@ -112,6 +112,12 @@ func create_character(char_name: String) -> void:
 	_send("create_character", {"name": char_name})
 
 
+func send_interact(target_id: String) -> void:
+	if local_id == -1 or target_id.is_empty():
+		return
+	_send("interact", {"targetId": target_id})
+
+
 func _send(type: String, data: Dictionary) -> void:
 	if _ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
 		return

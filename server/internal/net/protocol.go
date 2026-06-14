@@ -27,6 +27,11 @@ type CreateCharacterData struct {
 	Name string `json:"name"`
 }
 
+// InteractData is sent when the player interacts with a world object.
+type InteractData struct {
+	TargetID string `json:"targetId"`
+}
+
 // --- Server -> Client ---
 
 // WelcomeData tells the client which entity id is theirs and the spawn point.
