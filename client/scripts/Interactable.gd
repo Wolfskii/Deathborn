@@ -4,7 +4,7 @@ extends Node2D
 
 signal interacted
 
-enum Kind { GENERIC, TREE, ROCK, CHEST, NPC }
+enum Kind { GENERIC, TREE, ROCK, CHEST, NPC, FISHING, BANK, SIGN, ANVIL }
 
 @export var interact_id: String = ""
 @export var display_name: String = "Object"
@@ -77,6 +77,19 @@ func _draw() -> void:
 		Kind.NPC:
 			draw_circle(Vector2.ZERO, pick_radius * 0.75, body)
 			draw_circle(Vector2(0, -pick_radius * 0.9), pick_radius * 0.45, body.lightened(0.1))
+		Kind.FISHING:
+			draw_circle(Vector2(0, 6), pick_radius * 1.1, Color(0.18, 0.35, 0.62, 0.85))
+			draw_line(Vector2(-8, -8), Vector2(10, -18), body, 2.5)
+			draw_circle(Vector2(10, -18), 3.0, body)
+		Kind.BANK:
+			draw_rect(Rect2(-pick_radius * 0.9, -pick_radius * 0.5, pick_radius * 1.8, pick_radius), body)
+			draw_rect(Rect2(-pick_radius * 0.35, -pick_radius * 0.2, pick_radius * 0.7, pick_radius * 0.65), body.darkened(0.25))
+		Kind.SIGN:
+			draw_rect(Rect2(-2, -pick_radius, 4, pick_radius * 1.6), Color(0.4, 0.28, 0.16))
+			draw_rect(Rect2(-pick_radius * 0.8, -pick_radius * 1.1, pick_radius * 1.6, pick_radius * 0.55), body)
+		Kind.ANVIL:
+			draw_rect(Rect2(-pick_radius * 0.7, -4, pick_radius * 1.4, 8), body.darkened(0.15))
+			draw_rect(Rect2(-pick_radius * 0.45, -pick_radius * 0.55, pick_radius * 0.9, pick_radius * 0.45), body)
 		_:
 			draw_circle(Vector2.ZERO, pick_radius, body)
 

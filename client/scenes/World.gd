@@ -30,7 +30,7 @@ func _ready() -> void:
 	Net.snapshot.connect(_on_snapshot)
 	Net.disconnected.connect(_on_disconnected)
 	_hotbar.slot_activated.connect(_on_hotbar_slot)
-	_status.text = "Connected. WASD to move. Click or [E] to interact."
+	_status.text = "WASD to move. Interactables ring around spawn — click or [E]."
 
 	if Net.local_id != -1 and not _players.has(Net.local_id):
 		_spawn(Net.local_id, Net.spawn_name, Vector2(Net.spawn_x, Net.spawn_y))
@@ -164,8 +164,30 @@ func _try_interact_at(world_pos: Vector2) -> void:
 
 func _perform_interact(target: Interactable) -> void:
 	target.interact()
-	_status.text = "Interacted with %s." % target.display_name
+	_status.text = _interact_message(target)
 	Net.send_interact(target.interact_id)
+
+
+func _interact_message(target: Interactable) -> String:
+	match target.kind:
+		Interactable.Kind.TREE:
+			return "You inspect %s. Woodcutting coming in a later milestone." % target.display_name
+		Interactable.Kind.ROCK:
+			return "You inspect %s. Mining coming in a later milestone." % target.display_name
+		Interactable.Kind.FISHING:
+			return "You inspect %s. Fishing coming in a later milestone." % target.display_name
+		Interactable.Kind.CHEST:
+			return "You open %s. It is empty for now." % target.display_name
+		Interactable.Kind.BANK:
+			return "You approach %s. Banking coming in a later milestone." % target.display_name
+		Interactable.Kind.ANVIL:
+			return "You inspect %s. Smithing coming in a later milestone." % target.display_name
+		Interactable.Kind.NPC:
+			return "%s says: \"Stay alive out there.\"" % target.display_name
+		Interactable.Kind.SIGN:
+			return "The sign reads: %s" % target.display_name
+		_:
+			return "Interacted with %s." % target.display_name
 
 
 func _update_hud(pos: Vector2, dir: Vector2) -> void:
@@ -211,7 +233,9 @@ func _spawn_interactable(
 	display_name: String,
 	pos: Vector2,
 	kind: Interactable.Kind,
-	tint: Color
+	tint: Color,
+	pick_radius: float = 20.0,
+	interact_range: float = 72.0
 ) -> void:
 	var node := Node2D.new()
 	node.set_script(InteractableScene)
@@ -220,15 +244,35 @@ func _spawn_interactable(
 	node.display_name = display_name
 	node.kind = kind
 	node.tint = tint
+	node.pick_radius = pick_radius
+	node.interact_range = interact_range
 	_interactables_root.add_child(node)
 	_interactables.append(node)
 
 
 func _seed_demo_interactables() -> void:
-	_spawn_interactable("tree_oak_1", "Oak Tree", Vector2(120, -40), Interactable.Kind.TREE, Color(0.25, 0.55, 0.28))
-	_spawn_interactable("rock_iron_1", "Iron Rock", Vector2(-110, 60), Interactable.Kind.ROCK, Color(0.45, 0.48, 0.52))
-	_spawn_interactable("chest_starter", "Starter Chest", Vector2(40, 100), Interactable.Kind.CHEST, Color(0.62, 0.42, 0.22))
-	_spawn_interactable("npc_guide", "Guide", Vector2(-50, -90), Interactable.Kind.NPC, Color(0.72, 0.58, 0.42))
+	# Ring around the player's spawn — not always (0,0) if they logged out elsewhere.
+	var o := Vector2(Net.spawn_x, Net.spawn_y)
+	_spawn_interactable("sign_welcome", "Welcome to Starter Town", o + Vector2(0, -58), Interactable.Kind.SIGN, Color(0.75, 0.68, 0.38), 22.0)
+	_spawn_interactable("npc_guide", "Guide Aldric", o + Vector2(-48, -38), Interactable.Kind.NPC, Color(0.72, 0.58, 0.42))
+	_spawn_interactable("bank_starter", "Town Bank", o + Vector2(48, -38), Interactable.Kind.BANK, Color(0.55, 0.62, 0.78), 24.0)
+	_spawn_interactable("fish_shore_1", "Fishing Spot", o + Vector2(-22, -62), Interactable.Kind.FISHING, Color(0.55, 0.72, 0.85), 24.0)
+	_spawn_interactable("fish_shore_2", "Fishing Spot", o + Vector2(22, -62), Interactable.Kind.FISHING, Color(0.5, 0.68, 0.82), 24.0)
+	_spawn_interactable("npc_fisher", "Old Fisher", o + Vector2(62, -28), Interactable.Kind.NPC, Color(0.65, 0.7, 0.75))
+
+	_spawn_interactable("tree_oak_1", "Oak Tree", o + Vector2(62, 0), Interactable.Kind.TREE, Color(0.25, 0.55, 0.28))
+	_spawn_interactable("tree_oak_2", "Oak Tree", o + Vector2(48, 38), Interactable.Kind.TREE, Color(0.22, 0.5, 0.26))
+	_spawn_interactable("anvil_starter", "Public Anvil", o + Vector2(28, 55), Interactable.Kind.ANVIL, Color(0.38, 0.4, 0.44), 22.0)
+	_spawn_interactable("sign_wilderness", "Wilderness — PvP enabled", o + Vector2(58, 48), Interactable.Kind.SIGN, Color(0.85, 0.35, 0.3), 22.0)
+
+	_spawn_interactable("chest_starter", "Starter Chest", o + Vector2(0, 62), Interactable.Kind.CHEST, Color(0.62, 0.42, 0.22))
+	_spawn_interactable("tree_pine_1", "Pine Tree", o + Vector2(-28, 55), Interactable.Kind.TREE, Color(0.18, 0.42, 0.32))
+	_spawn_interactable("sign_mine", "Mine entrance — danger", o + Vector2(-48, 38), Interactable.Kind.SIGN, Color(0.78, 0.55, 0.35), 22.0)
+	_spawn_interactable("chest_loot_1", "Abandoned Crate", o + Vector2(-62, 28), Interactable.Kind.CHEST, Color(0.48, 0.32, 0.2))
+
+	_spawn_interactable("rock_iron_1", "Iron Rock", o + Vector2(-62, 0), Interactable.Kind.ROCK, Color(0.45, 0.48, 0.52), 22.0)
+	_spawn_interactable("rock_copper_1", "Copper Rock", o + Vector2(-48, -18), Interactable.Kind.ROCK, Color(0.58, 0.4, 0.28), 22.0)
+	_spawn_interactable("npc_hermit", "Hermit", o + Vector2(-62, -28), Interactable.Kind.NPC, Color(0.55, 0.45, 0.38))
 
 
 func _on_disconnected() -> void:
