@@ -15,6 +15,28 @@ public static class MusicPlayer
     private static bool _trackPlaying;
     private static bool _stopRequested;
 
+    public static bool IsMuted { get; private set; }
+
+    public static void ApplySavedSettings() => SetMuted(AudioSettings.LoadMuted(), save: false);
+
+    public static void SetMuted(bool muted, bool save = true)
+    {
+        if (IsMuted == muted) return;
+
+        IsMuted = muted;
+        if (_trackPlaying)
+            MediaPlayer.Volume = muted ? 0f : _volume;
+
+        if (save)
+            AudioSettings.SaveMuted(muted);
+    }
+
+    private static void ApplyVolume()
+    {
+        if (_trackPlaying)
+            MediaPlayer.Volume = IsMuted ? 0f : _volume;
+    }
+
     public static void Play(Song song, float volume = 0.55f, bool loop = true)
     {
         ClearPlaylistState();
@@ -27,7 +49,7 @@ public static class MusicPlayer
 
         _current = song;
         MediaPlayer.IsRepeating = loop;
-        MediaPlayer.Volume = volume;
+        ApplyVolume();
         MediaPlayer.Play(song);
     }
 
@@ -81,7 +103,7 @@ public static class MusicPlayer
         var song = _playlistSongs![index];
         _current = song;
         MediaPlayer.IsRepeating = _playlistSongs.Count == 1;
-        MediaPlayer.Volume = _volume;
+        ApplyVolume();
         MediaPlayer.Play(song);
     }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start Go server in background, then MonoGame client in foreground.
+# Start Go server in background, then two MonoGame clients for local multiplayer testing.
 # Used by: task dev / task dev:all
 set -e
 
@@ -13,8 +13,16 @@ export JWT_SECRET="${JWT_SECRET:-dev-secret-change-me}"
 export PORT="${DEV_PORT}"
 
 SERVER_PID=""
+CLIENT1_PID=""
+CLIENT2_PID=""
 
 cleanup() {
+  for pid in "$CLIENT1_PID" "$CLIENT2_PID"; do
+    if [ -n "$pid" ]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
   if [ -n "$SERVER_PID" ]; then
     echo "Stopping server (pid $SERVER_PID)..."
     kill "$SERVER_PID" 2>/dev/null || true
@@ -47,7 +55,20 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
-echo "Starting MonoGame client (dotnet watch — file changes restart the game window)..."
 cd "$CLIENT_DIR"
 dotnet tool restore
-dotnet watch run --project Deathborn.Client --configuration Debug --no-hot-reload
+
+client_watch() {
+  DEATHBORN_INSTANCE="$1" dotnet watch run \
+    --project Deathborn.Client \
+    --configuration Debug \
+    --no-hot-reload
+}
+
+echo "Starting two MonoGame clients (dotnet watch — file changes restart both windows)..."
+client_watch 1 &
+CLIENT1_PID=$!
+client_watch 2 &
+CLIENT2_PID=$!
+
+wait "$CLIENT1_PID" "$CLIENT2_PID"

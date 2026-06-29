@@ -5,10 +5,10 @@ namespace Deathborn.Client;
 /// </summary>
 public static class SavedLogin
 {
-    private static readonly string Path = System.IO.Path.Combine(
+    private static string Path => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Deathborn",
-        "saved_login.cfg");
+        Config.DevInstance > 1 ? $"saved_login_{Config.DevInstance}.cfg" : "saved_login.cfg");
 
     public static void Save(bool remember, string email, string password)
     {

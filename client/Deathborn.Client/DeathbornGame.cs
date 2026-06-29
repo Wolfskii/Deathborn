@@ -36,6 +36,12 @@ public sealed class DeathbornGame : Game
 
     protected override void Initialize()
     {
+        if (Config.DevInstance > 0)
+        {
+            Window.Title = $"DEATHBORN ({Config.DevInstance})";
+            Window.Position = new Point((Config.DevInstance - 1) * (Config.Width + 12), 40);
+        }
+
         Window.TextInput += OnTextInput;
         _screens = new ScreenManager(this);
         base.Initialize();
@@ -51,6 +57,7 @@ public sealed class DeathbornGame : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         DrawPrimitives.Init(GraphicsDevice);
         Font = Content.Load<SpriteFont>("Fonts/Default");
+        MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
     }
 

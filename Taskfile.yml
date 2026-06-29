@@ -62,7 +62,7 @@ tasks:
       - task: dev:all
 
   dev:all:
-    desc: Start DB, backend, and client (client auto-restarts on changes; Ctrl+C stops server too)
+    desc: Start DB, backend, and two clients for local multiplayer (Ctrl+C stops everything)
     cmds:
       - task: db
       - task: dev:wait-db
