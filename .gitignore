@@ -12,10 +12,10 @@
 # Environment
 .env
 
-# Godot 4 editor/import cache
-client/.godot/
-client/export_presets.cfg
-client/*.translation
+# .NET / MonoGame client
+client/**/bin/
+client/**/obj/
+client/**/.vs/
 
 # OS / editor
 .DS_Store

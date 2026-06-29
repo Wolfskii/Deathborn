@@ -4,7 +4,7 @@
 
 This document is the ordered plan from the current **Walking Skeleton** to the
 full MVP. Each milestone is a self-contained, shippable slice and lists the
-server packages, protocol messages, DB tables, and client scenes it touches so a
+server packages, protocol messages, DB tables, and client code it touches so a
 future plan can pick it up cleanly.
 
 ## Guiding principles (do not violate)
@@ -18,8 +18,9 @@ future plan can pick it up cleanly.
 
 ## Architecture baseline (established in M0)
 
-- **Client:** Godot 4 (GDScript). `Net.gd` autoload owns HTTP auth + the world
-  WebSocket. Scenes: `Login`, `CharacterCreate`, `World`.
+- **Client:** MonoGame 3.8 (**C#**, .NET 8, DesktopGL). `GameClient` owns HTTP
+  auth + the world WebSocket. Screens: `LoginScreen`, `CharacterCreateScreen`,
+  `WorldScreen` (code-only UI, no scene editor).
 - **Server:** Go monolith. Packages: `config`, `db`, `auth`, `net` (WS hub +
   JSON protocol), `game` (world + fixed tick loop). Entry: `cmd/deathborn`.
 - **Wire protocol:** JSON envelope `{ "type": string, "data": {...} }`.
@@ -39,10 +40,11 @@ Thinnest end-to-end vertical slice.
 - [x] Enter the world; free velocity-based movement (server-integrated).
 - [x] See other players move in real time via tick snapshots.
 - [x] Position persisted on disconnect; resume on reconnect.
+- [x] Hotbar, interactables (E / click), dev quick-login (Debug builds).
 
-**Touches:** all baseline packages and scenes.
-**Protocol:** `input`, `create_character` (C→S); `welcome`, `need_character`,
-`snapshot`, `error` (S→C).
+**Touches:** all baseline server packages; client `Net/`, `Screens/`, `Game/`.
+**Protocol:** `input`, `create_character`, `interact` (C→S); `welcome`,
+`need_character`, `snapshot`, `error` (S→C).
 
 ---
 
@@ -50,7 +52,7 @@ Thinnest end-to-end vertical slice.
 
 First social system; exercises broadcast in both directions.
 
-- Client: chat input box + scrolling log in `World` scene.
+- Client (C#): chat input + scrolling log in `WorldScreen`.
 - Protocol: `chat_send {text}` (C→S); `chat {from, text}` (S→C broadcast).
 - Server: `net` validates/trims/length-limits text, rate-limits per client,
   broadcasts via hub. No persistence required for MVP.
@@ -67,7 +69,7 @@ Give the world structure and the first rule that makes PvP meaningful.
   `safe` flag + name).
 - Server: `game` gains a `zones` concept; `PlayerState`/snapshot may include the
   current zone for the client HUD. Spawn point = Starter Town.
-- Client: render zone backgrounds/labels; HUD shows current zone + safe/danger.
+- Client (C#): `WorldScreen` — zone backgrounds/labels; HUD shows zone + safe/danger.
 - DB: none (zones are static config); later, persist player zone if needed.
 - Protocol: extend `snapshot`/`welcome` with `zone`.
 
@@ -87,7 +89,7 @@ The progression backbone.
   Hitpoints).
 - DB: add `inventories` (or JSONB column on `characters`) and persist
   `skills` JSONB + `total_xp` on `characters`.
-- Client: simple inventory + skills panels.
+- Client (C#): inventory + skills panels in `WorldScreen` or overlay screens.
 
 ---
 
@@ -102,7 +104,7 @@ The core risk.
   hit/damage formula, HP, aggro). PvP allowed only outside safe zones (uses M2
   zone flags). PvE mobs optional here or split to M4.5.
 - DB: persist HP on `characters`.
-- Client: health bars, hit splats, attack input.
+- Client (C#): health bars, hit feedback in `WorldScreen`.
 
 ---
 
@@ -119,7 +121,7 @@ The identity of the game.
   living character afterward.
 - DB: write `character_history` (name, total_xp, skills, survival_seconds,
   pvp_kills, wealth, died_at, death_reason).
-- Client: death screen → back to `CharacterCreate`.
+- Client (C#): `CharacterCreateScreen` flow after death message.
 
 ---
 
@@ -134,7 +136,7 @@ Makes death hurt and PvP rewarding.
 - Server: `game` ground-item entities; pickup validation (range, capacity).
 - DB: ground items can be in-memory (acceptable loss on restart) or persisted in
   a `ground_items` table for durability — decide at implementation time.
-- Client: render piles, pickup interaction.
+- Client (C#): render ground loot; pickup via interact system.
 
 ---
 
@@ -145,7 +147,7 @@ Turn the M5 data into a legacy view.
 - Protocol/HTTP: `GET /history` (JWT) returns the account's past lives.
 - Server: `db` query over `character_history`; small HTTP handler in `auth`/new
   `internal/account` package.
-- Client: a "Legacy" screen listing past characters and how they died.
+- Client (C#): new `LegacyScreen` listing past lives.
 - DB: read-only over `character_history` (written in M5).
 
 ---
@@ -157,7 +159,7 @@ Long-term retention.
 - On death, update the account's `highscores` row (max of each stat).
 - HTTP: `GET /highscores` (top N per category) and `GET /highscores/me`.
 - Server: `db` upsert into `highscores` on death; query handlers.
-- Client: leaderboard screen.
+- Client (C#): `LeaderboardScreen`.
 - DB: `highscores` table (already created).
 
 ---
@@ -171,7 +173,7 @@ Account growth; schema is already OAuth-ready.
 - Server: new `internal/auth` provider code (Google first; provider-agnostic
   interface so Discord/Steam slot in later). `accounts.password_hash` is already
   nullable for OAuth-only accounts.
-- Client: "Sign in with Google" button on `Login` (system browser / OS flow).
+- Client (C#): "Sign in with Google" on `LoginScreen` (system browser flow).
 - DB: `oauth_identities` table (already created).
 
 ---

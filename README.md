@@ -17,30 +17,31 @@ full phased plan toward the MVP.
 - See other connected players move in real time.
 - Server-authoritative position: the client sends only an input direction; the
   server integrates positions on a fixed tick and broadcasts snapshots.
+- Hotbar (keys 1–9, 0), interactables (click or E), remember-me login.
 
 ## Tech stack
 
-- **Client:** Godot 4 (GDScript), 2D top-down.
-- **Server:** Go monolith, WebSocket (gorilla/websocket), fixed-tick game loop.
-- **Database:** PostgreSQL (pgx).
-- **Infra:** Docker + Docker Compose.
+| Layer | Technology | Language |
+| --- | --- | --- |
+| **Client** | MonoGame 3.8 (DesktopGL), .NET 8 | **C#** |
+| **Server** | Go monolith, WebSocket, fixed-tick loop | **Go** |
+| **Database** | PostgreSQL (pgx) | SQL |
+| **Infra** | Docker + Docker Compose | — |
+
+The **client is C#** — all gameplay UI, rendering, and networking are plain C# classes (no scene editor). The **server is Go**.
 
 ## Layout
 
 ```
-server/                 Go monolith
-  cmd/deathborn/        entrypoint
-  internal/config/      env config
-  internal/db/          pgx pool, migration runner, queries
-  internal/auth/        bcrypt + JWT + HTTP handlers
-  internal/net/         WebSocket hub, client, JSON protocol
-  internal/game/        world, player, tick loop
-  migrations/           SQL schema (embedded, run on startup)
-client/                 Godot 4 project
-  autoload/Net.gd       network singleton (HTTP + WebSocket)
-  scenes/               Login, CharacterCreate, World
-  scripts/Player.gd     interpolated player node
-docs/MVP_ROADMAP.md     phased roadmap toward full MVP
+server/                     Go authoritative game server
+client/
+  Deathborn.Client.sln
+  Deathborn.Client/         MonoGame C# client
+    Net/GameClient.cs       HTTP auth + WebSocket
+    Screens/                Login, CharacterCreate, World
+    Game/                   players, interactables, hotbar
+docs/MVP_ROADMAP.md         phased roadmap toward full MVP
+Taskfile.yml                task runner (server + client commands)
 ```
 
 ## Running the server
@@ -48,81 +49,73 @@ docs/MVP_ROADMAP.md     phased roadmap toward full MVP
 ### With Docker (recommended)
 
 ```bash
-docker compose up --build
+task up
+# or: docker compose up --build -d
 ```
 
-This starts PostgreSQL and the Go server. Migrations run automatically on
-server startup. The server listens on `http://localhost:8080`.
+PostgreSQL + Go server start on `http://localhost:8080`. Migrations run on startup.
 
-### Locally (server only, bring your own Postgres)
+### Locally (server on host, DB in Docker)
 
 ```bash
-# Start just the database via compose:
-docker compose up -d db
-
-cd server
-export DATABASE_URL="postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable"
-export JWT_SECRET="dev-secret-change-me"
-go run ./cmd/deathborn
+task db
+task dev
 ```
 
-### Smoke-test the auth endpoints
+### Smoke-test auth
 
 ```bash
-# Register (returns {"token":"..."})
 curl -s -X POST localhost:8080/register \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"a@b.com","password":"hunter2"}'
-
-# Login
-curl -s -X POST localhost:8080/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"a@b.com","password":"hunter2"}'
 ```
 
 ## Running the client
 
-1. Open `client/` in Godot 4.
-2. Press Play (F5). The main scene is `scenes/Login.tscn`.
-3. Register or log in, create a character, and you are in the world.
-4. To test multiplayer, run a second instance (Godot: *Debug > Run Multiple
-   Instances*, or export and launch a second copy) and log in with a different
-   account. Each client sees the other move.
+**Requires [.NET 8 SDK](https://dotnet.microsoft.com/download).**
 
-Movement: arrow keys / WASD (the default Godot `ui_*` actions).
+1. Start local dev (database + server + client):
 
-The client points at `127.0.0.1:8080` by default; change `HTTP_BASE` / `WS_BASE`
-in [client/autoload/Net.gd](client/autoload/Net.gd) to target a remote server.
+```bash
+task dev
+```
+
+Or run backend and frontend in **separate terminals**:
+
+```bash
+task dev:server    # terminal 1
+task dev:client    # terminal 2
+```
+
+For Docker-only server (no local client): `task up`
+
+3. Register or log in, create a character, enter the world.
+4. **WASD** to move, **E** or **click** to interact, **1–9 / 0** for hotbar.
+5. Multiplayer: run a second client instance with another account.
+
+Check **Remember email and password** on the login screen to pre-fill credentials on the next launch.
+
+Server URL defaults to `127.0.0.1:8080` — edit [client/Deathborn.Client/Config.cs](client/Deathborn.Client/Config.cs).
+
+See [client/README.md](client/README.md) for client-specific details.
 
 ## Common tasks
 
-This repo uses [Task](https://taskfile.dev) (`Taskfile.yml`). Run `task` to list
-everything. Highlights:
+This repo uses [Task](https://taskfile.dev) (`Taskfile.yml`). Run `task` to list everything.
 
 | Command | What it does |
 | --- | --- |
-| `task start` | Build + run the full stack (Postgres + server) in the foreground |
-| `task up` / `task stop` | Start in background / tear down |
-| `task logs` | Follow server logs |
-| `task dev` | Run the server on the host (`go run`) against the Dockerized DB |
-| `task db` | Start only PostgreSQL |
-| `task build` | Build a version-stamped binary into `./bin` |
-| `task build:image` | Build the server Docker image |
-| `task check` | gofmt check + `go vet` + tests (mirrors CI) |
-| `task release -- v0.1.0` | Tag and push a release (triggers the Release workflow) |
+| `task dev` | **Local dev:** Postgres (Docker) + Go server + MonoGame client on host |
+| `task dev:server` | Backend only — Go server on host |
+| `task dev:client` | Frontend only — MonoGame client (server must be running) |
+| `task up` / `task stop` | Full stack in Docker only (no local client) |
+| `task client:build` | Build the client (Release) |
+| `task check` | Server fmt + vet + test + client build |
+| `task release -- v0.1.0` | Tag release (triggers GitHub Actions) |
 
 ## CI & releases
 
-GitHub Actions live in [.github/workflows](.github/workflows):
+- **CI** — Go server checks + Docker image build + **C# client build**
+- **Release** — cross-platform server binaries + Docker image to GHCR
 
-- **CI** (`ci.yml`) runs on pushes to `main`/`develop` and on PRs: gofmt check,
-  `go vet`, build, tests, and a no-push Docker image build.
-- **Release** (`release.yml`) runs when a `v*` tag is pushed:
-  - builds cross-platform server binaries (linux/macOS/windows, amd64/arm64),
-    version-stamped via `-ldflags "-X main.version=<tag>"`, with checksums, and
-    publishes a GitHub Release with auto-generated notes;
-  - builds and pushes the server image to GHCR
-    (`ghcr.io/<owner>/<repo>`) tagged with the semver version and `latest`.
-
-Cut a release with `task release -- v0.1.0` (the tag must be `vX.Y.Z`). The
-running server logs its version on startup.
+Cut a release: `task release -- v0.1.0`
