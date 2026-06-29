@@ -193,14 +193,13 @@ tasks:
       - docker push {{.REGISTRY}}/{{.IMAGE}}:latest
 
   release:
-    desc: "Tag and push a release (triggers the Release workflow): task release -- v0.1.0"
+    desc: "Manual semver release via GitHub Actions (minor/major bumps): gh workflow run manual-release.yml -f version=0.2.0"
     cmds:
-      - cmd: 'test -n "{{.CLI_ARGS}}" || (echo "Usage: task release -- vX.Y.Z"; exit 1)'
+      - cmd: 'test -n "{{.CLI_ARGS}}" || (echo "Usage: task release -- 0.2.0  (or merge to develop for auto patch releases)"; exit 1)'
         silent: true
-      - cmd: 'echo "{{.CLI_ARGS}}" | grep -Eq "^v[0-9]+\.[0-9]+\.[0-9]+" || (echo "Tag must look like vX.Y.Z"; exit 1)'
+      - cmd: 'echo "{{.CLI_ARGS}}" | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+$" || (echo "Version must look like X.Y.Z"; exit 1)'
         silent: true
-      - git tag -a {{.CLI_ARGS}} -m "Release {{.CLI_ARGS}}"
-      - git push origin {{.CLI_ARGS}}
+      - gh workflow run manual-release.yml -f version={{.CLI_ARGS}}
 
   # --- Cleanup ---
   clean:

@@ -1,0 +1,65 @@
+name: Develop release
+
+# Auto-tag patch releases on every merge to develop (v0.1.0, v0.1.1, …).
+# Pushing the tag triggers release.yml (client zips + server Docker).
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: develop-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Bump patch version and tag
+    runs-on: ubuntu-latest
+    if: >-
+      !contains(github.event.head_commit.message, '[skip release]') &&
+      !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compute next patch version
+        id: version
+        run: |
+          set -euo pipefail
+          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"
+          if [ -z "$latest" ]; then
+            next="0.1.0"
+          else
+            ver="${latest#v}"
+            major="${ver%%.*}"
+            rest="${ver#*.}"
+            minor="${rest%%.*}"
+            patch="${rest#*.}"
+            next="${major}.${minor}.$((patch + 1))"
+          fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "tag=v$next" >> "$GITHUB_OUTPUT"
+          echo "Next release: v$next"
+
+      - name: Skip if commit already tagged
+        id: check
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
