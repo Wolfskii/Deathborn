@@ -6,7 +6,14 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER_DIR="${ROOT}/server"
 CLIENT_DIR="${ROOT}/client"
+CLIENT_PROJECT="$CLIENT_DIR/Deathborn.Client/Deathborn.Client.csproj"
+CLIENT_DLL="$CLIENT_DIR/Deathborn.Client/bin/Debug/net8.0/Deathborn.Client.dll"
+CLIENT_EXE="${CLIENT_DLL%.dll}"
 DEV_PORT="${PORT:-8080}"
+
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) CLIENT_EXE="${CLIENT_EXE}.exe" ;;
+esac
 
 export DATABASE_URL="${DATABASE_URL:-postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable}"
 export JWT_SECRET="${JWT_SECRET:-dev-secret-change-me}"
@@ -21,14 +28,38 @@ esac
 SERVER_PID=""
 CLIENT1_PID=""
 CLIENT2_PID=""
+WATCH_PID=""
 
-cleanup() {
+file_mtime() {
+  if [ -f "$1" ]; then
+    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"
+  fi
+}
+
+stop_clients() {
   for pid in "$CLIENT1_PID" "$CLIENT2_PID"; do
     if [ -n "$pid" ]; then
       kill "$pid" 2>/dev/null || true
       wait "$pid" 2>/dev/null || true
     fi
   done
+  CLIENT1_PID=""
+  CLIENT2_PID=""
+}
+
+start_clients() {
+  DEATHBORN_INSTANCE=1 "$CLIENT_EXE" &
+  CLIENT1_PID=$!
+  DEATHBORN_INSTANCE=2 "$CLIENT_EXE" &
+  CLIENT2_PID=$!
+}
+
+cleanup() {
+  if [ -n "$WATCH_PID" ]; then
+    kill "$WATCH_PID" 2>/dev/null || true
+    wait "$WATCH_PID" 2>/dev/null || true
+  fi
+  stop_clients
   if [ -n "$SERVER_PID" ]; then
     echo "Stopping server (pid $SERVER_PID)..."
     kill "$SERVER_PID" 2>/dev/null || true
@@ -69,17 +100,30 @@ fi
 cd "$CLIENT_DIR"
 dotnet tool restore
 
-client_watch() {
-  DEATHBORN_INSTANCE="$1" dotnet watch run \
-    --project Deathborn.Client \
-    --configuration Debug \
-    --no-hot-reload
-}
+echo "Building MonoGame client..."
+dotnet build "$CLIENT_PROJECT" --configuration Debug
 
-echo "Starting two MonoGame clients (dotnet watch — file changes restart both windows)..."
-client_watch 1 &
-CLIENT1_PID=$!
-client_watch 2 &
-CLIENT2_PID=$!
+echo "Starting two MonoGame clients..."
+start_clients
 
-wait "$CLIENT1_PID" "$CLIENT2_PID"
+echo "Watching for client changes (rebuild restarts both game windows)..."
+dotnet watch build --project "$CLIENT_PROJECT" --configuration Debug &
+WATCH_PID=$!
+
+last_mtime="$(file_mtime "$CLIENT_DLL")"
+while kill -0 "$WATCH_PID" 2>/dev/null; do
+  if [ -n "$CLIENT1_PID" ] && ! kill -0 "$CLIENT1_PID" 2>/dev/null \
+     && [ -n "$CLIENT2_PID" ] && ! kill -0 "$CLIENT2_PID" 2>/dev/null; then
+    echo "Both clients closed."
+    break
+  fi
+
+  sleep 1
+  current_mtime="$(file_mtime "$CLIENT_DLL")"
+  if [ -n "$current_mtime" ] && [ "$current_mtime" != "$last_mtime" ]; then
+    echo "Client rebuilt — restarting both game windows..."
+    stop_clients
+    start_clients
+    last_mtime="$current_mtime"
+  fi
+done
