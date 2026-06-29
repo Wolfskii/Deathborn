@@ -11,6 +11,12 @@ DEV_PORT="${PORT:-8080}"
 export DATABASE_URL="${DATABASE_URL:-postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable}"
 export JWT_SECRET="${JWT_SECRET:-dev-secret-change-me}"
 export PORT="${DEV_PORT}"
+export LISTEN_HOST="${LISTEN_HOST:-127.0.0.1}"
+
+SERVER_BIN="${ROOT}/bin/deathborn"
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) SERVER_BIN="${SERVER_BIN}.exe" ;;
+esac
 
 SERVER_PID=""
 CLIENT1_PID=""
@@ -36,8 +42,13 @@ case "$(uname -s)" in
   *) trap cleanup EXIT INT TERM ;;
 esac
 
-echo "Starting Go server on :${DEV_PORT}..."
-(cd "$SERVER_DIR" && go run ./cmd/deathborn) &
+echo "Starting Go server on ${LISTEN_HOST}:${DEV_PORT}..."
+mkdir -p "${ROOT}/bin"
+(
+  cd "$SERVER_DIR"
+  go build -o "$SERVER_BIN" ./cmd/deathborn
+  exec "$SERVER_BIN"
+) &
 SERVER_PID=$!
 
 echo "Waiting for server health check..."

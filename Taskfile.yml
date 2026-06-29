@@ -76,8 +76,10 @@ tasks:
       DATABASE_URL: "{{.DEV_DATABASE_URL}}"
       JWT_SECRET: "{{.DEV_JWT_SECRET}}"
       PORT: "{{.DEV_PORT}}"
+      LISTEN_HOST: "127.0.0.1"
     cmds:
-      - go run ./cmd/deathborn
+      - go build -o ../bin/{{.BINARY}} ./cmd/deathborn
+      - ../bin/{{.BINARY}}
 
   dev:client:
     desc: Run only the MonoGame client with auto-restart on file changes

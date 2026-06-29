@@ -65,12 +65,12 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Addr:    ":" + cfg.Port,
+		Addr:    cfg.HTTPAddr(),
 		Handler: gnet.LogRequests(mux),
 	}
 
 	go func() {
-		log.Printf("deathborn server listening on :%s (tick %dHz)", cfg.Port, tickHz)
+		log.Printf("deathborn server listening on %s (tick %dHz)", cfg.HTTPAddr(), tickHz)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("http server: %v", err)
 		}
