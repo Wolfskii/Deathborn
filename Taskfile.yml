@@ -4,8 +4,13 @@ version: "3"
 
 vars:
   SERVER_DIR: server
+  CLIENT_DIR: client
+  CLIENT_PROJECT: client/Deathborn.Client/Deathborn.Client.csproj
   BINARY: deathborn
   IMAGE: deathborn-server
+  DEV_DATABASE_URL: postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable
+  DEV_JWT_SECRET: dev-secret-change-me
+  DEV_PORT: "8080"
   # Version derived from git tags; falls back to "dev" outside a repo.
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo dev
@@ -25,7 +30,7 @@ tasks:
       - docker compose up --build
 
   up:
-    desc: Start the full stack in the background
+    desc: Start the full stack in the background (Docker only — no local client)
     cmds:
       - docker compose up --build -d
 
@@ -50,22 +55,77 @@ tasks:
     cmds:
       - docker compose ps
 
-  # --- Local development (server on host, DB in Docker) ---
+  # --- Local development (recommended for game client work) ---
+  dev:
+    desc: Local dev — Postgres in Docker, Go server + MonoGame client on host
+    cmds:
+      - task: dev:all
+
+  dev:all:
+    desc: Start DB, backend, and client (client in foreground; Ctrl+C stops server too)
+    cmds:
+      - task: db
+      - task: dev:wait-db
+      - bash scripts/dev-all.sh
+
+  dev:server:
+    desc: Run only the Go server on the host (expects `task db` already running)
+    deps: [db, dev:wait-db]
+    dir: "{{.SERVER_DIR}}"
+    env:
+      DATABASE_URL: "{{.DEV_DATABASE_URL}}"
+      JWT_SECRET: "{{.DEV_JWT_SECRET}}"
+      PORT: "{{.DEV_PORT}}"
+    cmds:
+      - go run ./cmd/deathborn
+
+  dev:client:
+    desc: Run only the MonoGame client (expects server on localhost:8080)
+    dir: "{{.CLIENT_DIR}}"
+    cmds:
+      - dotnet tool restore
+      - dotnet run --project Deathborn.Client --configuration Debug
+
+  dev:wait-db:
+    desc: Wait until the Dockerized Postgres accepts connections
+    internal: true
+    cmds:
+      - |
+        echo "Waiting for PostgreSQL..."
+        for i in $(seq 1 30); do
+          if docker compose exec -T db pg_isready -U deathborn -d deathborn >/dev/null 2>&1; then
+            echo "PostgreSQL is ready."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "PostgreSQL did not become ready in time. Is Docker running?"
+        exit 1
+
   db:
-    desc: Start only PostgreSQL (for running the server locally)
+    desc: Start only PostgreSQL in Docker
     cmds:
       - docker compose up -d db
 
-  dev:
-    desc: Run the server locally via `go run` against the Dockerized DB
-    deps: [db]
-    dir: "{{.SERVER_DIR}}"
-    env:
-      DATABASE_URL: postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable
-      JWT_SECRET: dev-secret-change-me
-      PORT: "8080"
+  # --- MonoGame C# client (aliases) ---
+  client:
+    desc: Run the MonoGame client (alias for dev:client)
     cmds:
-      - go run ./cmd/deathborn
+      - task: dev:client
+
+  client:build:
+    desc: Build the MonoGame client (Release)
+    dir: "{{.CLIENT_DIR}}"
+    cmds:
+      - dotnet tool restore
+      - dotnet build Deathborn.Client/Deathborn.Client.csproj -c Release
+
+  client:restore:
+    desc: Restore NuGet packages and dotnet tools for the client
+    dir: "{{.CLIENT_DIR}}"
+    cmds:
+      - dotnet tool restore
+      - dotnet restore Deathborn.Client.sln
 
   # --- Build ---
   build:
@@ -115,11 +175,12 @@ tasks:
       - go mod tidy
 
   check:
-    desc: Run all checks (fmt check, vet, test) — mirrors CI
+    desc: Run all checks (server fmt/vet/test + client build) — mirrors CI
     cmds:
       - task: fmt:check
       - task: vet
       - task: test
+      - task: client:build
 
   # --- Deploy / release ---
   publish:image:
@@ -147,3 +208,4 @@ tasks:
     cmds:
       - docker compose down -v
       - rm -rf bin dist
+      - dotnet clean client/Deathborn.Client.sln 2>/dev/null || true

@@ -35,6 +35,25 @@ jobs:
       - name: Test
         run: go test ./...
 
+  client:
+    name: Client (MonoGame C# build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet tool restore && dotnet restore Deathborn.Client.sln
+
+      - name: Build
+        run: dotnet build Deathborn.Client/Deathborn.Client.csproj -c Release --no-restore
+
   docker:
     name: Docker image builds
     runs-on: ubuntu-latest
