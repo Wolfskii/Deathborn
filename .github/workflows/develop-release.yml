@@ -1,7 +1,7 @@
 name: Develop release
 
-# Auto-tag patch releases on every merge to develop (v0.1.0, v0.1.1, …).
-# Pushing the tag triggers release.yml (client zips + server Docker).
+# Auto patch release on every merge to develop. Tags + GitHub Release are created in one run
+# (GITHUB_TOKEN tag pushes do not trigger other workflows).
 on:
   push:
     branches: [develop]
@@ -12,18 +12,23 @@ concurrency:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
-  tag:
-    name: Bump patch version and tag
+  version:
+    name: Compute next patch version
     runs-on: ubuntu-latest
     if: >-
       !contains(github.event.head_commit.message, '[skip release]') &&
       !startsWith(github.event.head_commit.message, 'chore(release):')
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      skip: ${{ steps.check.outputs.skip }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Compute next patch version
         id: version
@@ -40,26 +45,32 @@ jobs:
             patch="${rest#*.}"
             next="${major}.${minor}.$((patch + 1))"
           fi
-          echo "version=$next" >> "$GITHUB_OUTPUT"
           echo "tag=v$next" >> "$GITHUB_OUTPUT"
           echo "Next release: v$next"
 
-      - name: Skip if commit already tagged
+      - name: Skip if tag or release already exists
         id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           tag="${{ steps.version.outputs.tag }}"
           if git rev-parse "$tag" >/dev/null 2>&1; then
-            echo "Tag $tag already exists."
+            echo "Local tag $tag already exists."
             echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "GitHub release $tag already exists."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      - name: Create and push tag
-        if: steps.check.outputs.skip != 'true'
-        run: |
-          tag="${{ steps.version.outputs.tag }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$tag" -m "Release $tag"
-          git push origin "$tag"
+  release:
+    name: Build and publish release
+    needs: version
+    if: needs.version.outputs.skip != 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+    secrets: inherit

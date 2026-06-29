@@ -1,7 +1,13 @@
 name: Release
 
-# Triggered by version tags (auto from develop or manual workflow).
+# Called by develop-release / manual-release, or triggered by a local `git push origin vX.Y.Z`.
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag (e.g. v0.1.0)
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -9,6 +15,9 @@ on:
 permissions:
   contents: write
   packages: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   client:
@@ -38,9 +47,11 @@ jobs:
 
       - name: Publish Deathborn client
         shell: bash
+        env:
+          VERSION: ${{ env.RELEASE_TAG }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
+          version="${VERSION#v}"
           dotnet tool restore
           dotnet restore Deathborn.Client.sln
           dotnet publish Deathborn.Client/Deathborn.Client.csproj \
@@ -54,17 +65,21 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         working-directory: client
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
-          $version = "${{ github.ref_name }}".Substring(1)
+          $version = $env:RELEASE_TAG.Substring(1)
           New-Item -ItemType Directory -Force -Path ../dist | Out-Null
           Compress-Archive -Path "publish/*" -DestinationPath "../dist/Deathborn-$version-${{ matrix.rid }}.zip"
 
       - name: Pack (Unix)
         if: runner.os != 'Windows'
         shell: bash
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
+          version="${RELEASE_TAG#v}"
           mkdir -p dist
           (cd client/publish && zip -r "../../dist/Deathborn-${version}-${{ matrix.rid }}.zip" .)
 
@@ -95,8 +110,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ env.RELEASE_TAG }}
             type=raw,value=latest
 
       - name: Build and push server image
@@ -107,11 +121,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ github.ref_name }}
+            VERSION=${{ env.RELEASE_TAG }}
 
   github-release:
     name: GitHub Release (client downloads)
-    needs: [client, docker]
+    needs: [client]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -127,6 +141,7 @@ jobs:
           mkdir -p release
           find dist -name '*.zip' -exec cp {} release/ \;
           ls -la release/
+          test "$(ls -1 release/*.zip 2>/dev/null | wc -l)" -gt 0
 
       - name: Generate checksums
         run: |
@@ -136,8 +151,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Deathborn ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Deathborn ${{ env.RELEASE_TAG }}
           generate_release_notes: true
           files: |
             release/*.zip
