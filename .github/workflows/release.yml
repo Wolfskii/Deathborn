@@ -45,6 +45,19 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Install MGCB native dependencies (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install freeimage freetype
+          ln -sf /opt/homebrew/lib/libfreetype.6.dylib /opt/homebrew/lib/libfreetype6.dylib
+          dotnet tool restore
+          MGCB_DIR="$(find "$HOME/.nuget/packages/dotnet-mgcb" -path '*/tools/net8.0/any' -type d | head -1)"
+          test -n "$MGCB_DIR"
+          cp /opt/homebrew/lib/libfreetype.6.dylib "$MGCB_DIR/libfreetype6.dylib"
+          cp /opt/homebrew/lib/libfreeimage.dylib "$MGCB_DIR/libFreeImage.dylib"
+
       - name: Publish Deathborn client
         shell: bash
         env:
@@ -80,8 +93,8 @@ jobs:
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
-          mkdir -p dist
-          (cd client/publish && zip -r "../../dist/Deathborn-${version}-${{ matrix.rid }}.zip" .)
+          mkdir -p ../dist
+          (cd publish && zip -r "../dist/Deathborn-${version}-${{ matrix.rid }}.zip" .)
 
       - uses: actions/upload-artifact@v4
         with:
