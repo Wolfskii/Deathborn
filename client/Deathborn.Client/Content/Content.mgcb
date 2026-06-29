@@ -19,3 +19,33 @@
 /build:Fonts/Default.spritefont
 
 #end Fonts/Default.spritefont
+
+#begin Images/Logos/logo_no_text.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Images/Logos/logo_no_text.png
+
+#end Images/Logos/logo_no_text.png
+
+#begin Audio/Songs/The Reaper’s Call.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:Audio/Songs/The Reaper’s Call.mp3
+
+#end Audio/Songs/The Reaper’s Call.mp3
+
+#begin Audio/Songs/The Light of the Living (Instrumental).mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:Audio/Songs/The Light of the Living (Instrumental).mp3
+
+#end Audio/Songs/The Light of the Living (Instrumental).mp3

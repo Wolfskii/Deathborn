@@ -7,6 +7,39 @@ namespace Deathborn.Client.Ui;
 
 public sealed class TextField
 {
+    private sealed class KeyRepeat
+    {
+        private const double InitialDelay = 0.35;
+        private const double RepeatInterval = 0.04;
+
+        private double _held;
+
+        public bool Tick(GameTime gameTime, KeyboardState kb, KeyboardState prevKb, Keys key)
+        {
+            if (!kb.IsKeyDown(key))
+            {
+                _held = 0;
+                return false;
+            }
+
+            var dt = gameTime.ElapsedGameTime.TotalSeconds;
+
+            if (!prevKb.IsKeyDown(key))
+            {
+                _held = 0;
+                return true;
+            }
+
+            _held += dt;
+            if (_held < InitialDelay)
+                return false;
+
+            var repeats = (int)((_held - InitialDelay) / RepeatInterval);
+            var prevRepeats = (int)((_held - dt - InitialDelay) / RepeatInterval);
+            return repeats > prevRepeats;
+        }
+    }
+
     public static TextField? Active { get; private set; }
 
     public Rectangle Bounds;
@@ -16,6 +49,8 @@ public sealed class TextField
 
     private bool _focused;
     private double _cursorBlink;
+    private readonly KeyRepeat _backspaceRepeat = new();
+    private readonly KeyRepeat _deleteRepeat = new();
 
     public bool Focused
     {
@@ -43,17 +78,17 @@ public sealed class TextField
 
         _cursorBlink += gameTime.ElapsedGameTime.TotalSeconds;
 
-        if (WasPressed(kb, prevKb, Keys.Back) && Text.Length > 0)
+        if (_backspaceRepeat.Tick(gameTime, kb, prevKb, Keys.Back) && Text.Length > 0)
+            Text = Text[..^1];
+
+        if (_deleteRepeat.Tick(gameTime, kb, prevKb, Keys.Delete) && Text.Length > 0)
             Text = Text[..^1];
     }
 
-    private static bool WasPressed(KeyboardState kb, KeyboardState prevKb, Keys key) =>
-        kb.IsKeyDown(key) && !prevKb.IsKeyDown(key);
-
     public void Draw(SpriteBatch sb, SpriteFont font)
     {
-        DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 44, 52) : new Color(28, 30, 36));
-        DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2), Focused ? new Color(120, 170, 255) : new Color(60, 64, 72));
+        DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 36, 30) : new Color(22, 20, 16));
+        DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2), Focused ? new Color(210, 170, 80) : new Color(90, 75, 50));
 
         var display = Text.Length > 0 ? (IsPassword ? new string('*', Text.Length) : Text) : Placeholder;
         var col = Text.Length > 0 ? Color.White : new Color(120, 120, 130);
@@ -80,7 +115,7 @@ public sealed class Button
     public void Draw(SpriteBatch sb, SpriteFont font, bool hover)
     {
         if (!Visible) return;
-        var bg = !Enabled ? new Color(50, 50, 55) : hover ? new Color(70, 90, 120) : new Color(45, 55, 70);
+        var bg = !Enabled ? new Color(50, 45, 40) : hover ? new Color(90, 72, 38) : new Color(55, 45, 28);
         DrawPrimitives.FillRect(sb, Bounds, bg);
         var size = font.MeasureString(Label);
         var pos = new Vector2(
@@ -102,7 +137,7 @@ public sealed class Checkbox
     {
         var bg = hover ? new Color(50, 55, 65) : new Color(35, 38, 45);
         DrawPrimitives.FillRect(sb, BoxBounds, bg);
-        var border = Checked ? new Color(120, 170, 255) : new Color(80, 85, 95);
+        var border = Checked ? new Color(210, 170, 80) : new Color(90, 75, 50);
         DrawPrimitives.FillRect(sb, new Rectangle(BoxBounds.X, BoxBounds.Y, BoxBounds.Width, 2), border);
         DrawPrimitives.FillRect(sb, new Rectangle(BoxBounds.X, BoxBounds.Bottom - 2, BoxBounds.Width, 2), border);
         DrawPrimitives.FillRect(sb, new Rectangle(BoxBounds.X, BoxBounds.Y, 2, BoxBounds.Height), border);

@@ -7,9 +7,20 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Deathborn.Client</RootNamespace>
     <AssemblyName>Deathborn.Client</AssemblyName>
+    <!-- MonoGame needs a full process restart; hot reload cannot patch the game loop. -->
+    <HotReloadEnabled>false</HotReloadEnabled>
   </PropertyGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />
+  </ItemGroup>
+  <ItemGroup>
+    <Watch Include="Content\**\*.mgcb" />
+    <Watch Include="Content\**\*.png" />
+    <Watch Include="Content\**\*.jpg" />
+    <Watch Include="Content\**\*.mp3" />
+    <Watch Include="Content\**\*.ogg" />
+    <Watch Include="Content\**\*.wav" />
+    <Watch Include="Content\**\*.spritefont" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" />

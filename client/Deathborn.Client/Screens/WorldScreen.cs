@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Deathborn.Client.Gameplay;
+using Deathborn.Client.Audio;
 using Deathborn.Client.Net;
 
 namespace Deathborn.Client.Screens;
@@ -51,10 +52,14 @@ public sealed class WorldScreen : IScreen
 
         SeedInteractables(new Vector2(net.SpawnX, net.SpawnY));
         SeedHotbar();
+
+        MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
 
     public void OnExit()
     {
+        MusicPlayer.Stop();
+
         var net = _screens.Net;
         net.Snapshot -= OnSnapshot;
         net.Disconnected -= OnDisconnected;

@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Deathborn.Client.Audio;
 using Deathborn.Client.Net;
 using Deathborn.Client.Rendering;
 using Deathborn.Client.Screens;
@@ -60,12 +61,13 @@ public sealed class DeathbornGame : Game
             Exit();
 
         _screens.Update(gameTime);
+        MusicPlayer.Update();
         base.Update(gameTime);
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(new Color(0.08f, 0.1f, 0.08f));
+        GraphicsDevice.Clear(Color.Black);
         _screens.Draw(gameTime);
         base.Draw(gameTime);
     }

@@ -62,7 +62,7 @@ tasks:
       - task: dev:all
 
   dev:all:
-    desc: Start DB, backend, and client (client in foreground; Ctrl+C stops server too)
+    desc: Start DB, backend, and client (client auto-restarts on changes; Ctrl+C stops server too)
     cmds:
       - task: db
       - task: dev:wait-db
@@ -80,11 +80,11 @@ tasks:
       - go run ./cmd/deathborn
 
   dev:client:
-    desc: Run only the MonoGame client (expects server on localhost:8080)
+    desc: Run only the MonoGame client with auto-restart on file changes
     dir: "{{.CLIENT_DIR}}"
     cmds:
       - dotnet tool restore
-      - dotnet run --project Deathborn.Client --configuration Debug
+      - dotnet watch run --project Deathborn.Client --configuration Debug --no-hot-reload
 
   dev:wait-db:
     desc: Wait until the Dockerized Postgres accepts connections

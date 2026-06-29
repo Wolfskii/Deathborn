@@ -47,7 +47,7 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
-echo "Starting MonoGame client..."
+echo "Starting MonoGame client (dotnet watch — file changes restart the game window)..."
 cd "$CLIENT_DIR"
 dotnet tool restore
-dotnet run --project Deathborn.Client --configuration Debug
+dotnet watch run --project Deathborn.Client --configuration Debug --no-hot-reload

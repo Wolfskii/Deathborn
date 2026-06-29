@@ -1,29 +1,60 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
+using Deathborn.Client.Audio;
 using Deathborn.Client.Net;
+using Deathborn.Client.Rendering;
 using Deathborn.Client.Ui;
 
 namespace Deathborn.Client.Screens;
 
 public sealed class LoginScreen : IScreen
 {
+    private static readonly Color BgBlack = new(0, 0, 0);
+    private static readonly Color PanelFill = new(28, 24, 18);
+    private static readonly Color PanelInner = new(18, 15, 12);
+    private static readonly Color Gold = new(210, 170, 80);
+    private static readonly Color GoldDim = new(130, 105, 55);
+    private static readonly Color Tagline = new(200, 185, 140);
+    private static readonly Color Status = new(220, 180, 120);
+    private const string TaglineText = "You are born to die. Only skill decides when.";
+    private const int TaglineGapBelowLogo = 12;
+    private const int PanelGapBelowTagline = 48;
+
     private readonly ScreenManager _screens;
-    private readonly TextField _email = new() { Placeholder = "email" };
-    private readonly TextField _password = new() { Placeholder = "password", IsPassword = true };
+    private readonly TextField _email = new() { Placeholder = "Email" };
+    private readonly TextField _password = new() { Placeholder = "Password", IsPassword = true };
     private readonly Checkbox _remember = new() { Label = "Remember email and password", Checked = true };
     private readonly Button _loginBtn = new() { Label = "Login" };
-    private readonly Button _registerBtn = new() { Label = "Register" };
+    private readonly Button _registerBtn = new() { Label = "Create account" };
     private string _status = "";
     private bool _busy;
     private KeyboardState _prevKb;
     private Point _mouse;
     private bool _waitingWorld;
+    private MouseState _prevMouse;
+
+    private Texture2D? _logo;
+    private Song? _theme;
+    private Rectangle _panel;
+    private Rectangle _logoBounds;
+    private int _taglineY;
+    private readonly PixelBrazier _leftBrazier = new();
+    private readonly PixelBrazier _rightBrazier = new();
+    private int _leftBrazierX;
+    private int _rightBrazierX;
+    private int _brazierBottomY;
 
     public LoginScreen(ScreenManager screens) => _screens = screens;
 
     public void OnEnter()
     {
+        var game = DeathbornGame.Instance;
+        _logo ??= game.Content.Load<Texture2D>("Images/Logos/logo_no_text");
+        _theme ??= game.Content.Load<Song>("Audio/Songs/The Reaper\u2019s Call");
+        MusicPlayer.Play(_theme);
+
         Layout();
         _status = "";
         _busy = false;
@@ -52,6 +83,7 @@ public sealed class LoginScreen : IScreen
 
     public void OnExit()
     {
+        MusicPlayer.Stop();
         _email.Focused = false;
         _password.Focused = false;
 
@@ -65,6 +97,9 @@ public sealed class LoginScreen : IScreen
 
     public void Update(GameTime gameTime)
     {
+        _leftBrazier.Update(gameTime);
+        _rightBrazier.Update(gameTime);
+
         var kb = Keyboard.GetState();
         var mouse = Mouse.GetState();
         _mouse = mouse.Position;
@@ -104,20 +139,34 @@ public sealed class LoginScreen : IScreen
         _prevMouse = mouse;
     }
 
-    private MouseState _prevMouse;
-
     public void Draw(GameTime gameTime)
     {
         var game = DeathbornGame.Instance;
         var sb = game.SpriteBatch;
         var font = game.Font;
+        var cx = Config.Width / 2;
 
         sb.Begin();
-        var cx = Config.Width / 2;
-        sb.DrawString(font, "DEATHBORN", new Vector2(cx - font.MeasureString("DEATHBORN").X / 2, 120), Color.White);
-        sb.DrawString(font, "You are born to die. Only skill decides when.",
-            new Vector2(cx - font.MeasureString("You are born to die. Only skill decides when.").X / 2, 155),
-            new Color(180, 180, 190));
+
+        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, Config.Width, Config.Height), BgBlack);
+
+        if (_logo is not null)
+            sb.Draw(_logo, _logoBounds, Color.White);
+
+        var tagline = TaglineText;
+        sb.DrawString(font, tagline,
+            new Vector2(cx - font.MeasureString(tagline).X / 2, _taglineY),
+            Tagline);
+
+        _leftBrazier.Draw(sb, _leftBrazierX, _brazierBottomY);
+        _rightBrazier.Draw(sb, _rightBrazierX, _brazierBottomY);
+
+        DrawPanel(sb, _panel);
+
+        var header = "Log in to Deathborn";
+        sb.DrawString(font, header,
+            new Vector2(cx - font.MeasureString(header).X / 2, _panel.Y + 14),
+            Gold);
 
         _email.Draw(sb, font);
         _password.Draw(sb, font);
@@ -126,7 +175,7 @@ public sealed class LoginScreen : IScreen
         _registerBtn.Draw(sb, font, _registerBtn.Contains(_mouse));
 
         if (!string.IsNullOrEmpty(_status))
-            sb.DrawString(font, _status, new Vector2(cx - 200, 450), new Color(220, 180, 120));
+            sb.DrawString(font, _status, new Vector2(cx - 220, _panel.Bottom + 16), Status);
 
         sb.End();
     }
@@ -134,11 +183,48 @@ public sealed class LoginScreen : IScreen
     private void Layout()
     {
         var cx = Config.Width / 2;
-        _email.Bounds = new Rectangle(cx - 180, 220, 360, 36);
-        _password.Bounds = new Rectangle(cx - 180, 270, 360, 36);
-        _remember.BoxBounds = new Rectangle(cx - 180, 318, 20, 20);
-        _loginBtn.Bounds = new Rectangle(cx - 180, 360, 170, 36);
-        _registerBtn.Bounds = new Rectangle(cx + 10, 360, 170, 36);
+
+        if (_logo is not null)
+        {
+            const int logoDisplaySize = 220;
+            var scale = logoDisplaySize / (float)Math.Max(_logo.Width, _logo.Height);
+            var w = (int)(_logo.Width * scale);
+            var h = (int)(_logo.Height * scale);
+            _logoBounds = new Rectangle(cx - w / 2, 36, w, h);
+        }
+        else
+        {
+            _logoBounds = new Rectangle(cx - 110, 36, 220, 220);
+        }
+
+        _taglineY = _logoBounds.Bottom + TaglineGapBelowLogo;
+        var taglineBottom = _taglineY + (int)DeathbornGame.Instance.Font.MeasureString(TaglineText).Y;
+        _panel = new Rectangle(cx - 210, taglineBottom + PanelGapBelowTagline, 420, 248);
+        _email.Bounds = new Rectangle(_panel.X + 30, _panel.Y + 52, 360, 36);
+        _password.Bounds = new Rectangle(_panel.X + 30, _panel.Y + 102, 360, 36);
+        _remember.BoxBounds = new Rectangle(_panel.X + 30, _panel.Y + 150, 20, 20);
+        _loginBtn.Bounds = new Rectangle(_panel.X + 30, _panel.Y + 192, 170, 36);
+        _registerBtn.Bounds = new Rectangle(_panel.X + 220, _panel.Y + 192, 170, 36);
+
+        _leftBrazierX = _panel.X - 72;
+        _rightBrazierX = _panel.Right + 72;
+        _brazierBottomY = _panel.Bottom + 4;
+    }
+
+    private static void DrawPanel(SpriteBatch sb, Rectangle panel)
+    {
+        DrawPrimitives.FillRect(sb, panel, PanelFill);
+        DrawBorder(sb, panel, Gold, 3);
+        DrawBorder(sb, new Rectangle(panel.X + 6, panel.Y + 6, panel.Width - 12, panel.Height - 12), GoldDim, 1);
+        DrawPrimitives.FillRect(sb, new Rectangle(panel.X + 8, panel.Y + 8, panel.Width - 16, panel.Height - 16), PanelInner);
+    }
+
+    private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color, int thickness)
+    {
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - thickness, rect.Width, thickness), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - thickness, rect.Y, thickness, rect.Height), color);
     }
 
     private async Task RegisterAsync()
