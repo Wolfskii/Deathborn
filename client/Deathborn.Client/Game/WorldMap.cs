@@ -236,6 +236,13 @@ public sealed class WorldMap
         _overlaySourceWriteTime = _collisionWriteTime;
     }
 
+    /// <summary>Scaled land silhouette for the circular minimap background.</summary>
+    public void DrawMinimapLand(SpriteBatch sb, Rectangle bounds)
+    {
+        EnsureOverlayTexture(sb.GraphicsDevice);
+        sb.Draw(_landOverlayTexture!, bounds, new Color(0.82f, 0.8f, 0.76f, 1f));
+    }
+
     /// <summary>Land-only continent silhouette for the world map overlay.</summary>
     public void DrawOverlay(SpriteBatch sb, Rectangle bounds, Vector2 playerWorldPos)
     {
