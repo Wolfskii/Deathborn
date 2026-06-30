@@ -8,7 +8,7 @@ using Deathborn.Client.Ui;
 
 namespace Deathborn.Client.Screens;
 
-public sealed class WorldScreen : IScreen
+public sealed class WorldScreen : IScreen, IDebugInfoScreen
 {
     private readonly ScreenManager _screens;
     private readonly WorldBackgroundRenderer _bg = new();
@@ -24,13 +24,15 @@ public sealed class WorldScreen : IScreen
     private Vector2 _moveDir;
     private float _inputAccum;
     private string _status = "Connected. WASD to move. Enter to chat. Space or click to attack. [E] to interact.";
-    private string _hud = "";
     private string _interactPrompt = "";
     private InteractableEntity? _focused;
     private InteractableEntity? _hovered;
     private KeyboardState _prevKb;
     private MouseState _prevMouse;
     private bool _wasWindowActive = true;
+    private bool _debugHudVisible;
+
+    private string[] _debugLines = [];
 
     public WorldScreen(ScreenManager screens)
     {
@@ -93,12 +95,16 @@ public sealed class WorldScreen : IScreen
         _interactablesSeeded = false;
     }
 
+    public IReadOnlyList<string> DebugInfoLines => _debugLines;
+
     public bool HandleEscape()
     {
         if (_chat.IsOpen)
+        {
             _chat.Close(submit: false);
-        // Never quit the game from world — only the window close button exits.
-        return true;
+            return true;
+        }
+        return false;
     }
 
     public void Update(GameTime gameTime)
@@ -126,17 +132,22 @@ public sealed class WorldScreen : IScreen
             _wasWindowActive = true;
         }
 
+        if (windowActive && kb.IsKeyDown(Keys.F12) && !_prevKb.IsKeyDown(Keys.F12))
+            _debugHudVisible = !_debugHudVisible;
+
         if (windowActive && InputKeys.EnterPressed(kb, _prevKb) && !_chat.IsOpen)
             _chat.Open();
 
         _chat.Update(gameTime, kb, _prevKb);
         var chatOpen = _chat.IsOpen;
+        var menuOpen = _screens.EscMenuOpen;
+        var inputBlocked = chatOpen || menuOpen;
 
-        _moveDir = chatOpen ? Vector2.Zero : ReadMoveDir(kb);
+        _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
             localPlayer.InputDir = _moveDir;
 
-        if (!chatOpen)
+        if (!inputBlocked)
         {
             _inputAccum += dt;
             if (_inputAccum >= Config.InputSendInterval || Vector2.DistanceSquared(_moveDir, _lastSentDir) > 0.0001f)
@@ -154,13 +165,13 @@ public sealed class WorldScreen : IScreen
                 ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
 
         UpdateProjectiles(dt);
-        if (!chatOpen)
+        if (!inputBlocked)
             _hotbar.Update(dt, kb, _prevKb);
 
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
             _camera = local.Position;
 
-        if (!chatOpen && windowActive)
+        if (!inputBlocked && windowActive)
         {
             UpdateInteractFocus(mouse.Position);
             UpdateInteractPrompt();
@@ -175,9 +186,12 @@ public sealed class WorldScreen : IScreen
                 HandleLeftClick(mouse.Position);
         }
 
-        _hud = $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  " +
-               $"{(_moveDir.Length() > 0.05f ? "moving" : "idle")}  id={_screens.Net.LocalCharacterId}  players={_players.Count}  " +
-               $"ws={(_screens.Net.WsConnected ? "open" : "closed")}";
+        _debugLines =
+        [
+            _status,
+            $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {(_moveDir.Length() > 0.05f ? "moving" : "idle")}",
+            $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
+        ];
 
         _prevKb = kb;
         if (windowActive)
@@ -206,8 +220,15 @@ public sealed class WorldScreen : IScreen
         foreach (var p in _players.Values)
             p.Draw(sb, font, WorldToScreen(p.Position), zoom);
 
-        sb.DrawString(font, _status, new Vector2(12, 12), Color.White);
-        sb.DrawString(font, _hud, new Vector2(12, 36), new Color(200, 200, 210));
+        if (_debugHudVisible)
+        {
+            var y = 12f;
+            foreach (var line in _debugLines)
+            {
+                sb.DrawString(font, line, new Vector2(12, y), y == 12 ? Color.White : new Color(200, 200, 210));
+                y += font.LineSpacing;
+            }
+        }
 
         if (!string.IsNullOrEmpty(_interactPrompt))
             sb.DrawString(font, _interactPrompt, new Vector2(GameViewport.Width / 2f - 200, GameViewport.Height - 108), new Color(220, 220, 180));

@@ -16,19 +16,32 @@ public static class MusicPlayer
     private static bool _stopRequested;
 
     public static bool IsMuted { get; private set; }
+    public static float Volume => _volume;
 
-    public static void ApplySavedSettings() => SetMuted(AudioSettings.LoadMuted(), save: false);
+    public static void ApplySavedSettings()
+    {
+        IsMuted = AudioSettings.LoadMuted();
+        _volume = AudioSettings.LoadVolume();
+    }
 
     public static void SetMuted(bool muted, bool save = true)
     {
         if (IsMuted == muted) return;
 
         IsMuted = muted;
-        if (_trackPlaying)
-            MediaPlayer.Volume = muted ? 0f : _volume;
+        ApplyVolume();
 
         if (save)
-            AudioSettings.SaveMuted(muted);
+            AudioSettings.Save(IsMuted, _volume);
+    }
+
+    public static void SetVolume(float volume, bool save = true)
+    {
+        _volume = Math.Clamp(volume, 0f, 1f);
+        ApplyVolume();
+
+        if (save)
+            AudioSettings.Save(IsMuted, _volume);
     }
 
     private static void ApplyVolume()

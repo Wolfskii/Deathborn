@@ -4,13 +4,12 @@ using Microsoft.Xna.Framework.Graphics;
 namespace Deathborn.Client.Rendering;
 
 /// <summary>
-/// 4-direction idle cycle (32x32 frames, 12 frames per direction).
+/// 4-direction idle cycle (32x32 frames, 12 frames per direction; up uses last 4 cells).
 /// </summary>
 public sealed class FourDirectionIdleAnimation
 {
     private const int FrameWidth = SwordsmanSpriteSheet.BodyWidth;
     private const int FrameHeight = SwordsmanSpriteSheet.BodyHeight;
-    private const int FrameCount = 12;
 
     private readonly Texture2D _texture;
     private float _timer;
@@ -22,21 +21,32 @@ public sealed class FourDirectionIdleAnimation
     public void Update(float dt, Vector2 faceDir)
     {
         if (faceDir.LengthSquared() > 0.01f)
-            _facing = FourDirectionRunAnimation.ResolveDirection(faceDir);
+        {
+            var next = FourDirectionRunAnimation.ResolveDirection(faceDir);
+            if (next != _facing)
+            {
+                _facing = next;
+                _frame = 0;
+                _timer = 0;
+            }
+        }
 
         _timer += dt;
+        var frameCount = SwordsmanSpriteSheet.IdleFrameCounts[(int)_facing];
         while (_timer >= SwordsmanSpriteSheet.FrameDuration)
         {
             _timer -= SwordsmanSpriteSheet.FrameDuration;
-            _frame = (_frame + 1) % FrameCount;
+            _frame = (_frame + 1) % frameCount;
         }
     }
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, Color tint, float scale = 1f)
     {
+        var facing = (int)_facing;
         var src = new Rectangle(
-            SwordsmanSpriteSheet.FrameStartX + _frame * SwordsmanSpriteSheet.FrameStride,
-            SwordsmanSpriteSheet.DirectionRowTops[(int)_facing],
+            SwordsmanSpriteSheet.FrameStartX
+                + (SwordsmanSpriteSheet.IdleFrameOffsets[facing] + _frame) * SwordsmanSpriteSheet.FrameStride,
+            SwordsmanSpriteSheet.DirectionRowTops[facing],
             FrameWidth,
             FrameHeight);
 

@@ -8,37 +8,56 @@ public sealed class ScreenManager
 {
     private readonly DeathbornGame _game;
     private IScreen? _current;
-
-    private readonly MusicMuteButton _musicMute = new();
+    private readonly EscMenuOverlay _escMenu = new();
 
     public ScreenManager(DeathbornGame game) => _game = game;
 
     public GameClient Net => _game.Client;
 
+    public bool EscMenuOpen => _escMenu.IsOpen;
+
     public void Change(IScreen screen)
     {
         _current?.OnExit();
         TextField.ReleaseFocus();
+        _escMenu.Close();
         _current = screen;
         _current.OnEnter();
     }
 
-    public bool TryHandleEscape() => _current?.HandleEscape() ?? false;
+    public bool TryHandleEscape()
+    {
+        if (_escMenu.IsOpen)
+        {
+            _escMenu.Close();
+            return true;
+        }
+
+        if (_current?.HandleEscape() == true)
+            return true;
+
+        _escMenu.Open();
+        return true;
+    }
 
     public void Update(GameTime gameTime)
     {
         Net.Poll();
-        _current?.Update(gameTime);
-        _musicMute.Update(gameTime);
+        _escMenu.Update(gameTime);
+        if (!_escMenu.IsOpen)
+            _current?.Update(gameTime);
     }
 
     public void Draw(GameTime gameTime)
     {
         _current?.Draw(gameTime);
 
+        if (!_escMenu.IsOpen) return;
+
         var sb = _game.SpriteBatch;
+        IReadOnlyList<string>? debugLines = _current is IDebugInfoScreen info ? info.DebugInfoLines : null;
         sb.Begin();
-        _musicMute.Draw(sb);
+        _escMenu.Draw(sb, _game.Font, debugLines);
         sb.End();
     }
 }
