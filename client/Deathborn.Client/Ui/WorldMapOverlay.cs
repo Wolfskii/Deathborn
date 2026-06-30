@@ -1,0 +1,81 @@
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Deathborn.Client.Gameplay;
+using Deathborn.Client.Rendering;
+
+namespace Deathborn.Client.Ui;
+
+/// <summary>Full-world map overlay (M). Gameplay continues underneath.</summary>
+public sealed class WorldMapOverlay
+{
+    private static readonly Color Dim = new(0, 0, 0, 0.62f);
+    private static readonly Color PanelFill = new(22, 20, 18);
+    private static readonly Color PanelBorder = new(210, 170, 80);
+    private static readonly Color GoldDim = new(130, 105, 55);
+
+    private const int Margin = 52;
+    private const int TitleSpace = 40;
+
+    private Rectangle _mapBounds;
+
+    public bool IsOpen { get; private set; }
+
+    public void Toggle()
+    {
+        if (IsOpen) Close();
+        else Open();
+    }
+
+    public void Open() => IsOpen = true;
+
+    public void Close() => IsOpen = false;
+
+    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 playerWorldPos)
+    {
+        if (!IsOpen) return;
+
+        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height), Dim);
+
+        _mapBounds = ComputeMapBounds();
+
+        var panel = new Rectangle(_mapBounds.X - 8, _mapBounds.Y - 8, _mapBounds.Width + 16, _mapBounds.Height + 16);
+        DrawPrimitives.FillRect(sb, panel, PanelFill);
+        DrawBorder(sb, panel, PanelBorder, 2);
+        DrawBorder(sb, new Rectangle(panel.X + 5, panel.Y + 5, panel.Width - 10, panel.Height - 10), GoldDim, 1);
+
+        WorldMap.Realik.DrawOverlay(sb, _mapBounds, playerWorldPos);
+
+        var title = "World Map";
+        var titleSize = font.MeasureString(title);
+        sb.DrawString(font, title,
+            new Vector2(GameViewport.Width / 2f - titleSize.X / 2f, Margin),
+            PanelBorder);
+
+        var hint = "M or Esc to close";
+        var hintSize = font.MeasureString(hint);
+        sb.DrawString(font, hint,
+            new Vector2(GameViewport.Width / 2f - hintSize.X / 2f, panel.Bottom + 10),
+            new Color(190, 190, 200));
+    }
+
+    private static Rectangle ComputeMapBounds()
+    {
+        var map = WorldMap.Realik;
+        var availW = GameViewport.Width - Margin * 2;
+        var availH = GameViewport.Height - Margin * 2 - TitleSpace - 28;
+        var scale = Math.Min(availW / map.WorldWidth, availH / map.WorldHeight);
+        var w = Math.Max(1, (int)(map.WorldWidth * scale));
+        var h = Math.Max(1, (int)(map.WorldHeight * scale));
+        var x = (GameViewport.Width - w) / 2;
+        var y = Margin + TitleSpace + (availH - h) / 2;
+        return new Rectangle(x, y, w, h);
+    }
+
+    private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color, int thickness)
+    {
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - thickness, rect.Width, thickness), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - thickness, rect.Y, thickness, rect.Height), color);
+    }
+}

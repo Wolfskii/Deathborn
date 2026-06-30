@@ -19,6 +19,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly ChatSpotlightOverlay _chat = new();
     private readonly MinimapHud _minimap = new();
     private readonly GameWindowManager _windows = new();
+    private readonly WorldMapOverlay _worldMap = new();
     private bool _interactablesSeeded;
 
     private Vector2 _camera;
@@ -98,6 +99,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _hotbar.CooldownBlocked -= OnHotbarCooldownBlocked;
         _screens.SetOpenCharacterHandler(null);
         _windows.Character.Close();
+        _worldMap.Close();
         _projectiles.Clear();
         _interactables.Clear();
         _interactablesSeeded = false;
@@ -107,6 +109,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     public bool HandleEscape()
     {
+        if (_worldMap.IsOpen)
+        {
+            _worldMap.Close();
+            return true;
+        }
+
         if (_chat.IsOpen)
         {
             _chat.Close(submit: false);
@@ -149,6 +157,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _chat.Update(gameTime, kb, _prevKb);
         var chatOpen = _chat.IsOpen;
         var menuOpen = _screens.EscMenuOpen;
+
+        if (windowActive && !chatOpen && kb.IsKeyDown(Keys.M) && !_prevKb.IsKeyDown(Keys.M))
+            _worldMap.Toggle();
+
+        if (menuOpen && _worldMap.IsOpen)
+            _worldMap.Close();
+
         var abilityBusy = _players.TryGetValue(_screens.Net.LocalCharacterId, out var busyPlayer) && busyPlayer.IsBusy;
         var inputBlocked = chatOpen || menuOpen || abilityBusy;
 
@@ -264,6 +279,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         sb.End();
 
         DrawChatOverlay(sb, font, zoom);
+        DrawWorldMapOverlay(sb, font);
+    }
+
+    private void DrawWorldMapOverlay(SpriteBatch sb, SpriteFont font)
+    {
+        if (!_worldMap.IsOpen) return;
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
+
+        sb.Begin(samplerState: SamplerState.PointClamp);
+        _worldMap.Draw(sb, font, local.Position);
+        sb.End();
     }
 
     private void DrawChatOverlay(SpriteBatch sb, SpriteFont font, float zoom)

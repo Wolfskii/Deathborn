@@ -18,6 +18,10 @@ public sealed class WorldMap
     public Vector2 DefaultSpawn { get; private init; }
 
     private bool[] _walkable = [];
+    private Texture2D? _landOverlayTexture;
+
+    public bool IsLand(int tx, int ty) =>
+        (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight && _walkable[ty * TileWidth + tx];
 
     private static WorldMap Load()
     {
@@ -116,7 +120,7 @@ public sealed class WorldMap
         for (var ty = minTy; ty <= maxTy; ty++)
         for (var tx = minTx; tx <= maxTx; tx++)
         {
-            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom);
+            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
             var walk = _walkable[ty * TileWidth + tx];
             var color = walk ? LandColor(tx, ty) : WaterColor(tx, ty);
             DrawPrimitives.FillRect(sb, rect, color);
@@ -127,12 +131,12 @@ public sealed class WorldMap
     /// Pixel-snapped tile bounds so neighbours share edges with no sub-pixel gaps
     /// (prevents background showing through as shimmering black grid lines).
     /// </summary>
-    private static Rectangle TileScreenRect(int tx, int ty, Vector2 camera, Vector2 screenCenter, float zoom)
+    private static Rectangle TileScreenRect(int tx, int ty, Vector2 camera, Vector2 screenCenter, float zoom, float tileSize)
     {
-        var left = MathF.Floor((tx * TileSize - camera.X) * zoom + screenCenter.X);
-        var top = MathF.Floor((ty * TileSize - camera.Y) * zoom + screenCenter.Y);
-        var right = MathF.Floor(((tx + 1) * TileSize - camera.X) * zoom + screenCenter.X);
-        var bottom = MathF.Floor(((ty + 1) * TileSize - camera.Y) * zoom + screenCenter.Y);
+        var left = MathF.Floor((tx * tileSize - camera.X) * zoom + screenCenter.X);
+        var top = MathF.Floor((ty * tileSize - camera.Y) * zoom + screenCenter.Y);
+        var right = MathF.Floor(((tx + 1) * tileSize - camera.X) * zoom + screenCenter.X);
+        var bottom = MathF.Floor(((ty + 1) * tileSize - camera.Y) * zoom + screenCenter.Y);
         return new Rectangle(
             (int)left,
             (int)top,
@@ -150,5 +154,37 @@ public sealed class WorldMap
     {
         var v = 40 + ((tx * 3 + ty * 5) % 4) * 12;
         return new Color(20, 50 + v, 140 + v / 2);
+    }
+
+    private static readonly Color OverlayLand = new(138, 134, 128);
+
+    public void EnsureOverlayTexture(GraphicsDevice device)
+    {
+        if (_landOverlayTexture != null) return;
+
+        var tex = new Texture2D(device, TileWidth, TileHeight);
+        var data = new Color[TileWidth * TileHeight];
+        for (var ty = 0; ty < TileHeight; ty++)
+        for (var tx = 0; tx < TileWidth; tx++)
+        {
+            var i = ty * TileWidth + tx;
+            data[i] = _walkable[i] ? OverlayLand : Color.Transparent;
+        }
+        tex.SetData(data);
+        _landOverlayTexture = tex;
+    }
+
+    /// <summary>Land-only continent silhouette for the world map overlay.</summary>
+    public void DrawOverlay(SpriteBatch sb, Rectangle bounds, Vector2 playerWorldPos)
+    {
+        EnsureOverlayTexture(sb.GraphicsDevice);
+        sb.Draw(_landOverlayTexture!, bounds, Color.White);
+
+        var px = bounds.X + playerWorldPos.X / WorldWidth * bounds.Width;
+        var py = bounds.Y + playerWorldPos.Y / WorldHeight * bounds.Height;
+        var center = new Vector2(px, py);
+        DrawPrimitives.DrawCircleOutline(sb, center, 7f, new Color(0.12f, 0.1f, 0.08f, 0.9f), 24, 2.5f);
+        DrawPrimitives.FillCircle(sb, center, 5f, new Color(1f, 0.88f, 0.35f));
+        DrawPrimitives.DrawCircleOutline(sb, center, 5f, new Color(1f, 1f, 1f, 0.9f), 24, 1.5f);
     }
 }
