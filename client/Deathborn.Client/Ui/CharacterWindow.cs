@@ -36,11 +36,7 @@ public sealed class CharacterWindow : UiWindow
         _nameProvider = name;
     }
 
-    private static Point DefaultPosition()
-    {
-        var minimapBottom = Config.MinimapMargin + (int)(Config.MinimapScreenRadius * 2) + 8;
-        return new Point(GameViewport.Width - Width - Config.MinimapMargin, minimapBottom);
-    }
+    private static Point DefaultPosition() => new(Config.MinimapMargin, Config.MinimapMargin);
 
     protected override void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle area)
     {

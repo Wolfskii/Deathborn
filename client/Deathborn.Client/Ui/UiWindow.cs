@@ -19,6 +19,7 @@ public abstract class UiWindow
 
     private bool _dragging;
     private Point _dragMouseOffset;
+    private readonly Point _defaultPosition;
 
     public string Title { get; }
     public Keys? ShortcutKey { get; }
@@ -38,6 +39,7 @@ public abstract class UiWindow
     {
         Title = title;
         ShortcutKey = shortcutKey;
+        _defaultPosition = defaultPosition;
         Bounds = new Rectangle(defaultPosition.X, defaultPosition.Y, width, height);
     }
 
@@ -47,7 +49,12 @@ public abstract class UiWindow
         else Open();
     }
 
-    public void Open() => IsOpen = true;
+    public void Open()
+    {
+        Bounds = new Rectangle(_defaultPosition.X, _defaultPosition.Y, Bounds.Width, Bounds.Height);
+        ClampToViewport();
+        IsOpen = true;
+    }
 
     public void Close()
     {
