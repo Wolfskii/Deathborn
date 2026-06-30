@@ -32,6 +32,27 @@ public static class HotbarIconDraw
             case "poison_cloud":
                 DrawPoisonCloud(sb, bounds);
                 break;
+            case "shield_bash":
+                DrawShieldBash(sb, bounds);
+                break;
+            case "whirlwind":
+                DrawWhirlwind(sb, bounds);
+                break;
+            case "warrior_dash":
+                DrawWarriorDash(sb, bounds);
+                break;
+            case "battle_shout":
+                DrawBattleShout(sb, bounds);
+                break;
+            case "iron_skin":
+                DrawIronSkin(sb, bounds);
+                break;
+            case "hunter_mark":
+                DrawHunterMark(sb, bounds);
+                break;
+            case "second_wind":
+                DrawSecondWind(sb, bounds);
+                break;
             default:
                 DrawPrimitives.FillRect(sb, bounds, new Color(40, 42, 50));
                 break;
@@ -101,5 +122,69 @@ public static class HotbarIconDraw
         DrawPrimitives.FillCircle(sb, c + new Vector2(-10, -4), bounds.Width * 0.18f, new Color(0.4f, 0.8f, 0.2f, 0.5f));
         DrawPrimitives.FillCircle(sb, c + new Vector2(11, -2), bounds.Width * 0.16f, new Color(0.35f, 0.75f, 0.18f, 0.5f));
         DrawPrimitives.DrawCircleOutline(sb, c, bounds.Width * 0.32f, new Color(0.55f, 0.95f, 0.3f, 0.7f), 20, 1.5f);
+    }
+
+    private static void DrawShieldBash(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(22, 24, 32));
+        var c = new Vector2(bounds.Center.X - 6, bounds.Center.Y);
+        DrawPrimitives.FillRect(sb, new Rectangle((int)c.X - 10, (int)c.Y - 14, 14, 28), new Color(0.55f, 0.6f, 0.7f));
+        DrawPrimitives.FillRect(sb, new Rectangle((int)c.X + 4, (int)c.Y - 10, 16, 20), new Color(0.75f, 0.78f, 0.85f));
+        DrawPrimitives.DrawLine(sb, c + new Vector2(18, -8), c + new Vector2(28, 0), new Color(0.9f, 0.92f, 1f), 3f);
+    }
+
+    private static void DrawWhirlwind(SpriteBatch sb, Rectangle bounds)
+    {
+        var c = new Vector2(bounds.Center.X, bounds.Center.Y);
+        DrawPrimitives.FillRect(sb, bounds, new Color(18, 20, 30));
+        for (var i = 0; i < 3; i++)
+        {
+            var a = i / 3f * MathHelper.TwoPi;
+            var tip = c + new Vector2(MathF.Cos(a), MathF.Sin(a)) * bounds.Width * 0.28f;
+            DrawPrimitives.DrawLine(sb, c, tip, new Color(0.75f, 0.8f, 0.95f), 2f);
+        }
+    }
+
+    private static void DrawWarriorDash(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(16, 18, 28));
+        var a = new Vector2(bounds.X + 10, bounds.Center.Y);
+        var b = new Vector2(bounds.Right - 8, bounds.Center.Y);
+        DrawPrimitives.DrawLine(sb, a, b, new Color(0.5f, 0.6f, 0.95f, 0.5f), 6f);
+        DrawPrimitives.DrawLine(sb, a, b, new Color(0.85f, 0.9f, 1f), 2f);
+        DrawPrimitives.FillCircle(sb, b, 5f, new Color(0.9f, 0.95f, 1f));
+    }
+
+    private static void DrawBattleShout(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(32, 18, 10));
+        var c = new Vector2(bounds.Center.X, bounds.Center.Y + 2);
+        for (var i = 0; i < 3; i++)
+            DrawPrimitives.DrawCircleOutline(sb, c, 8f + i * 5f, new Color(0.95f, 0.55f, 0.2f, 0.7f - i * 0.15f), 12, 1.5f);
+    }
+
+    private static void DrawIronSkin(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(20, 24, 30));
+        var plate = new Rectangle(bounds.X + 12, bounds.Y + 10, bounds.Width - 24, bounds.Height - 18);
+        DrawPrimitives.FillRect(sb, plate, new Color(0.55f, 0.62f, 0.72f));
+        DrawPrimitives.FillRect(sb, new Rectangle(plate.X, plate.Y, plate.Width, 3), new Color(0.75f, 0.8f, 0.9f));
+    }
+
+    private static void DrawHunterMark(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(24, 12, 14));
+        var c = new Vector2(bounds.Center.X, bounds.Center.Y);
+        DrawPrimitives.DrawCircleOutline(sb, c, bounds.Width * 0.22f, new Color(0.95f, 0.35f, 0.4f), 14, 2f);
+        DrawPrimitives.FillCircle(sb, c, 4f, new Color(0.95f, 0.25f, 0.3f));
+    }
+
+    private static void DrawSecondWind(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(12, 28, 22));
+        var c = new Vector2(bounds.Center.X, bounds.Center.Y);
+        DrawPrimitives.FillCircle(sb, c, bounds.Width * 0.22f, new Color(0.35f, 0.9f, 0.55f, 0.45f));
+        DrawPrimitives.DrawLine(sb, c + new Vector2(-8, 0), c + new Vector2(8, 0), new Color(0.5f, 0.95f, 0.65f), 3f);
+        DrawPrimitives.DrawLine(sb, c + new Vector2(0, -8), c + new Vector2(0, 8), new Color(0.5f, 0.95f, 0.65f), 3f);
     }
 }

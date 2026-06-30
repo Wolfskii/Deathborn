@@ -8,8 +8,17 @@ const (
 	ArcBoltDamage  = 14
 	PoisonCloudDamage = 6
 
-	BandageTotalHeal = 25
-	BandageHoTTicks  = 5
+	ShieldBashDamage   = 12
+	WhirlwindDamage    = 8
+	WarriorDashDamage  = 10
+	SecondWindHeal     = 15
+
+	ShieldBashRange    = 56
+	WhirlwindRadius    = 52
+	WarriorDashRange   = 110
+	HunterMarkRange    = 200
+	BandageTotalHeal   = 25
+	BandageHoTTicks    = 5
 	BandageHoTInterval = 1.0 // seconds between ticks
 )
 
@@ -26,6 +35,12 @@ func DamageForAbility(ability string) int {
 		return ArcBoltDamage
 	case "poison_cloud":
 		return PoisonCloudDamage
+	case "shield_bash":
+		return ShieldBashDamage
+	case "whirlwind":
+		return WhirlwindDamage
+	case "warrior_dash":
+		return WarriorDashDamage
 	default:
 		return 0
 	}
@@ -42,6 +57,12 @@ func MaxHitRange(ability string) float64 {
 		return 140
 	case "poison_cloud":
 		return 90
+	case "shield_bash":
+		return ShieldBashRange
+	case "whirlwind":
+		return WhirlwindRadius
+	case "warrior_dash":
+		return WarriorDashRange
 	default:
 		return 0
 	}
@@ -49,7 +70,12 @@ func MaxHitRange(ability string) float64 {
 
 // HealForAbility returns instant healing for a self-target ability/item id.
 func HealForAbility(ability string) int {
-	return 0
+	switch ability {
+	case "second_wind":
+		return SecondWindHeal
+	default:
+		return 0
+	}
 }
 
 // BandageHoTPerTick returns healing per bandage tick.

@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -259,6 +260,24 @@ func (c *Client) readPump(database *db.DB) {
 					DirY:    dirY,
 				}))
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_poison_cloud", dirX, dirY, ""))
+			case "shield_bash":
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "shield_bash", dirX, dirY, ""))
+			case "whirlwind":
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "whirlwind", dirX, dirY, ""))
+			case "warrior_dash":
+				c.hub.world.DashPlayer(c.characterID, dirX, dirY, game.WarriorDashRange)
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "warrior_dash", dirX, dirY, ""))
+			case "hunter_mark":
+				markTarget := c.hub.world.NearestEnemyInCone(c.characterID, dirX, dirY, game.HunterMarkRange, 0.25)
+				if markTarget <= 0 {
+					continue
+				}
+				ev, ok := c.hub.world.ApplyPlayerBuff(c.characterID, game.BuffHunterMark, markTarget)
+				if !ok {
+					continue
+				}
+				c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Duration, ev.MarkTargetID))
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "hunter_mark", dirX, dirY, formatTargetID(markTarget)))
 			default:
 				continue
 			}
@@ -314,6 +333,11 @@ func (c *Client) readPump(database *db.DB) {
 			if !c.hub.world.ValidateAbilityHit(c.characterID, d.TargetID, d.Ability) {
 				continue
 			}
+			damage = int(float64(damage) * c.hub.world.DamageDealtMultiplier(c.characterID))
+			damage = int(float64(damage) * c.hub.world.DamageTakenMultiplier(d.TargetID))
+			if damage <= 0 {
+				continue
+			}
 			hp, hpMax, justDied, ok := c.hub.world.ApplyDamage(d.TargetID, damage)
 			if !ok {
 				continue
@@ -345,6 +369,20 @@ func (c *Client) readPump(database *db.DB) {
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "use_bandage", 0, 0, ""))
 				continue
 			}
+			switch d.Ability {
+			case game.BuffBattleShout, game.BuffIronSkin:
+				ev, ok := c.hub.world.ApplyPlayerBuff(c.characterID, d.Ability, 0)
+				if !ok {
+					continue
+				}
+				c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Duration, ev.MarkTargetID))
+				action := "battle_shout"
+				if d.Ability == game.BuffIronSkin {
+					action = "iron_skin"
+				}
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, action, 0, 0, ""))
+				continue
+			}
 			amount := game.HealForAbility(d.Ability)
 			if amount <= 0 {
 				continue
@@ -360,6 +398,9 @@ func (c *Client) readPump(database *db.DB) {
 				Hp:       hp,
 				HpMax:    hpMax,
 			}))
+			if d.Ability == "second_wind" {
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "second_wind", 0, 0, ""))
+			}
 
 		case "logout":
 			if !c.spawned {
@@ -402,6 +443,10 @@ func normalizeDir(dirX, dirY float64) (float64, float64) {
 		return dirX / l, dirY / l
 	}
 	return 0, 1
+}
+
+func formatTargetID(id int64) string {
+	return strconv.FormatInt(id, 10)
 }
 
 func (c *Client) broadcastProjectileCast(playerID int64, spellID string, dirX, dirY float64) {

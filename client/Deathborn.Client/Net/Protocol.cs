@@ -236,3 +236,18 @@ public sealed class PlayerHealData
     [JsonPropertyName("hpMax")]
     public double HpMax { get; set; }
 }
+
+public sealed class PlayerBuffData
+{
+    [JsonPropertyName("playerId")]
+    public long PlayerId { get; set; }
+
+    [JsonPropertyName("buffId")]
+    public string BuffId { get; set; } = "";
+
+    [JsonPropertyName("duration")]
+    public double Duration { get; set; }
+
+    [JsonPropertyName("markTargetId")]
+    public long MarkTargetId { get; set; }
+}

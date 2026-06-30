@@ -10,4 +10,11 @@ public static class PlayerActions
     public const string CastArcBolt = "cast_arc_bolt";
     public const string CastPoisonCloud = "cast_poison_cloud";
     public const string UseBandage = "use_bandage";
+    public const string ShieldBash = "shield_bash";
+    public const string Whirlwind = "whirlwind";
+    public const string WarriorDash = "warrior_dash";
+    public const string BattleShout = "battle_shout";
+    public const string IronSkin = "iron_skin";
+    public const string HunterMark = "hunter_mark";
+    public const string SecondWind = "second_wind";
 }

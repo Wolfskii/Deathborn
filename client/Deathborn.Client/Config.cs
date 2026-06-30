@@ -50,6 +50,38 @@ public static class Config
     public const int ArcBoltDamage = 14;
     public const int PoisonCloudDamage = 6;
 
+    public const int ShieldBashDamage = 12;
+    public const int WhirlwindDamage = 8;
+    public const int WarriorDashDamage = 10;
+    public const int SecondWindHeal = 15;
+
+    public const float ShieldBashCooldown = 4f;
+    public const float ShieldBashCastLock = 0.35f;
+    public const float ShieldBashRange = 56f;
+
+    public const float WhirlwindCooldown = 6f;
+    public const float WhirlwindDuration = 0.55f;
+    public const float WhirlwindRadius = 52f;
+
+    public const float WarriorDashCooldown = 5f;
+    public const float WarriorDashDistance = 100f;
+    public const float WarriorDashDuration = 0.22f;
+
+    public const float BattleShoutCooldown = 12f;
+    public const float BattleShoutDuration = 8f;
+
+    public const float IronSkinCooldown = 14f;
+    public const float IronSkinDuration = 10f;
+
+    public const float HunterMarkCooldown = 8f;
+    public const float HunterMarkDuration = 12f;
+    public const float HunterMarkRange = 200f;
+
+    public const float SecondWindCooldown = 15f;
+
+    public const float BuffBarDefaultX = 14f;
+    public const float BuffBarDefaultY = 88f;
+
     public const float ChatBubbleDuration = 10f;
     public const int ChatMaxLength = 120;
     /// <summary>World Y offset from feet to torso for projectile spawn.</summary>

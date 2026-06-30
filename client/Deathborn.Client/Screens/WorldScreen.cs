@@ -22,6 +22,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly GameWindowManager _windows = new();
     private readonly WorldMapOverlay _worldMap = new();
     private readonly DeathGhostOverlay _deathOverlay = new();
+    private readonly BuffTracker _buffTracker = new();
+    private readonly BuffBarOverlay _buffBar = new();
+    private readonly Dictionary<long, float> _hunterMarks = new();
     private readonly List<PlayerCorpse> _corpses = [];
     private readonly Dictionary<long, PlayerEntity> _deathWatch = new();
     private GhostEntity? _ghost;
@@ -66,6 +69,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.ChatTyping += OnChatTyping;
         net.PlayerHit += OnPlayerHit;
         net.PlayerHeal += OnPlayerHeal;
+        net.PlayerBuff += OnPlayerBuff;
         net.PlayerDeath += OnPlayerDeath;
         net.YouDied += OnYouDied;
 
@@ -107,6 +111,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.ChatTyping -= OnChatTyping;
         net.PlayerHit -= OnPlayerHit;
         net.PlayerHeal -= OnPlayerHeal;
+        net.PlayerBuff -= OnPlayerBuff;
         net.PlayerDeath -= OnPlayerDeath;
         net.YouDied -= OnYouDied;
         _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
@@ -200,8 +205,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var abilityBusy = _players.TryGetValue(_screens.Net.LocalCharacterId, out var busyPlayer) && busyPlayer.IsBusy;
         var inputBlocked = chatOpen || menuOpen || abilityBusy;
 
+        _buffTracker.Update(dt);
+        UpdateHunterMarks(dt);
+
         var allowWindowShortcuts = windowActive && !chatOpen;
-        var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts);
+        var buffCapturesMouse = _buffBar.Update(mouse, _prevMouse, _buffTracker);
+        var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts) || buffCapturesMouse;
 
         _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
@@ -236,8 +245,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         ProcessDeathWatch();
 
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localAttacker))
+        {
             localAttacker.CheckLocalMeleeHits(_players, (targetId, damage, ability) =>
                 ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
+            localAttacker.CheckWhirlwindHits(_players, (targetId, damage, ability) =>
+                ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
+            localAttacker.CheckDashHits(_players, (targetId, damage, ability) =>
+                ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
+        }
 
         UpdateProjectiles(dt);
         _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked);
@@ -295,7 +310,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             corpse.Draw(sb, WorldToScreen(corpse.Position), zoom);
 
         foreach (var p in _players.Values.OrderBy(p => p.Position.Y))
+        {
             p.Draw(sb, font, WorldToScreen(p.Position), zoom);
+            if (_hunterMarks.ContainsKey(p.Id))
+                PlayerEntity.DrawHunterMark(sb, WorldToScreen(p.Position), zoom);
+        }
 
         if (_ghostMode && _ghost != null)
             _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
@@ -319,6 +338,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_ghostMode)
         {
             _hotbar.Draw(sb, font);
+            _buffBar.Draw(sb, font, _buffTracker);
             _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
         }
         _windows.Draw(sb, font);
@@ -660,6 +680,101 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         return true;
     }
 
+    private bool CastShieldBash()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        var dir = GetAimDirection();
+        if (!local.StartMeleeAbility(MeleeAbilityDefinitions.ShieldBash, dir)) return false;
+        _screens.Net.SendCastSpell("shield_bash", dir.X, dir.Y);
+        _status = "Shield Bash!";
+        return true;
+    }
+
+    private bool CastWhirlwind()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        var dir = GetAimDirection();
+        if (!local.StartWhirlwind()) return false;
+        _effects.Add(new WhirlwindEffect(local.Position, local.Id, Config.WhirlwindDuration));
+        _screens.Net.SendCastSpell("whirlwind", dir.X, dir.Y);
+        _status = "Whirlwind!";
+        return true;
+    }
+
+    private bool CastWarriorDash()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        var dir = GetAimDirection();
+        if (!local.StartDash(dir, Config.WarriorDashDistance, Config.WarriorDashDuration)) return false;
+        _effects.Add(new DashTrailEffect(local.Position, dir, local.Id, Config.WarriorDashDuration));
+        _screens.Net.SendCastSpell("warrior_dash", dir.X, dir.Y);
+        _status = "Charge!";
+        return true;
+    }
+
+    private bool UseBattleShout()
+    {
+        _screens.Net.SendAbilityUse("battle_shout");
+        _status = "Battle Shout — damage increased!";
+        return true;
+    }
+
+    private bool UseIronSkin()
+    {
+        _screens.Net.SendAbilityUse("iron_skin");
+        _status = "Iron Skin — damage reduced!";
+        return true;
+    }
+
+    private bool CastHunterMark()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        var dir = GetAimDirection();
+        local.StartAbilityLock(0.3f);
+        local.MoveDir = dir;
+        _screens.Net.SendCastSpell("hunter_mark", dir.X, dir.Y);
+        _status = "Hunter's Mark cast.";
+        return true;
+    }
+
+    private bool UseSecondWind()
+    {
+        _screens.Net.SendAbilityUse("second_wind");
+        _status = "Second Wind — recovering health.";
+        return true;
+    }
+
+    private void UpdateHunterMarks(float dt)
+    {
+        foreach (var id in _hunterMarks.Keys.ToList())
+        {
+            _hunterMarks[id] -= dt;
+            if (_hunterMarks[id] <= 0f)
+                _hunterMarks.Remove(id);
+        }
+    }
+
+    private void OnPlayerBuff(PlayerBuffData data)
+    {
+        if (data.Duration <= 0)
+        {
+            if (data.BuffId == "hunter_mark" && data.MarkTargetId > 0)
+                _hunterMarks.Remove(data.MarkTargetId);
+            if (data.PlayerId == _screens.Net.LocalCharacterId)
+                _buffTracker.Remove(data.BuffId);
+            return;
+        }
+
+        if (data.BuffId == "hunter_mark" && data.MarkTargetId > 0)
+            _hunterMarks[data.MarkTargetId] = (float)data.Duration;
+
+        if (data.PlayerId != _screens.Net.LocalCharacterId) return;
+
+        _buffTracker.Apply(data.BuffId, (float)data.Duration, data.MarkTargetId);
+        var (name, desc, _) = BuffCatalog.Describe(data.BuffId);
+        _status = $"{name}: {desc}";
+    }
+
     private PlayerEntity? FindArcBoltTarget(Vector2 origin, Vector2 facing, long selfId)
     {
         PlayerEntity? best = null;
@@ -727,6 +842,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 break;
             case PlayerActions.UseBandage:
                 player.StartBandageHoT();
+                break;
+            case PlayerActions.Whirlwind:
+                _effects.Add(new WhirlwindEffect(player.Position, player.Id, Config.WhirlwindDuration));
+                break;
+            case PlayerActions.WarriorDash:
+                _effects.Add(new DashTrailEffect(player.Position, dir, player.Id, Config.WarriorDashDuration));
                 break;
         }
     }
@@ -798,6 +919,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _status = data.Ability switch
             {
                 "bandage" => $"+{data.Amount} HP from bandage ({(int)data.Hp}/{(int)data.HpMax}).",
+                "second_wind" => $"+{data.Amount} HP from Second Wind ({(int)data.Hp}/{(int)data.HpMax}).",
                 _ => $"+{data.Amount} HP ({(int)data.Hp}/{(int)data.HpMax}).",
             };
     }
@@ -880,6 +1002,20 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = CastPoisonCloud();
         else if (id == "bandage")
             used = UseBandage();
+        else if (id == "shield_bash")
+            used = CastShieldBash();
+        else if (id == "whirlwind")
+            used = CastWhirlwind();
+        else if (id == "warrior_dash")
+            used = CastWarriorDash();
+        else if (id == "battle_shout")
+            used = UseBattleShout();
+        else if (id == "iron_skin")
+            used = UseIronSkin();
+        else if (id == "hunter_mark")
+            used = CastHunterMark();
+        else if (id == "second_wind")
+            used = UseSecondWind();
         else
         {
             _status = $"Used slot {key}: {entry.GetValueOrDefault("name")} ({entry.GetValueOrDefault("kind")})";
@@ -901,39 +1037,74 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         _hotbar.SetSlot(0, new Dictionary<string, object>
         {
+            ["id"] = "shield_bash",
+            ["name"] = "Shield Bash",
+            ["kind"] = "melee",
+            [HotbarEntry.CooldownKey] = Config.ShieldBashCooldown,
+        });
+        _hotbar.SetSlot(1, new Dictionary<string, object>
+        {
+            ["id"] = "whirlwind",
+            ["name"] = "Whirlwind",
+            ["kind"] = "melee",
+            [HotbarEntry.CooldownKey] = Config.WhirlwindCooldown,
+        });
+        _hotbar.SetSlot(2, new Dictionary<string, object>
+        {
+            ["id"] = "warrior_dash",
+            ["name"] = "Charge",
+            ["kind"] = "melee",
+            [HotbarEntry.CooldownKey] = Config.WarriorDashCooldown,
+        });
+        _hotbar.SetSlot(3, new Dictionary<string, object>
+        {
             ["id"] = "fireball",
             ["name"] = "Fireball",
             ["kind"] = "spell",
             ["projectileId"] = ProjectileDefinitions.Fireball.Id,
             [HotbarEntry.CooldownKey] = Config.FireballCooldown,
         });
-        _hotbar.SetSlot(1, new Dictionary<string, object>
+        _hotbar.SetSlot(4, new Dictionary<string, object>
         {
             ["id"] = "ice_shard",
             ["name"] = "Ice Shard",
             ["kind"] = "spell",
             [HotbarEntry.CooldownKey] = Config.IceShardCooldown,
         });
-        _hotbar.SetSlot(2, new Dictionary<string, object>
+        _hotbar.SetSlot(5, new Dictionary<string, object>
         {
-            ["id"] = "arc_bolt",
-            ["name"] = "Arc Bolt",
-            ["kind"] = "spell",
-            [HotbarEntry.CooldownKey] = Config.ArcBoltCooldown,
+            ["id"] = "battle_shout",
+            ["name"] = "Battle Shout",
+            ["kind"] = "buff",
+            [HotbarEntry.CooldownKey] = Config.BattleShoutCooldown,
         });
-        _hotbar.SetSlot(3, new Dictionary<string, object>
+        _hotbar.SetSlot(6, new Dictionary<string, object>
+        {
+            ["id"] = "iron_skin",
+            ["name"] = "Iron Skin",
+            ["kind"] = "buff",
+            [HotbarEntry.CooldownKey] = Config.IronSkinCooldown,
+        });
+        _hotbar.SetSlot(7, new Dictionary<string, object>
+        {
+            ["id"] = "hunter_mark",
+            ["name"] = "Hunter's Mark",
+            ["kind"] = "utility",
+            [HotbarEntry.CooldownKey] = Config.HunterMarkCooldown,
+        });
+        _hotbar.SetSlot(8, new Dictionary<string, object>
         {
             ["id"] = "bandage",
             ["name"] = "Bandage",
             ["kind"] = "item",
             [HotbarEntry.CooldownKey] = Config.BandageCooldown,
         });
-        _hotbar.SetSlot(4, new Dictionary<string, object>
+        _hotbar.SetSlot(9, new Dictionary<string, object>
         {
-            ["id"] = "poison_cloud",
-            ["name"] = "Poison",
-            ["kind"] = "spell",
-            [HotbarEntry.CooldownKey] = Config.PoisonCloudCooldown,
+            ["id"] = "second_wind",
+            ["name"] = "Second Wind",
+            ["kind"] = "heal",
+            [HotbarEntry.CooldownKey] = Config.SecondWindCooldown,
         });
     }
 

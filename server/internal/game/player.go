@@ -9,6 +9,7 @@ type player struct {
 	hpMax float64
 	dead  bool
 	hot   *healOverTime
+	buffs []playerBuff
 	// desired movement direction (unit-clamped), set from client input and
 	// integrated each tick.
 	dirX, dirY float64

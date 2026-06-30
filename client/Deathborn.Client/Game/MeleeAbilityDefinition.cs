@@ -18,4 +18,14 @@ public static class MeleeAbilityDefinitions
         Id = "slash",
         Damage = Config.SlashDamage,
     };
+
+    public static readonly MeleeAbilityDefinition ShieldBash = new()
+    {
+        Id = "shield_bash",
+        Damage = Config.ShieldBashDamage,
+        Range = Config.ShieldBashRange,
+        HalfWidth = 28f,
+        HitFrameStart = 2,
+        HitFrameEnd = 4,
+    };
 }

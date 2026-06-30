@@ -8,7 +8,7 @@ import (
 // RunLoop drives the simulation at a fixed tick rate. Each tick it advances the
 // world and then invokes onTick, which the caller uses to build and broadcast a
 // snapshot. The networking/serialization concern is kept out of this package.
-func RunLoop(ctx context.Context, w *World, tickHz int, onTick func(tick uint64, heals []HealEvent)) {
+func RunLoop(ctx context.Context, w *World, tickHz int, onTick func(tick uint64, heals []HealEvent, dt float64)) {
 	if tickHz <= 0 {
 		tickHz = 20
 	}
@@ -26,7 +26,7 @@ func RunLoop(ctx context.Context, w *World, tickHz int, onTick func(tick uint64,
 		case <-ticker.C:
 			tick++
 			heals := w.Step(dt)
-			onTick(tick, heals)
+			onTick(tick, heals, dt)
 		}
 	}
 }

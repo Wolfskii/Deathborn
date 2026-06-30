@@ -24,9 +24,19 @@ public sealed class PlayerEntity
     private readonly PlayerChatBubble _chatBubble = new();
     private readonly ThinkingBubble _thinking = new();
     private readonly HashSet<long> _meleeHitThisSwing = [];
+    private readonly HashSet<long> _whirlwindHit = [];
+    private readonly HashSet<long> _dashHit = [];
+    private MeleeAbilityDefinition? _activeMeleeDef;
     private float _abilityLockTimer;
     private float _bandageHoTTimer;
     private float _bandageAnim;
+    private float _whirlwindTimer;
+    private bool _whirlwindHitPulse;
+    private bool _isDashing;
+    private float _dashTimer;
+    private float _dashDuration;
+    private Vector2 _dashStart;
+    private Vector2 _dashEnd;
 
     public long Id;
     public string Name = "";
@@ -40,7 +50,9 @@ public sealed class PlayerEntity
 
     public bool IsAttacking => AttackAnim.IsPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
-    public bool IsBusy => IsAttacking || IsCasting;
+    public bool IsDashing => _isDashing;
+    public bool IsWhirlwinding => _whirlwindTimer > 0f;
+    public bool IsBusy => IsAttacking || IsCasting || IsDashing || IsWhirlwinding;
     public bool IsHurt => HurtAnim.IsPlaying;
     public bool IsTyping
     {
@@ -104,7 +116,7 @@ public sealed class PlayerEntity
     {
         if (!IsLocal || IsDead || !IsAttacking) return;
 
-        var def = MeleeAbilityDefinitions.Slash;
+        var def = _activeMeleeDef ?? MeleeAbilityDefinitions.Slash;
         var frame = AttackAnim.Frame;
         if (frame < def.HitFrameStart || frame > def.HitFrameEnd) return;
 
@@ -137,6 +149,73 @@ public sealed class PlayerEntity
         Target = pos;
     }
 
+    public bool StartMeleeAbility(MeleeAbilityDefinition def, Vector2? facing = null)
+    {
+        _activeMeleeDef = def;
+        return StartAttack(facing);
+    }
+
+    public bool StartWhirlwind()
+    {
+        if (IsBusy || IsDead) return false;
+        _whirlwindTimer = Config.WhirlwindDuration;
+        _whirlwindHit.Clear();
+        _whirlwindHitPulse = false;
+        StartAbilityLock(Config.WhirlwindDuration);
+        return true;
+    }
+
+    public bool StartDash(Vector2 dir, float distance, float duration)
+    {
+        if (IsBusy || IsDead || _isDashing) return false;
+        var facing = CardinalFacing(dir);
+        MoveDir = facing;
+        _dashStart = Position;
+        _dashEnd = Position + facing * distance;
+        _dashDuration = duration;
+        _dashTimer = duration;
+        _dashHit.Clear();
+        _isDashing = true;
+        StartAbilityLock(duration);
+        return true;
+    }
+
+    public void CheckWhirlwindHits(
+        IReadOnlyDictionary<long, PlayerEntity> players,
+        Action<long, int, string> reportHit)
+    {
+        if (!IsLocal || !IsWhirlwinding || _whirlwindHitPulse) return;
+        if (_whirlwindTimer > Config.WhirlwindDuration * 0.55f) return;
+
+        _whirlwindHitPulse = true;
+        var radius = Config.WhirlwindRadius;
+        var radiusSq = radius * radius;
+        foreach (var (id, other) in players)
+        {
+            if (id == Id || other.IsDead || _whirlwindHit.Contains(id)) continue;
+            if (Vector2.DistanceSquared(Position, other.Position) > radiusSq) continue;
+            _whirlwindHit.Add(id);
+            reportHit(id, Config.WhirlwindDamage, "whirlwind");
+        }
+    }
+
+    public void CheckDashHits(
+        IReadOnlyDictionary<long, PlayerEntity> players,
+        Action<long, int, string> reportHit)
+    {
+        if (!IsLocal || !_isDashing) return;
+        var t = 1f - MathF.Max(0f, _dashTimer) / MathF.Max(0.001f, _dashDuration);
+        if (t < 0.35f || t > 0.85f) return;
+
+        var radiusSq = (PlayerEntity.Radius + 18f) * (PlayerEntity.Radius + 18f);
+        foreach (var (id, other) in players)
+        {
+            if (id == Id || other.IsDead || _dashHit.Contains(id)) continue;
+            if (Vector2.DistanceSquared(Position, other.Position) > radiusSq) continue;
+            _dashHit.Add(id);
+            reportHit(id, Config.WarriorDashDamage, "warrior_dash");
+        }
+    }
     public bool StartAttack(Vector2? facing = null)
     {
         if (IsBusy || IsDead) return false;
@@ -179,6 +258,25 @@ public sealed class PlayerEntity
             case PlayerActions.UseBandage:
                 StartBandageHoT();
                 break;
+            case PlayerActions.ShieldBash:
+                StartMeleeAbility(MeleeAbilityDefinitions.ShieldBash, facingDir);
+                break;
+            case PlayerActions.Whirlwind:
+                StartWhirlwind();
+                break;
+            case PlayerActions.WarriorDash:
+                StartDash(facingDir, Config.WarriorDashDistance, Config.WarriorDashDuration);
+                break;
+            case PlayerActions.BattleShout:
+            case PlayerActions.IronSkin:
+            case PlayerActions.SecondWind:
+                StartAbilityLock(0.35f);
+                break;
+            case PlayerActions.HunterMark:
+                StartAbilityLock(0.3f);
+                if (facingDir.LengthSquared() > 0.01f)
+                    MoveDir = Vector2.Normalize(facingDir);
+                break;
             case PlayerActions.Interact:
                 // Interaction animations can hook in here when added.
                 break;
@@ -208,7 +306,23 @@ public sealed class PlayerEntity
         if (_abilityLockTimer > 0f)
             _abilityLockTimer = MathF.Max(0f, _abilityLockTimer - dt);
 
-        Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
+        if (_whirlwindTimer > 0f)
+            _whirlwindTimer = MathF.Max(0f, _whirlwindTimer - dt);
+
+        if (_isDashing)
+        {
+            _dashTimer = MathF.Max(0f, _dashTimer - dt);
+            var t = 1f - _dashTimer / MathF.Max(0.001f, _dashDuration);
+            Position = Vector2.Lerp(_dashStart, _dashEnd, t);
+            Target = _dashEnd;
+            if (_dashTimer <= 0f)
+                _isDashing = false;
+        }
+        else
+        {
+            Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
+        }
+
         UpdateBandageVisual(dt);
 
         if (IsDying || IsCorpse)
@@ -221,9 +335,27 @@ public sealed class PlayerEntity
         if (HurtAnim.IsPlaying)
             HurtAnim.Update(dt);
 
+        if (IsWhirlwinding)
+        {
+            RunAnim.Update(dt, FacingDir, true);
+            _chatBubble.Update(dt);
+            _thinking.Update(dt);
+            return;
+        }
+
+        if (_isDashing)
+        {
+            RunAnim.Update(dt, FacingDir, true);
+            _chatBubble.Update(dt);
+            _thinking.Update(dt);
+            return;
+        }
+
         if (IsAttacking)
         {
             AttackAnim.Update(dt);
+            if (!AttackAnim.IsPlaying)
+                _activeMeleeDef = null;
             _chatBubble.Update(dt);
             _thinking.Update(dt);
             return;
@@ -271,6 +403,10 @@ public sealed class PlayerEntity
 
         if (IsHurt)
             HurtAnim.Draw(sb, screenPos, tint, scale);
+        else if (IsWhirlwinding)
+            RunAnim.Draw(sb, screenPos, tint, scale);
+        else if (IsDashing)
+            RunAnim.Draw(sb, screenPos, tint, scale);
         else if (IsAttacking)
             AttackAnim.Draw(sb, screenPos, tint, scale);
         else if (IsMoving)
@@ -297,6 +433,14 @@ public sealed class PlayerEntity
 
         if (IsBandaging)
             DrawBandageHoT(sb, screenPos, zoom);
+    }
+
+    public static void DrawHunterMark(SpriteBatch sb, Vector2 screenPos, float zoom)
+    {
+        var y = screenPos.Y + (-Radius - 34f) * zoom;
+        var c = new Vector2(screenPos.X, y);
+        DrawPrimitives.DrawCircleOutline(sb, c, 10f * zoom, new Color(0.95f, 0.35f, 0.4f, 0.9f), 16, 2f);
+        DrawPrimitives.FillCircle(sb, c, 4f * zoom, new Color(0.95f, 0.25f, 0.3f, 0.85f));
     }
 
     private void DrawBandageHoT(SpriteBatch sb, Vector2 screenPos, float zoom)

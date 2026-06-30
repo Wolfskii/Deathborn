@@ -43,6 +43,7 @@ public sealed class GameClient : IDisposable
     public event Action<ChatTypingData>? ChatTyping;
     public event Action<PlayerHitData>? PlayerHit;
     public event Action<PlayerHealData>? PlayerHeal;
+    public event Action<PlayerBuffData>? PlayerBuff;
     public event Action<PlayerDeathData>? PlayerDeath;
     public event Action<YouDiedData>? YouDied;
     public event Action<string>? ServerError;
@@ -328,6 +329,10 @@ public sealed class GameClient : IDisposable
             case "player_heal":
                 var heal = env.Data.Deserialize<PlayerHealData>(JsonOpts);
                 if (heal != null) PlayerHeal?.Invoke(heal);
+                break;
+            case "player_buff":
+                var buff = env.Data.Deserialize<PlayerBuffData>(JsonOpts);
+                if (buff != null) PlayerBuff?.Invoke(buff);
                 break;
             case "player_death":
                 var death = env.Data.Deserialize<PlayerDeathData>(JsonOpts);
