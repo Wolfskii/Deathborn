@@ -24,6 +24,7 @@ public static class Config
     public const float FireballRadius = 10f;
     public const float FireballBurstDuration = 0.35f;
     public const float FireballCooldown = 3f;
+    public const float FireballCastLockDuration = 0.35f;
 
     public const int SlashDamage = 5;
     public const int FireballDamage = 25;

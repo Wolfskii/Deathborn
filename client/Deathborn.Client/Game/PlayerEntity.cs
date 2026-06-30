@@ -22,6 +22,7 @@ public sealed class PlayerEntity
     private float _hitBlinkTimer;
     private float _hitBlinkFlashAccum;
     private bool _hitBlinkVisible = true;
+    private float _abilityLockTimer;
 
     public long Id;
     public string Name = "";
@@ -32,6 +33,8 @@ public sealed class PlayerEntity
     public Vector2 InputDir;
 
     public bool IsAttacking => AttackAnim.IsPlaying;
+    public bool IsCasting => _abilityLockTimer > 0f;
+    public bool IsBusy => IsAttacking || IsCasting;
     public bool IsHitBlinking => _hitBlinkTimer > 0f;
     public bool IsTyping
     {
@@ -107,14 +110,21 @@ public sealed class PlayerEntity
         Target = pos;
     }
 
-    public void StartAttack(Vector2? facing = null)
+    public bool StartAttack(Vector2? facing = null)
     {
-        if (IsAttacking) return;
+        if (IsBusy) return false;
         _meleeHitThisSwing.Clear();
         var dir = facing ?? FacingDir;
         if (dir.LengthSquared() > 0.01f)
             MoveDir = Vector2.Normalize(dir);
         AttackAnim.Start(dir);
+        return true;
+    }
+
+    public void StartAbilityLock(float duration)
+    {
+        if (duration <= 0f) return;
+        _abilityLockTimer = MathF.Max(_abilityLockTimer, duration);
     }
 
     /// <summary>Play a networked action on this player (remote or echoed local).</summary>
@@ -126,6 +136,7 @@ public sealed class PlayerEntity
                 StartAttack(facingDir);
                 break;
             case PlayerActions.CastFireball:
+                StartAbilityLock(Config.FireballCastLockDuration);
                 if (facingDir.LengthSquared() > 0.01f)
                     MoveDir = Vector2.Normalize(facingDir);
                 break;
@@ -136,7 +147,7 @@ public sealed class PlayerEntity
     }
 
     public bool IsMoving =>
-        !IsAttacking &&
+        !IsBusy &&
         ((IsLocal && InputDir.LengthSquared() > 0.01f) ||
          Vector2.DistanceSquared(Position, Target) > 0.5f);
 
@@ -152,11 +163,26 @@ public sealed class PlayerEntity
 
     public void Update(float dt)
     {
+        if (_abilityLockTimer > 0f)
+            _abilityLockTimer = MathF.Max(0f, _abilityLockTimer - dt);
+
         Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
 
         if (IsAttacking)
         {
             AttackAnim.Update(dt);
+            _chatBubble.Update(dt);
+            _thinking.Update(dt);
+            UpdateHitBlink(dt);
+            return;
+        }
+
+        if (IsCasting)
+        {
+            IdleAnim.Update(dt, FacingDir);
+            _chatBubble.Update(dt);
+            _thinking.Update(dt);
+            UpdateHitBlink(dt);
             return;
         }
 

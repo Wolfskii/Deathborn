@@ -141,7 +141,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _chat.Update(gameTime, kb, _prevKb);
         var chatOpen = _chat.IsOpen;
         var menuOpen = _screens.EscMenuOpen;
-        var inputBlocked = chatOpen || menuOpen;
+        var abilityBusy = _players.TryGetValue(_screens.Net.LocalCharacterId, out var busyPlayer) && busyPlayer.IsBusy;
+        var inputBlocked = chatOpen || menuOpen || abilityBusy;
 
         _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
@@ -352,22 +353,57 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (target != null && target.IsInRange(_camera))
             PerformInteract(target);
         else
-            TryDefaultAttack();
+            TryMeleeAttack(AimDirectionFromScreen(mouseScreen));
     }
 
-    private void TryDefaultAttack()
+    private void TryDefaultAttack() => TryMeleeAttack(GetAimDirection());
+
+    private void TryMeleeAttack(Vector2 aimDir)
     {
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
-        var dir = PlayerEntity.CardinalFacing(local.FacingDir);
-        local.StartAttack(dir);
-        _screens.Net.SendPlayerAction(PlayerActions.MeleeAttack, dir.X, dir.Y);
+        if (!local.StartAttack(aimDir)) return;
+        _screens.Net.SendPlayerAction(PlayerActions.MeleeAttack, aimDir.X, aimDir.Y);
     }
+
+    private Vector2 GetAimDirection()
+    {
+        if (!DeathbornGame.Instance.IsActive) return FallbackAimDirection();
+        var mouse = Mouse.GetState();
+        return IsMouseInViewport(mouse.Position)
+            ? AimDirectionFromScreen(mouse.Position)
+            : FallbackAimDirection();
+    }
+
+    private Vector2 AimDirectionFromScreen(Point mouseScreen)
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
+            return new Vector2(0, 1);
+
+        var toMouse = ScreenToWorld(mouseScreen) - local.Position;
+        if (toMouse.LengthSquared() <= 4f)
+            return PlayerEntity.CardinalFacing(local.FacingDir);
+        return PlayerEntity.CardinalFacing(toMouse);
+    }
+
+    private Vector2 FallbackAimDirection()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
+            return new Vector2(0, 1);
+        return PlayerEntity.CardinalFacing(local.FacingDir);
+    }
+
+    private static bool IsMouseInViewport(Point p) =>
+        p.X >= 0 && p.Y >= 0 && p.X < GameViewport.Width && p.Y < GameViewport.Height;
 
     private bool CastFireball(ProjectileDefinition? definition = null)
     {
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        if (local.IsBusy) return false;
 
-        var dir = PlayerEntity.CardinalFacing(local.FacingDir);
+        var dir = GetAimDirection();
+        local.StartAbilityLock(Config.FireballCastLockDuration);
+        local.MoveDir = dir;
+
         var origin = local.GetProjectileSpawnPoint(dir);
         _projectiles.Add(FireballProjectile.Spawn(origin, dir, local.Id, definition));
         _screens.Net.SendCastFireball(dir.X, dir.Y);
@@ -389,7 +425,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(data.PlayerId, out var player)) return;
 
         var isLocal = data.PlayerId == _screens.Net.LocalCharacterId;
-        if (isLocal && data.Action == PlayerActions.MeleeAttack && player.IsAttacking)
+        if (isLocal && data.Action == PlayerActions.MeleeAttack && player.IsBusy)
             return;
 
         var dir = new Vector2((float)data.DirX, (float)data.DirY);
