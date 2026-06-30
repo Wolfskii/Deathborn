@@ -15,11 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Spawn point for newly created characters (a "Starter Town" placeholder).
 const (
-	spawnX = 0.0
-	spawnY = 0.0
-
 	writeTimeout = 10 * time.Second
 	sendBuffer   = 64
 )
@@ -119,13 +115,17 @@ func ServeWS(hub *Hub, database *db.DB, secret string) http.HandlerFunc {
 func (c *Client) spawn(ch db.Character) {
 	c.characterID = ch.ID
 	c.spawned = true
-	c.hub.world.AddPlayer(ch.ID, ch.Name, ch.X, ch.Y)
+	x, y := ch.X, ch.Y
+	if !c.hub.world.CanWalk(x, y) {
+		x, y = c.hub.spawnXY()
+	}
+	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y)
 	log.Printf("character spawned account_id=%d character_id=%d name=%q pos=(%.0f,%.0f)",
-		c.accountID, ch.ID, ch.Name, ch.X, ch.Y)
+		c.accountID, ch.ID, ch.Name, x, y)
 	c.safeSend(encode("welcome", WelcomeData{
 		CharacterID: ch.ID,
-		X:           ch.X,
-		Y:           ch.Y,
+		X:           x,
+		Y:           y,
 		Name:        ch.Name,
 	}))
 }
@@ -182,7 +182,8 @@ func (c *Client) readPump(database *db.DB) {
 				c.safeSend(encode("error", MessageData{Message: "name must be 1-24 characters"}))
 				continue
 			}
-			ch, err := database.CreateCharacter(context.Background(), c.accountID, name, spawnX, spawnY)
+			sx, sy := c.hub.spawnXY()
+			ch, err := database.CreateCharacter(context.Background(), c.accountID, name, sx, sy)
 			if err != nil {
 				log.Printf("character create failed account_id=%d name=%q: %v", c.accountID, name, err)
 				c.safeSend(encode("error", MessageData{Message: "could not create character"}))

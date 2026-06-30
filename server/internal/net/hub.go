@@ -57,3 +57,11 @@ func (h *Hub) Run(ctx context.Context) {
 func (h *Hub) Broadcast(msg []byte) {
 	h.broadcast <- msg
 }
+
+// spawnXY is the default position for newly created characters on Realik.
+func (h *Hub) spawnXY() (float64, float64) {
+	if h.world != nil {
+		return h.world.DefaultSpawn()
+	}
+	return 0, 0
+}

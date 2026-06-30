@@ -16,6 +16,7 @@ import (
 	"github.com/deathborn/server/internal/db"
 	"github.com/deathborn/server/internal/game"
 	gnet "github.com/deathborn/server/internal/net"
+	"github.com/deathborn/server/internal/worldmap"
 	"github.com/deathborn/server/migrations"
 )
 
@@ -44,7 +45,15 @@ func main() {
 	log.Println("migrations applied")
 
 	database := db.New(pool)
-	world := game.NewWorld()
+	terrain, err := worldmap.LoadEmbedded()
+	if err != nil {
+		log.Fatalf("load world map: %v", err)
+	}
+	log.Printf("world map loaded %dx%d tiles (%.0fx%.0f world units) spawn=(%.0f,%.0f)",
+		terrain.TileWidth, terrain.TileHeight, terrain.WorldWidth, terrain.WorldHeight,
+		terrain.DefaultSpawnX, terrain.DefaultSpawnY)
+
+	world := game.NewWorld(terrain)
 	hub := gnet.NewHub(world, database)
 	go hub.Run(ctx)
 

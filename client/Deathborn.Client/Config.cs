@@ -18,7 +18,7 @@ public static class Config
     public const float PlayerLerpSpeed = 12f;
     public const float InteractRange = 72f;
 
-    public const float WorldHalfExtent = 2400f;
+    public const float WorldTileSize = 16f;
     public const float FireballSpeed = 340f;
     public const float FireballMaxRange = 520f;
     public const float FireballRadius = 10f;
@@ -36,10 +36,6 @@ public static class Config
     /// <summary>World Y offset from feet to torso for projectile spawn.</summary>
     public const float CastTorsoOffsetY = -11f;
     public const float CastSpawnDistance = 8f;
-
-    /// <summary>Fixed starter town origin; interactables and new characters spawn here.</summary>
-    public const float StarterTownX = 0f;
-    public const float StarterTownY = 0f;
 
     public const float MinimapWorldRadius = 400f;
     public const float MinimapScreenRadius = 58f;

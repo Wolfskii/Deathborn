@@ -159,8 +159,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
         {
             localPlayer.InputDir = _moveDir;
-            if (windowActive && !inputBlocked)
-                UpdateLocalAimFacing(localPlayer, mouse.Position);
+            if (_moveDir.LengthSquared() > 0.0001f)
+                localPlayer.AimDir = PlayerEntity.CardinalFacing(_moveDir);
+            else if (windowActive && !inputBlocked)
+                UpdateLocalAimFacing(localPlayer, mouse.Position, _prevMouse.Position);
         }
 
         if (inputBlocked)
@@ -388,15 +390,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_moveDir.LengthSquared() > 0.0001f)
             return PlayerEntity.CardinalFacing(_moveDir);
 
-        if (DeathbornGame.Instance.IsActive && IsMouseInViewport(Mouse.GetState().Position))
-            return AimDirectionFromScreen(Mouse.GetState().Position);
+        if (local.AimDir.LengthSquared() > 0.01f)
+            return local.AimDir;
 
-        return PlayerEntity.CardinalFacing(local.FacingDir);
+        return new Vector2(0, 1);
     }
 
-    private void UpdateLocalAimFacing(PlayerEntity local, Point mouseScreen)
+    private void UpdateLocalAimFacing(PlayerEntity local, Point mouseScreen, Point prevMouseScreen)
     {
         if (!IsMouseInViewport(mouseScreen) || local.IsMoving || local.IsBusy)
+            return;
+
+        if (mouseScreen == prevMouseScreen)
             return;
 
         var toMouse = ScreenToWorld(mouseScreen) - local.Position;
@@ -404,17 +409,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
 
         local.AimDir = PlayerEntity.CardinalFacing(toMouse);
-    }
-
-    private Vector2 AimDirectionFromScreen(Point mouseScreen)
-    {
-        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
-            return new Vector2(0, 1);
-
-        var toMouse = ScreenToWorld(mouseScreen) - local.Position;
-        if (toMouse.LengthSquared() <= 4f)
-            return PlayerEntity.CardinalFacing(local.FacingDir);
-        return PlayerEntity.CardinalFacing(toMouse);
     }
 
     private static bool IsMouseInViewport(Point p) =>
@@ -624,7 +618,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_interactablesSeeded) return;
         _interactablesSeeded = true;
 
-        var origin = new Vector2(Config.StarterTownX, Config.StarterTownY);
+        var net = _screens.Net;
+        var origin = net.LocalCharacterId >= 0
+            ? new Vector2(net.SpawnX, net.SpawnY)
+            : WorldMap.Realik.DefaultSpawn;
         void Add(string id, string name, Vector2 offset, InteractableKind kind, Color tint, float pick = 20f)
         {
             _interactables.Add(new InteractableEntity

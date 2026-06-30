@@ -75,7 +75,8 @@ public sealed class FireballProjectile
             return;
         }
 
-        if (Math.Abs(Position.X) >= Config.WorldHalfExtent || Math.Abs(Position.Y) >= Config.WorldHalfExtent)
+        if (Position.X < 0 || Position.Y < 0
+            || Position.X > WorldMap.Realik.WorldWidth || Position.Y > WorldMap.Realik.WorldHeight)
         {
             StartBurst();
             return;

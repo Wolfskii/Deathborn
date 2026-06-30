@@ -5,6 +5,8 @@ package game
 import (
 	"math"
 	"sync"
+
+	"github.com/deathborn/server/internal/worldmap"
 )
 
 // defaultSpeed is the max movement speed in pixels/second.
@@ -16,12 +18,14 @@ type World struct {
 	mu      sync.RWMutex
 	players map[int64]*player
 	speed   float64
+	terrain *worldmap.Map
 }
 
-func NewWorld() *World {
+func NewWorld(terrain *worldmap.Map) *World {
 	return &World{
 		players: make(map[int64]*player),
 		speed:   defaultSpeed,
+		terrain: terrain,
 	}
 }
 
@@ -61,8 +65,14 @@ func (w *World) Step(dt float64) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for _, p := range w.players {
-		p.x += p.dirX * w.speed * dt
-		p.y += p.dirY * w.speed * dt
+		dx := p.dirX * w.speed * dt
+		dy := p.dirY * w.speed * dt
+		if w.terrain != nil {
+			p.x, p.y = w.terrain.ResolveMove(p.x, p.y, dx, dy)
+		} else {
+			p.x += dx
+			p.y += dy
+		}
 	}
 }
 
@@ -75,6 +85,22 @@ func (w *World) Snapshot() []PlayerState {
 		out = append(out, PlayerState{ID: p.id, Name: p.name, X: p.x, Y: p.y})
 	}
 	return out
+}
+
+// DefaultSpawn returns the preferred starter position on walkable land.
+func (w *World) DefaultSpawn() (float64, float64) {
+	if w.terrain != nil {
+		return w.terrain.DefaultSpawnX, w.terrain.DefaultSpawnY
+	}
+	return 0, 0
+}
+
+// CanWalk reports whether a player-sized circle may stand at (x,y).
+func (w *World) CanWalk(x, y float64) bool {
+	if w.terrain == nil {
+		return true
+	}
+	return w.terrain.CanWalk(x, y, 12)
 }
 
 // Position returns a player's current position, if present.
