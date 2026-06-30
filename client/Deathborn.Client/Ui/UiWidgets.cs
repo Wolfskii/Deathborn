@@ -45,6 +45,7 @@ public sealed class TextField
     public Rectangle Bounds;
     public string Text = "";
     public string Placeholder = "";
+    public Color PlaceholderColor = new(120, 120, 130);
     public bool IsPassword;
 
     private bool _focused;
@@ -97,8 +98,10 @@ public sealed class TextField
         DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 36, 30) : new Color(22, 20, 16));
         DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2), Focused ? new Color(210, 170, 80) : new Color(90, 75, 50));
 
-        var display = Text.Length > 0 ? (IsPassword ? new string('*', Text.Length) : Text) : Placeholder;
-        var col = Text.Length > 0 ? Color.White : new Color(120, 120, 130);
+        var display = Text.Length > 0
+            ? (IsPassword ? new string('*', Text.Length) : SpriteFontSafe.Filter(Text))
+            : SpriteFontSafe.Filter(Placeholder);
+        var col = Text.Length > 0 ? Color.White : PlaceholderColor;
         sb.DrawString(font, display, new Vector2(Bounds.X + 8, Bounds.Y + 8), col);
 
         if (Focused && ((int)(_cursorBlink * 2) % 2 == 0))

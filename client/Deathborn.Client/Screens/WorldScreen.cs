@@ -96,11 +96,9 @@ public sealed class WorldScreen : IScreen
     public bool HandleEscape()
     {
         if (_chat.IsOpen)
-        {
             _chat.Close(submit: false);
-            return true;
-        }
-        return false;
+        // Never quit the game from world — only the window close button exits.
+        return true;
     }
 
     public void Update(GameTime gameTime)
@@ -218,14 +216,17 @@ public sealed class WorldScreen : IScreen
         _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
         sb.End();
 
-        DrawChatOverlay(sb, font);
+        DrawChatOverlay(sb, font, zoom);
     }
 
-    private void DrawChatOverlay(SpriteBatch sb, SpriteFont font)
+    private void DrawChatOverlay(SpriteBatch sb, SpriteFont font, float zoom)
     {
         if (!_chat.IsOpen) return;
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
+
+        var screenPos = WorldToScreen(local.Position);
         sb.Begin();
-        _chat.Draw(sb, font);
+        _chat.Draw(sb, font, screenPos, zoom);
         sb.End();
     }
 

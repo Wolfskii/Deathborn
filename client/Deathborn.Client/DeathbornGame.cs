@@ -17,6 +17,7 @@ public sealed class DeathbornGame : Game
     private SpriteBatch _spriteBatch = null!;
     private ScreenManager _screens = null!;
     private KeyboardState _prevKb;
+    private bool _wasActive = true;
 
     public SpriteFont Font { get; private set; } = null!;
     public GameClient Client { get; } = new();
@@ -88,6 +89,11 @@ public sealed class DeathbornGame : Game
         SyncViewport();
 
         var kb = Keyboard.GetState();
+        var active = IsActive;
+
+        // Swallow keyboard edges when the window regains focus (same as WorldScreen mouse swallow).
+        if (active && !_wasActive)
+            _prevKb = kb;
 
         if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
             Exit();
@@ -95,16 +101,20 @@ public sealed class DeathbornGame : Game
         if (kb.IsKeyDown(Keys.Escape) && !_prevKb.IsKeyDown(Keys.Escape) && !_screens.TryHandleEscape())
             Exit();
 
-        if ((kb.IsKeyDown(Keys.F11) && !_prevKb.IsKeyDown(Keys.F11))
-            || ((kb.IsKeyDown(Keys.LeftAlt) || kb.IsKeyDown(Keys.RightAlt))
-                && kb.IsKeyDown(Keys.Enter) && !_prevKb.IsKeyDown(Keys.Enter)))
+        _screens.Update(gameTime);
+
+        var textInputActive = TextField.Active != null;
+        if (!textInputActive
+            && ((kb.IsKeyDown(Keys.F11) && !_prevKb.IsKeyDown(Keys.F11))
+                || ((kb.IsKeyDown(Keys.LeftAlt) || kb.IsKeyDown(Keys.RightAlt))
+                    && kb.IsKeyDown(Keys.Enter) && !_prevKb.IsKeyDown(Keys.Enter))))
         {
             ToggleFullscreen();
         }
 
-        _screens.Update(gameTime);
         MusicPlayer.Update();
         _prevKb = kb;
+        _wasActive = active;
         base.Update(gameTime);
     }
 

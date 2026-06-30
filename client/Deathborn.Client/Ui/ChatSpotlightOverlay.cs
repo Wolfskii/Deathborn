@@ -6,14 +6,18 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Ui;
 
-/// <summary>macOS Spotlight-style chat input centered on screen.</summary>
+/// <summary>Chat input anchored above the local player.</summary>
 public sealed class ChatSpotlightOverlay
 {
     private const float OpenAnimDuration = 0.18f;
-    private const int FieldHeight = 44;
-    private const int FieldWidth = 560;
+    private const int FieldHeight = 36;
+    private const int FieldWidth = 340;
 
-    private readonly TextField _field = new() { Placeholder = "Say something…" };
+    private readonly TextField _field = new()
+    {
+        Placeholder = "Say something...",
+        PlaceholderColor = Color.White,
+    };
     private float _openAnim;
     private bool _awaitEnterRelease;
 
@@ -35,7 +39,6 @@ public sealed class ChatSpotlightOverlay
         _openAnim = 0;
         _field.Text = "";
         _awaitEnterRelease = true;
-        LayoutField();
         _field.Focused = true;
         TypingChanged?.Invoke(true);
     }
@@ -53,7 +56,7 @@ public sealed class ChatSpotlightOverlay
 
         IsOpen = false;
         _awaitEnterRelease = false;
-        _field.Focused = false;
+        TextField.ReleaseFocus();
         TypingChanged?.Invoke(false);
     }
 
@@ -71,7 +74,8 @@ public sealed class ChatSpotlightOverlay
         }
         else if (InputKeys.EnterPressed(kb, prevKb))
         {
-            Close(submit: true);
+            if (_field.Text.Trim().Length > 0)
+                Close(submit: true);
             return;
         }
 
@@ -87,47 +91,33 @@ public sealed class ChatSpotlightOverlay
         _field.Update(gameTime, kb, prevKb);
     }
 
-    public void Draw(SpriteBatch sb, SpriteFont font)
+    public void LayoutField(Vector2 playerScreenPos, float zoom)
     {
         if (!IsOpen) return;
 
         var t = _openAnim / OpenAnimDuration;
         var ease = 1f - MathF.Pow(1f - t, 3f);
-        var dimAlpha = 0.55f * ease;
-
-        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height),
-            new Color(0, 0, 0, dimAlpha));
-
-        var cx = GameViewport.Width / 2f;
-        var cy = GameViewport.Height * 0.38f;
-        var scale = 0.9f + 0.1f * ease;
-        var w = (int)(FieldWidth * scale);
-        var h = (int)(FieldHeight * scale);
-        _field.Bounds = new Rectangle((int)(cx - w / 2f), (int)(cy - h / 2f), w, h);
-        LayoutField();
-
-        // Outer glow
-        var glow = new Rectangle(_field.Bounds.X - 4, _field.Bounds.Y - 4, _field.Bounds.Width + 8, _field.Bounds.Height + 8);
-        DrawPrimitives.FillRect(sb, glow, new Color(1f, 0.85f, 0.45f, 0.12f * ease));
-
-        _field.Draw(sb, font);
-
-        var hint = "Enter to send · Esc to cancel";
-        var hintSize = font.MeasureString(hint);
-        sb.DrawString(font, hint, new Vector2(cx - hintSize.X / 2f, _field.Bounds.Bottom + 10),
-            new Color(200, 200, 210, (int)(180 * ease)));
+        var uiScale = MathF.Min(zoom, 1.35f);
+        var w = (int)(FieldWidth * uiScale);
+        var h = (int)(FieldHeight * uiScale);
+        var cx = playerScreenPos.X;
+        var top = playerScreenPos.Y - (52f + h) * zoom;
+        _field.Bounds = new Rectangle((int)(cx - w / 2f), (int)top, w, h);
     }
 
-    private void LayoutField()
+    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 playerScreenPos, float zoom)
     {
         if (!IsOpen) return;
-        var cx = GameViewport.Width / 2f;
-        var cy = GameViewport.Height * 0.38f;
+
+        LayoutField(playerScreenPos, zoom);
+        _field.Draw(sb, font);
+
         var t = _openAnim / OpenAnimDuration;
         var ease = 1f - MathF.Pow(1f - t, 3f);
-        var scale = 0.9f + 0.1f * ease;
-        var w = (int)(FieldWidth * scale);
-        var h = (int)(FieldHeight * scale);
-        _field.Bounds = new Rectangle((int)(cx - w / 2f), (int)(cy - h / 2f), w, h);
+        var hint = "Enter to send - Esc to cancel";
+        var hintSize = font.MeasureString(hint);
+        var hintX = _field.Bounds.X + _field.Bounds.Width / 2f - hintSize.X / 2f;
+        sb.DrawString(font, hint, new Vector2(hintX, _field.Bounds.Bottom + 4),
+            new Color(200, 200, 210, (int)(160 * ease)));
     }
 }

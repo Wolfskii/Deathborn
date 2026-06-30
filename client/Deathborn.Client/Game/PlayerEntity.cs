@@ -202,17 +202,21 @@ public sealed class PlayerEntity
                 IdleAnim.Draw(sb, screenPos, tint, scale);
         }
 
-        var headY = (-Radius - 14f) * zoom;
-        var bubbleAnchor = screenPos + new Vector2(0, headY);
+        var nameY = screenPos.Y + (-Radius - 28f) * zoom;
+        var label = font.MeasureString(Name);
+        var namePos = new Vector2(screenPos.X - label.X / 2f, nameY);
+        sb.DrawString(font, Name, namePos, Color.White);
 
+        var nameTop = nameY;
+        var thinkingAnchor = new Vector2(screenPos.X, nameTop - 22f * zoom);
         if (_thinking.Active)
-            _thinking.Draw(sb, bubbleAnchor, zoom);
+            _thinking.Draw(sb, thinkingAnchor, zoom);
 
         if (_chatBubble.IsVisible)
-            _chatBubble.Draw(sb, font, bubbleAnchor + new Vector2(0, -14f * zoom), zoom);
-
-        var label = font.MeasureString(Name);
-        sb.DrawString(font, Name, screenPos + new Vector2(-label.X / 2, (-Radius - 38) * zoom), Color.White);
+        {
+            var speechTarget = new Vector2(screenPos.X, nameTop - 6f * zoom);
+            _chatBubble.Draw(sb, font, speechTarget, zoom);
+        }
     }
 
     public static PlayerEntity FromState(PlayerState s, bool isLocal) => new()
