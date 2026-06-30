@@ -57,33 +57,68 @@ func parse(data []byte) (*Map, error) {
 	}
 	m.WorldWidth = float64(tw) * tileSize
 	m.WorldHeight = float64(th) * tileSize
-	m.DefaultSpawnX, m.DefaultSpawnY = findSpawn(m)
+	tx, ty := findStarterCampTile(m)
+	m.DefaultSpawnX, m.DefaultSpawnY = tileCenter(tx, ty, tileSize)
 	return m, nil
 }
 
-func findSpawn(m *Map) (float64, float64) {
-	cx := m.TileWidth / 2
-	cy := int(float64(m.TileHeight) * 0.28)
-	maxR := m.TileWidth
-	if m.TileHeight > maxR {
-		maxR = m.TileHeight
-	}
-	for radius := 0; radius < maxR; radius++ {
-		for ty := cy - radius; ty <= cy+radius; ty++ {
-			if ty < 0 || ty >= m.TileHeight {
+const starterClearanceTiles = 10
+
+func findStarterCampTile(m *Map) (int, int) {
+	minTx := int(float64(m.TileWidth) * 0.32)
+	maxTx := int(float64(m.TileWidth) * 0.68)
+	minTy := int(float64(m.TileHeight) * 0.18)
+	maxTy := int(float64(m.TileHeight) * 0.38)
+
+	bestScore := -1
+	bestTx, bestTy := m.TileWidth/2, m.TileHeight/2
+
+	for ty := minTy; ty <= maxTy; ty++ {
+		for tx := minTx; tx <= maxTx; tx++ {
+			if !m.isLand(tx, ty) || !m.hasClearance(tx, ty, starterClearanceTiles) {
 				continue
 			}
-			for tx := cx - radius; tx <= cx+radius; tx++ {
-				if tx < 0 || tx >= m.TileWidth {
-					continue
-				}
-				if m.walkable[ty*m.TileWidth+tx] {
-					return tileCenter(tx, ty, m.TileSize)
-				}
+			score := m.landCount(tx, ty, 14)
+			if score > bestScore {
+				bestScore = score
+				bestTx, bestTy = tx, ty
 			}
 		}
 	}
-	return tileCenter(m.TileWidth/2, m.TileHeight/2, m.TileSize)
+	return bestTx, bestTy
+}
+
+func (m *Map) isLand(tx, ty int) bool {
+	if tx < 0 || ty < 0 || tx >= m.TileWidth || ty >= m.TileHeight {
+		return false
+	}
+	return m.walkable[ty*m.TileWidth+tx]
+}
+
+func (m *Map) hasClearance(tx, ty, radius int) bool {
+	for dy := -radius; dy <= radius; dy++ {
+		for dx := -radius; dx <= radius; dx++ {
+			if dx*dx+dy*dy > radius*radius {
+				continue
+			}
+			if !m.isLand(tx+dx, ty+dy) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (m *Map) landCount(tx, ty, radius int) int {
+	n := 0
+	for dy := -radius; dy <= radius; dy++ {
+		for dx := -radius; dx <= radius; dx++ {
+			if m.isLand(tx+dx, ty+dy) {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 func tileCenter(tx, ty int, tileSize float64) (float64, float64) {

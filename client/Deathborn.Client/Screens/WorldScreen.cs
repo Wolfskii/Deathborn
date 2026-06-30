@@ -644,10 +644,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_interactablesSeeded) return;
         _interactablesSeeded = true;
 
-        var net = _screens.Net;
-        var origin = net.LocalCharacterId >= 0
-            ? new Vector2(net.SpawnX, net.SpawnY)
-            : WorldMap.Realik.DefaultSpawn;
+        var origin = WorldMap.Realik.DefaultSpawn;
         void Add(string id, string name, Vector2 offset, InteractableKind kind, Color tint, float pick = 20f)
         {
             _interactables.Add(new InteractableEntity

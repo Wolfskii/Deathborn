@@ -61,19 +61,55 @@ public sealed class WorldMap
 
     private static Vector2 FindSpawnTile(bool[] grid, int tw, int th, float tileSize)
     {
-        // Prefer Dynas Expanse / central-north plains over deep forest or desert.
-        var cx = tw / 2;
-        var cy = (int)(th * 0.28f);
-        for (var radius = 0; radius < Math.Max(tw, th); radius++)
+        const int clearance = 10;
+        var minTx = (int)(tw * 0.32f);
+        var maxTx = (int)(tw * 0.68f);
+        var minTy = (int)(th * 0.18f);
+        var maxTy = (int)(th * 0.38f);
+
+        var bestScore = -1;
+        var bestTx = tw / 2;
+        var bestTy = th / 2;
+
+        for (var ty = minTy; ty <= maxTy; ty++)
+        for (var tx = minTx; tx <= maxTx; tx++)
         {
-            for (var ty = Math.Max(0, cy - radius); ty <= Math.Min(th - 1, cy + radius); ty++)
-            for (var tx = Math.Max(0, cx - radius); tx <= Math.Min(tw - 1, cx + radius); tx++)
-            {
-                if (!grid[ty * tw + tx]) continue;
-                return TileCenter(tx, ty, tileSize);
-            }
+            if (!IsLand(grid, tw, th, tx, ty) || !HasClearance(grid, tw, th, tx, ty, clearance))
+                continue;
+
+            var score = LandCount(grid, tw, th, tx, ty, 14);
+            if (score <= bestScore) continue;
+            bestScore = score;
+            bestTx = tx;
+            bestTy = ty;
         }
-        return TileCenter(tw / 2, th / 2, tileSize);
+
+        return TileCenter(bestTx, bestTy, tileSize);
+    }
+
+    private static bool IsLand(bool[] grid, int tw, int th, int tx, int ty) =>
+        (uint)tx < (uint)tw && (uint)ty < (uint)th && grid[ty * tw + tx];
+
+    private static bool HasClearance(bool[] grid, int tw, int th, int tx, int ty, int radius)
+    {
+        for (var dy = -radius; dy <= radius; dy++)
+        for (var dx = -radius; dx <= radius; dx++)
+        {
+            if (dx * dx + dy * dy > radius * radius) continue;
+            if (!IsLand(grid, tw, th, tx + dx, ty + dy)) return false;
+        }
+        return true;
+    }
+
+    private static int LandCount(bool[] grid, int tw, int th, int tx, int ty, int radius)
+    {
+        var n = 0;
+        for (var dy = -radius; dy <= radius; dy++)
+        for (var dx = -radius; dx <= radius; dx++)
+        {
+            if (IsLand(grid, tw, th, tx + dx, ty + dy)) n++;
+        }
+        return n;
     }
 
     private static Vector2 TileCenter(int tx, int ty, float tileSize) =>
