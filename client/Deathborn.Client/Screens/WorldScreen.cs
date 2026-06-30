@@ -5,6 +5,7 @@ using Deathborn.Client.Gameplay;
 using Deathborn.Client.Audio;
 using Deathborn.Client.Net;
 using Deathborn.Client.Ui;
+using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Screens;
 
@@ -20,6 +21,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly MinimapHud _minimap = new();
     private readonly GameWindowManager _windows = new();
     private readonly WorldMapOverlay _worldMap = new();
+    private readonly DeathGhostOverlay _deathOverlay = new();
+    private readonly List<PlayerCorpse> _corpses = [];
+    private readonly Dictionary<long, PlayerEntity> _deathWatch = new();
+    private GhostEntity? _ghost;
+    private Vector2 _corpsePosition;
+    private bool _ghostMode;
+    private bool _ghostModePending;
     private bool _interactablesSeeded;
 
     private Vector2 _camera;
@@ -43,6 +51,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _hotbar.CooldownBlocked += OnHotbarCooldownBlocked;
         _chat.Submitted += OnChatSubmitted;
         _chat.TypingChanged += OnChatTypingChanged;
+        _deathOverlay.NewLifeRequested += OnNewLifeRequested;
     }
 
     public void OnEnter()
@@ -57,6 +66,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.ChatTyping += OnChatTyping;
         net.PlayerHit += OnPlayerHit;
         net.PlayerHeal += OnPlayerHeal;
+        net.PlayerDeath += OnPlayerDeath;
+        net.YouDied += OnYouDied;
 
         if (net.LocalCharacterId >= 0 && !_players.ContainsKey(net.LocalCharacterId))
         {
@@ -96,6 +107,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.ChatTyping -= OnChatTyping;
         net.PlayerHit -= OnPlayerHit;
         net.PlayerHeal -= OnPlayerHeal;
+        net.PlayerDeath -= OnPlayerDeath;
+        net.YouDied -= OnYouDied;
+        _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
         _chat.Submitted -= OnChatSubmitted;
         _chat.TypingChanged -= OnChatTypingChanged;
         if (_chat.IsOpen) _chat.Close(submit: false);
@@ -105,6 +119,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _windows.Character.Close();
         _worldMap.Close();
         _effects.Clear();
+        _corpses.Clear();
+        _deathWatch.Clear();
+        _ghost = null;
+        _ghostMode = false;
+        _ghostModePending = false;
         _interactables.Clear();
         _interactablesSeeded = false;
     }
@@ -159,6 +178,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _chat.Open();
 
         _chat.Update(gameTime, kb, _prevKb);
+
+        if (_ghostMode)
+        {
+            UpdateGhostMode(dt, kb, mouse, windowActive);
+            _prevKb = kb;
+            if (windowActive)
+                _prevMouse = mouse;
+            return;
+        }
+
         var chatOpen = _chat.IsOpen;
         var menuOpen = _screens.EscMenuOpen;
 
@@ -204,6 +233,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         foreach (var p in _players.Values) p.Update(dt);
+        ProcessDeathWatch();
 
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localAttacker))
             localAttacker.CheckLocalMeleeHits(_players, (targetId, damage, ability) =>
@@ -261,8 +291,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var effect in _effects.Where(e => e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
+        foreach (var corpse in _corpses)
+            corpse.Draw(sb, WorldToScreen(corpse.Position), zoom);
+
         foreach (var p in _players.Values.OrderBy(p => p.Position.Y))
             p.Draw(sb, font, WorldToScreen(p.Position), zoom);
+
+        if (_ghostMode && _ghost != null)
+            _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
 
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
@@ -280,14 +316,109 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!string.IsNullOrEmpty(_interactPrompt))
             sb.DrawString(font, _interactPrompt, new Vector2(GameViewport.Width / 2f - 200, GameViewport.Height - 108), new Color(220, 220, 180));
 
-        _hotbar.Draw(sb, font);
-        _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
+        if (!_ghostMode)
+        {
+            _hotbar.Draw(sb, font);
+            _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
+        }
         _windows.Draw(sb, font);
         sb.End();
 
         DrawChatOverlay(sb, font, zoom);
         DrawWorldMapOverlay(sb, font);
+
+        if (_ghostMode)
+        {
+            sb.Begin();
+            _deathOverlay.Draw(sb, font);
+            sb.End();
+        }
     }
+
+    private void UpdateGhostMode(float dt, KeyboardState kb, MouseState mouse, bool windowActive)
+    {
+        if (_ghost == null) return;
+
+        _ghost.MoveDir = windowActive ? ReadMoveDir(kb) : Vector2.Zero;
+        _ghost.Update(dt);
+        _camera = _ghost.Position;
+
+        if (windowActive)
+        {
+            var clicked = mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released;
+            _deathOverlay.Update(mouse.Position, clicked);
+        }
+    }
+
+    private void ProcessDeathWatch()
+    {
+        foreach (var id in _deathWatch.Keys.ToList())
+        {
+            if (!_deathWatch.TryGetValue(id, out var player) || !player.IsCorpse)
+                continue;
+
+            _corpses.Add(new PlayerCorpse(
+                CharacterSprites.CreateCorpseDeathAnim(),
+                player.Position,
+                player.MoveDir));
+
+            var wasLocal = player.IsLocal;
+            _players.Remove(id);
+            _deathWatch.Remove(id);
+
+            if (wasLocal && _ghostModePending)
+                ActivateGhostMode();
+        }
+    }
+
+    private void ActivateGhostMode()
+    {
+        _ghostMode = true;
+        _ghostModePending = false;
+        _ghost = new GhostEntity
+        {
+            Position = _corpsePosition + new Vector2(0, -GhostEntity.FloatHeight),
+        };
+        _effects.Clear();
+        _status = "Your spirit is free. Create a new character to return.";
+        _chat.Close(submit: false);
+        _worldMap.Close();
+        _windows.Character.Close();
+    }
+
+    private void OnPlayerDeath(PlayerDeathData data)
+    {
+        var facing = new Vector2((float)data.DirX, (float)data.DirY);
+        if (facing.LengthSquared() < 0.01f)
+            facing = new Vector2(0, 1);
+
+        if (_players.TryGetValue(data.PlayerId, out var player))
+        {
+            player.BeginDeath(facing);
+            _deathWatch[data.PlayerId] = player;
+            if (player.IsLocal)
+                _corpsePosition = player.Position;
+        }
+        else
+        {
+            _corpses.Add(new PlayerCorpse(
+                CharacterSprites.CreateCorpseDeathAnim(),
+                new Vector2((float)data.X, (float)data.Y),
+                facing));
+        }
+    }
+
+    private void OnYouDied(YouDiedData data)
+    {
+        _corpsePosition = new Vector2((float)data.X, (float)data.Y);
+        _ghostModePending = true;
+
+        var local = _players.Values.FirstOrDefault(p => p.IsLocal);
+        if (local is { IsCorpse: true })
+            ActivateGhostMode();
+    }
+
+    private void OnNewLifeRequested() => _screens.Change(new CharacterCreateScreen(_screens));
 
     private void DrawWorldMapOverlay(SpriteBatch sb, SpriteFont font)
     {
@@ -535,7 +666,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var bestDist = Config.ArcBoltRange * Config.ArcBoltRange;
         foreach (var (id, player) in _players)
         {
-            if (id == selfId) continue;
+            if (id == selfId || player.IsDead) continue;
             var to = player.Position - origin;
             var distSq = to.LengthSquared();
             if (distSq > bestDist || distSq < 1f) continue;

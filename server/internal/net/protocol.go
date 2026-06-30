@@ -126,6 +126,24 @@ type PlayerHitData struct {
 	HpMax      float64 `json:"hpMax"`
 }
 
+// PlayerDeathData is broadcast when a player dies.
+type PlayerDeathData struct {
+	PlayerID   int64   `json:"playerId"`
+	KillerID   int64   `json:"killerId,omitempty"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	DirX       float64 `json:"dirX"`
+	DirY       float64 `json:"dirY"`
+}
+
+// YouDiedData tells the victim their character is dead and they may create a new one.
+type YouDiedData struct {
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+	DirX float64 `json:"dirX"`
+	DirY float64 `json:"dirY"`
+}
+
 // PlayerHealData is broadcast when a player heals themselves.
 type PlayerHealData struct {
 	PlayerID int64   `json:"playerId"`
@@ -161,6 +179,23 @@ func encode(typ string, data any) []byte {
 	raw, _ := json.Marshal(data)
 	env, _ := json.Marshal(Envelope{Type: typ, Data: raw})
 	return env
+}
+
+// BuildPlayerDeath serializes a player death for broadcast.
+func BuildPlayerDeath(playerID, killerID int64, x, y, dirX, dirY float64) []byte {
+	return encode("player_death", PlayerDeathData{
+		PlayerID: playerID,
+		KillerID: killerID,
+		X:        x,
+		Y:        y,
+		DirX:     dirX,
+		DirY:     dirY,
+	})
+}
+
+// BuildYouDied serializes the victim-only death notice.
+func BuildYouDied(x, y, dirX, dirY float64) []byte {
+	return encode("you_died", YouDiedData{X: x, Y: y, DirX: dirX, DirY: dirY})
 }
 
 // BuildPlayerHeal serializes a heal event for broadcast.

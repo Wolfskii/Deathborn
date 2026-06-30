@@ -53,7 +53,7 @@ public sealed class PoisonCloudEffect : IWorldEffect
 
         foreach (var (id, player) in players)
         {
-            if (id == OwnerId) continue;
+            if (id == OwnerId || player.IsDead) continue;
             if (Vector2.DistanceSquared(Position, player.Position) > (Radius + PlayerEntity.Radius) * (Radius + PlayerEntity.Radius))
                 continue;
             onPlayerHit?.Invoke(id, Config.PoisonCloudDamage);

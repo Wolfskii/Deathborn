@@ -65,8 +65,17 @@ func (d *DB) CreateCharacter(ctx context.Context, accountID int64, name string, 
 // used on disconnect so a returning player resumes near where they left).
 func (d *DB) SaveCharacterPosition(ctx context.Context, id int64, x, y float64) error {
 	_, err := d.Pool.Exec(ctx,
-		`UPDATE characters SET pos_x = $2, pos_y = $3 WHERE id = $1`,
+		`UPDATE characters SET pos_x = $2, pos_y = $3 WHERE id = $1 AND alive = TRUE`,
 		id, x, y,
+	)
+	return err
+}
+
+// MarkCharacterDead sets alive=false for a character that has died.
+func (d *DB) MarkCharacterDead(ctx context.Context, id int64) error {
+	_, err := d.Pool.Exec(ctx,
+		`UPDATE characters SET alive = FALSE WHERE id = $1 AND alive = TRUE`,
+		id,
 	)
 	return err
 }

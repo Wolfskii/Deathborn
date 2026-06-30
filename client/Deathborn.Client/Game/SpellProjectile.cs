@@ -93,7 +93,7 @@ public sealed class SpellProjectile : IWorldEffect
         {
             foreach (var (id, player) in players)
             {
-                if (id == OwnerId) continue;
+                if (id == OwnerId || player.IsDead) continue;
                 var hit = Definition.Radius + PlayerEntity.Radius;
                 if (Vector2.DistanceSquared(Position, player.Position) <= hit * hit)
                 {

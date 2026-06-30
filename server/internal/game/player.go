@@ -7,6 +7,7 @@ type player struct {
 	x, y float64
 	hp    float64
 	hpMax float64
+	dead  bool
 	hot   *healOverTime
 	// desired movement direction (unit-clamped), set from client input and
 	// integrated each tick.

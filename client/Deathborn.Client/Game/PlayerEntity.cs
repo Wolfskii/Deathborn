@@ -8,14 +8,17 @@ namespace Deathborn.Client.Gameplay;
 public sealed class PlayerEntity
 {
     public const float Radius = 12f;
-    private const float SpriteScale = 1.5f;
+    public const float SpriteDrawScale = 1.5f;
+    private const float SpriteScale = SpriteDrawScale;
 
     private FourDirectionRunAnimation? _runAnim;
     private FourDirectionIdleAnimation? _idleAnim;
     private FourDirectionAttackAnimation? _attackAnim;
+    private FourDirectionDeathAnimation? _deathAnim;
     private FourDirectionRunAnimation RunAnim => _runAnim ??= CharacterSprites.CreateSwordsmanRun();
     private FourDirectionIdleAnimation IdleAnim => _idleAnim ??= CharacterSprites.CreateSwordsmanIdle();
     private FourDirectionAttackAnimation AttackAnim => _attackAnim ??= CharacterSprites.CreateSwordsmanAttack();
+    private FourDirectionDeathAnimation DeathAnim => _deathAnim ??= CharacterSprites.CreateSwordsmanDeath();
     private readonly PlayerChatBubble _chatBubble = new();
     private readonly ThinkingBubble _thinking = new();
     private readonly HashSet<long> _meleeHitThisSwing = [];
@@ -47,8 +50,19 @@ public sealed class PlayerEntity
     }
 
     public bool IsBandaging => _bandageHoTTimer > 0f;
+    public bool IsDying => DeathAnim.IsPlaying;
+    public bool IsCorpse => DeathAnim.IsComplete;
+    public bool IsDead => IsDying || IsCorpse;
 
     public CharacterStats Stats { get; } = CharacterStats.CreateStarter();
+
+    public void BeginDeath(Vector2? facing = null)
+    {
+        var dir = facing ?? FacingDir;
+        if (dir.LengthSquared() > 0.01f)
+            MoveDir = Vector2.Normalize(dir);
+        DeathAnim.Start(dir);
+    }
 
     public void StartBandageHoT() => _bandageHoTTimer = Config.BandageDuration;
 
@@ -91,7 +105,7 @@ public sealed class PlayerEntity
         IReadOnlyDictionary<long, PlayerEntity> players,
         Action<long, int, string> reportHit)
     {
-        if (!IsLocal || !IsAttacking) return;
+        if (!IsLocal || IsDead || !IsAttacking) return;
 
         var def = MeleeAbilityDefinitions.Slash;
         var frame = AttackAnim.Frame;
@@ -100,7 +114,7 @@ public sealed class PlayerEntity
         var facing = CardinalFacing(FacingDir);
         foreach (var (id, other) in players)
         {
-            if (id == Id || _meleeHitThisSwing.Contains(id)) continue;
+            if (id == Id || _meleeHitThisSwing.Contains(id) || other.IsDead) continue;
             if (!IsInMeleeArc(Position, facing, other.Position, def.Range, def.HalfWidth)) continue;
 
             _meleeHitThisSwing.Add(id);
@@ -128,7 +142,7 @@ public sealed class PlayerEntity
 
     public bool StartAttack(Vector2? facing = null)
     {
-        if (IsBusy) return false;
+        if (IsBusy || IsDead) return false;
         _meleeHitThisSwing.Clear();
         var dir = facing ?? FacingDir;
         if (dir.LengthSquared() > 0.01f)
@@ -175,6 +189,7 @@ public sealed class PlayerEntity
     }
 
     public bool IsMoving =>
+        !IsDead &&
         !IsBusy &&
         ((IsLocal && InputDir.LengthSquared() > 0.01f) ||
          Vector2.DistanceSquared(Position, Target) > 0.5f);
@@ -197,6 +212,13 @@ public sealed class PlayerEntity
 
         Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
         UpdateBandageVisual(dt);
+
+        if (IsDying || IsCorpse)
+        {
+            if (IsDying)
+                DeathAnim.Update(dt);
+            return;
+        }
 
         if (IsAttacking)
         {
@@ -254,6 +276,12 @@ public sealed class PlayerEntity
     {
         var tint = IsLocal ? Color.White : new Color(0.92f, 0.82f, 0.78f);
         var scale = SpriteScale * zoom;
+
+        if (IsDead)
+        {
+            DeathAnim.Draw(sb, screenPos, tint, scale);
+            return;
+        }
 
         if (_hitBlinkVisible)
         {

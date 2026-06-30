@@ -41,6 +41,10 @@ type Client struct {
 	spawned     bool
 }
 
+func (c *Client) markUnspawned() {
+	c.spawned = false
+}
+
 // trySend queues a message without blocking. Returns false only if the buffer
 // is full (a slow client), in which case the hub drops the connection.
 func (c *Client) trySend(msg []byte) bool {
@@ -310,7 +314,7 @@ func (c *Client) readPump(database *db.DB) {
 			if !c.hub.world.ValidateAbilityHit(c.characterID, d.TargetID, d.Ability) {
 				continue
 			}
-			hp, hpMax, ok := c.hub.world.ApplyDamage(d.TargetID, damage)
+			hp, hpMax, justDied, ok := c.hub.world.ApplyDamage(d.TargetID, damage)
 			if !ok {
 				continue
 			}
@@ -322,6 +326,9 @@ func (c *Client) readPump(database *db.DB) {
 				Hp:         hp,
 				HpMax:      hpMax,
 			}))
+			if justDied {
+				c.hub.HandlePlayerDeath(database, d.TargetID, c.characterID)
+			}
 
 		case "ability_use":
 			if !c.spawned {

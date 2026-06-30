@@ -183,6 +183,42 @@ public sealed class PlayerHitData
     public double HpMax { get; set; }
 }
 
+public sealed class PlayerDeathData
+{
+    [JsonPropertyName("playerId")]
+    public long PlayerId { get; set; }
+
+    [JsonPropertyName("killerId")]
+    public long KillerId { get; set; }
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("dirX")]
+    public double DirX { get; set; }
+
+    [JsonPropertyName("dirY")]
+    public double DirY { get; set; }
+}
+
+public sealed class YouDiedData
+{
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("dirX")]
+    public double DirX { get; set; }
+
+    [JsonPropertyName("dirY")]
+    public double DirY { get; set; }
+}
+
 public sealed class PlayerHealData
 {
     [JsonPropertyName("playerId")]

@@ -39,7 +39,22 @@ func (w *World) AddPlayer(id int64, name string, x, y float64) {
 	}
 }
 
-// RemovePlayer removes a player (e.g. on disconnect).
+// DeathPose returns a dead player's position and facing for the death broadcast.
+func (w *World) DeathPose(id int64) (x, y, dirX, dirY float64, ok bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	p, ok := w.players[id]
+	if !ok {
+		return 0, 0, 0, 0, false
+	}
+	dirX, dirY = p.dirX, p.dirY
+	if dirX == 0 && dirY == 0 {
+		dirY = 1
+	}
+	return p.x, p.y, dirX, dirY, true
+}
+
+// RemovePlayer removes a player (e.g. on disconnect or death).
 func (w *World) RemovePlayer(id int64) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -52,7 +67,7 @@ func (w *World) SetInput(id int64, dirX, dirY float64) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p, ok := w.players[id]
-	if !ok {
+	if !ok || p.dead {
 		return
 	}
 	if l := math.Hypot(dirX, dirY); l > 1 {
@@ -69,6 +84,9 @@ func (w *World) Step(dt float64) []HealEvent {
 
 	var heals []HealEvent
 	for _, p := range w.players {
+		if p.dead {
+			continue
+		}
 		dx := p.dirX * w.speed * dt
 		dy := p.dirY * w.speed * dt
 		if w.terrain != nil {
@@ -110,6 +128,9 @@ func (w *World) Snapshot() []PlayerState {
 	defer w.mu.RUnlock()
 	out := make([]PlayerState, 0, len(w.players))
 	for _, p := range w.players {
+		if p.dead {
+			continue
+		}
 		out = append(out, PlayerState{
 			ID: p.id, Name: p.name, X: p.x, Y: p.y,
 			Hp: p.hp, HpMax: p.hpMax,
@@ -169,22 +190,26 @@ func (w *World) ValidateAbilityHit(attackerID, targetID int64, ability string) b
 	return dx*dx+dy*dy <= maxR*maxR
 }
 
-// ApplyDamage reduces a player's HP by damage. Returns the new HP values.
-func (w *World) ApplyDamage(targetID int64, damage int) (hp, hpMax float64, ok bool) {
+// ApplyDamage reduces a player's HP by damage. Returns the new HP values and whether they just died.
+func (w *World) ApplyDamage(targetID int64, damage int) (hp, hpMax float64, justDied bool, ok bool) {
 	if damage <= 0 {
-		return 0, 0, false
+		return 0, 0, false, false
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p, ok := w.players[targetID]
-	if !ok {
-		return 0, 0, false
+	if !ok || p.dead {
+		return 0, 0, false, false
 	}
 	p.hp -= float64(damage)
-	if p.hp < 0 {
+	if p.hp <= 0 {
 		p.hp = 0
+		if !p.dead {
+			p.dead = true
+			justDied = true
+		}
 	}
-	return p.hp, p.hpMax, true
+	return p.hp, p.hpMax, justDied, true
 }
 
 // ApplyHeal increases a player's HP up to their maximum.
@@ -210,7 +235,7 @@ func (w *World) Position(id int64) (x, y float64, ok bool) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	p, ok := w.players[id]
-	if !ok {
+	if !ok || p.dead {
 		return 0, 0, false
 	}
 	return p.x, p.y, true

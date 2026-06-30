@@ -17,7 +17,14 @@ type Hub struct {
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan []byte
+	directSend chan directMessage
 	clients    map[*Client]bool
+}
+
+type directMessage struct {
+	characterID   int64
+	payload       []byte
+	markUnspawned bool
 }
 
 func NewHub(world *game.World, database *db.DB) *Hub {
@@ -27,6 +34,7 @@ func NewHub(world *game.World, database *db.DB) *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte, 8),
+		directSend: make(chan directMessage, 8),
 		clients:    make(map[*Client]bool),
 	}
 }
@@ -49,6 +57,16 @@ func (h *Hub) Run(ctx context.Context) {
 					c.close()
 				}
 			}
+		case dm := <-h.directSend:
+			for c := range h.clients {
+				if c.characterID == dm.characterID {
+					if dm.markUnspawned {
+						c.markUnspawned()
+					}
+					c.safeSend(dm.payload)
+					break
+				}
+			}
 		}
 	}
 }
@@ -56,6 +74,26 @@ func (h *Hub) Run(ctx context.Context) {
 // Broadcast queues a message for delivery to all clients.
 func (h *Hub) Broadcast(msg []byte) {
 	h.broadcast <- msg
+}
+
+// SendToCharacter queues a message for one connected character.
+func (h *Hub) SendToCharacter(characterID int64, msg []byte, markUnspawned bool) {
+	if characterID <= 0 {
+		return
+	}
+	h.directSend <- directMessage{characterID: characterID, payload: msg, markUnspawned: markUnspawned}
+}
+
+// HandlePlayerDeath removes a player from the world and notifies clients.
+func (h *Hub) HandlePlayerDeath(database *db.DB, playerID, killerID int64) {
+	x, y, dirX, dirY, ok := h.world.DeathPose(playerID)
+	if !ok {
+		return
+	}
+	_ = database.MarkCharacterDead(context.Background(), playerID)
+	h.Broadcast(BuildPlayerDeath(playerID, killerID, x, y, dirX, dirY))
+	h.SendToCharacter(playerID, BuildYouDied(x, y, dirX, dirY), true)
+	h.world.RemovePlayer(playerID)
 }
 
 // spawnXY is the default position for newly created characters on Realik.
