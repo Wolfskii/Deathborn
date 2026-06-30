@@ -224,21 +224,40 @@ func (c *Client) readPump(database *db.DB) {
 			if json.Unmarshal(env.Data, &d) != nil {
 				continue
 			}
-			x, y, ok := c.hub.world.Position(c.characterID)
-			if !ok {
+			c.broadcastProjectileCast(c.characterID, "fireball", d.DirX, d.DirY)
+
+		case "cast_spell":
+			if !c.spawned {
+				continue
+			}
+			var d CastSpellData
+			if json.Unmarshal(env.Data, &d) != nil || d.SpellID == "" {
 				continue
 			}
 			dirX, dirY := normalizeDir(d.DirX, d.DirY)
 			dirX, dirY = cardinalDir(dirX, dirY)
-			ox, oy := projectileSpawnPoint(x, y, dirX, dirY)
-			c.hub.Broadcast(encode("projectile_spawn", ProjectileSpawnData{
-				OwnerID: c.characterID,
-				X:       ox,
-				Y:       oy,
-				DirX:    dirX,
-				DirY:    dirY,
-			}))
-			c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_fireball", dirX, dirY, ""))
+			switch d.SpellID {
+			case "fireball", "ice_shard":
+				c.broadcastProjectileCast(c.characterID, d.SpellID, dirX, dirY)
+			case "arc_bolt":
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_arc_bolt", dirX, dirY, ""))
+			case "poison_cloud":
+				x, y, ok := c.hub.world.Position(c.characterID)
+				if !ok {
+					continue
+				}
+				c.hub.Broadcast(encode("spell_effect_spawn", SpellEffectSpawnData{
+					OwnerID: c.characterID,
+					SpellID: d.SpellID,
+					X:       x,
+					Y:       y,
+					DirX:    dirX,
+					DirY:    dirY,
+				}))
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_poison_cloud", dirX, dirY, ""))
+			default:
+				continue
+			}
 
 		case "chat_message":
 			if !c.spawned {
@@ -288,6 +307,9 @@ func (c *Client) readPump(database *db.DB) {
 			if _, _, ok := c.hub.world.Position(d.TargetID); !ok {
 				continue
 			}
+			if !c.hub.world.ValidateAbilityHit(c.characterID, d.TargetID, d.Ability) {
+				continue
+			}
 			hp, hpMax, ok := c.hub.world.ApplyDamage(d.TargetID, damage)
 			if !ok {
 				continue
@@ -307,6 +329,13 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			var d AbilityUseSendData
 			if json.Unmarshal(env.Data, &d) != nil || d.Ability == "" {
+				continue
+			}
+			if d.Ability == "bandage" {
+				if !c.hub.world.StartBandageHoT(c.characterID) {
+					continue
+				}
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "use_bandage", 0, 0, ""))
 				continue
 			}
 			amount := game.HealForAbility(d.Ability)
@@ -366,6 +395,29 @@ func normalizeDir(dirX, dirY float64) (float64, float64) {
 		return dirX / l, dirY / l
 	}
 	return 0, 1
+}
+
+func (c *Client) broadcastProjectileCast(playerID int64, spellID string, dirX, dirY float64) {
+	x, y, ok := c.hub.world.Position(playerID)
+	if !ok {
+		return
+	}
+	dirX, dirY = normalizeDir(dirX, dirY)
+	dirX, dirY = cardinalDir(dirX, dirY)
+	ox, oy := projectileSpawnPoint(x, y, dirX, dirY)
+	c.hub.Broadcast(encode("projectile_spawn", ProjectileSpawnData{
+		OwnerID: playerID,
+		SpellID: spellID,
+		X:       ox,
+		Y:       oy,
+		DirX:    dirX,
+		DirY:    dirY,
+	}))
+	action := "cast_fireball"
+	if spellID == "ice_shard" {
+		action = "cast_ice_shard"
+	}
+	c.hub.Broadcast(BuildPlayerAction(playerID, action, dirX, dirY, ""))
 }
 
 func (c *Client) writePump() {

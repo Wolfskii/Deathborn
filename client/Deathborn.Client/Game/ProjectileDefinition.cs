@@ -30,9 +30,21 @@ public static class ProjectileDefinitions
         Damage = Config.FireballDamage,
     };
 
+    public static readonly ProjectileDefinition IceShard = new()
+    {
+        Id = "ice_shard",
+        Radius = Config.IceShardRadius,
+        Speed = Config.IceShardSpeed,
+        MaxRange = Config.IceShardMaxRange,
+        BurstDuration = Config.IceShardBurstDuration,
+        ClashWithProjectiles = true,
+        Damage = Config.IceShardDamage,
+    };
+
     private static readonly Dictionary<string, ProjectileDefinition> ById = new(StringComparer.Ordinal)
     {
         [Fireball.Id] = Fireball,
+        [IceShard.Id] = IceShard,
     };
 
     public static ProjectileDefinition Get(string id) =>

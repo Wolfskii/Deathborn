@@ -77,6 +77,30 @@ public sealed class ProjectileSpawnData
     [JsonPropertyName("ownerId")]
     public long OwnerId { get; set; }
 
+    [JsonPropertyName("spellId")]
+    public string? SpellId { get; set; }
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("dirX")]
+    public double DirX { get; set; }
+
+    [JsonPropertyName("dirY")]
+    public double DirY { get; set; }
+}
+
+public sealed class SpellEffectSpawnData
+{
+    [JsonPropertyName("ownerId")]
+    public long OwnerId { get; set; }
+
+    [JsonPropertyName("spellId")]
+    public string SpellId { get; set; } = "";
+
     [JsonPropertyName("x")]
     public double X { get; set; }
 

@@ -38,6 +38,13 @@ type CastFireballData struct {
 	DirY float64 `json:"dirY"`
 }
 
+// CastSpellData is sent when the player casts a spell from the hotbar.
+type CastSpellData struct {
+	SpellID string  `json:"spellId"`
+	DirX    float64 `json:"dirX"`
+	DirY    float64 `json:"dirY"`
+}
+
 // PlayerActionSendData is sent when the player performs a visible action.
 type PlayerActionSendData struct {
 	Action   string  `json:"action"`
@@ -58,6 +65,17 @@ type PlayerActionData struct {
 // ProjectileSpawnData is broadcast when a projectile is created.
 type ProjectileSpawnData struct {
 	OwnerID int64   `json:"ownerId"`
+	SpellID string  `json:"spellId,omitempty"`
+	X       float64 `json:"x"`
+	Y       float64 `json:"y"`
+	DirX    float64 `json:"dirX"`
+	DirY    float64 `json:"dirY"`
+}
+
+// SpellEffectSpawnData is broadcast when a ground spell effect is created.
+type SpellEffectSpawnData struct {
+	OwnerID int64   `json:"ownerId"`
+	SpellID string  `json:"spellId"`
 	X       float64 `json:"x"`
 	Y       float64 `json:"y"`
 	DirX    float64 `json:"dirX"`
@@ -143,6 +161,17 @@ func encode(typ string, data any) []byte {
 	raw, _ := json.Marshal(data)
 	env, _ := json.Marshal(Envelope{Type: typ, Data: raw})
 	return env
+}
+
+// BuildPlayerHeal serializes a heal event for broadcast.
+func BuildPlayerHeal(playerID int64, amount int, ability string, hp, hpMax float64) []byte {
+	return encode("player_heal", PlayerHealData{
+		PlayerID: playerID,
+		Amount:   amount,
+		Ability:  ability,
+		Hp:       hp,
+		HpMax:    hpMax,
+	})
 }
 
 // BuildSnapshot serializes a world snapshot for broadcast.

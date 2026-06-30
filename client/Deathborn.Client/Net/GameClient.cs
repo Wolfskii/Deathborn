@@ -37,6 +37,7 @@ public sealed class GameClient : IDisposable
     public event Action<WelcomeData>? Welcome;
     public event Action<List<PlayerState>>? Snapshot;
     public event Action<ProjectileSpawnData>? ProjectileSpawned;
+    public event Action<SpellEffectSpawnData>? SpellEffectSpawned;
     public event Action<PlayerActionData>? PlayerAction;
     public event Action<ChatMessageData>? ChatMessage;
     public event Action<ChatTypingData>? ChatTyping;
@@ -152,10 +153,12 @@ public sealed class GameClient : IDisposable
         Send("interact", new { targetId });
     }
 
-    public void SendCastFireball(float dirX, float dirY)
+    public void SendCastFireball(float dirX, float dirY) => SendCastSpell("fireball", dirX, dirY);
+
+    public void SendCastSpell(string spellId, float dirX, float dirY)
     {
-        if (LocalCharacterId < 0) return;
-        Send("cast_fireball", new { dirX, dirY });
+        if (LocalCharacterId < 0 || string.IsNullOrEmpty(spellId)) return;
+        Send("cast_spell", new { spellId, dirX, dirY });
     }
 
     public void SendPlayerAction(string action, float dirX = 0, float dirY = 0, string? targetId = null)
@@ -299,6 +302,10 @@ public sealed class GameClient : IDisposable
             case "projectile_spawn":
                 var spawn = env.Data.Deserialize<ProjectileSpawnData>(JsonOpts);
                 if (spawn != null) ProjectileSpawned?.Invoke(spawn);
+                break;
+            case "spell_effect_spawn":
+                var effect = env.Data.Deserialize<SpellEffectSpawnData>(JsonOpts);
+                if (effect != null) SpellEffectSpawned?.Invoke(effect);
                 break;
             case "player_action":
                 var action = env.Data.Deserialize<PlayerActionData>(JsonOpts);

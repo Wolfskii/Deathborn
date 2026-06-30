@@ -58,7 +58,10 @@ func main() {
 	go hub.Run(ctx)
 
 	// Simulation loop: advance the world and broadcast a snapshot each tick.
-	go game.RunLoop(ctx, world, tickHz, func(tick uint64) {
+	go game.RunLoop(ctx, world, tickHz, func(tick uint64, heals []game.HealEvent) {
+		for _, h := range heals {
+			hub.Broadcast(gnet.BuildPlayerHeal(h.PlayerID, h.Amount, h.Ability, h.Hp, h.HpMax))
+		}
 		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot()))
 	})
 

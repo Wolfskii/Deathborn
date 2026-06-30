@@ -26,10 +26,29 @@ public static class Config
     public const float FireballCooldown = 3f;
     public const float FireballCastLockDuration = 0.35f;
 
+    public const float IceShardSpeed = 420f;
+    public const float IceShardMaxRange = 480f;
+    public const float IceShardRadius = 8f;
+    public const float IceShardBurstDuration = 0.3f;
+    public const float IceShardCooldown = 2.5f;
+    public const float IceShardCastLockDuration = 0.28f;
+
+    public const float ArcBoltRange = 120f;
+    public const float ArcBoltCooldown = 2f;
+    public const float ArcBoltCastLockDuration = 0.25f;
+
+    public const float PoisonCloudCooldown = 5f;
+    public const float PoisonCloudCastLockDuration = 0.4f;
+
+    public const int BandageTotalHeal = 25;
+    public const float BandageDuration = 5f;
+    public const float BandageCooldown = 10f;
+
     public const int SlashDamage = 5;
     public const int FireballDamage = 25;
-    public const int HealAmount = 25;
-    public const int BandageAmount = 15;
+    public const int IceShardDamage = 18;
+    public const int ArcBoltDamage = 14;
+    public const int PoisonCloudDamage = 6;
     public const float HitBlinkDuration = 2.5f;
     public const float HitBlinkInterval = 0.12f;
 

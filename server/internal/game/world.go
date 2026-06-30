@@ -62,11 +62,12 @@ func (w *World) SetInput(id int64, dirX, dirY float64) {
 	p.dirX, p.dirY = dirX, dirY
 }
 
-// Step advances the simulation by dt seconds, integrating each player's
-// velocity from its input direction.
-func (w *World) Step(dt float64) {
+// Step advances the simulation by dt seconds. Returns heal-over-time events.
+func (w *World) Step(dt float64) []HealEvent {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
+	var heals []HealEvent
 	for _, p := range w.players {
 		dx := p.dirX * w.speed * dt
 		dy := p.dirY * w.speed * dt
@@ -76,7 +77,31 @@ func (w *World) Step(dt float64) {
 			p.x += dx
 			p.y += dy
 		}
+
+		if p.hot == nil {
+			continue
+		}
+		p.hot.accum += dt
+		for p.hot.accum >= p.hot.interval && p.hot.ticksLeft > 0 {
+			p.hot.accum -= p.hot.interval
+			p.hot.ticksLeft--
+			p.hp += float64(p.hot.perTick)
+			if p.hp > p.hpMax {
+				p.hp = p.hpMax
+			}
+			heals = append(heals, HealEvent{
+				PlayerID: p.id,
+				Amount:   p.hot.perTick,
+				Ability:  p.hot.ability,
+				Hp:       p.hp,
+				HpMax:    p.hpMax,
+			})
+		}
+		if p.hot.ticksLeft <= 0 {
+			p.hot = nil
+		}
 	}
+	return heals
 }
 
 // Snapshot returns a copy of all player states for broadcasting.
@@ -107,6 +132,41 @@ func (w *World) CanWalk(x, y float64) bool {
 		return true
 	}
 	return w.terrain.CanWalk(x, y, 12)
+}
+
+// StartBandageHoT begins bandage healing over time. Returns false if already active.
+func (w *World) StartBandageHoT(playerID int64) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, ok := w.players[playerID]
+	if !ok || p.hot != nil {
+		return false
+	}
+	p.hot = &healOverTime{
+		ability:   "bandage",
+		interval:  BandageHoTInterval,
+		perTick:   BandageHoTPerTick(),
+		ticksLeft: BandageHoTTicks,
+	}
+	return true
+}
+
+// ValidateAbilityHit checks attacker/target distance for a reported hit.
+func (w *World) ValidateAbilityHit(attackerID, targetID int64, ability string) bool {
+	maxR := MaxHitRange(ability)
+	if maxR <= 0 {
+		return false
+	}
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	a, okA := w.players[attackerID]
+	t, okT := w.players[targetID]
+	if !okA || !okT {
+		return false
+	}
+	dx := a.x - t.x
+	dy := a.y - t.y
+	return dx*dx+dy*dy <= maxR*maxR
 }
 
 // ApplyDamage reduces a player's HP by damage. Returns the new HP values.

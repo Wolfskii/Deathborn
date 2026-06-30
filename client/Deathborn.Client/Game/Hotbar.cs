@@ -41,68 +41,47 @@ public sealed class HotbarSlot
         var bg = active ? new Color(55, 70, 95) : new Color(20, 20, 26);
         DrawPrimitives.FillRect(sb, bounds, bg);
 
-        var border = active ? new Color(190, 215, 255)
-            : onCooldown ? new Color(58, 60, 68)
-            : new Color(90, 95, 105);
+        var border = active ? new Color(190, 215, 255) : new Color(90, 95, 105);
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, bounds.Width, 2), border);
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Bottom - 2, bounds.Width, 2), border);
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, 2, bounds.Height), border);
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.Right - 2, bounds.Y, 2, bounds.Height), border);
 
         var icon = new Rectangle(bounds.X + 5, bounds.Y + 16, bounds.Width - 10, bounds.Height - 30);
-        var iconCol = Entry != null && Entry.TryGetValue("color", out var c) && c is Color col
-            ? col : new Color(30, 30, 36);
-        DrawPrimitives.FillRect(sb, icon, iconCol);
+        var spellId = Entry?.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        HotbarIconDraw.Draw(sb, spellId, icon);
 
         sb.DrawString(font, KeyLabel, new Vector2(bounds.X + 5, bounds.Y + 3), new Color(215, 215, 190));
 
         if (Entry != null && Entry.TryGetValue("name", out var n))
-        {
-            var name = n.ToString()!;
-            var nameCol = onCooldown ? new Color(120, 122, 132) : Color.White;
-            sb.DrawString(font, name, new Vector2(bounds.X + 5, bounds.Bottom - 15), nameCol);
-        }
+            sb.DrawString(font, n.ToString()!, new Vector2(bounds.X + 5, bounds.Bottom - 15), Color.White);
 
         if (onCooldown && CooldownTotal > 0f)
-            DrawCooldownOverlay(sb, font, bounds, icon);
+            DrawCooldownOverlay(sb, font, bounds);
     }
 
-    private void DrawCooldownOverlay(SpriteBatch sb, SpriteFont font, Rectangle bounds, Rectangle icon)
+    private void DrawCooldownOverlay(SpriteBatch sb, SpriteFont font, Rectangle bounds)
     {
         var progress = 1f - CooldownRemaining / CooldownTotal;
         progress = MathHelper.Clamp(progress, 0f, 1f);
 
-        // Divider rises from bottom to top as the cooldown completes.
         var lineY = bounds.Bottom - progress * bounds.Height;
         var coverHeight = (int)MathF.Ceiling(lineY - bounds.Y);
         if (coverHeight > 0)
         {
             var cover = new Rectangle(bounds.X + 1, bounds.Y + 1, bounds.Width - 2, coverHeight);
-            DrawPrimitives.FillRect(sb, cover, new Color(8, 10, 14, 0.72f));
-            DrawPrimitives.FillRect(sb, cover, new Color(0, 0, 0, 0.28f));
+            DrawPrimitives.FillRect(sb, cover, new Color(0, 0, 0, 0.42f));
         }
 
-        // Bright sweep line at the cooldown edge.
         var line = new Rectangle(bounds.X + 2, (int)lineY - 1, bounds.Width - 4, 2);
-        DrawPrimitives.FillRect(sb, line, new Color(210, 185, 95, 0.95f));
-        DrawPrimitives.FillRect(sb, new Rectangle(bounds.X + 2, (int)lineY + 1, bounds.Width - 4, 1),
-            new Color(0, 0, 0, 0.45f));
-
-        // Extra dim on the icon under the cover.
-        var iconCoverH = (int)MathF.Max(0, lineY - icon.Y);
-        if (iconCoverH > 0)
-        {
-            var iconCover = new Rectangle(icon.X, icon.Y, icon.Width, Math.Min(iconCoverH, icon.Height));
-            DrawPrimitives.FillRect(sb, iconCover, new Color(0, 0, 0, 0.35f));
-        }
+        DrawPrimitives.FillRect(sb, line, new Color(210, 185, 95, 0.85f));
 
         var label = FormatCooldownLabel(CooldownRemaining);
         var size = font.MeasureString(label);
-        var textPos = new Vector2(bounds.Center.X - size.X / 2f, icon.Center.Y - size.Y / 2f);
+        var textPos = new Vector2(bounds.Center.X - size.X / 2f, bounds.Center.Y - size.Y / 2f + 4f);
         DrawPrimitives.FillRect(sb,
             new Rectangle((int)textPos.X - 3, (int)textPos.Y - 1, (int)size.X + 6, (int)size.Y + 2),
-            new Color(0, 0, 0, 0.55f));
-        sb.DrawString(font, label, textPos + new Vector2(1, 1), new Color(0, 0, 0, 0.6f));
+            new Color(0, 0, 0, 0.5f));
         sb.DrawString(font, label, textPos, new Color(245, 240, 220));
     }
 

@@ -23,6 +23,8 @@ public sealed class PlayerEntity
     private float _hitBlinkFlashAccum;
     private bool _hitBlinkVisible = true;
     private float _abilityLockTimer;
+    private float _bandageHoTTimer;
+    private float _bandageAnim;
 
     public long Id;
     public string Name = "";
@@ -44,7 +46,11 @@ public sealed class PlayerEntity
         set => _thinking.Active = value;
     }
 
+    public bool IsBandaging => _bandageHoTTimer > 0f;
+
     public CharacterStats Stats { get; } = CharacterStats.CreateStarter();
+
+    public void StartBandageHoT() => _bandageHoTTimer = Config.BandageDuration;
 
     public static Vector2 CardinalFacing(Vector2 dir)
     {
@@ -146,9 +152,21 @@ public sealed class PlayerEntity
                 StartAttack(facingDir);
                 break;
             case PlayerActions.CastFireball:
-                StartAbilityLock(Config.FireballCastLockDuration);
+            case PlayerActions.CastIceShard:
+            case PlayerActions.CastArcBolt:
+            case PlayerActions.CastPoisonCloud:
+                StartAbilityLock(action switch
+                {
+                    PlayerActions.CastIceShard => Config.IceShardCastLockDuration,
+                    PlayerActions.CastArcBolt => Config.ArcBoltCastLockDuration,
+                    PlayerActions.CastPoisonCloud => Config.PoisonCloudCastLockDuration,
+                    _ => Config.FireballCastLockDuration,
+                });
                 if (facingDir.LengthSquared() > 0.01f)
                     MoveDir = Vector2.Normalize(facingDir);
+                break;
+            case PlayerActions.UseBandage:
+                StartBandageHoT();
                 break;
             case PlayerActions.Interact:
                 // Interaction animations can hook in here when added.
@@ -178,6 +196,7 @@ public sealed class PlayerEntity
             _abilityLockTimer = MathF.Max(0f, _abilityLockTimer - dt);
 
         Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
+        UpdateBandageVisual(dt);
 
         if (IsAttacking)
         {
@@ -205,6 +224,13 @@ public sealed class PlayerEntity
         _chatBubble.Update(dt);
         _thinking.Update(dt);
         UpdateHitBlink(dt);
+    }
+
+    private void UpdateBandageVisual(float dt)
+    {
+        if (_bandageHoTTimer <= 0f) return;
+        _bandageHoTTimer -= dt;
+        _bandageAnim += dt;
     }
 
     private void UpdateHitBlink(float dt)
@@ -255,6 +281,25 @@ public sealed class PlayerEntity
             var speechTarget = new Vector2(screenPos.X, nameTop - 6f * zoom);
             _chatBubble.Draw(sb, font, speechTarget, zoom);
         }
+
+        if (IsBandaging)
+            DrawBandageHoT(sb, screenPos, zoom);
+    }
+
+    private void DrawBandageHoT(SpriteBatch sb, Vector2 screenPos, float zoom)
+    {
+        for (var i = 0; i < 4; i++)
+        {
+            var phase = (_bandageAnim * 1.2f + i * 0.25f) % 1f;
+            var offset = new Vector2(MathF.Sin(_bandageAnim * 3f + i) * 8f * zoom, -phase * 28f * zoom);
+            var pos = screenPos + new Vector2(0, -Radius * zoom) + offset;
+            var alpha = (1f - phase) * 0.75f;
+            DrawPrimitives.FillCircle(sb, pos, 3f * zoom, new Color(0.45f, 0.95f, 0.5f, alpha));
+        }
+
+        var pulse = 1f + MathF.Sin(_bandageAnim * 6f) * 0.15f;
+        DrawPrimitives.DrawCircleOutline(sb, screenPos + new Vector2(0, -Radius * 0.5f * zoom),
+            14f * zoom * pulse, new Color(0.5f, 0.95f, 0.55f, 0.45f), 20, 1.5f);
     }
 
     public static PlayerEntity FromState(PlayerState s, bool isLocal)

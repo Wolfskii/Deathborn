@@ -14,7 +14,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly WorldBackgroundRenderer _bg = new();
     private readonly Dictionary<long, PlayerEntity> _players = new();
     private readonly List<InteractableEntity> _interactables = [];
-    private readonly List<FireballProjectile> _projectiles = [];
+    private readonly List<IWorldEffect> _effects = [];
     private readonly Hotbar _hotbar = new();
     private readonly ChatSpotlightOverlay _chat = new();
     private readonly MinimapHud _minimap = new();
@@ -51,6 +51,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.Snapshot += OnSnapshot;
         net.Disconnected += OnDisconnected;
         net.ProjectileSpawned += OnProjectileSpawned;
+        net.SpellEffectSpawned += OnSpellEffectSpawned;
         net.PlayerAction += OnPlayerAction;
         net.ChatMessage += OnChatMessage;
         net.ChatTyping += OnChatTyping;
@@ -89,6 +90,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.Snapshot -= OnSnapshot;
         net.Disconnected -= OnDisconnected;
         net.ProjectileSpawned -= OnProjectileSpawned;
+        net.SpellEffectSpawned -= OnSpellEffectSpawned;
         net.PlayerAction -= OnPlayerAction;
         net.ChatMessage -= OnChatMessage;
         net.ChatTyping -= OnChatTyping;
@@ -102,7 +104,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetOpenCharacterHandler(null);
         _windows.Character.Close();
         _worldMap.Close();
-        _projectiles.Clear();
+        _effects.Clear();
         _interactables.Clear();
         _interactablesSeeded = false;
     }
@@ -256,11 +258,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), zoom);
 
-        foreach (var proj in _projectiles)
-            proj.Draw(sb, WorldToScreen(proj.Position), zoom);
+        foreach (var effect in _effects.Where(e => e.DrawUnderEntities))
+            effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
         foreach (var p in _players.Values.OrderBy(p => p.Position.Y))
             p.Draw(sb, font, WorldToScreen(p.Position), zoom);
+
+        foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
+            effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
         if (_debugHudVisible)
         {
@@ -442,20 +447,103 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private static bool IsMouseInViewport(Point p) =>
         p.X >= 0 && p.Y >= 0 && p.X < GameViewport.Width && p.Y < GameViewport.Height;
 
-    private bool CastFireball(ProjectileDefinition? definition = null)
+    private bool CastProjectileSpell(ProjectileDefinition def, ProjectileStyle style, float castLock, string status)
     {
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
         var dir = GetAimDirection();
-        local.StartAbilityLock(Config.FireballCastLockDuration);
+        local.StartAbilityLock(castLock);
         local.MoveDir = dir;
 
         var origin = local.GetProjectileSpawnPoint(dir);
-        _projectiles.Add(FireballProjectile.Spawn(origin, dir, local.Id, definition));
-        _screens.Net.SendCastFireball(dir.X, dir.Y);
-        _status = "You cast Fireball.";
+        _effects.Add(SpellProjectile.Spawn(origin, dir, local.Id, def, style));
+        _screens.Net.SendCastSpell(def.Id, dir.X, dir.Y);
+        _status = status;
         return true;
+    }
+
+    private bool CastFireball(ProjectileDefinition? definition = null) =>
+        CastProjectileSpell(
+            definition ?? ProjectileDefinitions.Fireball,
+            ProjectileStyle.Fire,
+            Config.FireballCastLockDuration,
+            "You cast Fireball.");
+
+    private bool CastIceShard() =>
+        CastProjectileSpell(
+            ProjectileDefinitions.IceShard,
+            ProjectileStyle.Ice,
+            Config.IceShardCastLockDuration,
+            "You cast Ice Shard.");
+
+    private bool CastArcBolt()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        if (local.IsBusy) return false;
+
+        var dir = GetAimDirection();
+        local.StartAbilityLock(Config.ArcBoltCastLockDuration);
+        local.MoveDir = dir;
+
+        var target = FindArcBoltTarget(local.Position, dir, local.Id);
+        if (target != null)
+        {
+            _effects.Add(new ArcBoltEffect(local.Position, target.Position, local.Id));
+            ReportAbilityHit(local.Id, target.Id, Config.ArcBoltDamage, "arc_bolt");
+        }
+        else
+        {
+            var end = local.Position + dir * Config.ArcBoltRange;
+            _effects.Add(new ArcBoltEffect(local.Position, end, local.Id));
+        }
+
+        _screens.Net.SendCastSpell("arc_bolt", dir.X, dir.Y);
+        _status = target != null ? "Arc Bolt strikes!" : "Arc Bolt fizzles.";
+        return true;
+    }
+
+    private bool CastPoisonCloud()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        if (local.IsBusy) return false;
+
+        var dir = GetAimDirection();
+        local.StartAbilityLock(Config.PoisonCloudCastLockDuration);
+        local.MoveDir = dir;
+
+        _effects.Add(new PoisonCloudEffect(local.Position, local.Id));
+        _screens.Net.SendCastSpell("poison_cloud", dir.X, dir.Y);
+        _status = "You release a Poison Cloud.";
+        return true;
+    }
+
+    private bool UseBandage()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        if (local.IsBandaging) return false;
+
+        _screens.Net.SendAbilityUse("bandage");
+        local.StartBandageHoT();
+        _status = "Bandage applied — healing over time.";
+        return true;
+    }
+
+    private PlayerEntity? FindArcBoltTarget(Vector2 origin, Vector2 facing, long selfId)
+    {
+        PlayerEntity? best = null;
+        var bestDist = Config.ArcBoltRange * Config.ArcBoltRange;
+        foreach (var (id, player) in _players)
+        {
+            if (id == selfId) continue;
+            var to = player.Position - origin;
+            var distSq = to.LengthSquared();
+            if (distSq > bestDist || distSq < 1f) continue;
+            if (Vector2.Dot(Vector2.Normalize(to), facing) < 0.35f) continue;
+            bestDist = distSq;
+            best = player;
+        }
+        return best;
     }
 
     private void OnProjectileSpawned(ProjectileSpawnData data)
@@ -464,7 +552,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         var dir = new Vector2((float)data.DirX, (float)data.DirY);
         var origin = new Vector2((float)data.X, (float)data.Y);
-        _projectiles.Add(FireballProjectile.Spawn(origin, dir, data.OwnerId));
+        var spellId = data.SpellId ?? "fireball";
+        if (spellId == "ice_shard")
+            _effects.Add(SpellProjectile.Spawn(origin, dir, data.OwnerId, ProjectileDefinitions.IceShard, ProjectileStyle.Ice));
+        else
+            _effects.Add(SpellProjectile.Spawn(origin, dir, data.OwnerId, ProjectileDefinitions.Fireball, ProjectileStyle.Fire));
+    }
+
+    private void OnSpellEffectSpawned(SpellEffectSpawnData data)
+    {
+        if (data.SpellId != "poison_cloud") return;
+        if (data.OwnerId == _screens.Net.LocalCharacterId) return;
+        _effects.Add(new PoisonCloudEffect(new Vector2((float)data.X, (float)data.Y), data.OwnerId));
     }
 
     private void OnPlayerAction(PlayerActionData data)
@@ -482,6 +581,23 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             dir = Vector2.Normalize(dir);
 
         player.PlayAction(data.Action, dir, data.TargetId);
+
+        if (data.PlayerId == _screens.Net.LocalCharacterId) return;
+
+        switch (data.Action)
+        {
+            case PlayerActions.CastArcBolt:
+                if (_players.TryGetValue(data.PlayerId, out var caster))
+                {
+                    var target = FindArcBoltTarget(caster.Position, dir, caster.Id);
+                    var end = target?.Position ?? caster.Position + dir * Config.ArcBoltRange;
+                    _effects.Add(new ArcBoltEffect(caster.Position, end, data.PlayerId));
+                }
+                break;
+            case PlayerActions.UseBandage:
+                player.StartBandageHoT();
+                break;
+        }
     }
 
     private void OnChatSubmitted(string text)
@@ -514,16 +630,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void UpdateProjectiles(float dt)
     {
         var localId = _screens.Net.LocalCharacterId;
-        foreach (var proj in _projectiles)
+        foreach (var effect in _effects)
         {
-            var ownerId = proj.OwnerId;
-            proj.Update(dt, _players, _interactables, ownerId == localId, (targetId, damage) =>
-                ReportAbilityHit(ownerId, targetId, damage, proj.Definition.Id));
+            var ownerId = effect.OwnerId;
+            effect.Update(dt, _players, _interactables, ownerId == localId, (targetId, damage) =>
+                ReportAbilityHit(ownerId, targetId, damage, effect.AbilityId));
         }
 
         ResolveProjectileClashes();
-
-        _projectiles.RemoveAll(p => !p.Alive);
+        _effects.RemoveAll(e => !e.Alive);
     }
 
     private void ReportAbilityHit(long attackerId, long targetId, int damage, string ability)
@@ -551,22 +666,21 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (data.PlayerId == _screens.Net.LocalCharacterId)
             _status = data.Ability switch
             {
-                "heal" => $"Heal restored {data.Amount} HP.",
-                "bandage" => $"Bandage restored {data.Amount} HP.",
-                _ => $"Restored {data.Amount} HP.",
+                "bandage" => $"+{data.Amount} HP from bandage ({(int)data.Hp}/{(int)data.HpMax}).",
+                _ => $"+{data.Amount} HP ({(int)data.Hp}/{(int)data.HpMax}).",
             };
     }
 
     private void ResolveProjectileClashes()
     {
-        for (var i = 0; i < _projectiles.Count; i++)
+        for (var i = 0; i < _effects.Count; i++)
         {
-            var a = _projectiles[i];
+            var a = _effects[i];
             if (!a.CanClash) continue;
 
-            for (var j = i + 1; j < _projectiles.Count; j++)
+            for (var j = i + 1; j < _effects.Count; j++)
             {
-                var b = _projectiles[j];
+                var b = _effects[j];
                 if (!b.CanClash) continue;
 
                 var hit = a.HitRadius + b.HitRadius;
@@ -627,11 +741,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             var def = projectileId != null ? ProjectileDefinitions.Get(projectileId) : ProjectileDefinitions.Fireball;
             used = CastFireball(def);
         }
-        else if (id is "heal" or "bandage")
-        {
-            _screens.Net.SendAbilityUse(id);
-            used = true;
-        }
+        else if (id == "ice_shard")
+            used = CastIceShard();
+        else if (id == "arc_bolt")
+            used = CastArcBolt();
+        else if (id == "poison_cloud")
+            used = CastPoisonCloud();
+        else if (id == "bandage")
+            used = UseBandage();
         else
         {
             _status = $"Used slot {key}: {entry.GetValueOrDefault("name")} ({entry.GetValueOrDefault("kind")})";
@@ -656,12 +773,37 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             ["id"] = "fireball",
             ["name"] = "Fireball",
             ["kind"] = "spell",
-            ["color"] = new Color(1f, 0.45f, 0.12f),
             ["projectileId"] = ProjectileDefinitions.Fireball.Id,
             [HotbarEntry.CooldownKey] = Config.FireballCooldown,
         });
-        _hotbar.SetSlot(1, new Dictionary<string, object> { ["id"] = "heal", ["name"] = "Heal", ["kind"] = "spell", ["color"] = new Color(0.35f, 0.75f, 0.45f), [HotbarEntry.CooldownKey] = 0f });
-        _hotbar.SetSlot(2, new Dictionary<string, object> { ["id"] = "bandage", ["name"] = "Bandage", ["kind"] = "item", ["color"] = new Color(0.75f, 0.65f, 0.35f), [HotbarEntry.CooldownKey] = 0f });
+        _hotbar.SetSlot(1, new Dictionary<string, object>
+        {
+            ["id"] = "ice_shard",
+            ["name"] = "Ice Shard",
+            ["kind"] = "spell",
+            [HotbarEntry.CooldownKey] = Config.IceShardCooldown,
+        });
+        _hotbar.SetSlot(2, new Dictionary<string, object>
+        {
+            ["id"] = "arc_bolt",
+            ["name"] = "Arc Bolt",
+            ["kind"] = "spell",
+            [HotbarEntry.CooldownKey] = Config.ArcBoltCooldown,
+        });
+        _hotbar.SetSlot(3, new Dictionary<string, object>
+        {
+            ["id"] = "bandage",
+            ["name"] = "Bandage",
+            ["kind"] = "item",
+            [HotbarEntry.CooldownKey] = Config.BandageCooldown,
+        });
+        _hotbar.SetSlot(4, new Dictionary<string, object>
+        {
+            ["id"] = "poison_cloud",
+            ["name"] = "Poison",
+            ["kind"] = "spell",
+            [HotbarEntry.CooldownKey] = Config.PoisonCloudCooldown,
+        });
     }
 
     private void SeedStarterTownInteractables()
