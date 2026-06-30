@@ -15,16 +15,15 @@ public sealed class PlayerEntity
     private FourDirectionIdleAnimation? _idleAnim;
     private FourDirectionAttackAnimation? _attackAnim;
     private FourDirectionDeathAnimation? _deathAnim;
+    private FourDirectionHurtAnimation? _hurtAnim;
     private FourDirectionRunAnimation RunAnim => _runAnim ??= CharacterSprites.CreateSwordsmanRun();
     private FourDirectionIdleAnimation IdleAnim => _idleAnim ??= CharacterSprites.CreateSwordsmanIdle();
     private FourDirectionAttackAnimation AttackAnim => _attackAnim ??= CharacterSprites.CreateSwordsmanAttack();
     private FourDirectionDeathAnimation DeathAnim => _deathAnim ??= CharacterSprites.CreateSwordsmanDeath();
+    private FourDirectionHurtAnimation HurtAnim => _hurtAnim ??= CharacterSprites.CreateSwordsmanHurt();
     private readonly PlayerChatBubble _chatBubble = new();
     private readonly ThinkingBubble _thinking = new();
     private readonly HashSet<long> _meleeHitThisSwing = [];
-    private float _hitBlinkTimer;
-    private float _hitBlinkFlashAccum;
-    private bool _hitBlinkVisible = true;
     private float _abilityLockTimer;
     private float _bandageHoTTimer;
     private float _bandageAnim;
@@ -42,7 +41,7 @@ public sealed class PlayerEntity
     public bool IsAttacking => AttackAnim.IsPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
     public bool IsBusy => IsAttacking || IsCasting;
-    public bool IsHitBlinking => _hitBlinkTimer > 0f;
+    public bool IsHurt => HurtAnim.IsPlaying;
     public bool IsTyping
     {
         get => _thinking.Active;
@@ -95,10 +94,8 @@ public sealed class PlayerEntity
 
     public void ApplyHit(int damage)
     {
-        if (damage <= 0) return;
-        _hitBlinkTimer = Config.HitBlinkDuration;
-        _hitBlinkFlashAccum = 0f;
-        _hitBlinkVisible = true;
+        if (damage <= 0 || IsDead) return;
+        HurtAnim.Start(FacingDir);
     }
 
     public void CheckLocalMeleeHits(
@@ -190,6 +187,7 @@ public sealed class PlayerEntity
 
     public bool IsMoving =>
         !IsDead &&
+        !IsHurt &&
         !IsBusy &&
         ((IsLocal && InputDir.LengthSquared() > 0.01f) ||
          Vector2.DistanceSquared(Position, Target) > 0.5f);
@@ -220,12 +218,14 @@ public sealed class PlayerEntity
             return;
         }
 
+        if (HurtAnim.IsPlaying)
+            HurtAnim.Update(dt);
+
         if (IsAttacking)
         {
             AttackAnim.Update(dt);
             _chatBubble.Update(dt);
             _thinking.Update(dt);
-            UpdateHitBlink(dt);
             return;
         }
 
@@ -234,7 +234,6 @@ public sealed class PlayerEntity
             IdleAnim.Update(dt, FacingDir);
             _chatBubble.Update(dt);
             _thinking.Update(dt);
-            UpdateHitBlink(dt);
             return;
         }
 
@@ -245,7 +244,6 @@ public sealed class PlayerEntity
 
         _chatBubble.Update(dt);
         _thinking.Update(dt);
-        UpdateHitBlink(dt);
     }
 
     private void UpdateBandageVisual(float dt)
@@ -253,23 +251,6 @@ public sealed class PlayerEntity
         if (_bandageHoTTimer <= 0f) return;
         _bandageHoTTimer -= dt;
         _bandageAnim += dt;
-    }
-
-    private void UpdateHitBlink(float dt)
-    {
-        if (_hitBlinkTimer <= 0f)
-        {
-            _hitBlinkVisible = true;
-            return;
-        }
-
-        _hitBlinkTimer -= dt;
-        _hitBlinkFlashAccum += dt;
-        if (_hitBlinkFlashAccum >= Config.HitBlinkInterval)
-        {
-            _hitBlinkFlashAccum = 0f;
-            _hitBlinkVisible = !_hitBlinkVisible;
-        }
     }
 
     public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
@@ -280,18 +261,22 @@ public sealed class PlayerEntity
         if (IsDead)
         {
             DeathAnim.Draw(sb, screenPos, tint, scale);
+            if (IsCorpse)
+            {
+                var crossY = screenPos.Y + (-Radius - 20f) * zoom;
+                CorpseMarkerDraw.DrawCross(sb, new Vector2(screenPos.X, crossY), zoom);
+            }
             return;
         }
 
-        if (_hitBlinkVisible)
-        {
-            if (IsAttacking)
-                AttackAnim.Draw(sb, screenPos, tint, scale);
-            else if (IsMoving)
-                RunAnim.Draw(sb, screenPos, tint, scale);
-            else
-                IdleAnim.Draw(sb, screenPos, tint, scale);
-        }
+        if (IsHurt)
+            HurtAnim.Draw(sb, screenPos, tint, scale);
+        else if (IsAttacking)
+            AttackAnim.Draw(sb, screenPos, tint, scale);
+        else if (IsMoving)
+            RunAnim.Draw(sb, screenPos, tint, scale);
+        else
+            IdleAnim.Draw(sb, screenPos, tint, scale);
 
         var nameTop = screenPos.Y + (-Radius - 28f) * zoom;
         if (!IsLocal)

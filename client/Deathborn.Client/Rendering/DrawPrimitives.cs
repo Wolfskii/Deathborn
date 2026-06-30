@@ -18,6 +18,21 @@ public static class DrawPrimitives
     sb.Draw(_pixel!, rect, color);
   }
 
+  public static void MaskOutsideCircle(SpriteBatch sb, Vector2 center, float radius, Color color, int segments = 48)
+  {
+    for (var i = 0; i < segments; i++)
+    {
+      var a0 = i / (float)segments * MathHelper.TwoPi;
+      var a1 = (i + 1) / (float)segments * MathHelper.TwoPi;
+      var p0 = center + new Vector2(MathF.Cos(a0), MathF.Sin(a0)) * radius;
+      var p1 = center + new Vector2(MathF.Cos(a1), MathF.Sin(a1)) * radius;
+
+      var mid = (a0 + a1) * 0.5f;
+      var far = center + new Vector2(MathF.Cos(mid), MathF.Sin(mid)) * (radius + 80f);
+      FillTriangle(sb, p0, p1, far, color);
+    }
+  }
+
   public static void FillCircle(SpriteBatch sb, Vector2 center, float radius, Color color, int segments = 32)
   {
     for (var i = 0; i < segments; i++)

@@ -49,8 +49,6 @@ public static class Config
     public const int IceShardDamage = 18;
     public const int ArcBoltDamage = 14;
     public const int PoisonCloudDamage = 6;
-    public const float HitBlinkDuration = 2.5f;
-    public const float HitBlinkInterval = 0.12f;
 
     public const float ChatBubbleDuration = 10f;
     public const int ChatMaxLength = 120;
