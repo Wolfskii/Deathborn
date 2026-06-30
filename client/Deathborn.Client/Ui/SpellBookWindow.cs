@@ -92,6 +92,9 @@ public sealed class SpellBookWindow : UiWindow
             var ability = abilities[i];
             var icon = new Rectangle(rect.X + 8, rect.Y + 10, rect.Width - 16, rect.Height - 24);
             HotbarIconDraw.Draw(sb, ability.Id, icon);
+            var cost = AbilityResourceCosts.FormatCostLine(ability);
+            sb.DrawString(font, cost, new Vector2(rect.X + 4, rect.Bottom - 22),
+                new Color(160, 175, 195), 0f, Vector2.Zero, 0.45f, SpriteEffects.None, 0f);
             sb.DrawString(font, ability.Name, new Vector2(rect.X + 4, rect.Bottom - 14),
                 Color.White, 0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
         }

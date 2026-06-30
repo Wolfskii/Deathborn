@@ -13,6 +13,7 @@ type player struct {
 	// desired movement direction (unit-clamped), set from client input and
 	// integrated each tick.
 	dirX, dirY float64
+	running bool
 }
 
 // PlayerState is the immutable view of a player included in snapshots sent to

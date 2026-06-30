@@ -10,7 +10,7 @@ public sealed class ArcBoltEffect : IWorldEffect
     public Vector2 CasterPos;
     public Vector2 TargetPos;
     public long OwnerId { get; }
-    public string AbilityId => "arc_bolt";
+    public string AbilityId { get; }
     public bool DrawUnderEntities => false;
     public bool CanClash => false;
     public float HitRadius => 0;
@@ -21,11 +21,12 @@ public sealed class ArcBoltEffect : IWorldEffect
     private float _timer;
     private readonly List<Vector2> _boltPoints = [];
 
-    public ArcBoltEffect(Vector2 casterPos, Vector2 targetPos, long ownerId)
+    public ArcBoltEffect(Vector2 casterPos, Vector2 targetPos, long ownerId, string abilityId = "arc_bolt")
     {
         CasterPos = casterPos;
         TargetPos = targetPos;
         OwnerId = ownerId;
+        AbilityId = abilityId;
         BuildBoltPath();
     }
 
@@ -76,7 +77,7 @@ public sealed class ArcBoltEffect : IWorldEffect
             var end = Vector2.Lerp(from, to, segT);
 
             DrawPrimitives.DrawLine(sb, from, end, new Color(0.35f, 0.55f, 1f, alpha * 0.45f), 5f * zoom);
-            DrawPrimitives.DrawLine(sb, from, end, new Color(0.75f, 0.9f, 1f, alpha * 0.9f), 2f * zoom);
+            DrawPrimitives.DrawLine(sb, from, end, BoltCoreColor(alpha), 2f * zoom);
             DrawPrimitives.DrawLine(sb, from, end, new Color(1f, 1f, 1f, alpha), 1f * zoom);
         }
 
@@ -84,8 +85,11 @@ public sealed class ArcBoltEffect : IWorldEffect
         {
             var impact = screenPos;
             var flashR = 14f * zoom * (1f - t / 0.7f);
-            DrawPrimitives.FillCircle(sb, impact, flashR * 1.4f, new Color(0.4f, 0.65f, 1f, alpha * 0.35f));
-            DrawPrimitives.FillCircle(sb, impact, flashR, new Color(0.85f, 0.95f, 1f, alpha * 0.75f));
+            var flash = AbilityId == "blood_bolt"
+                ? new Color(0.85f, 0.2f, 0.25f, alpha * 0.35f)
+                : new Color(0.4f, 0.65f, 1f, alpha * 0.35f);
+            DrawPrimitives.FillCircle(sb, impact, flashR * 1.4f, flash);
+            DrawPrimitives.FillCircle(sb, impact, flashR, BoltCoreColor(alpha * 0.75f));
             for (var i = 0; i < 4; i++)
             {
                 var angle = i / 4f * MathHelper.TwoPi + _timer * 8f;
@@ -94,4 +98,8 @@ public sealed class ArcBoltEffect : IWorldEffect
             }
         }
     }
+
+    private Color BoltCoreColor(float alpha) => AbilityId == "blood_bolt"
+        ? new Color(0.95f, 0.35f, 0.4f, alpha)
+        : new Color(0.75f, 0.9f, 1f, alpha);
 }

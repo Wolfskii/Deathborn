@@ -1,7 +1,5 @@
 namespace Deathborn.Client.Gameplay;
 
-public enum ResourceCostKind { None, Mana, Stamina }
-
 public sealed class AbilityInfo
 {
     public required string Id { get; init; }
@@ -15,6 +13,9 @@ public sealed class AbilityInfo
     public float? Range { get; init; }
     public ResourceCostKind CostKind { get; init; }
     public float Cost { get; init; }
+    public float HealthCost { get; init; }
+    public ResourceCostKind AltCostKind { get; init; }
+    public float AltCost { get; init; }
     public string? ExtraStats { get; init; }
 }
 
@@ -48,13 +49,16 @@ public static class AbilityCatalog
     private static Dictionary<string, AbilityInfo> Build()
     {
         AbilityInfo A(
-            string id, string name, string kind, string page, string desc,
-            float cd, ResourceCostKind costKind = ResourceCostKind.None, float cost = 0,
+            string id, string name, string kind, string page, string desc, float cd,
+            ResourceCostKind costKind = ResourceCostKind.None, float cost = 0,
+            float healthCost = 0,
+            ResourceCostKind altKind = ResourceCostKind.None, float altCost = 0,
             int? dmg = null, int? heal = null, float? range = null, string? extra = null) =>
             new()
             {
                 Id = id, Name = name, Kind = kind, Page = page, Description = desc,
                 Cooldown = cd, CostKind = costKind, Cost = cost,
+                HealthCost = healthCost, AltCostKind = altKind, AltCost = altCost,
                 Damage = dmg, Heal = heal, Range = range, ExtraStats = extra,
             };
 
@@ -63,29 +67,34 @@ public static class AbilityCatalog
             ["slash"] = A("slash", "Slash", "melee", "Warrior",
                 "A quick sword swing in front of you.", 0f,
                 ResourceCostKind.Stamina, 8,
-                Config.SlashDamage, range: 44f),
+                dmg: Config.SlashDamage, range: 44f),
             ["shield_bash"] = A("shield_bash", "Shield Bash", "melee", "Warrior",
-                "Bash foes with your shield, stunning at close range.", Config.ShieldBashCooldown,
-                ResourceCostKind.Stamina, 18, Config.ShieldBashDamage, range: Config.ShieldBashRange),
+                "Bash foes with your shield.", Config.ShieldBashCooldown,
+                ResourceCostKind.Stamina, 18, dmg: Config.ShieldBashDamage, range: Config.ShieldBashRange),
             ["whirlwind"] = A("whirlwind", "Whirlwind", "melee", "Warrior",
                 "Spin and strike all nearby enemies.", Config.WhirlwindCooldown,
-                ResourceCostKind.Stamina, 28, Config.WhirlwindDamage, range: Config.WhirlwindRadius,
+                ResourceCostKind.Stamina, 28, dmg: Config.WhirlwindDamage, range: Config.WhirlwindRadius,
                 extra: "AoE"),
             ["warrior_dash"] = A("warrior_dash", "Charge", "melee", "Warrior",
                 "Dash forward, damaging enemies you collide with.", Config.WarriorDashCooldown,
-                ResourceCostKind.Stamina, 22, Config.WarriorDashDamage, range: Config.WarriorDashDistance),
+                ResourceCostKind.Stamina, 22, dmg: Config.WarriorDashDamage, range: Config.WarriorDashDistance),
             ["fireball"] = A("fireball", "Fireball", "spell", "Arcane",
                 "Hurl a blazing orb that explodes on impact.", Config.FireballCooldown,
-                ResourceCostKind.Mana, 22, Config.FireballDamage, range: Config.FireballMaxRange),
+                ResourceCostKind.Mana, 22, dmg: Config.FireballDamage, range: Config.FireballMaxRange),
             ["ice_shard"] = A("ice_shard", "Ice Shard", "spell", "Arcane",
                 "Launch a fast shard of ice.", Config.IceShardCooldown,
-                ResourceCostKind.Mana, 14, Config.IceShardDamage, range: Config.IceShardMaxRange),
+                ResourceCostKind.Mana, 14, dmg: Config.IceShardDamage, range: Config.IceShardMaxRange),
             ["arc_bolt"] = A("arc_bolt", "Arc Bolt", "spell", "Arcane",
                 "A short-range lightning bolt in a cone.", Config.ArcBoltCooldown,
-                ResourceCostKind.Mana, 12, Config.ArcBoltDamage, range: Config.ArcBoltRange),
+                ResourceCostKind.Mana, 12, dmg: Config.ArcBoltDamage, range: Config.ArcBoltRange),
+            ["blood_bolt"] = A("blood_bolt", "Blood Bolt", "spell", "Arcane",
+                "Sacrifice life force to unleash a devastating bolt.", Config.BloodBoltCooldown,
+                ResourceCostKind.Mana, 16, healthCost: 12,
+                dmg: Config.BloodBoltDamage, range: Config.ArcBoltRange, extra: "Costs HP + mana"),
             ["poison_cloud"] = A("poison_cloud", "Poison Cloud", "spell", "Arcane",
-                "Release a toxic cloud around you.", Config.PoisonCloudCooldown,
-                ResourceCostKind.Mana, 18, Config.PoisonCloudDamage, range: 90f, extra: "Ground AoE"),
+                "Release a toxic cloud around you; strains the body.", Config.PoisonCloudCooldown,
+                ResourceCostKind.Mana, 18, healthCost: 5,
+                dmg: Config.PoisonCloudDamage, range: 90f, extra: "Ground AoE · costs HP"),
             ["battle_shout"] = A("battle_shout", "Battle Shout", "buff", "Support",
                 "Increase damage dealt for a short time.", Config.BattleShoutCooldown,
                 ResourceCostKind.Stamina, 15, extra: $"+25% dmg · {Config.BattleShoutDuration:0}s"),
@@ -94,14 +103,16 @@ public static class AbilityCatalog
                 ResourceCostKind.Stamina, 20, extra: $"-30% taken · {Config.IronSkinDuration:0}s"),
             ["hunter_mark"] = A("hunter_mark", "Hunter's Mark", "utility", "Support",
                 "Mark a foe so you can track them.", Config.HunterMarkCooldown,
-                ResourceCostKind.Mana, 10, range: Config.HunterMarkRange,
-                extra: $"{Config.HunterMarkDuration:0}s track"),
+                ResourceCostKind.Mana, 10, altKind: ResourceCostKind.Stamina, altCost: 12,
+                range: Config.HunterMarkRange, extra: $"{Config.HunterMarkDuration:0}s track"),
             ["bandage"] = A("bandage", "Bandage", "item", "Support",
                 "Apply a bandage to heal over time.", Config.BandageCooldown,
+                ResourceCostKind.Stamina, 6,
                 heal: Config.BandageTotalHeal, extra: $"{Config.BandageDuration:0}s HoT"),
             ["second_wind"] = A("second_wind", "Second Wind", "heal", "Support",
-                "Draw on inner strength to instantly recover health.", Config.SecondWindCooldown,
-                ResourceCostKind.Stamina, 25, heal: Config.SecondWindHeal),
+                "Draw on inner strength to recover health.", Config.SecondWindCooldown,
+                ResourceCostKind.Stamina, 20, altKind: ResourceCostKind.Mana, altCost: 30,
+                heal: Config.SecondWindHeal, extra: "Uses stamina, or mana if low"),
         };
     }
 }

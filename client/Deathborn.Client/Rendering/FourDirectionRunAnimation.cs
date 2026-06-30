@@ -18,7 +18,7 @@ public sealed class FourDirectionRunAnimation
 
     public FourDirectionRunAnimation(Texture2D texture) => _texture = texture;
 
-    public void Update(float dt, Vector2 moveDir, bool isMoving)
+    public void Update(float dt, Vector2 moveDir, bool isMoving, float animSpeed = 1f)
     {
         if (moveDir.LengthSquared() > 0.01f)
             _facing = ResolveDirection(moveDir);
@@ -30,10 +30,11 @@ public sealed class FourDirectionRunAnimation
             return;
         }
 
+        var frameDuration = SwordsmanSpriteSheet.FrameDuration / MathF.Max(0.1f, animSpeed);
         _timer += dt;
-        while (_timer >= SwordsmanSpriteSheet.FrameDuration)
+        while (_timer >= frameDuration)
         {
-            _timer -= SwordsmanSpriteSheet.FrameDuration;
+            _timer -= frameDuration;
             _frame = (_frame + 1) % SwordsmanSpriteSheet.FrameCount;
         }
     }

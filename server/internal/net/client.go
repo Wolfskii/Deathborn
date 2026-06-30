@@ -172,7 +172,7 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			var d InputData
 			if json.Unmarshal(env.Data, &d) == nil {
-				c.hub.world.SetInput(c.characterID, d.DirX, d.DirY)
+				c.hub.world.SetInput(c.characterID, d.DirX, d.DirY, d.Running)
 			}
 
 		case "create_character":
@@ -246,6 +246,8 @@ func (c *Client) readPump(database *db.DB) {
 				c.broadcastProjectileCast(c.characterID, d.SpellID, dirX, dirY)
 			case "arc_bolt":
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_arc_bolt", dirX, dirY, ""))
+			case "blood_bolt":
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_blood_bolt", dirX, dirY, ""))
 			case "poison_cloud":
 				x, y, ok := c.hub.world.Position(c.characterID)
 				if !ok {

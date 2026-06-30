@@ -18,6 +18,21 @@ public static class Config
     public const float PlayerLerpSpeed = 12f;
     public const float InteractRange = 72f;
 
+    /// <summary>Walk speed in px/s — matches server default movement speed.</summary>
+    public const float WalkSpeed = 120f;
+    public const float RunSpeed = 195f;
+    public const float MinStaminaToRun = 4f;
+    public const float RunStaminaDrainPerSecond = 16f;
+
+    public const float HpRegenPerSecond = 1.25f;
+    public const float ManaRegenPerSecond = 5f;
+    public const float StaminaRegenPerSecond = 10f;
+    public const float StaminaRegenWhileRunningPerSecond = 2f;
+
+    /// <summary>Run animation plays faster; walk uses the run sheet at lower speed.</summary>
+    public const float WalkAnimSpeed = 0.72f;
+    public const float RunAnimSpeed = 1.35f;
+
     public const float WorldTileSize = 16f;
     public const float FireballSpeed = 340f;
     public const float FireballMaxRange = 520f;
@@ -39,6 +54,8 @@ public static class Config
 
     public const float PoisonCloudCooldown = 5f;
     public const float PoisonCloudCastLockDuration = 0.4f;
+    public const float BloodBoltCooldown = 4f;
+    public const float BloodBoltCastLockDuration = 0.3f;
 
     public const int BandageTotalHeal = 25;
     public const float BandageDuration = 5f;
@@ -49,6 +66,7 @@ public static class Config
     public const int IceShardDamage = 18;
     public const int ArcBoltDamage = 14;
     public const int PoisonCloudDamage = 6;
+    public const int BloodBoltDamage = 22;
 
     public const int ShieldBashDamage = 12;
     public const int WhirlwindDamage = 8;

@@ -139,10 +139,10 @@ public sealed class GameClient : IDisposable
             action();
     }
 
-    public void SendInput(float dirX, float dirY)
+    public void SendInput(float dirX, float dirY, bool running = false)
     {
         if (LocalCharacterId < 0) return;
-        Send("input", new { dirX, dirY });
+        Send("input", new { dirX, dirY, running });
     }
 
     public void CreateCharacter(string name)

@@ -8,6 +8,7 @@ public static class PlayerActions
     public const string CastFireball = "cast_fireball";
     public const string CastIceShard = "cast_ice_shard";
     public const string CastArcBolt = "cast_arc_bolt";
+    public const string CastBloodBolt = "cast_blood_bolt";
     public const string CastPoisonCloud = "cast_poison_cloud";
     public const string UseBandage = "use_bandage";
     public const string ShieldBash = "shield_bash";

@@ -9,23 +9,26 @@ import (
 	"github.com/deathborn/server/internal/worldmap"
 )
 
-// defaultSpeed is the max movement speed in pixels/second.
+// defaultSpeed is walk speed in pixels/second.
 const defaultSpeed = 120.0
+const runSpeed = 195.0
 
 // World is the authoritative set of players and their positions. All access is
 // guarded by a mutex so client read goroutines and the tick loop are safe.
 type World struct {
-	mu      sync.RWMutex
-	players map[int64]*player
-	speed   float64
-	terrain *worldmap.Map
+	mu       sync.RWMutex
+	players  map[int64]*player
+	speed    float64
+	runSpeed float64
+	terrain  *worldmap.Map
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
 	return &World{
-		players: make(map[int64]*player),
-		speed:   defaultSpeed,
-		terrain: terrain,
+		players:  make(map[int64]*player),
+		speed:    defaultSpeed,
+		runSpeed: runSpeed,
+		terrain:  terrain,
 	}
 }
 
@@ -61,9 +64,8 @@ func (w *World) RemovePlayer(id int64) {
 	delete(w.players, id)
 }
 
-// SetInput records a player's desired movement direction. The vector is clamped
-// to unit length so clients cannot move faster by sending a large vector.
-func (w *World) SetInput(id int64, dirX, dirY float64) {
+// SetInput records a player's desired movement direction and run state.
+func (w *World) SetInput(id int64, dirX, dirY float64, running bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	p, ok := w.players[id]
@@ -75,6 +77,7 @@ func (w *World) SetInput(id int64, dirX, dirY float64) {
 		dirY /= l
 	}
 	p.dirX, p.dirY = dirX, dirY
+	p.running = running && (dirX != 0 || dirY != 0)
 }
 
 // Step advances the simulation by dt seconds. Returns heal-over-time events.
@@ -89,6 +92,10 @@ func (w *World) Step(dt float64) []HealEvent {
 		}
 		dx := p.dirX * w.speed * dt
 		dy := p.dirY * w.speed * dt
+		if p.running {
+			dx = p.dirX * w.runSpeed * dt
+			dy = p.dirY * w.runSpeed * dt
+		}
 		if w.terrain != nil {
 			p.x, p.y = w.terrain.ResolveMove(p.x, p.y, dx, dy)
 		} else {

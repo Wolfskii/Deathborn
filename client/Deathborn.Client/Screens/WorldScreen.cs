@@ -222,9 +222,20 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts) || buffCapturesMouse;
 
         _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
+        var wantsRun = kb.IsKeyDown(Keys.LeftShift) || kb.IsKeyDown(Keys.RightShift);
         if (localEntity is { IsDead: false })
         {
+            var canRun = localEntity.Stats.Stamina >= Config.MinStaminaToRun;
+            localEntity.IsRunning = wantsRun && canRun && _moveDir.LengthSquared() > 0.0001f;
             localEntity.InputDir = _moveDir;
+
+            localEntity.Stats.TickRegen(dt, localEntity.IsRunning);
+            if (localEntity.IsRunning)
+            {
+                localEntity.Stats.Stamina = MathF.Max(0f,
+                    localEntity.Stats.Stamina - Config.RunStaminaDrainPerSecond * dt);
+            }
+
             if (_moveDir.LengthSquared() > 0.0001f)
                 localEntity.AimDir = PlayerEntity.CardinalFacing(_moveDir);
             else if (windowActive && !inputBlocked)
@@ -233,20 +244,25 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (inputBlocked || IsLocalDyingOrDead())
         {
-            if (_lastSentDir.LengthSquared() > 0.0001f)
+            if (_lastSentDir.LengthSquared() > 0.0001f || _lastSentRunning)
             {
                 _lastSentDir = Vector2.Zero;
-                _screens.Net.SendInput(0, 0);
+                _lastSentRunning = false;
+                _screens.Net.SendInput(0, 0, false);
             }
         }
         else
         {
+            var running = localEntity?.IsRunning == true;
             _inputAccum += dt;
-            if (_inputAccum >= Config.InputSendInterval || Vector2.DistanceSquared(_moveDir, _lastSentDir) > 0.0001f)
+            if (_inputAccum >= Config.InputSendInterval
+                || Vector2.DistanceSquared(_moveDir, _lastSentDir) > 0.0001f
+                || running != _lastSentRunning)
             {
                 _inputAccum = 0;
                 _lastSentDir = _moveDir;
-                _screens.Net.SendInput(_moveDir.X, _moveDir.Y);
+                _lastSentRunning = running;
+                _screens.Net.SendInput(_moveDir.X, _moveDir.Y, running);
             }
         }
 
@@ -291,7 +307,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _debugLines =
         [
             _status,
-            $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {(_moveDir.Length() > 0.05f ? "moving" : "idle")}",
+            $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
             $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
         ];
 
@@ -301,6 +317,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     }
 
     private Vector2 _lastSentDir;
+    private bool _lastSentRunning;
 
     public void Draw(GameTime gameTime)
     {
@@ -609,6 +626,24 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         return dir.LengthSquared() > 1 ? Vector2.Normalize(dir) : dir;
     }
 
+    private static string MovementLabel(PlayerEntity? local)
+    {
+        if (local == null || !local.IsMoving) return "idle";
+        return local.IsRunning ? "running" : "walking";
+    }
+
+    private bool TryPayAbilityCost(string abilityId)
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+        var info = AbilityCatalog.Get(abilityId);
+        if (info == null) return true;
+        if (AbilityResourceCosts.TrySpend(local.Stats, info, out var message))
+            return true;
+        _status = message;
+        return false;
+    }
+
     private Vector2 ScreenCenter => GameViewport.Center;
 
     private Vector2 WorldToScreen(Vector2 world) =>
@@ -699,9 +734,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void TryMeleeAttack(Vector2 aimDir)
     {
-        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
-        if (!local.StartAttack(aimDir)) return;
+        if (!TryPayAbilityCost("slash")) return;
+        TryMeleeAttackInternal(aimDir);
+    }
+
+    private bool TryMeleeAttackInternal(Vector2 aimDir)
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        if (!local.StartAttack(aimDir)) return false;
         _screens.Net.SendPlayerAction(PlayerActions.MeleeAttack, aimDir.X, aimDir.Y);
+        return true;
     }
 
     private Vector2 GetAimDirection()
@@ -736,8 +778,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private static bool IsMouseInViewport(Point p) =>
         p.X >= 0 && p.Y >= 0 && p.X < GameViewport.Width && p.Y < GameViewport.Height;
 
-    private bool CastProjectileSpell(ProjectileDefinition def, ProjectileStyle style, float castLock, string status)
+    private bool CastProjectileSpell(string abilityId, ProjectileDefinition def, ProjectileStyle style, float castLock, string status)
     {
+        if (!TryPayAbilityCost(abilityId)) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
@@ -754,6 +797,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool CastFireball(ProjectileDefinition? definition = null) =>
         CastProjectileSpell(
+            "fireball",
             definition ?? ProjectileDefinitions.Fireball,
             ProjectileStyle.Fire,
             Config.FireballCastLockDuration,
@@ -761,6 +805,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool CastIceShard() =>
         CastProjectileSpell(
+            "ice_shard",
             ProjectileDefinitions.IceShard,
             ProjectileStyle.Ice,
             Config.IceShardCastLockDuration,
@@ -768,6 +813,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool CastArcBolt()
     {
+        if (!TryPayAbilityCost("arc_bolt")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
@@ -792,8 +838,36 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         return true;
     }
 
+    private bool CastBloodBolt()
+    {
+        if (!TryPayAbilityCost("blood_bolt")) return false;
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
+        if (local.IsBusy) return false;
+
+        var dir = GetAimDirection();
+        local.StartAbilityLock(Config.BloodBoltCastLockDuration);
+        local.MoveDir = dir;
+
+        var target = FindArcBoltTarget(local.Position, dir, local.Id);
+        if (target != null)
+        {
+            _effects.Add(new ArcBoltEffect(local.Position, target.Position, local.Id, "blood_bolt"));
+            ReportAbilityHit(local.Id, target.Id, Config.BloodBoltDamage, "blood_bolt");
+        }
+        else
+        {
+            var end = local.Position + dir * Config.ArcBoltRange;
+            _effects.Add(new ArcBoltEffect(local.Position, end, local.Id, "blood_bolt"));
+        }
+
+        _screens.Net.SendCastSpell("blood_bolt", dir.X, dir.Y);
+        _status = target != null ? "Blood Bolt tears through your foe!" : "Blood Bolt fizzles.";
+        return true;
+    }
+
     private bool CastPoisonCloud()
     {
+        if (!TryPayAbilityCost("poison_cloud")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
@@ -809,6 +883,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool UseBandage()
     {
+        if (!TryPayAbilityCost("bandage")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBandaging) return false;
 
@@ -820,6 +895,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool CastShieldBash()
     {
+        if (!TryPayAbilityCost("shield_bash")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         var dir = GetAimDirection();
         if (!local.StartMeleeAbility(MeleeAbilityDefinitions.ShieldBash, dir)) return false;
@@ -830,6 +906,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool CastWhirlwind()
     {
+        if (!TryPayAbilityCost("whirlwind")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         var dir = GetAimDirection();
         if (!local.StartWhirlwind()) return false;
@@ -841,6 +918,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool CastWarriorDash()
     {
+        if (!TryPayAbilityCost("warrior_dash")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         var dir = GetAimDirection();
         if (!local.StartDash(dir, Config.WarriorDashDistance, Config.WarriorDashDuration)) return false;
@@ -852,6 +930,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool UseBattleShout()
     {
+        if (!TryPayAbilityCost("battle_shout")) return false;
         _screens.Net.SendAbilityUse("battle_shout");
         _status = "Battle Shout — damage increased!";
         return true;
@@ -859,6 +938,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool UseIronSkin()
     {
+        if (!TryPayAbilityCost("iron_skin")) return false;
         _screens.Net.SendAbilityUse("iron_skin");
         _status = "Iron Skin — damage reduced!";
         return true;
@@ -866,6 +946,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool CastHunterMark()
     {
+        if (!TryPayAbilityCost("hunter_mark")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         var dir = GetAimDirection();
         local.StartAbilityLock(0.3f);
@@ -877,6 +958,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool UseSecondWind()
     {
+        if (!TryPayAbilityCost("second_wind")) return false;
         _screens.Net.SendAbilityUse("second_wind");
         _status = "Second Wind — recovering health.";
         return true;
@@ -971,11 +1053,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         switch (data.Action)
         {
             case PlayerActions.CastArcBolt:
+            case PlayerActions.CastBloodBolt:
                 if (_players.TryGetValue(data.PlayerId, out var caster))
                 {
+                    var abilityId = data.Action == PlayerActions.CastBloodBolt ? "blood_bolt" : "arc_bolt";
                     var target = FindArcBoltTarget(caster.Position, dir, caster.Id);
                     var end = target?.Position ?? caster.Position + dir * Config.ArcBoltRange;
-                    _effects.Add(new ArcBoltEffect(caster.Position, end, data.PlayerId));
+                    _effects.Add(new ArcBoltEffect(caster.Position, end, data.PlayerId, abilityId));
                 }
                 break;
             case PlayerActions.UseBandage:
@@ -1143,6 +1227,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = CastIceShard();
         else if (id == "arc_bolt")
             used = CastArcBolt();
+        else if (id == "blood_bolt")
+            used = CastBloodBolt();
         else if (id == "poison_cloud")
             used = CastPoisonCloud();
         else if (id == "bandage")
@@ -1165,8 +1251,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = UseSecondWind();
         else if (id == "slash")
         {
-            TryMeleeAttack(GetAimDirection());
-            used = true;
+            used = TryPayAbilityCost("slash") && TryMeleeAttackInternal(GetAimDirection());
         }
         else if (id == "health_potion")
             used = UseHealthPotion(entry);

@@ -26,6 +26,9 @@ public static class HotbarIconDraw
             case "arc_bolt":
                 DrawArcBolt(sb, bounds);
                 break;
+            case "blood_bolt":
+                DrawBloodBolt(sb, bounds);
+                break;
             case "bandage":
                 DrawBandage(sb, bounds);
                 break;
@@ -108,13 +111,24 @@ public static class HotbarIconDraw
     private static void DrawArcBolt(SpriteBatch sb, Rectangle bounds)
     {
         DrawPrimitives.FillRect(sb, bounds, new Color(12, 16, 32));
+        DrawLightningBolt(sb, bounds, new Color(0.5f, 0.75f, 1f, 0.5f), new Color(0.9f, 0.95f, 1f));
+    }
+
+    private static void DrawBloodBolt(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(28, 8, 10));
+        DrawLightningBolt(sb, bounds, new Color(0.85f, 0.15f, 0.2f, 0.55f), new Color(1f, 0.45f, 0.5f));
+    }
+
+    private static void DrawLightningBolt(SpriteBatch sb, Rectangle bounds, Color glow, Color core)
+    {
         var a = new Vector2(bounds.X + 8, bounds.Bottom - 10);
         var b = new Vector2(bounds.Right - 8, bounds.Y + 10);
         var mid = (a + b) * 0.5f + new Vector2(6, 0);
-        DrawPrimitives.DrawLine(sb, a, mid, new Color(0.5f, 0.75f, 1f, 0.5f), 4f);
-        DrawPrimitives.DrawLine(sb, mid, b, new Color(0.5f, 0.75f, 1f, 0.5f), 4f);
-        DrawPrimitives.DrawLine(sb, a, mid, new Color(0.9f, 0.95f, 1f), 2f);
-        DrawPrimitives.DrawLine(sb, mid, b, new Color(0.9f, 0.95f, 1f), 2f);
+        DrawPrimitives.DrawLine(sb, a, mid, glow, 4f);
+        DrawPrimitives.DrawLine(sb, mid, b, glow, 4f);
+        DrawPrimitives.DrawLine(sb, a, mid, core, 2f);
+        DrawPrimitives.DrawLine(sb, mid, b, core, 2f);
     }
 
     private static void DrawBandage(SpriteBatch sb, Rectangle bounds)

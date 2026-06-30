@@ -28,11 +28,7 @@ public static class AbilityTooltipDraw
         if (info.Damage is > 0) lines.Add($"Damage: {info.Damage}");
         if (info.Heal is > 0) lines.Add($"Heal: {info.Heal} HP");
         if (info.Range is > 0) lines.Add($"Range: {info.Range:0} px");
-        if (info.CostKind != ResourceCostKind.None && info.Cost > 0)
-        {
-            var kind = info.CostKind == ResourceCostKind.Mana ? "Mana" : "Stamina";
-            lines.Add($"{kind} cost: {info.Cost:0}");
-        }
+        lines.Add($"Cost: {AbilityResourceCosts.FormatCostLine(info)}");
         if (info.Cooldown > 0) lines.Add($"Cooldown: {info.Cooldown:0.#}s");
         if (!string.IsNullOrEmpty(info.ExtraStats))
             lines.Add(info.ExtraStats);

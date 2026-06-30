@@ -5,7 +5,8 @@ const (
 	SlashDamage    = 5
 	FireballDamage = 25
 	IceShardDamage = 18
-	ArcBoltDamage  = 14
+	ArcBoltDamage     = 14
+	BloodBoltDamage   = 22
 	PoisonCloudDamage = 6
 
 	ShieldBashDamage   = 12
@@ -33,6 +34,8 @@ func DamageForAbility(ability string) int {
 		return IceShardDamage
 	case "arc_bolt":
 		return ArcBoltDamage
+	case "blood_bolt":
+		return BloodBoltDamage
 	case "poison_cloud":
 		return PoisonCloudDamage
 	case "shield_bash":
@@ -53,7 +56,7 @@ func MaxHitRange(ability string) float64 {
 		return 72
 	case "fireball", "ice_shard":
 		return 560
-	case "arc_bolt":
+	case "arc_bolt", "blood_bolt":
 		return 140
 	case "poison_cloud":
 		return 90

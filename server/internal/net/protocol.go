@@ -18,8 +18,9 @@ type Envelope struct {
 // InputData is the player's desired movement direction (unit vector-ish; the
 // server clamps it). Sent on the "input" message.
 type InputData struct {
-	DirX float64 `json:"dirX"`
-	DirY float64 `json:"dirY"`
+	DirX    float64 `json:"dirX"`
+	DirY    float64 `json:"dirY"`
+	Running bool    `json:"running,omitempty"`
 }
 
 // CreateCharacterData is sent on the "create_character" message.

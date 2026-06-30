@@ -47,6 +47,8 @@ public sealed class PlayerEntity
     public Vector2 InputDir;
     /// <summary>Mouse-facing while idle (local player only).</summary>
     public Vector2 AimDir;
+    /// <summary>Local sprint held (Shift) with enough stamina.</summary>
+    public bool IsRunning;
 
     public bool IsAttacking => AttackAnim.IsPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
@@ -246,11 +248,13 @@ public sealed class PlayerEntity
             case PlayerActions.CastFireball:
             case PlayerActions.CastIceShard:
             case PlayerActions.CastArcBolt:
+            case PlayerActions.CastBloodBolt:
             case PlayerActions.CastPoisonCloud:
                 StartAbilityLock(action switch
                 {
                     PlayerActions.CastIceShard => Config.IceShardCastLockDuration,
                     PlayerActions.CastArcBolt => Config.ArcBoltCastLockDuration,
+                    PlayerActions.CastBloodBolt => Config.BloodBoltCastLockDuration,
                     PlayerActions.CastPoisonCloud => Config.PoisonCloudCastLockDuration,
                     _ => Config.FireballCastLockDuration,
                 });
@@ -291,6 +295,8 @@ public sealed class PlayerEntity
         !IsBusy &&
         ((IsLocal && InputDir.LengthSquared() > 0.01f) ||
          Vector2.DistanceSquared(Position, Target) > 0.5f);
+
+    public bool IsWalking => IsMoving && !IsRunning;
 
     public Vector2 FacingDir
     {
@@ -339,7 +345,7 @@ public sealed class PlayerEntity
 
         if (IsWhirlwinding)
         {
-            RunAnim.Update(dt, FacingDir, true);
+            RunAnim.Update(dt, FacingDir, true, Config.RunAnimSpeed);
             _chatBubble.Update(dt);
             _thinking.Update(dt);
             return;
@@ -347,7 +353,7 @@ public sealed class PlayerEntity
 
         if (_isDashing)
         {
-            RunAnim.Update(dt, FacingDir, true);
+            RunAnim.Update(dt, FacingDir, true, Config.RunAnimSpeed);
             _chatBubble.Update(dt);
             _thinking.Update(dt);
             return;
@@ -372,7 +378,10 @@ public sealed class PlayerEntity
         }
 
         if (IsMoving)
-            RunAnim.Update(dt, FacingDir, true);
+        {
+            var animSpeed = IsRunning ? Config.RunAnimSpeed : Config.WalkAnimSpeed;
+            RunAnim.Update(dt, FacingDir, true, animSpeed);
+        }
         else
             IdleAnim.Update(dt, FacingDir);
 
