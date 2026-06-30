@@ -145,6 +145,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
+          pattern: client-*
           path: dist
           merge-multiple: true
 
