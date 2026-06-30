@@ -230,7 +230,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var proj in _projectiles)
             proj.Draw(sb, WorldToScreen(proj.Position), zoom);
 
-        foreach (var p in _players.Values)
+        foreach (var p in _players.Values.OrderBy(p => p.Position.Y))
             p.Draw(sb, font, WorldToScreen(p.Position), zoom);
 
         if (_debugHudVisible)
