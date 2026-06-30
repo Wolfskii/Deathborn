@@ -4,7 +4,7 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
-public enum InteractableKind { Generic, Tree, Rock, Chest, Npc, Fishing, Bank, Sign, Anvil }
+public enum InteractableKind { Generic, Tree, Rock, Chest, Npc, Fishing, Bank, Sign, Anvil, FarmPlot, CookingFire }
 
 public sealed class InteractableEntity
 {
@@ -25,9 +25,11 @@ public sealed class InteractableEntity
 
     public string InteractMessage() => Kind switch
     {
-        InteractableKind.Tree => $"You inspect {DisplayName}. Woodcutting coming in a later milestone.",
-        InteractableKind.Rock => $"You inspect {DisplayName}. Mining coming in a later milestone.",
-        InteractableKind.Fishing => $"You inspect {DisplayName}. Fishing coming in a later milestone.",
+        InteractableKind.Tree => $"You chop {DisplayName}. Woodcutting training...",
+        InteractableKind.Rock => $"You mine {DisplayName}. Mining training...",
+        InteractableKind.Fishing => $"You fish at {DisplayName}. Fishing training...",
+        InteractableKind.FarmPlot => $"You tend {DisplayName}. Farming training...",
+        InteractableKind.CookingFire => $"You cook at {DisplayName}. Cooking training...",
         InteractableKind.Chest => $"You open {DisplayName}. It is empty for now.",
         InteractableKind.Bank => $"You approach {DisplayName}. Banking coming in a later milestone.",
         InteractableKind.Anvil => $"You inspect {DisplayName}. Smithing coming in a later milestone.",
@@ -72,6 +74,14 @@ public sealed class InteractableEntity
             case InteractableKind.Anvil:
                 DrawPrimitives.FillRect(sb, CenteredRect(screenPos + new Vector2(0, 4 * zoom), r * 1.4f, 8 * zoom), body * 0.85f);
                 DrawPrimitives.FillRect(sb, CenteredRect(screenPos + new Vector2(0, -8 * zoom), r * 0.9f, r * 0.45f), body);
+                break;
+            case InteractableKind.FarmPlot:
+                DrawPrimitives.FillRect(sb, CenteredRect(screenPos, r * 1.6f, r * 0.9f), new Color(0.35f, 0.28f, 0.16f));
+                DrawPrimitives.FillRect(sb, CenteredRect(screenPos + new Vector2(0, -2 * zoom), r * 1.2f, r * 0.35f), new Color(0.28f, 0.48f, 0.22f));
+                break;
+            case InteractableKind.CookingFire:
+                DrawPrimitives.FillCircle(sb, screenPos + new Vector2(0, 4 * zoom), r * 0.45f, new Color(0.25f, 0.22f, 0.18f));
+                DrawPrimitives.FillCircle(sb, screenPos + new Vector2(0, -2 * zoom), r * 0.35f, new Color(0.95f, 0.45f, 0.12f, 0.85f));
                 break;
             default:
                 DrawPrimitives.FillCircle(sb, screenPos, r, body);

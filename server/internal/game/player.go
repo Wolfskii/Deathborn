@@ -1,5 +1,7 @@
 package game
 
+import "github.com/deathborn/server/internal/skills"
+
 // player is the server-side mutable state for one character in the world.
 type player struct {
 	id   int64
@@ -14,6 +16,9 @@ type player struct {
 	// integrated each tick.
 	dirX, dirY float64
 	running bool
+	skills           skills.Set
+	totalXp          int64
+	lastSkillInteract float64
 }
 
 // PlayerState is the immutable view of a player included in snapshots sent to

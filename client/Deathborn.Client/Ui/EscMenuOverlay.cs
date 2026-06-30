@@ -10,7 +10,7 @@ namespace Deathborn.Client.Ui;
 public sealed class EscMenuOverlay
 {
     private const int PanelW = 380;
-    private const int BasePanelH = 330;
+    private const int BasePanelH = 370;
 
     private static readonly Color PanelFill = new(28, 24, 18);
     private static readonly Color PanelBorder = new(210, 170, 80);
@@ -24,6 +24,7 @@ public sealed class EscMenuOverlay
     private Rectangle _characterButton;
     private Rectangle _spellBookButton;
     private Rectangle _inventoryButton;
+    private Rectangle _skillsButton;
     private bool _draggingVolume;
     private MouseState _prevMouse;
     private IReadOnlyList<string>? _infoLines;
@@ -32,6 +33,7 @@ public sealed class EscMenuOverlay
     public Action? OnOpenCharacter;
     public Action? OnOpenSpellBook;
     public Action? OnOpenInventory;
+    public Action? OnOpenSkills;
 
     public void Open()
     {
@@ -71,6 +73,12 @@ public sealed class EscMenuOverlay
             if (_inventoryButton.Contains(mouse.Position))
             {
                 OnOpenInventory?.Invoke();
+                Close();
+            }
+
+            if (_skillsButton.Contains(mouse.Position))
+            {
+                OnOpenSkills?.Invoke();
                 Close();
             }
 
@@ -135,10 +143,11 @@ public sealed class EscMenuOverlay
         DrawMenuButton(sb, font, _characterButton, "Character (C)", _characterButton.Contains(mousePos));
         DrawMenuButton(sb, font, _spellBookButton, "Spell Book (K)", _spellBookButton.Contains(mousePos));
         DrawMenuButton(sb, font, _inventoryButton, "Inventory (I)", _inventoryButton.Contains(mousePos));
+        DrawMenuButton(sb, font, _skillsButton, "Skills (L)", _skillsButton.Contains(mousePos));
 
         if (_infoLines is { Count: > 0 })
         {
-            var infoY = _inventoryButton.Bottom + 18;
+            var infoY = _skillsButton.Bottom + 18;
             sb.DrawString(font, "Info", new Vector2(_panel.X + 24, infoY), PanelBorder);
             infoY += font.LineSpacing + 2;
 
@@ -168,6 +177,7 @@ public sealed class EscMenuOverlay
         _characterButton = new Rectangle(_panel.X + 24, _panel.Y + 152, PanelW - 48, 32);
         _spellBookButton = new Rectangle(_panel.X + 24, _panel.Y + 192, PanelW - 48, 32);
         _inventoryButton = new Rectangle(_panel.X + 24, _panel.Y + 232, PanelW - 48, 32);
+        _skillsButton = new Rectangle(_panel.X + 24, _panel.Y + 272, PanelW - 48, 32);
     }
 
     private void SetVolumeFromMouse(int mouseX)

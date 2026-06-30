@@ -34,6 +34,42 @@ public sealed class WelcomeData
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
+
+    [JsonPropertyName("skills")]
+    public Dictionary<string, long>? Skills { get; set; }
+
+    [JsonPropertyName("totalXp")]
+    public long TotalXp { get; set; }
+}
+
+public sealed class SkillXpGainData
+{
+    [JsonPropertyName("playerId")]
+    public long PlayerId { get; set; }
+
+    [JsonPropertyName("skillId")]
+    public string SkillId { get; set; } = "";
+
+    [JsonPropertyName("amount")]
+    public long Amount { get; set; }
+
+    [JsonPropertyName("xp")]
+    public long Xp { get; set; }
+
+    [JsonPropertyName("level")]
+    public int Level { get; set; }
+
+    [JsonPropertyName("leveledUp")]
+    public bool LeveledUp { get; set; }
+
+    [JsonPropertyName("totalXp")]
+    public long TotalXp { get; set; }
+
+    [JsonPropertyName("hp")]
+    public double Hp { get; set; }
+
+    [JsonPropertyName("hpMax")]
+    public double HpMax { get; set; }
 }
 
 public sealed class SnapshotData

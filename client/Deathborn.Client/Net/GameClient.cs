@@ -29,6 +29,8 @@ public sealed class GameClient : IDisposable
     public string SpawnName { get; private set; } = "";
     public float SpawnX { get; private set; }
     public float SpawnY { get; private set; }
+    public Dictionary<string, long> SpawnSkills { get; private set; } = new();
+    public long SpawnTotalXp { get; private set; }
     public bool WsConnected => _ws?.State == WebSocketState.Open;
 
     public event Action<string>? AuthFailed;
@@ -46,6 +48,7 @@ public sealed class GameClient : IDisposable
     public event Action<PlayerBuffData>? PlayerBuff;
     public event Action<PlayerDeathData>? PlayerDeath;
     public event Action<YouDiedData>? YouDied;
+    public event Action<SkillXpGainData>? SkillXpGain;
     public event Action<string>? ServerError;
     public event Action? Disconnected;
 
@@ -293,6 +296,8 @@ public sealed class GameClient : IDisposable
                 SpawnX = (float)welcome.X;
                 SpawnY = (float)welcome.Y;
                 SpawnName = welcome.Name;
+                SpawnSkills = welcome.Skills ?? new Dictionary<string, long>();
+                SpawnTotalXp = welcome.TotalXp;
                 Welcome?.Invoke(welcome);
                 break;
             case "need_character":
@@ -345,6 +350,10 @@ public sealed class GameClient : IDisposable
                     LocalCharacterId = -1;
                     YouDied?.Invoke(youDied);
                 }
+                break;
+            case "skill_xp_gain":
+                var skillGain = env.Data.Deserialize<SkillXpGainData>(JsonOpts);
+                if (skillGain != null) SkillXpGain?.Invoke(skillGain);
                 break;
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);

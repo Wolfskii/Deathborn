@@ -14,6 +14,7 @@ import (
 	"github.com/deathborn/server/internal/auth"
 	"github.com/deathborn/server/internal/db"
 	"github.com/deathborn/server/internal/game"
+	"github.com/deathborn/server/internal/skills"
 	"github.com/gorilla/websocket"
 )
 
@@ -125,15 +126,32 @@ func (c *Client) spawn(ch db.Character) {
 	if !c.hub.world.CanWalk(x, y) {
 		x, y = c.hub.spawnXY()
 	}
-	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y)
+	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP)
 	log.Printf("character spawned account_id=%d character_id=%d name=%q pos=(%.0f,%.0f)",
 		c.accountID, ch.ID, ch.Name, x, y)
+	skillMap := map[string]int64{}
+	if set, total, ok := c.hub.world.PlayerSkillsSnapshot(ch.ID); ok {
+		for k, v := range set {
+			skillMap[k] = v
+		}
+		ch.TotalXP = total
+	}
 	c.safeSend(encode("welcome", WelcomeData{
 		CharacterID: ch.ID,
 		X:           x,
 		Y:           y,
 		Name:        ch.Name,
+		Skills:      skillMap,
+		TotalXp:     ch.TotalXP,
 	}))
+}
+
+func dbSkillsToSet(m map[string]int64) skills.Set {
+	set := skills.NewSet()
+	for k, v := range m {
+		set[k] = v
+	}
+	return set
 }
 
 func (c *Client) readPump(database *db.DB) {
@@ -141,6 +159,13 @@ func (c *Client) readPump(database *db.DB) {
 		if c.spawned {
 			if x, y, ok := c.hub.world.Position(c.characterID); ok {
 				_ = database.SaveCharacterPosition(context.Background(), c.characterID, x, y)
+				if skillSet, total, ok := c.hub.world.SkillsForSave(c.characterID); ok {
+					m := map[string]int64{}
+					for k, v := range skillSet {
+						m[k] = v
+					}
+					_ = database.SaveCharacterSkills(context.Background(), c.characterID, m, total)
+				}
 				log.Printf("ws disconnected account_id=%d character_id=%d saved_pos=(%.0f,%.0f)",
 					c.accountID, c.characterID, x, y)
 			} else {
@@ -208,7 +233,14 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			log.Printf("interact account_id=%d character_id=%d target=%q", c.accountID, c.characterID, d.TargetID)
 			c.hub.Broadcast(BuildPlayerAction(c.characterID, "interact", 0, 0, d.TargetID))
-			// Range validation and gameplay effects come in later milestones.
+			if skill, xp, ok := skills.InteractSkill(d.TargetID); ok {
+				now := float64(time.Now().UnixMilli()) / 1000
+				if c.hub.world.CanInteractSkill(c.characterID, now, 2.0) {
+					if r, granted := c.hub.world.GrantSkillXP(c.characterID, skill, xp); granted {
+						c.sendSkillXpGain(c.characterID, skill, xp, r)
+					}
+				}
+			}
 
 		case "player_action":
 			if !c.spawned {
@@ -358,6 +390,7 @@ func (c *Client) readPump(database *db.DB) {
 			if justDied {
 				c.hub.HandlePlayerDeath(database, d.TargetID, c.characterID)
 			}
+			c.grantCombatSkillXP(c.characterID, d.TargetID, d.Ability, damage)
 
 		case "ability_use":
 			if !c.spawned {
@@ -475,6 +508,45 @@ func (c *Client) broadcastProjectileCast(playerID int64, spellID string, dirX, d
 		action = "cast_ice_shard"
 	}
 	c.hub.Broadcast(BuildPlayerAction(playerID, action, dirX, dirY, ""))
+}
+
+func (c *Client) sendSkillXpGain(playerID int64, skill string, amount int64, r game.SkillGrantResult) {
+	_, total, _ := c.hub.world.PlayerSkillsSnapshot(playerID)
+	msg := SkillXpGainData{
+		PlayerID:  playerID,
+		SkillID:   skill,
+		Amount:    amount,
+		Xp:        r.Xp,
+		Level:     r.Level,
+		LeveledUp: r.LeveledUp,
+		TotalXp:   total,
+	}
+	if skill == skills.Hitpoints {
+		if hp, hpMax, ok := c.hub.world.PlayerHP(playerID); ok {
+			msg.Hp = hp
+			msg.HpMax = hpMax
+		}
+	}
+	payload := BuildSkillXpGain(msg)
+	if playerID == c.characterID {
+		c.safeSend(payload)
+	} else {
+		c.hub.SendToCharacter(playerID, payload, false)
+	}
+}
+
+func (c *Client) grantCombatSkillXP(attackerID, defenderID int64, ability string, damage int) {
+	att, def := skills.CombatXP(ability, damage)
+	for skill, amt := range att {
+		if r, ok := c.hub.world.GrantSkillXP(attackerID, skill, amt); ok {
+			c.sendSkillXpGain(attackerID, skill, amt, r)
+		}
+	}
+	for skill, amt := range def {
+		if r, ok := c.hub.world.GrantSkillXP(defenderID, skill, amt); ok {
+			c.sendSkillXpGain(defenderID, skill, amt, r)
+		}
+	}
 }
 
 func (c *Client) writePump() {

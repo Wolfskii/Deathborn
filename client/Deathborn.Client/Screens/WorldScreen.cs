@@ -27,6 +27,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly Dictionary<long, float> _hunterMarks = new();
     private readonly DragDropManager _dragDrop = new();
     private readonly PlayerInventory _inventory = new();
+    private readonly PlayerSkills _skills = new();
     private readonly List<PlayerCorpse> _corpses = [];
     private readonly Dictionary<long, PlayerEntity> _deathWatch = new();
     private GhostEntity? _ghost;
@@ -35,13 +36,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private bool _ghostModePending;
     private bool _interactablesSeeded;
     private readonly ZoneBannerOverlay _zoneBanner = new();
+    private readonly WorldFeedbackOverlay _feedback = new();
+    private Vector2? _lastInteractWorldPos;
     private string? _currentZoneId;
     private bool _zonePresenceInitialized;
 
     private Vector2 _camera;
     private Vector2 _moveDir;
     private float _inputAccum;
-    private string _status = "Connected. WASD to move. Enter to chat. Space or click to attack. [E] to interact.";
+    private string _status = "Connected. WASD to move. [L] skills. Enter to chat. Space or click to attack. [E] to interact.";
     private string _interactPrompt = "";
     private InteractableEntity? _focused;
     private InteractableEntity? _hovered;
@@ -79,6 +82,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.PlayerBuff += OnPlayerBuff;
         net.PlayerDeath += OnPlayerDeath;
         net.YouDied += OnYouDied;
+        net.SkillXpGain += OnSkillXpGain;
 
         if (net.LocalCharacterId >= 0 && !_players.ContainsKey(net.LocalCharacterId))
         {
@@ -92,6 +96,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             };
         }
 
+        _skills.ApplySnapshot(net.SpawnSkills, net.SpawnTotalXp);
+        SyncLocalStatsFromSkills();
+
         WorldZones.Initialize(WorldMap.Realik);
         SeedWorldTownInteractables();
         SeedHotbar();
@@ -99,12 +106,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _windows.Character.Bind(
             () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Stats : null,
-            () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Name : net.SpawnName);
+            () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Name : net.SpawnName,
+            () => _skills);
         _windows.SpellBook.Bind(_dragDrop);
         _windows.Inventory.Bind(_dragDrop, _inventory);
+        _windows.Skills.Bind(() => _skills);
         _screens.SetOpenCharacterHandler(() => _windows.OpenCharacter());
         _screens.SetOpenSpellBookHandler(() => _windows.OpenSpellBook());
         _screens.SetOpenInventoryHandler(() => _windows.OpenInventory());
+        _screens.SetOpenSkillsHandler(() => _windows.OpenSkills());
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -126,6 +136,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.PlayerBuff -= OnPlayerBuff;
         net.PlayerDeath -= OnPlayerDeath;
         net.YouDied -= OnYouDied;
+        net.SkillXpGain -= OnSkillXpGain;
         _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
         _chat.Submitted -= OnChatSubmitted;
         _chat.TypingChanged -= OnChatTypingChanged;
@@ -143,6 +154,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _ghostModePending = false;
         _interactables.Clear();
         _interactablesSeeded = false;
+        _feedback.Clear();
+        _lastInteractWorldPos = null;
     }
 
     public IReadOnlyList<string> DebugInfoLines => _debugLines;
@@ -286,6 +299,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         UpdateProjectiles(dt);
+        _feedback.Update(dt, _players);
         _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked && !_dragDrop.IsDragging);
 
         if (_ghostMode && _ghost != null)
@@ -359,6 +373,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
+        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players);
+
         if (_debugHudVisible)
         {
             var y = 12f;
@@ -388,6 +404,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (_dragDrop.IsDragging)
             _dragDrop.DrawGhost(sb, font, Mouse.GetState().Position);
+
+        _feedback.DrawScreen(sb, font);
 
         sb.End();
 
@@ -482,6 +500,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             player.InputDir = Vector2.Zero;
             player.BeginDeath(facing);
             _deathWatch[playerId] = player;
+            _feedback.SpawnDeath(playerId, player.Name, player.IsLocal);
             if (player.IsLocal)
                 _corpsePosition = deathPos;
         }
@@ -1177,12 +1196,58 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
+    private void OnSkillXpGain(SkillXpGainData data)
+    {
+        var name = SkillDefinitions.DisplayName(data.SkillId);
+        var isLocal = data.PlayerId == _screens.Net.LocalCharacterId;
+        var isCombat = data.SkillId is "attack" or "strength" or "defense" or "hitpoints";
+        Vector2? xpPos = isLocal && !isCombat ? _lastInteractWorldPos : null;
+
+        if (isLocal)
+        {
+            _skills.ApplyGain(data.SkillId, data.Xp, data.TotalXp);
+            if (data.HpMax > 0 && _players.TryGetValue(data.PlayerId, out var local))
+                local.SyncStats((float)data.Hp, (float)data.HpMax);
+            SyncLocalStatsFromSkills();
+        }
+
+        _feedback.SpawnSkillXp(data.PlayerId, name, data.Amount, data.LeveledUp, data.Level, xpPos);
+        if (data.LeveledUp && isLocal)
+            _feedback.SpawnLocalLevelUpBanner(name, data.Level);
+
+        if (isLocal)
+            _status = data.LeveledUp
+                ? $"{name} level up! Now level {data.Level}."
+                : $"+{data.Amount} {name} XP.";
+    }
+
+    private void SyncLocalStatsFromSkills()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
+        local.Stats.Level = _skills.TotalLevel;
+        var hpLevel = _skills.Level("hitpoints");
+        var expectedMax = SkillDefinitions.HitpointsMax(hpLevel);
+        if (local.Stats.HpMax < expectedMax)
+        {
+            local.Stats.HpMax = expectedMax;
+            local.Stats.Hp = MathF.Min(local.Stats.Hp, local.Stats.HpMax);
+        }
+        local.Stats.ExpPercent = _skills.TotalXp > 0
+            ? MathF.Min(100f, _skills.TotalXp / 1000f)
+            : 0f;
+    }
+
     private void OnPlayerHit(PlayerHitData data)
     {
         if (!_players.TryGetValue(data.TargetId, out var target)) return;
         if (data.HpMax > 0)
             target.SyncStats((float)data.Hp, (float)data.HpMax);
         target.ApplyHit(data.Damage);
+
+        if (data.Damage > 0)
+            _feedback.SpawnDamage(data.TargetId, data.Damage);
+        else
+            _feedback.SpawnMiss(data.TargetId);
     }
 
     private void OnPlayerHeal(PlayerHealData data)
@@ -1190,6 +1255,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(data.PlayerId, out var player)) return;
         if (data.HpMax > 0)
             player.SyncStats((float)data.Hp, (float)data.HpMax);
+
+        _feedback.SpawnHeal(data.PlayerId, data.Amount);
 
         if (data.PlayerId == _screens.Net.LocalCharacterId)
             _status = data.Ability switch
@@ -1223,6 +1290,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void PerformInteract(InteractableEntity target)
     {
+        _lastInteractWorldPos = target.Position;
         _status = target.InteractMessage();
         _screens.Net.SendInteract(target.Id);
     }
@@ -1454,6 +1522,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         AddAt("starter_town", "sign_mine", "Mine road - danger", new Vector2(-72, 58), InteractableKind.Sign, new Color(0.78f, 0.55f, 0.35f), 22);
         AddAt("starter_town", "chest_loot_1", "Abandoned Crate", new Vector2(-92, 42), InteractableKind.Chest, new Color(0.48f, 0.32f, 0.2f));
         AddAt("starter_town", "rock_iron_1", "Iron Rock", new Vector2(-92, 0), InteractableKind.Rock, new Color(0.45f, 0.48f, 0.52f), 22);
+        AddAt("starter_town", "rock_copper_1", "Copper Rock", new Vector2(-72, -28), InteractableKind.Rock, new Color(0.58f, 0.4f, 0.28f), 22);
+        AddAt("starter_town", "farm_plot_1", "Town Farm Plot", new Vector2(-48, 48), InteractableKind.FarmPlot, new Color(0.32f, 0.55f, 0.28f), 24);
+        AddAt("starter_town", "cooking_fire_1", "Campfire Hearth", new Vector2(48, 48), InteractableKind.CookingFire, new Color(0.85f, 0.45f, 0.2f), 22);
         AddAt("starter_town", "npc_hermit", "Hermit", new Vector2(-92, -42), InteractableKind.Npc, new Color(0.55f, 0.45f, 0.38f));
 
         // Northhaven
@@ -1467,6 +1538,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         AddAt("westmere", "bank_westmere", "Village Bank", new Vector2(48, -28), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
         AddAt("westmere", "npc_elder", "Village Elder", new Vector2(-44, -24), InteractableKind.Npc, new Color(0.62f, 0.52f, 0.42f));
         AddAt("westmere", "tree_west_1", "Old Oak", new Vector2(-58, 38), InteractableKind.Tree, new Color(0.22f, 0.5f, 0.26f));
+        AddAt("westmere", "farm_westmere", "Village Farm", new Vector2(0, 42), InteractableKind.FarmPlot, new Color(0.3f, 0.52f, 0.26f), 24);
 
         // Eastwatch
         AddAt("eastwatch", "sign_eastwatch", "Eastwatch Keep", new Vector2(0, -76), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
@@ -1478,5 +1550,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         AddAt("southport", "bank_southport", "Harbor Bank", new Vector2(52, -34), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
         AddAt("southport", "npc_harbormaster", "Harbor Master", new Vector2(-50, -30), InteractableKind.Npc, new Color(0.55f, 0.65f, 0.75f));
         AddAt("southport", "fish_southport", "Harbor Fishing", new Vector2(0, 58), InteractableKind.Fishing, new Color(0.5f, 0.68f, 0.82f), 24);
+        AddAt("southport", "cooking_southport", "Harbor Hearth", new Vector2(-20, 42), InteractableKind.CookingFire, new Color(0.82f, 0.42f, 0.18f), 22);
     }
 }

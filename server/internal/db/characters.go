@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
@@ -20,24 +21,30 @@ type Character struct {
 	Alive     bool
 	X         float64
 	Y         float64
+	Skills    map[string]int64
+	TotalXP   int64
 }
 
 // GetActiveCharacter returns the account's living character, or ErrNotFound.
 func (d *DB) GetActiveCharacter(ctx context.Context, accountID int64) (Character, error) {
 	var c Character
+	var skillsJSON []byte
+	var totalXp int64
 	err := d.Pool.QueryRow(ctx,
-		`SELECT id, account_id, name, alive, pos_x, pos_y
+		`SELECT id, account_id, name, alive, pos_x, pos_y, skills, total_xp
 		 FROM characters
 		 WHERE account_id = $1 AND alive = TRUE
 		 LIMIT 1`,
 		accountID,
-	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Alive, &c.X, &c.Y)
+	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Alive, &c.X, &c.Y, &skillsJSON, &totalXp)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Character{}, ErrNotFound
 	}
 	if err != nil {
 		return Character{}, err
 	}
+	c.Skills = decodeSkills(skillsJSON)
+	c.TotalXP = totalXp
 	return c, nil
 }
 
@@ -71,7 +78,30 @@ func (d *DB) SaveCharacterPosition(ctx context.Context, id int64, x, y float64) 
 	return err
 }
 
-// MarkCharacterDead sets alive=false for a character that has died.
+// SaveCharacterSkills persists skill XP for a living character.
+func (d *DB) SaveCharacterSkills(ctx context.Context, id int64, skills map[string]int64, totalXp int64) error {
+	raw, err := json.Marshal(skills)
+	if err != nil {
+		return err
+	}
+	_, err = d.Pool.Exec(ctx,
+		`UPDATE characters SET skills = $2, total_xp = $3 WHERE id = $1 AND alive = TRUE`,
+		id, raw, totalXp,
+	)
+	return err
+}
+
+func decodeSkills(raw []byte) map[string]int64 {
+	if len(raw) == 0 {
+		return map[string]int64{}
+	}
+	var m map[string]int64
+	if json.Unmarshal(raw, &m) != nil {
+		return map[string]int64{}
+	}
+	return m
+}
+
 func (d *DB) MarkCharacterDead(ctx context.Context, id int64) error {
 	_, err := d.Pool.Exec(ctx,
 		`UPDATE characters SET alive = FALSE WHERE id = $1 AND alive = TRUE`,

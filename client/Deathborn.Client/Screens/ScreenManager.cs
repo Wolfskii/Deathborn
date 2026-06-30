@@ -22,6 +22,8 @@ public sealed class ScreenManager
 
     public void SetOpenInventoryHandler(Action? handler) => _escMenu.OnOpenInventory = handler;
 
+    public void SetOpenSkillsHandler(Action? handler) => _escMenu.OnOpenSkills = handler;
+
     public void Change(IScreen screen)
     {
         _current?.OnExit();

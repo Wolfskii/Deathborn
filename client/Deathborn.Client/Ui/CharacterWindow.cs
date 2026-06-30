@@ -24,16 +24,18 @@ public sealed class CharacterWindow : UiWindow
 
     private Func<CharacterStats?>? _statsProvider;
     private Func<string>? _nameProvider;
+    private Func<PlayerSkills?>? _skillsProvider;
 
     public CharacterWindow()
         : base("Character", Width, Height, Keys.C, DefaultPosition())
     {
     }
 
-    public void Bind(Func<CharacterStats?> stats, Func<string> name)
+    public void Bind(Func<CharacterStats?> stats, Func<string> name, Func<PlayerSkills?>? skills = null)
     {
         _statsProvider = stats;
         _nameProvider = name;
+        _skillsProvider = skills;
     }
 
     private static Point DefaultPosition() => new(Config.MinimapMargin, Config.MinimapMargin);
@@ -54,8 +56,13 @@ public sealed class CharacterWindow : UiWindow
         sb.DrawString(font, name, new Vector2(inner.X, y), Color.White);
         y += font.LineSpacing + 4;
 
-        var lvl = $"Lvl {stats.Level}";
+        var lvl = _skillsProvider?.Invoke() is { } skills
+            ? $"Total level {skills.TotalLevel}"
+            : $"Lvl {stats.Level}";
         sb.DrawString(font, lvl, new Vector2(inner.X, y), PanelBorder);
+        y += font.LineSpacing + 2;
+        if (_skillsProvider?.Invoke() is { } sk)
+            sb.DrawString(font, $"Total XP: {sk.TotalXp:N0}", new Vector2(inner.X, y), GoldDim);
         y += font.LineSpacing + SectionGap;
 
         var rowH = font.LineSpacing + BarHeight;

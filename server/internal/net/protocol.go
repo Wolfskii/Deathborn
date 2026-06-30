@@ -166,10 +166,25 @@ type PlayerBuffData struct {
 
 // WelcomeData tells the client which entity id is theirs and the spawn point.
 type WelcomeData struct {
-	CharacterID int64   `json:"characterId"`
-	X           float64 `json:"x"`
-	Y           float64 `json:"y"`
-	Name        string  `json:"name"`
+	CharacterID int64              `json:"characterId"`
+	X           float64            `json:"x"`
+	Y           float64            `json:"y"`
+	Name        string             `json:"name"`
+	Skills      map[string]int64   `json:"skills,omitempty"`
+	TotalXp     int64              `json:"totalXp,omitempty"`
+}
+
+// SkillXpGainData is sent when a player gains skill XP.
+type SkillXpGainData struct {
+	PlayerID  int64  `json:"playerId"`
+	SkillID   string `json:"skillId"`
+	Amount    int64  `json:"amount"`
+	Xp        int64  `json:"xp"`
+	Level     int    `json:"level"`
+	LeveledUp bool   `json:"leveledUp"`
+	TotalXp   int64  `json:"totalXp"`
+	Hp        float64 `json:"hp,omitempty"`
+	HpMax     float64 `json:"hpMax,omitempty"`
 }
 
 // SnapshotData is the authoritative world state broadcast each tick.
@@ -242,4 +257,9 @@ func BuildPlayerAction(playerID int64, action string, dirX, dirY float64, target
 		DirY:     dirY,
 		TargetID: targetID,
 	})
+}
+
+// BuildSkillXpGain serializes a skill XP gain for the affected player.
+func BuildSkillXpGain(d SkillXpGainData) []byte {
+	return encode("skill_xp_gain", d)
 }

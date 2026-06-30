@@ -6,6 +6,7 @@ import (
 	"math"
 	"sync"
 
+	"github.com/deathborn/server/internal/skills"
 	"github.com/deathborn/server/internal/worldmap"
 )
 
@@ -35,12 +36,18 @@ func NewWorld(terrain *worldmap.Map) *World {
 }
 
 // AddPlayer inserts a player at a position (e.g. on connect/spawn).
-func (w *World) AddPlayer(id int64, name string, x, y float64) {
+func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if skillXP == nil {
+		skillXP = skills.NewSet()
+	}
+	hpLevel := skillXP.Level(skills.Hitpoints)
+	hpMax := skills.HitpointsMax(hpLevel)
 	w.players[id] = &player{
 		id: id, name: name, x: x, y: y,
-		hp: DefaultHpMax, hpMax: DefaultHpMax,
+		hp: hpMax, hpMax: hpMax,
+		skills: skillXP, totalXp: totalXp,
 	}
 }
 
@@ -281,7 +288,16 @@ func (w *World) Position(id int64) (x, y float64, ok bool) {
 	return p.x, p.y, true
 }
 
-// PvPAllowedBetween reports whether player-vs-player damage may occur between two players.
+// PlayerHP returns current HP values for a player.
+func (w *World) PlayerHP(id int64) (hp, hpMax float64, ok bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	p, ok := w.players[id]
+	if !ok {
+		return 0, 0, false
+	}
+	return p.hp, p.hpMax, true
+}
 func (w *World) PvPAllowedBetween(attackerID, targetID int64) bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
