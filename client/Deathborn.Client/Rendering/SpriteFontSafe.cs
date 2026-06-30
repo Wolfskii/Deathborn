@@ -1,4 +1,6 @@
 using System.Text;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace Deathborn.Client.Rendering;
 
@@ -19,4 +21,15 @@ public static class SpriteFontSafe
         }
         return sb.ToString();
     }
+
+    public static Vector2 MeasureString(SpriteFont font, string? text) =>
+        font.MeasureString(Filter(text));
+
+    public static void DrawString(SpriteBatch sb, SpriteFont font, string? text, Vector2 position, Color color) =>
+        sb.DrawString(font, Filter(text), position, color);
+
+    public static void DrawString(
+        SpriteBatch sb, SpriteFont font, string? text, Vector2 position, Color color,
+        float rotation, Vector2 origin, float scale, SpriteEffects effects, float layerDepth) =>
+        sb.DrawString(font, Filter(text), position, color, rotation, origin, scale, effects, layerDepth);
 }

@@ -80,8 +80,9 @@ public sealed class InteractableEntity
 
         DrawPrimitives.DrawCircleOutline(sb, screenPos, r + 4 * zoom, outline, 32, Highlighted ? 2f * zoom : 1.5f * zoom);
 
-        var label = font.MeasureString(DisplayName);
-        sb.DrawString(font, DisplayName, screenPos + new Vector2(-label.X / 2, -r - 22 * zoom), Color.White);
+        var safeName = SpriteFontSafe.Filter(DisplayName);
+        var label = SpriteFontSafe.MeasureString(font, safeName);
+        SpriteFontSafe.DrawString(sb, font, safeName, screenPos + new Vector2(-label.X / 2, -r - 22 * zoom), Color.White);
     }
 
     private static Rectangle CenteredRect(Vector2 center, float w, float h) =>

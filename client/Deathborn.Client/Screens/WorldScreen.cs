@@ -1448,16 +1448,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         AddAt("starter_town", "tree_oak_1", "Oak Tree", new Vector2(92, 0), InteractableKind.Tree, new Color(0.25f, 0.55f, 0.28f));
         AddAt("starter_town", "tree_oak_2", "Oak Tree", new Vector2(72, 58), InteractableKind.Tree, new Color(0.22f, 0.5f, 0.26f));
         AddAt("starter_town", "anvil_starter", "Public Anvil", new Vector2(42, 82), InteractableKind.Anvil, new Color(0.38f, 0.4f, 0.44f), 22);
-        AddAt("starter_town", "sign_wilderness", "South Gate — Wilderness ahead", new Vector2(88, 72), InteractableKind.Sign, new Color(0.85f, 0.35f, 0.3f), 22);
+        AddAt("starter_town", "sign_wilderness", "South Gate - Wilderness ahead", new Vector2(88, 72), InteractableKind.Sign, new Color(0.85f, 0.35f, 0.3f), 22);
         AddAt("starter_town", "chest_starter", "Starter Chest", new Vector2(0, 92), InteractableKind.Chest, new Color(0.62f, 0.42f, 0.22f));
         AddAt("starter_town", "tree_pine_1", "Pine Tree", new Vector2(-42, 82), InteractableKind.Tree, new Color(0.18f, 0.42f, 0.32f));
-        AddAt("starter_town", "sign_mine", "Mine road — danger", new Vector2(-72, 58), InteractableKind.Sign, new Color(0.78f, 0.55f, 0.35f), 22);
+        AddAt("starter_town", "sign_mine", "Mine road - danger", new Vector2(-72, 58), InteractableKind.Sign, new Color(0.78f, 0.55f, 0.35f), 22);
         AddAt("starter_town", "chest_loot_1", "Abandoned Crate", new Vector2(-92, 42), InteractableKind.Chest, new Color(0.48f, 0.32f, 0.2f));
         AddAt("starter_town", "rock_iron_1", "Iron Rock", new Vector2(-92, 0), InteractableKind.Rock, new Color(0.45f, 0.48f, 0.52f), 22);
         AddAt("starter_town", "npc_hermit", "Hermit", new Vector2(-92, -42), InteractableKind.Npc, new Color(0.55f, 0.45f, 0.38f));
 
         // Northhaven
-        AddAt("northhaven", "sign_northhaven", "Northhaven — Safe Haven", new Vector2(0, -78), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
+        AddAt("northhaven", "sign_northhaven", "Northhaven - Safe Haven", new Vector2(0, -78), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
         AddAt("northhaven", "bank_northhaven", "Northhaven Bank", new Vector2(58, -40), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
         AddAt("northhaven", "npc_castellan", "Castellan", new Vector2(-52, -36), InteractableKind.Npc, new Color(0.68f, 0.62f, 0.72f));
         AddAt("northhaven", "anvil_northhaven", "Castle Forge", new Vector2(0, 48), InteractableKind.Anvil, new Color(0.38f, 0.4f, 0.44f), 22);
@@ -1474,7 +1474,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         AddAt("eastwatch", "npc_watcher", "Wall Watcher", new Vector2(-48, -32), InteractableKind.Npc, new Color(0.58f, 0.62f, 0.72f));
 
         // Southport
-        AddAt("southport", "sign_southport", "Southport — Safe Haven", new Vector2(0, -74), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
+        AddAt("southport", "sign_southport", "Southport - Safe Haven", new Vector2(0, -74), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
         AddAt("southport", "bank_southport", "Harbor Bank", new Vector2(52, -34), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
         AddAt("southport", "npc_harbormaster", "Harbor Master", new Vector2(-50, -30), InteractableKind.Npc, new Color(0.55f, 0.65f, 0.75f));
         AddAt("southport", "fish_southport", "Harbor Fishing", new Vector2(0, 58), InteractableKind.Fishing, new Color(0.5f, 0.68f, 0.82f), 24);

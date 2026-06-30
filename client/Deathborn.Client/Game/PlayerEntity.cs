@@ -428,9 +428,9 @@ public sealed class PlayerEntity
         var nameTop = screenPos.Y + (-Radius - 28f) * zoom;
         if (!IsLocal)
         {
-            var label = font.MeasureString(Name);
+            var label = SpriteFontSafe.MeasureString(font, Name);
             var namePos = new Vector2(screenPos.X - label.X / 2f, nameTop);
-            sb.DrawString(font, Name, namePos, Color.White);
+            SpriteFontSafe.DrawString(sb, font, Name, namePos, Color.White);
         }
         var thinkingAnchor = new Vector2(screenPos.X, nameTop - 22f * zoom);
         if (_thinking.Active)
