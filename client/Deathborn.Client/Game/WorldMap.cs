@@ -8,7 +8,10 @@ namespace Deathborn.Client.Gameplay;
 /// <summary>Tile walkability grid for the Realik continent (generated from reference map art).</summary>
 public sealed class WorldMap
 {
-    public static WorldMap Realik { get; } = Load();
+    private static WorldMap? _realik;
+    private static DateTime _sourceWriteTime;
+
+    public static WorldMap Realik => GetOrLoad();
 
     public int TileWidth { get; private init; }
     public int TileHeight { get; private init; }
@@ -19,13 +22,30 @@ public sealed class WorldMap
 
     private bool[] _walkable = [];
     private Texture2D? _landOverlayTexture;
+    private DateTime _collisionWriteTime;
+    private DateTime _overlaySourceWriteTime;
 
     public bool IsLand(int tx, int ty) =>
         (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight && _walkable[ty * TileWidth + tx];
 
-    private static WorldMap Load()
+    private static string CollisionPath =>
+        Path.Combine(AppContext.BaseDirectory, "Content", "World", "realik_collision.bin");
+
+    private static WorldMap GetOrLoad()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Content", "World", "realik_collision.bin");
+        var path = CollisionPath;
+        var writeTime = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+        if (_realik != null && writeTime == _sourceWriteTime)
+            return _realik;
+
+        _realik?._landOverlayTexture?.Dispose();
+        _realik = Load(path);
+        _sourceWriteTime = writeTime;
+        return _realik;
+    }
+
+    private static WorldMap Load(string path)
+    {
         if (!File.Exists(path))
             throw new FileNotFoundException("World collision data missing. Run scripts/generate_world_collision.py.", path);
 
@@ -49,6 +69,7 @@ public sealed class WorldMap
             walkable[i] = bytes[13 + i] != 0;
 
         var spawn = FindSpawnTile(walkable, tw, th, tileSize);
+        var writeTime = File.GetLastWriteTimeUtc(path);
         return new WorldMap
         {
             TileWidth = tw,
@@ -56,6 +77,7 @@ public sealed class WorldMap
             TileSize = tileSize,
             _walkable = walkable,
             DefaultSpawn = spawn,
+            _collisionWriteTime = writeTime,
         };
     }
 
@@ -196,7 +218,10 @@ public sealed class WorldMap
 
     public void EnsureOverlayTexture(GraphicsDevice device)
     {
-        if (_landOverlayTexture != null) return;
+        if (_landOverlayTexture != null && _overlaySourceWriteTime == _collisionWriteTime)
+            return;
+
+        _landOverlayTexture?.Dispose();
 
         var tex = new Texture2D(device, TileWidth, TileHeight);
         var data = new Color[TileWidth * TileHeight];
@@ -208,6 +233,7 @@ public sealed class WorldMap
         }
         tex.SetData(data);
         _landOverlayTexture = tex;
+        _overlaySourceWriteTime = _collisionWriteTime;
     }
 
     /// <summary>Land-only continent silhouette for the world map overlay.</summary>
