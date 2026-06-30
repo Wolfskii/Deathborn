@@ -233,7 +233,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         var zoom = GameViewport.WorldZoom;
 
-        sb.Begin();
+        sb.Begin(samplerState: SamplerState.PointClamp);
         _bg.Draw(sb, _camera, ScreenCenter, zoom);
 
         foreach (var obj in _interactables)

@@ -102,7 +102,6 @@ public sealed class WorldMap
 
     public void Draw(SpriteBatch sb, Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        Vector2 ToScreen(Vector2 w) => (w - camera) * zoom + screenCenter;
         var tilePx = TileSize * zoom;
         if (tilePx < 1f) return;
 
@@ -114,19 +113,31 @@ public sealed class WorldMap
         var minTy = Math.Clamp((int)((camera.Y - halfViewH) / TileSize), 0, TileHeight - 1);
         var maxTy = Math.Clamp((int)((camera.Y + halfViewH) / TileSize), 0, TileHeight - 1);
 
-        var rectW = Math.Max(1, (int)tilePx);
-        var rectH = Math.Max(1, (int)tilePx);
-
         for (var ty = minTy; ty <= maxTy; ty++)
         for (var tx = minTx; tx <= maxTx; tx++)
         {
-            var world = new Vector2(tx * TileSize, ty * TileSize);
-            var screen = ToScreen(world);
-            var rect = new Rectangle((int)screen.X, (int)screen.Y, rectW, rectH);
+            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom);
             var walk = _walkable[ty * TileWidth + tx];
             var color = walk ? LandColor(tx, ty) : WaterColor(tx, ty);
             DrawPrimitives.FillRect(sb, rect, color);
         }
+    }
+
+    /// <summary>
+    /// Pixel-snapped tile bounds so neighbours share edges with no sub-pixel gaps
+    /// (prevents background showing through as shimmering black grid lines).
+    /// </summary>
+    private static Rectangle TileScreenRect(int tx, int ty, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var left = MathF.Floor((tx * TileSize - camera.X) * zoom + screenCenter.X);
+        var top = MathF.Floor((ty * TileSize - camera.Y) * zoom + screenCenter.Y);
+        var right = MathF.Floor(((tx + 1) * TileSize - camera.X) * zoom + screenCenter.X);
+        var bottom = MathF.Floor(((ty + 1) * TileSize - camera.Y) * zoom + screenCenter.Y);
+        return new Rectangle(
+            (int)left,
+            (int)top,
+            Math.Max(1, (int)(right - left)),
+            Math.Max(1, (int)(bottom - top)));
     }
 
     private static Color LandColor(int tx, int ty)
