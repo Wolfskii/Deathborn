@@ -18,6 +18,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly Hotbar _hotbar = new();
     private readonly ChatSpotlightOverlay _chat = new();
     private readonly MinimapHud _minimap = new();
+    private readonly GameWindowManager _windows = new();
     private bool _interactablesSeeded;
 
     private Vector2 _camera;
@@ -70,6 +71,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         SeedHotbar();
         TextField.ReleaseFocus();
 
+        _windows.Character.Bind(
+            () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Stats : null,
+            () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Name : net.SpawnName);
+        _screens.SetOpenCharacterHandler(() => _windows.OpenCharacter());
+
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
 
@@ -90,6 +96,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_chat.IsOpen) _chat.Close(submit: false);
         _hotbar.SlotActivated -= OnHotbarSlot;
         _hotbar.CooldownBlocked -= OnHotbarCooldownBlocked;
+        _screens.SetOpenCharacterHandler(null);
+        _windows.Character.Close();
         _projectiles.Clear();
         _interactables.Clear();
         _interactablesSeeded = false;
@@ -144,6 +152,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var abilityBusy = _players.TryGetValue(_screens.Net.LocalCharacterId, out var busyPlayer) && busyPlayer.IsBusy;
         var inputBlocked = chatOpen || menuOpen || abilityBusy;
 
+        var allowWindowShortcuts = windowActive && !chatOpen;
+        var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts);
+
         _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
         {
@@ -183,7 +194,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
             _camera = local.Position;
 
-        if (!inputBlocked && windowActive)
+        if (!inputBlocked && windowActive && !uiCapturesMouse)
         {
             UpdateInteractFocus(mouse.Position);
             UpdateInteractPrompt();
@@ -247,6 +258,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _hotbar.Draw(sb, font);
         _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
+        _windows.Draw(sb, font);
         sb.End();
 
         DrawChatOverlay(sb, font, zoom);

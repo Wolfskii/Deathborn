@@ -16,6 +16,8 @@ public sealed class ScreenManager
 
     public bool EscMenuOpen => _escMenu.IsOpen;
 
+    public void SetOpenCharacterHandler(Action? handler) => _escMenu.OnOpenCharacter = handler;
+
     public void Change(IScreen screen)
     {
         _current?.OnExit();

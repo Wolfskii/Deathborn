@@ -10,20 +10,24 @@ namespace Deathborn.Client.Ui;
 public sealed class EscMenuOverlay
 {
     private const int PanelW = 380;
-    private const int BasePanelH = 210;
+    private const int BasePanelH = 250;
 
     private static readonly Color PanelFill = new(28, 24, 18);
     private static readonly Color PanelBorder = new(210, 170, 80);
     private static readonly Color GoldDim = new(130, 105, 55);
+    private static readonly Color ButtonFill = new(48, 40, 30);
+    private static readonly Color ButtonHover = new(68, 56, 38);
 
     private Rectangle _panel;
     private Rectangle _sliderTrack;
     private Rectangle _muteBox;
+    private Rectangle _characterButton;
     private bool _draggingVolume;
     private MouseState _prevMouse;
     private IReadOnlyList<string>? _infoLines;
 
     public bool IsOpen { get; private set; }
+    public Action? OnOpenCharacter;
 
     public void Open()
     {
@@ -47,6 +51,12 @@ public sealed class EscMenuOverlay
         {
             if (_muteBox.Contains(mouse.Position))
                 MusicPlayer.SetMuted(!MusicPlayer.IsMuted);
+
+            if (_characterButton.Contains(mouse.Position))
+            {
+                OnOpenCharacter?.Invoke();
+                Close();
+            }
 
             if (_sliderTrack.Contains(mouse.Position))
                 SetVolumeFromMouse(mouse.X);
@@ -105,9 +115,12 @@ public sealed class EscMenuOverlay
         };
         mute.Draw(sb, font, _muteBox.Contains(Mouse.GetState().Position));
 
+        var mousePos = Mouse.GetState().Position;
+        DrawMenuButton(sb, font, _characterButton, "Character (C)", _characterButton.Contains(mousePos));
+
         if (_infoLines is { Count: > 0 })
         {
-            var infoY = _muteBox.Bottom + 18;
+            var infoY = _characterButton.Bottom + 18;
             sb.DrawString(font, "Info", new Vector2(_panel.X + 24, infoY), PanelBorder);
             infoY += font.LineSpacing + 2;
 
@@ -134,12 +147,23 @@ public sealed class EscMenuOverlay
         _panel = new Rectangle(cx - PanelW / 2, cy - panelH / 2, PanelW, panelH);
         _sliderTrack = new Rectangle(_panel.X + 24, _panel.Y + 78, PanelW - 110, 18);
         _muteBox = new Rectangle(_panel.X + 24, _panel.Y + 118, 20, 20);
+        _characterButton = new Rectangle(_panel.X + 24, _panel.Y + 152, PanelW - 48, 32);
     }
 
     private void SetVolumeFromMouse(int mouseX)
     {
         var t = (mouseX - _sliderTrack.X) / (float)_sliderTrack.Width;
         MusicPlayer.SetVolume(Math.Clamp(t, 0f, 1f));
+    }
+
+    private static void DrawMenuButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover)
+    {
+        DrawPrimitives.FillRect(sb, rect, hover ? ButtonHover : ButtonFill);
+        DrawBorder(sb, rect, hover ? PanelBorder : GoldDim, 1);
+        var size = font.MeasureString(label);
+        sb.DrawString(font, label,
+            new Vector2(rect.X + (rect.Width - size.X) / 2f, rect.Y + (rect.Height - size.Y) / 2f),
+            Color.White);
     }
 
     private static void DrawPanel(SpriteBatch sb, Rectangle panel)

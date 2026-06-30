@@ -44,6 +44,8 @@ public sealed class PlayerEntity
         set => _thinking.Active = value;
     }
 
+    public CharacterStats Stats { get; } = CharacterStats.CreateStarter();
+
     public static Vector2 CardinalFacing(Vector2 dir)
     {
         if (dir.LengthSquared() < 0.01f) return new Vector2(0, 1);
@@ -231,12 +233,13 @@ public sealed class PlayerEntity
                 IdleAnim.Draw(sb, screenPos, tint, scale);
         }
 
-        var nameY = screenPos.Y + (-Radius - 28f) * zoom;
-        var label = font.MeasureString(Name);
-        var namePos = new Vector2(screenPos.X - label.X / 2f, nameY);
-        sb.DrawString(font, Name, namePos, Color.White);
-
-        var nameTop = nameY;
+        var nameTop = screenPos.Y + (-Radius - 28f) * zoom;
+        if (!IsLocal)
+        {
+            var label = font.MeasureString(Name);
+            var namePos = new Vector2(screenPos.X - label.X / 2f, nameTop);
+            sb.DrawString(font, Name, namePos, Color.White);
+        }
         var thinkingAnchor = new Vector2(screenPos.X, nameTop - 22f * zoom);
         if (_thinking.Active)
             _thinking.Draw(sb, thinkingAnchor, zoom);
