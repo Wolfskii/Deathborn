@@ -178,8 +178,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
 
         UpdateProjectiles(dt);
-        if (!inputBlocked)
-            _hotbar.Update(dt, kb, _prevKb);
+        _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked);
 
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
             _camera = local.Position;

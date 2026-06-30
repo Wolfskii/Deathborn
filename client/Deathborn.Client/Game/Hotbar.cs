@@ -138,9 +138,11 @@ public sealed class Hotbar
 
     public void SetSlot(int index, Dictionary<string, object>? entry) => Slots[index].Entry = entry;
 
-    public void Update(float dt, KeyboardState kb, KeyboardState prevKb)
+    public void Update(float dt, KeyboardState kb, KeyboardState prevKb, bool acceptInput = true)
     {
         foreach (var slot in Slots) slot.Update(dt);
+        if (!acceptInput) return;
+
         for (var i = 0; i < 10; i++)
         {
             if (kb.IsKeyDown(HotbarKeys[i]) && !prevKb.IsKeyDown(HotbarKeys[i]))
