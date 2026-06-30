@@ -146,7 +146,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
+        {
             localPlayer.InputDir = _moveDir;
+            if (windowActive && !inputBlocked)
+                UpdateLocalAimFacing(localPlayer, mouse.Position);
+        }
 
         if (inputBlocked)
         {
@@ -353,7 +357,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (target != null && target.IsInRange(_camera))
             PerformInteract(target);
         else
-            TryMeleeAttack(AimDirectionFromScreen(mouseScreen));
+            TryMeleeAttack(GetAimDirection());
     }
 
     private void TryDefaultAttack() => TryMeleeAttack(GetAimDirection());
@@ -367,11 +371,28 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private Vector2 GetAimDirection()
     {
-        if (!DeathbornGame.Instance.IsActive) return FallbackAimDirection();
-        var mouse = Mouse.GetState();
-        return IsMouseInViewport(mouse.Position)
-            ? AimDirectionFromScreen(mouse.Position)
-            : FallbackAimDirection();
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
+            return new Vector2(0, 1);
+
+        if (_moveDir.LengthSquared() > 0.0001f)
+            return PlayerEntity.CardinalFacing(_moveDir);
+
+        if (DeathbornGame.Instance.IsActive && IsMouseInViewport(Mouse.GetState().Position))
+            return AimDirectionFromScreen(Mouse.GetState().Position);
+
+        return PlayerEntity.CardinalFacing(local.FacingDir);
+    }
+
+    private void UpdateLocalAimFacing(PlayerEntity local, Point mouseScreen)
+    {
+        if (!IsMouseInViewport(mouseScreen) || local.IsMoving || local.IsBusy)
+            return;
+
+        var toMouse = ScreenToWorld(mouseScreen) - local.Position;
+        if (toMouse.LengthSquared() <= 4f)
+            return;
+
+        local.AimDir = PlayerEntity.CardinalFacing(toMouse);
     }
 
     private Vector2 AimDirectionFromScreen(Point mouseScreen)
@@ -383,13 +404,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (toMouse.LengthSquared() <= 4f)
             return PlayerEntity.CardinalFacing(local.FacingDir);
         return PlayerEntity.CardinalFacing(toMouse);
-    }
-
-    private Vector2 FallbackAimDirection()
-    {
-        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
-            return new Vector2(0, 1);
-        return PlayerEntity.CardinalFacing(local.FacingDir);
     }
 
     private static bool IsMouseInViewport(Point p) =>

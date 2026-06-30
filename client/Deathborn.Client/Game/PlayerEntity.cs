@@ -31,6 +31,8 @@ public sealed class PlayerEntity
     public bool IsLocal;
     public Vector2 MoveDir;
     public Vector2 InputDir;
+    /// <summary>Mouse-facing while idle (local player only).</summary>
+    public Vector2 AimDir;
 
     public bool IsAttacking => AttackAnim.IsPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
@@ -156,6 +158,7 @@ public sealed class PlayerEntity
         get
         {
             if (IsLocal && InputDir.LengthSquared() > 0.01f) return InputDir;
+            if (IsLocal && AimDir.LengthSquared() > 0.01f) return AimDir;
             if (MoveDir.LengthSquared() > 0.01f) return MoveDir;
             return new Vector2(0, 1);
         }
