@@ -142,6 +142,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/download-artifact@v4
         with:
@@ -162,13 +165,35 @@ jobs:
           cd release
           sha256sum *.zip > SHA256SUMS.txt
 
+      - name: Generate changelog
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vFx "$RELEASE_TAG" | head -1 || true)"
+          {
+            echo "## What's Changed"
+            echo ""
+            if [ -z "$prev" ]; then
+              git log --pretty=format:'- %s (%h)' --reverse
+            else
+              git log "${prev}..HEAD" --pretty=format:'- %s (%h)' --reverse
+            fi
+            echo ""
+            echo ""
+            if [ -n "$prev" ]; then
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${prev}...${RELEASE_TAG}"
+            fi
+          } > release-notes.md
+          echo "Changelog entries: $(grep -c '^- ' release-notes.md || true)"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ github.sha }}
           name: Deathborn ${{ env.RELEASE_TAG }}
-          generate_release_notes: true
+          body_path: release-notes.md
           files: |
             release/*.zip
             release/SHA256SUMS.txt
