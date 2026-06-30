@@ -117,6 +117,40 @@ public sealed class Hotbar
 
     public void SetSlot(int index, Dictionary<string, object>? entry) => Slots[index].Entry = entry;
 
+    public void AssignSlot(int index, Dictionary<string, object>? entry)
+    {
+        Slots[index].Entry = entry == null ? null : HotbarEntry.Clone(entry);
+        Slots[index].CooldownRemaining = 0;
+        Slots[index].CooldownTotal = 0;
+    }
+
+    public static void GetBarLayout(out int x0, out int y)
+    {
+        var totalW = 10 * SlotWidth + 9 * SlotGap;
+        x0 = GameViewport.Width / 2 - totalW / 2;
+        y = GameViewport.Height - SlotHeight - 28;
+    }
+
+    public static Rectangle GetSlotBounds(int index)
+    {
+        GetBarLayout(out var x0, out var y);
+        return new Rectangle(x0 + index * (SlotWidth + SlotGap), y, SlotWidth, SlotHeight);
+    }
+
+    public static bool TryGetSlotIndexAt(Point p, out int index)
+    {
+        GetBarLayout(out var x0, out var y);
+        for (var i = 0; i < 10; i++)
+        {
+            var rect = new Rectangle(x0 + i * (SlotWidth + SlotGap), y, SlotWidth, SlotHeight);
+            if (!rect.Contains(p)) continue;
+            index = i;
+            return true;
+        }
+        index = -1;
+        return false;
+    }
+
     public void Update(float dt, KeyboardState kb, KeyboardState prevKb, bool acceptInput = true)
     {
         foreach (var slot in Slots) slot.Update(dt);

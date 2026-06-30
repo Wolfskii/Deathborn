@@ -1,3 +1,4 @@
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
@@ -8,11 +9,17 @@ public sealed class GameWindowManager
     private readonly List<UiWindow> _windows = [];
 
     public CharacterWindow Character { get; }
+    public SpellBookWindow SpellBook { get; }
+    public InventoryWindow Inventory { get; }
 
     public GameWindowManager()
     {
         Character = new CharacterWindow();
+        SpellBook = new SpellBookWindow();
+        Inventory = new InventoryWindow();
         Register(Character);
+        Register(SpellBook);
+        Register(Inventory);
     }
 
     public void Register(UiWindow window)
@@ -28,6 +35,8 @@ public sealed class GameWindowManager
     }
 
     public void OpenCharacter() => Character.Open();
+    public void OpenSpellBook() => SpellBook.Open();
+    public void OpenInventory() => Inventory.Open();
 
     /// <summary>True when an open window is under the mouse (blocks world clicks).</summary>
     public bool Update(MouseState mouse, MouseState prevMouse, KeyboardState kb, KeyboardState prevKb, bool allowShortcuts)
@@ -55,5 +64,13 @@ public sealed class GameWindowManager
                 if (w.IsOpen) return true;
             return false;
         }
+    }
+
+    public bool IsPointOverOpenWindow(Point p)
+    {
+        foreach (var w in _windows)
+            if (w.IsOpen && w.Bounds.Contains(p))
+                return true;
+        return false;
     }
 }

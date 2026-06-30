@@ -53,6 +53,21 @@ public static class HotbarIconDraw
             case "second_wind":
                 DrawSecondWind(sb, bounds);
                 break;
+            case "slash":
+                DrawSlash(sb, bounds);
+                break;
+            case "health_potion":
+                DrawHealthPotion(sb, bounds);
+                break;
+            case "mana_potion":
+                DrawManaPotion(sb, bounds);
+                break;
+            case "stamina_potion":
+                DrawStaminaPotion(sb, bounds);
+                break;
+            case "antidote":
+                DrawAntidote(sb, bounds);
+                break;
             default:
                 DrawPrimitives.FillRect(sb, bounds, new Color(40, 42, 50));
                 break;
@@ -186,5 +201,54 @@ public static class HotbarIconDraw
         DrawPrimitives.FillCircle(sb, c, bounds.Width * 0.22f, new Color(0.35f, 0.9f, 0.55f, 0.45f));
         DrawPrimitives.DrawLine(sb, c + new Vector2(-8, 0), c + new Vector2(8, 0), new Color(0.5f, 0.95f, 0.65f), 3f);
         DrawPrimitives.DrawLine(sb, c + new Vector2(0, -8), c + new Vector2(0, 8), new Color(0.5f, 0.95f, 0.65f), 3f);
+    }
+
+    private static void DrawSlash(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(24, 20, 18));
+        var c = new Vector2(bounds.Center.X, bounds.Center.Y);
+        DrawPrimitives.DrawLine(sb, c + new Vector2(-12, 8), c + new Vector2(14, -10), new Color(0.85f, 0.88f, 0.95f), 3f);
+        DrawPrimitives.DrawLine(sb, c + new Vector2(-10, 10), c + new Vector2(12, -8), new Color(0.55f, 0.58f, 0.65f), 5f);
+    }
+
+    private static void DrawHealthPotion(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(18, 12, 14));
+        var cx = bounds.Center.X;
+        var flask = new Rectangle(cx - 10, bounds.Y + 14, 20, 28);
+        DrawPrimitives.FillRect(sb, flask, new Color(0.75f, 0.2f, 0.22f, 0.5f));
+        DrawPrimitives.FillRect(sb, new Rectangle(flask.X + 4, flask.Y + 6, flask.Width - 8, flask.Height - 10),
+            new Color(0.95f, 0.25f, 0.28f, 0.85f));
+        DrawPrimitives.FillRect(sb, new Rectangle(cx - 5, flask.Y - 4, 10, 6), new Color(0.55f, 0.5f, 0.48f));
+    }
+
+    private static void DrawManaPotion(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(10, 14, 28));
+        var cx = bounds.Center.X;
+        var flask = new Rectangle(cx - 10, bounds.Y + 14, 20, 28);
+        DrawPrimitives.FillRect(sb, flask, new Color(0.2f, 0.35f, 0.85f, 0.5f));
+        DrawPrimitives.FillRect(sb, new Rectangle(flask.X + 4, flask.Y + 6, flask.Width - 8, flask.Height - 10),
+            new Color(0.35f, 0.55f, 0.98f, 0.85f));
+        DrawPrimitives.FillRect(sb, new Rectangle(cx - 5, flask.Y - 4, 10, 6), new Color(0.55f, 0.5f, 0.48f));
+    }
+
+    private static void DrawStaminaPotion(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(20, 18, 8));
+        var cx = bounds.Center.X;
+        var flask = new Rectangle(cx - 10, bounds.Y + 14, 20, 28);
+        DrawPrimitives.FillRect(sb, flask, new Color(0.75f, 0.65f, 0.15f, 0.5f));
+        DrawPrimitives.FillRect(sb, new Rectangle(flask.X + 4, flask.Y + 6, flask.Width - 8, flask.Height - 10),
+            new Color(0.95f, 0.82f, 0.2f, 0.85f));
+        DrawPrimitives.FillRect(sb, new Rectangle(cx - 5, flask.Y - 4, 10, 6), new Color(0.55f, 0.5f, 0.48f));
+    }
+
+    private static void DrawAntidote(SpriteBatch sb, Rectangle bounds)
+    {
+        DrawPrimitives.FillRect(sb, bounds, new Color(12, 22, 14));
+        var c = new Vector2(bounds.Center.X, bounds.Center.Y + 2);
+        DrawPrimitives.FillCircle(sb, c, bounds.Width * 0.2f, new Color(0.45f, 0.9f, 0.45f, 0.75f));
+        DrawPrimitives.DrawLine(sb, c + new Vector2(-6, 0), c + new Vector2(6, 0), new Color(0.3f, 0.65f, 0.35f), 2f);
     }
 }

@@ -18,6 +18,10 @@ public sealed class ScreenManager
 
     public void SetOpenCharacterHandler(Action? handler) => _escMenu.OnOpenCharacter = handler;
 
+    public void SetOpenSpellBookHandler(Action? handler) => _escMenu.OnOpenSpellBook = handler;
+
+    public void SetOpenInventoryHandler(Action? handler) => _escMenu.OnOpenInventory = handler;
+
     public void Change(IScreen screen)
     {
         _current?.OnExit();

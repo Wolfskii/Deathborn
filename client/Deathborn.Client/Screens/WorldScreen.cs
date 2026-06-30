@@ -25,6 +25,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly BuffTracker _buffTracker = new();
     private readonly BuffBarOverlay _buffBar = new();
     private readonly Dictionary<long, float> _hunterMarks = new();
+    private readonly DragDropManager _dragDrop = new();
+    private readonly PlayerInventory _inventory = new();
     private readonly List<PlayerCorpse> _corpses = [];
     private readonly Dictionary<long, PlayerEntity> _deathWatch = new();
     private GhostEntity? _ghost;
@@ -44,6 +46,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private MouseState _prevMouse;
     private bool _wasWindowActive = true;
     private bool _debugHudVisible;
+    private int? _pendingHotbarDragIndex;
+    private Point _hotbarDragStartMouse;
 
     private string[] _debugLines = [];
 
@@ -92,7 +96,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _windows.Character.Bind(
             () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Stats : null,
             () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Name : net.SpawnName);
+        _windows.SpellBook.Bind(_dragDrop);
+        _windows.Inventory.Bind(_dragDrop, _inventory);
         _screens.SetOpenCharacterHandler(() => _windows.OpenCharacter());
+        _screens.SetOpenSpellBookHandler(() => _windows.OpenSpellBook());
+        _screens.SetOpenInventoryHandler(() => _windows.OpenInventory());
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -256,14 +264,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         UpdateProjectiles(dt);
-        _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked);
+        _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked && !_dragDrop.IsDragging);
 
         if (_ghostMode && _ghost != null)
             _camera = _ghost.Position;
         else if (localEntity != null)
             _camera = localEntity.Position;
 
-        if (!inputBlocked && windowActive && !uiCapturesMouse)
+        if (!inputBlocked && windowActive && !uiCapturesMouse && !_dragDrop.IsDragging)
         {
             UpdateInteractFocus(mouse.Position);
             UpdateInteractPrompt();
@@ -277,6 +285,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released)
                 HandleLeftClick(mouse.Position);
         }
+
+        UpdateDragDrop(mouse, _prevMouse, uiCapturesMouse);
 
         _debugLines =
         [
@@ -348,6 +358,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             }
         }
         _windows.Draw(sb, font);
+
+        if (_dragDrop.IsDragging)
+            _dragDrop.DrawGhost(sb, font, Mouse.GetState().Position);
+
         sb.End();
 
         DrawChatOverlay(sb, font, zoom);
@@ -477,6 +491,89 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (local.IsCorpse)
                 ActivateGhostMode();
         }
+    }
+
+    private void UpdateDragDrop(MouseState mouse, MouseState prevMouse, bool uiCapturesMouse)
+    {
+        if (_ghostMode) return;
+
+        if (!_dragDrop.IsDragging && !uiCapturesMouse)
+        {
+            if (mouse.LeftButton == ButtonState.Pressed && prevMouse.LeftButton == ButtonState.Released)
+            {
+                if (Hotbar.TryGetSlotIndexAt(mouse.Position, out var idx)
+                    && _hotbar.Slots[idx].Entry != null)
+                {
+                    _pendingHotbarDragIndex = idx;
+                    _hotbarDragStartMouse = mouse.Position;
+                }
+            }
+
+            if (_pendingHotbarDragIndex is int pending && mouse.LeftButton == ButtonState.Pressed)
+            {
+                var dx = mouse.X - _hotbarDragStartMouse.X;
+                var dy = mouse.Y - _hotbarDragStartMouse.Y;
+                if (dx * dx + dy * dy > 36)
+                {
+                    var entry = _hotbar.Slots[pending].Entry!;
+                    _dragDrop.BeginHotbar(entry, pending);
+                    _pendingHotbarDragIndex = null;
+                }
+            }
+        }
+
+        if (mouse.LeftButton == ButtonState.Released)
+            _pendingHotbarDragIndex = null;
+
+        if (!_dragDrop.IsDragging) return;
+
+        if (mouse.LeftButton != ButtonState.Released || prevMouse.LeftButton != ButtonState.Pressed)
+            return;
+
+        var payload = _dragDrop.Active!;
+        if (Hotbar.TryGetSlotIndexAt(mouse.Position, out var hotbarIdx))
+        {
+            var replaced = _hotbar.Slots[hotbarIdx].Entry;
+            var newEntry = payload.Kind switch
+            {
+                DragPayloadKind.Ability => AbilityCatalog.ToHotbarEntry(payload.AbilityId!),
+                DragPayloadKind.Item => ItemCatalog.ToHotbarEntry(payload.ItemId!),
+                DragPayloadKind.Hotbar => payload.HotbarEntry,
+                _ => null,
+            };
+            _hotbar.AssignSlot(hotbarIdx, newEntry);
+
+            if (payload.Kind == DragPayloadKind.Hotbar && payload.SourceHotbarIndex >= 0)
+            {
+                if (payload.SourceHotbarIndex == hotbarIdx)
+                    _hotbar.AssignSlot(hotbarIdx, newEntry);
+                else
+                    _hotbar.AssignSlot(payload.SourceHotbarIndex, replaced);
+            }
+
+            _status = newEntry?.GetValueOrDefault("name") is string n
+                ? $"Assigned {n} to hotbar slot {Hotbar.KeyLabels[hotbarIdx]}."
+                : $"Hotbar slot {Hotbar.KeyLabels[hotbarIdx]} updated.";
+        }
+        else if (payload.Kind == DragPayloadKind.Hotbar && payload.SourceHotbarIndex >= 0
+                 && !Hotbar.TryGetSlotIndexAt(mouse.Position, out _)
+                 && !_windows.IsPointOverOpenWindow(mouse.Position)
+                 && !IsOverHotbar(mouse.Position))
+        {
+            _hotbar.AssignSlot(payload.SourceHotbarIndex, null);
+            _status = "Removed ability from hotbar.";
+        }
+
+        _dragDrop.End();
+    }
+
+    private static bool IsOverHotbar(Point p)
+    {
+        Hotbar.GetBarLayout(out var x0, out var y);
+        var totalW = 10 * Hotbar.SlotWidth + 9 * Hotbar.SlotGap;
+        var bar = new Rectangle(x0 - Hotbar.BarPadding, y - Hotbar.BarPadding,
+            totalW + Hotbar.BarPadding * 2, Hotbar.SlotHeight + Hotbar.BarPadding * 2);
+        return bar.Contains(p);
     }
 
     private void OnNewLifeRequested() => _screens.Change(new CharacterCreateScreen(_screens));
@@ -1049,7 +1146,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         else if (id == "poison_cloud")
             used = CastPoisonCloud();
         else if (id == "bandage")
-            used = UseBandage();
+            used = entry.GetValueOrDefault("fromInventory") is true
+                ? UseConsumableFromEntry(entry, "bandage")
+                : UseBandage();
         else if (id == "shield_bash")
             used = CastShieldBash();
         else if (id == "whirlwind")
@@ -1062,8 +1161,21 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = UseIronSkin();
         else if (id == "hunter_mark")
             used = CastHunterMark();
-        else if (id == "second_wind")
+        else         if (id == "second_wind")
             used = UseSecondWind();
+        else if (id == "slash")
+        {
+            TryMeleeAttack(GetAimDirection());
+            used = true;
+        }
+        else if (id == "health_potion")
+            used = UseHealthPotion(entry);
+        else if (id == "mana_potion")
+            used = UseManaPotion(entry);
+        else if (id == "stamina_potion")
+            used = UseStaminaPotion(entry);
+        else if (id == "antidote")
+            used = UseAntidote(entry);
         else
         {
             _status = $"Used slot {key}: {entry.GetValueOrDefault("name")} ({entry.GetValueOrDefault("kind")})";
@@ -1081,79 +1193,94 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _status = $"{name} is on cooldown ({MathF.Ceiling(remaining):0}s).";
     }
 
+    private bool UseConsumableFromEntry(Dictionary<string, object> entry, string itemId)
+    {
+        if (entry.GetValueOrDefault("fromInventory") is true && !_inventory.HasItem(itemId))
+        {
+            _status = "You don't have that item in your inventory.";
+            return false;
+        }
+
+        var used = itemId switch
+        {
+            "bandage" => UseBandage(),
+            "health_potion" => UseHealthPotionLocal(),
+            "mana_potion" => UseManaPotionLocal(),
+            "stamina_potion" => UseStaminaPotionLocal(),
+            "antidote" => UseAntidoteLocal(),
+            _ => false,
+        };
+
+        if (used && entry.GetValueOrDefault("fromInventory") is true)
+            _inventory.Consume(itemId);
+        return used;
+    }
+
+    private bool UseHealthPotion(Dictionary<string, object> entry) =>
+        entry.GetValueOrDefault("fromInventory") is true
+            ? UseConsumableFromEntry(entry, "health_potion")
+            : UseHealthPotionLocal();
+
+    private bool UseManaPotion(Dictionary<string, object> entry) =>
+        entry.GetValueOrDefault("fromInventory") is true
+            ? UseConsumableFromEntry(entry, "mana_potion")
+            : UseManaPotionLocal();
+
+    private bool UseStaminaPotion(Dictionary<string, object> entry) =>
+        entry.GetValueOrDefault("fromInventory") is true
+            ? UseConsumableFromEntry(entry, "stamina_potion")
+            : UseStaminaPotionLocal();
+
+    private bool UseAntidote(Dictionary<string, object> entry) =>
+        entry.GetValueOrDefault("fromInventory") is true
+            ? UseConsumableFromEntry(entry, "antidote")
+            : UseAntidoteLocal();
+
+    private bool UseHealthPotionLocal()
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+        var info = ItemCatalog.Get("health_potion")!;
+        local.Stats.Hp = MathF.Min(local.Stats.HpMax, local.Stats.Hp + info.Heal!.Value);
+        _status = $"+{info.Heal} HP from Health Potion.";
+        return true;
+    }
+
+    private bool UseManaPotionLocal()
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+        var info = ItemCatalog.Get("mana_potion")!;
+        local.Stats.Mana = MathF.Min(local.Stats.ManaMax, local.Stats.Mana + info.ManaRestore!.Value);
+        _status = $"+{info.ManaRestore:0} mana from Mana Potion.";
+        return true;
+    }
+
+    private bool UseStaminaPotionLocal()
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+        var info = ItemCatalog.Get("stamina_potion")!;
+        local.Stats.Stamina = MathF.Min(local.Stats.StaminaMax, local.Stats.Stamina + info.StaminaRestore!.Value);
+        _status = $"+{info.StaminaRestore:0} stamina from Stamina Potion.";
+        return true;
+    }
+
+    private bool UseAntidoteLocal()
+    {
+        _status = "Antidote used — toxins cleared.";
+        return true;
+    }
+
     private void SeedHotbar()
     {
-        _hotbar.SetSlot(0, new Dictionary<string, object>
+        var defaults = new[]
         {
-            ["id"] = "shield_bash",
-            ["name"] = "Shield Bash",
-            ["kind"] = "melee",
-            [HotbarEntry.CooldownKey] = Config.ShieldBashCooldown,
-        });
-        _hotbar.SetSlot(1, new Dictionary<string, object>
-        {
-            ["id"] = "whirlwind",
-            ["name"] = "Whirlwind",
-            ["kind"] = "melee",
-            [HotbarEntry.CooldownKey] = Config.WhirlwindCooldown,
-        });
-        _hotbar.SetSlot(2, new Dictionary<string, object>
-        {
-            ["id"] = "warrior_dash",
-            ["name"] = "Charge",
-            ["kind"] = "melee",
-            [HotbarEntry.CooldownKey] = Config.WarriorDashCooldown,
-        });
-        _hotbar.SetSlot(3, new Dictionary<string, object>
-        {
-            ["id"] = "fireball",
-            ["name"] = "Fireball",
-            ["kind"] = "spell",
-            ["projectileId"] = ProjectileDefinitions.Fireball.Id,
-            [HotbarEntry.CooldownKey] = Config.FireballCooldown,
-        });
-        _hotbar.SetSlot(4, new Dictionary<string, object>
-        {
-            ["id"] = "ice_shard",
-            ["name"] = "Ice Shard",
-            ["kind"] = "spell",
-            [HotbarEntry.CooldownKey] = Config.IceShardCooldown,
-        });
-        _hotbar.SetSlot(5, new Dictionary<string, object>
-        {
-            ["id"] = "battle_shout",
-            ["name"] = "Battle Shout",
-            ["kind"] = "buff",
-            [HotbarEntry.CooldownKey] = Config.BattleShoutCooldown,
-        });
-        _hotbar.SetSlot(6, new Dictionary<string, object>
-        {
-            ["id"] = "iron_skin",
-            ["name"] = "Iron Skin",
-            ["kind"] = "buff",
-            [HotbarEntry.CooldownKey] = Config.IronSkinCooldown,
-        });
-        _hotbar.SetSlot(7, new Dictionary<string, object>
-        {
-            ["id"] = "hunter_mark",
-            ["name"] = "Hunter's Mark",
-            ["kind"] = "utility",
-            [HotbarEntry.CooldownKey] = Config.HunterMarkCooldown,
-        });
-        _hotbar.SetSlot(8, new Dictionary<string, object>
-        {
-            ["id"] = "bandage",
-            ["name"] = "Bandage",
-            ["kind"] = "item",
-            [HotbarEntry.CooldownKey] = Config.BandageCooldown,
-        });
-        _hotbar.SetSlot(9, new Dictionary<string, object>
-        {
-            ["id"] = "second_wind",
-            ["name"] = "Second Wind",
-            ["kind"] = "heal",
-            [HotbarEntry.CooldownKey] = Config.SecondWindCooldown,
-        });
+            "shield_bash", "whirlwind", "warrior_dash", "fireball", "ice_shard",
+            "battle_shout", "iron_skin", "hunter_mark", "bandage", "second_wind",
+        };
+        for (var i = 0; i < defaults.Length; i++)
+            _hotbar.AssignSlot(i, AbilityCatalog.ToHotbarEntry(defaults[i]));
     }
 
     private void SeedStarterTownInteractables()

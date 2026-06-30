@@ -16,4 +16,12 @@ public static class HotbarEntry
             _ => 0f,
         };
     }
+
+    public static Dictionary<string, object> Clone(Dictionary<string, object> entry)
+    {
+        var copy = new Dictionary<string, object>(entry.Count);
+        foreach (var (k, v) in entry)
+            copy[k] = v;
+        return copy;
+    }
 }
