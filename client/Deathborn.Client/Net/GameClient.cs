@@ -41,6 +41,7 @@ public sealed class GameClient : IDisposable
     public event Action<ChatMessageData>? ChatMessage;
     public event Action<ChatTypingData>? ChatTyping;
     public event Action<PlayerHitData>? PlayerHit;
+    public event Action<PlayerHealData>? PlayerHeal;
     public event Action<string>? ServerError;
     public event Action? Disconnected;
 
@@ -181,8 +182,14 @@ public sealed class GameClient : IDisposable
 
     public void SendAbilityHit(long targetId, int damage, string ability)
     {
-        if (LocalCharacterId < 0 || targetId < 0 || damage <= 0) return;
+        if (LocalCharacterId < 0 || targetId < 0 || string.IsNullOrEmpty(ability)) return;
         Send("ability_hit", new { targetId, damage, ability });
+    }
+
+    public void SendAbilityUse(string ability)
+    {
+        if (LocalCharacterId < 0 || string.IsNullOrEmpty(ability)) return;
+        Send("ability_use", new { ability });
     }
 
     /// <summary>Saves position on the server, then closes the world connection.</summary>
@@ -308,6 +315,10 @@ public sealed class GameClient : IDisposable
             case "player_hit":
                 var hit = env.Data.Deserialize<PlayerHitData>(JsonOpts);
                 if (hit != null) PlayerHit?.Invoke(hit);
+                break;
+            case "player_heal":
+                var heal = env.Data.Deserialize<PlayerHealData>(JsonOpts);
+                if (heal != null) PlayerHeal?.Invoke(heal);
                 break;
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);

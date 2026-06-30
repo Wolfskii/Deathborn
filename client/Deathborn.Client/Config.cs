@@ -28,6 +28,8 @@ public static class Config
 
     public const int SlashDamage = 5;
     public const int FireballDamage = 25;
+    public const int HealAmount = 25;
+    public const int BandageAmount = 15;
     public const float HitBlinkDuration = 2.5f;
     public const float HitBlinkInterval = 0.12f;
 

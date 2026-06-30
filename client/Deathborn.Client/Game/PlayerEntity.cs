@@ -67,6 +67,12 @@ public sealed class PlayerEntity
 
     public void ShowChatMessage(string text) => _chatBubble.Show(text);
 
+    public void SyncStats(float hp, float hpMax)
+    {
+        Stats.Hp = hp;
+        Stats.HpMax = hpMax;
+    }
+
     public void ApplyHit(int damage)
     {
         if (damage <= 0) return;
@@ -251,12 +257,18 @@ public sealed class PlayerEntity
         }
     }
 
-    public static PlayerEntity FromState(PlayerState s, bool isLocal) => new()
+    public static PlayerEntity FromState(PlayerState s, bool isLocal)
     {
-        Id = s.Id,
-        Name = s.Name,
-        Position = new Vector2((float)s.X, (float)s.Y),
-        Target = new Vector2((float)s.X, (float)s.Y),
-        IsLocal = isLocal,
-    };
+        var entity = new PlayerEntity
+        {
+            Id = s.Id,
+            Name = s.Name,
+            Position = new Vector2((float)s.X, (float)s.Y),
+            Target = new Vector2((float)s.X, (float)s.Y),
+            IsLocal = isLocal,
+        };
+        if (s.HpMax > 0)
+            entity.SyncStats((float)s.Hp, (float)s.HpMax);
+        return entity;
+    }
 }

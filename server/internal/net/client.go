@@ -12,6 +12,7 @@ import (
 
 	"github.com/deathborn/server/internal/auth"
 	"github.com/deathborn/server/internal/db"
+	"github.com/deathborn/server/internal/game"
 	"github.com/gorilla/websocket"
 )
 
@@ -274,17 +275,54 @@ func (c *Client) readPump(database *db.DB) {
 				continue
 			}
 			var d AbilityHitSendData
-			if json.Unmarshal(env.Data, &d) != nil || d.TargetID <= 0 || d.Damage <= 0 || d.Ability == "" {
+			if json.Unmarshal(env.Data, &d) != nil || d.TargetID <= 0 || d.Ability == "" {
+				continue
+			}
+			if d.TargetID == c.characterID {
+				continue
+			}
+			damage := game.DamageForAbility(d.Ability)
+			if damage <= 0 {
 				continue
 			}
 			if _, _, ok := c.hub.world.Position(d.TargetID); !ok {
 				continue
 			}
+			hp, hpMax, ok := c.hub.world.ApplyDamage(d.TargetID, damage)
+			if !ok {
+				continue
+			}
 			c.hub.Broadcast(encode("player_hit", PlayerHitData{
 				AttackerID: c.characterID,
 				TargetID:   d.TargetID,
-				Damage:     d.Damage,
+				Damage:     damage,
 				Ability:    d.Ability,
+				Hp:         hp,
+				HpMax:      hpMax,
+			}))
+
+		case "ability_use":
+			if !c.spawned {
+				continue
+			}
+			var d AbilityUseSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.Ability == "" {
+				continue
+			}
+			amount := game.HealForAbility(d.Ability)
+			if amount <= 0 {
+				continue
+			}
+			hp, hpMax, ok := c.hub.world.ApplyHeal(c.characterID, amount)
+			if !ok {
+				continue
+			}
+			c.hub.Broadcast(encode("player_heal", PlayerHealData{
+				PlayerID: c.characterID,
+				Amount:   amount,
+				Ability:  d.Ability,
+				Hp:       hp,
+				HpMax:    hpMax,
 			}))
 
 		case "logout":

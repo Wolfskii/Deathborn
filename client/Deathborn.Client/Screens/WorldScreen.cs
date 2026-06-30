@@ -55,6 +55,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.ChatMessage += OnChatMessage;
         net.ChatTyping += OnChatTyping;
         net.PlayerHit += OnPlayerHit;
+        net.PlayerHeal += OnPlayerHeal;
 
         if (net.LocalCharacterId >= 0 && !_players.ContainsKey(net.LocalCharacterId))
         {
@@ -92,6 +93,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.ChatMessage -= OnChatMessage;
         net.ChatTyping -= OnChatTyping;
         net.PlayerHit -= OnPlayerHit;
+        net.PlayerHeal -= OnPlayerHeal;
         _chat.Submitted -= OnChatSubmitted;
         _chat.TypingChanged -= OnChatTypingChanged;
         if (_chat.IsOpen) _chat.Close(submit: false);
@@ -528,9 +530,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (damage <= 0) return;
 
-        if (_players.TryGetValue(targetId, out var target))
-            target.ApplyHit(damage);
-
         if (attackerId == _screens.Net.LocalCharacterId)
             _screens.Net.SendAbilityHit(targetId, damage, ability);
     }
@@ -538,7 +537,24 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void OnPlayerHit(PlayerHitData data)
     {
         if (!_players.TryGetValue(data.TargetId, out var target)) return;
+        if (data.HpMax > 0)
+            target.SyncStats((float)data.Hp, (float)data.HpMax);
         target.ApplyHit(data.Damage);
+    }
+
+    private void OnPlayerHeal(PlayerHealData data)
+    {
+        if (!_players.TryGetValue(data.PlayerId, out var player)) return;
+        if (data.HpMax > 0)
+            player.SyncStats((float)data.Hp, (float)data.HpMax);
+
+        if (data.PlayerId == _screens.Net.LocalCharacterId)
+            _status = data.Ability switch
+            {
+                "heal" => $"Heal restored {data.Amount} HP.",
+                "bandage" => $"Bandage restored {data.Amount} HP.",
+                _ => $"Restored {data.Amount} HP.",
+            };
     }
 
     private void ResolveProjectileClashes()
@@ -581,6 +597,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 _players[s.Id] = p;
             }
             else p.SetTarget(pos);
+
+            if (s.HpMax > 0)
+                p.SyncStats((float)s.Hp, (float)s.HpMax);
         }
 
         foreach (var id in _players.Keys.Where(id => !seen.Contains(id)).ToList())
@@ -600,12 +619,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         var cooldown = HotbarEntry.GetCooldown(entry);
         var used = false;
+        var id = entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
 
-        if (entry.GetValueOrDefault(HotbarEntry.IdKey) is string id && id == "fireball")
+        if (id == "fireball")
         {
             var projectileId = entry.GetValueOrDefault("projectileId") as string;
             var def = projectileId != null ? ProjectileDefinitions.Get(projectileId) : ProjectileDefinitions.Fireball;
             used = CastFireball(def);
+        }
+        else if (id is "heal" or "bandage")
+        {
+            _screens.Net.SendAbilityUse(id);
+            used = true;
         }
         else
         {

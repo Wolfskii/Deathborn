@@ -58,6 +58,12 @@ public sealed class PlayerState
 
     [JsonPropertyName("y")]
     public double Y { get; set; }
+
+    [JsonPropertyName("hp")]
+    public double Hp { get; set; }
+
+    [JsonPropertyName("hpMax")]
+    public double HpMax { get; set; }
 }
 
 public sealed class MessageData
@@ -145,4 +151,28 @@ public sealed class PlayerHitData
 
     [JsonPropertyName("ability")]
     public string Ability { get; set; } = "";
+
+    [JsonPropertyName("hp")]
+    public double Hp { get; set; }
+
+    [JsonPropertyName("hpMax")]
+    public double HpMax { get; set; }
+}
+
+public sealed class PlayerHealData
+{
+    [JsonPropertyName("playerId")]
+    public long PlayerId { get; set; }
+
+    [JsonPropertyName("amount")]
+    public int Amount { get; set; }
+
+    [JsonPropertyName("ability")]
+    public string Ability { get; set; } = "";
+
+    [JsonPropertyName("hp")]
+    public double Hp { get; set; }
+
+    [JsonPropertyName("hpMax")]
+    public double HpMax { get; set; }
 }

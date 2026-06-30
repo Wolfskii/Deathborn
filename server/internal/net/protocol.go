@@ -86,6 +86,11 @@ type ChatTypingData struct {
 	Typing   bool  `json:"typing"`
 }
 
+// AbilityUseSendData is sent when a player uses a self-target ability or item.
+type AbilityUseSendData struct {
+	Ability string `json:"ability"`
+}
+
 // AbilityHitSendData is sent when a player hits another with a damaging ability.
 type AbilityHitSendData struct {
 	TargetID int64  `json:"targetId"`
@@ -95,10 +100,21 @@ type AbilityHitSendData struct {
 
 // PlayerHitData is broadcast when a player is hit by an ability.
 type PlayerHitData struct {
-	AttackerID int64  `json:"attackerId"`
-	TargetID   int64  `json:"targetId"`
-	Damage     int    `json:"damage"`
-	Ability    string `json:"ability"`
+	AttackerID int64   `json:"attackerId"`
+	TargetID   int64   `json:"targetId"`
+	Damage     int     `json:"damage"`
+	Ability    string  `json:"ability"`
+	Hp         float64 `json:"hp"`
+	HpMax      float64 `json:"hpMax"`
+}
+
+// PlayerHealData is broadcast when a player heals themselves.
+type PlayerHealData struct {
+	PlayerID int64   `json:"playerId"`
+	Amount   int     `json:"amount"`
+	Ability  string  `json:"ability"`
+	Hp       float64 `json:"hp"`
+	HpMax    float64 `json:"hpMax"`
 }
 
 // --- Server -> Client ---
