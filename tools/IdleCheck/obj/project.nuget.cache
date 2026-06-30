@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "EJzqrp7QTg0=",
+  "success": true,
+  "projectFilePath": "c:\\Users\\dawid\\Projects\\Deathborn\\tools\\IdleCheck\\IdleCheck.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\dawid\\.nuget\\packages\\microsoft.win32.systemevents\\8.0.0\\microsoft.win32.systemevents.8.0.0.nupkg.sha512",
+    "C:\\Users\\dawid\\.nuget\\packages\\system.drawing.common\\8.0.0\\system.drawing.common.8.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

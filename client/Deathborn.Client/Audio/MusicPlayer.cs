@@ -17,6 +17,8 @@ public static class MusicPlayer
 
     public static bool IsMuted { get; private set; }
     public static float Volume => _volume;
+    /// <summary>Volume shown on the slider; 0 while muted.</summary>
+    public static float DisplayVolume => IsMuted ? 0f : _volume;
 
     public static void ApplySavedSettings()
     {
@@ -38,6 +40,8 @@ public static class MusicPlayer
     public static void SetVolume(float volume, bool save = true)
     {
         _volume = Math.Clamp(volume, 0f, 1f);
+        if (_volume > 0f && IsMuted)
+            IsMuted = false;
         ApplyVolume();
 
         if (save)

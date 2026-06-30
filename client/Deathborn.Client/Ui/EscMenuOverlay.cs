@@ -86,14 +86,15 @@ public sealed class EscMenuOverlay
         DrawPrimitives.FillRect(sb, track, new Color(35, 32, 28));
         DrawBorder(sb, track, GoldDim, 1);
 
-        var fillW = (int)(track.Width * MusicPlayer.Volume);
+        var displayVol = MusicPlayer.DisplayVolume;
+        var fillW = (int)(track.Width * displayVol);
         if (fillW > 0)
             DrawPrimitives.FillRect(sb, new Rectangle(track.X, track.Y, fillW, track.Height), new Color(90, 72, 38));
 
         var knobX = track.X + fillW;
         DrawPrimitives.FillRect(sb, new Rectangle(knobX - 2, track.Y - 2, 4, track.Height + 4), PanelBorder);
 
-        var pct = $"{(int)(MusicPlayer.Volume * 100)}%";
+        var pct = $"{(int)(displayVol * 100)}%";
         sb.DrawString(font, pct, new Vector2(track.Right + 10, track.Y + 2), new Color(200, 200, 210));
 
         var mute = new Checkbox

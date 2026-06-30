@@ -29,7 +29,7 @@ internal static class SwordsmanSpriteSheet
     // down, up, right, left
     public static readonly int[] DirectionRowTops = [16, 208, 144, 80];
 
-    // Idle sheet: the up-facing row only has art in the last four 64px cells.
-    public static readonly int[] IdleFrameOffsets = [0, 8, 0, 0];
+    // Idle sheet: up-facing row only has four frames at the start of the row.
+    public static readonly int[] IdleFrameOffsets = [0, 0, 0, 0];
     public static readonly int[] IdleFrameCounts = [12, 4, 12, 12];
 }

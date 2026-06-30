@@ -4,7 +4,7 @@ using Microsoft.Xna.Framework.Graphics;
 namespace Deathborn.Client.Rendering;
 
 /// <summary>
-/// 4-direction idle cycle (32x32 frames, 12 frames per direction; up uses last 4 cells).
+/// 4-direction idle cycle (32x32 frames; up row has only 4 frames at the start).
 /// </summary>
 public sealed class FourDirectionIdleAnimation
 {

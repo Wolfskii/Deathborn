@@ -147,7 +147,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
             localPlayer.InputDir = _moveDir;
 
-        if (!inputBlocked)
+        if (inputBlocked)
+        {
+            if (_lastSentDir.LengthSquared() > 0.0001f)
+            {
+                _lastSentDir = Vector2.Zero;
+                _screens.Net.SendInput(0, 0);
+            }
+        }
+        else
         {
             _inputAccum += dt;
             if (_inputAccum >= Config.InputSendInterval || Vector2.DistanceSquared(_moveDir, _lastSentDir) > 0.0001f)

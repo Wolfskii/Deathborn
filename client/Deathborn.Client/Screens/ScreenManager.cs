@@ -44,8 +44,7 @@ public sealed class ScreenManager
     {
         Net.Poll();
         _escMenu.Update(gameTime);
-        if (!_escMenu.IsOpen)
-            _current?.Update(gameTime);
+        _current?.Update(gameTime);
     }
 
     public void Draw(GameTime gameTime)
