@@ -1156,7 +1156,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _zonePresenceInitialized = true;
             _currentZoneId = id;
             if (safe)
-                _zoneBanner.ShowEnter(zone!.Name, "PvP disabled — safe area");
+                _zoneBanner.ShowEnter(zone!.Name, "PvP disabled - safe area");
             return;
         }
 
@@ -1167,12 +1167,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (safe)
         {
-            _zoneBanner.ShowEnter(zone!.Name, "PvP disabled — safe area");
+            _zoneBanner.ShowEnter(zone!.Name, "PvP disabled - safe area");
             _status = $"Entered {zone.Name}. PvP is off.";
         }
         else if (wasSafe)
         {
-            _zoneBanner.ShowEnter("The Wilderness", "PvP enabled — watch your back");
+            _zoneBanner.ShowEnter("The Wilderness", "PvP enabled - watch your back");
             _status = "Left safe zone. PvP is enabled.";
         }
     }

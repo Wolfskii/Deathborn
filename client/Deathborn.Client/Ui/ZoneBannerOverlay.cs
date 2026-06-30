@@ -68,17 +68,17 @@ public sealed class ZoneBannerOverlay
         DrawPrimitives.FillRect(sb, panel, bg);
         DrawBorder(sb, panel, border);
 
-        sb.DrawString(font, _title,
+        sb.DrawString(font, SpriteFontSafe.Filter(_title),
             new Vector2(panel.Center.X - titleSize.X / 2f, panel.Y + padY),
             titleColor);
-        sb.DrawString(font, _subtitle,
+        sb.DrawString(font, SpriteFontSafe.Filter(_subtitle),
             new Vector2(panel.Center.X - subSize.X / 2f, panel.Y + padY + font.LineSpacing + 2),
             subColor);
     }
 
     private void DrawPersistentPill(SpriteBatch sb, SpriteFont font)
     {
-        var label = $"{PersistentZoneName} · Safe";
+        var label = $"{PersistentZoneName} - Safe";
         var size = font.MeasureString(label);
         var padX = 10;
         var padY = 4;

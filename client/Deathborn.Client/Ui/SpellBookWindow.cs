@@ -93,16 +93,16 @@ public sealed class SpellBookWindow : UiWindow
             var icon = new Rectangle(rect.X + 8, rect.Y + 10, rect.Width - 16, rect.Height - 24);
             HotbarIconDraw.Draw(sb, ability.Id, icon);
             var cost = AbilityResourceCosts.FormatCostLine(ability);
-            sb.DrawString(font, cost, new Vector2(rect.X + 4, rect.Bottom - 22),
+            sb.DrawString(font, SpriteFontSafe.Filter(cost), new Vector2(rect.X + 4, rect.Bottom - 22),
                 new Color(160, 175, 195), 0f, Vector2.Zero, 0.45f, SpriteEffects.None, 0f);
-            sb.DrawString(font, ability.Name, new Vector2(rect.X + 4, rect.Bottom - 14),
+            sb.DrawString(font, SpriteFontSafe.Filter(ability.Name), new Vector2(rect.X + 4, rect.Bottom - 14),
                 Color.White, 0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
         }
 
-        DrawPageButton(sb, font, _prevButton, "◀ Prev", _pageIndex > 0);
-        DrawPageButton(sb, font, _nextButton, "Next ▶", _pageIndex < AbilityCatalog.PageOrder.Length - 1);
+        DrawPageButton(sb, font, _prevButton, "< Prev", _pageIndex > 0);
+        DrawPageButton(sb, font, _nextButton, "Next >", _pageIndex < AbilityCatalog.PageOrder.Length - 1);
 
-        var footer = $"Page {_pageIndex + 1} / {AbilityCatalog.PageOrder.Length}  ·  drag to hotbar";
+        var footer = $"Page {_pageIndex + 1} / {AbilityCatalog.PageOrder.Length}  -  drag to hotbar";
         sb.DrawString(font, footer, new Vector2(area.X + 8, area.Bottom - 18), GoldDim);
 
         if (_hoverAbilityId != null)

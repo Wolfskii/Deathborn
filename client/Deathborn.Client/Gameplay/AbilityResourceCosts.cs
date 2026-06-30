@@ -93,7 +93,7 @@ public static class AbilityResourceCosts
             parts.Add($"HP {info.HealthCost:0}");
         if (info.AltCost > 0 && info.AltCostKind != ResourceCostKind.None)
             parts.Add($"or {FormatKind(info.AltCostKind)} {info.AltCost:0}");
-        return parts.Count == 0 ? "No cost" : string.Join(" · ", parts);
+        return parts.Count == 0 ? "No cost" : string.Join(" | ", parts);
     }
 
     public static string FormatKind(ResourceCostKind kind) => kind switch

@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Deathborn.Client.Gameplay;
+using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Ui;
 
@@ -55,11 +56,11 @@ public static class AbilityTooltipDraw
         var panel = new Rectangle(x, y, w, h);
         Deathborn.Client.Rendering.DrawPrimitives.FillRect(sb, panel, new Color(12, 14, 22, 240));
         DrawBorder(sb, panel, new Color(210, 170, 80));
-        sb.DrawString(font, title, new Vector2(panel.X + pad, panel.Y + pad), new Color(235, 210, 140));
+        sb.DrawString(font, SpriteFontSafe.Filter(title), new Vector2(panel.X + pad, panel.Y + pad), new Color(235, 210, 140));
         var ly = panel.Y + pad + font.LineSpacing + 2;
         foreach (var line in lines)
         {
-            sb.DrawString(font, line, new Vector2(panel.X + pad, ly), new Color(195, 200, 210));
+            sb.DrawString(font, SpriteFontSafe.Filter(line), new Vector2(panel.X + pad, ly), new Color(195, 200, 210));
             ly += font.LineSpacing;
         }
     }

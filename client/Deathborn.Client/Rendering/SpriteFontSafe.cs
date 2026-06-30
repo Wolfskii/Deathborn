@@ -3,7 +3,7 @@ using System.Text;
 namespace Deathborn.Client.Rendering;
 
 /// <summary>SpriteFont only includes printable ASCII; other chars crash DrawString.</summary>
-internal static class SpriteFontSafe
+public static class SpriteFontSafe
 {
     public static string Filter(string? text)
     {
