@@ -21,6 +21,7 @@ type World struct {
 	speed    float64
 	runSpeed float64
 	terrain  *worldmap.Map
+	zones    *ZoneIndex
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
@@ -29,6 +30,7 @@ func NewWorld(terrain *worldmap.Map) *World {
 		speed:    defaultSpeed,
 		runSpeed: runSpeed,
 		terrain:  terrain,
+		zones:    NewZoneIndex(terrain),
 	}
 }
 
@@ -277,4 +279,19 @@ func (w *World) Position(id int64) (x, y float64, ok bool) {
 		return 0, 0, false
 	}
 	return p.x, p.y, true
+}
+
+// PvPAllowedBetween reports whether player-vs-player damage may occur between two players.
+func (w *World) PvPAllowedBetween(attackerID, targetID int64) bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.zones == nil {
+		return true
+	}
+	a, okA := w.players[attackerID]
+	t, okT := w.players[targetID]
+	if !okA || !okT {
+		return true
+	}
+	return w.zones.PvPAllowedBetween(a.x, a.y, t.x, t.y)
 }

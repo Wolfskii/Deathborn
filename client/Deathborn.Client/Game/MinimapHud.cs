@@ -44,6 +44,14 @@ public sealed class MinimapHud
 
         DrawPrimitives.DrawCircleOutline(sb, center, r, new Color(0.75f, 0.62f, 0.38f, 0.9f), 48, 2.5f);
 
+        foreach (var town in WorldZones.Towns)
+        {
+            var mapPos = WorldToMinimap(town.Center, mapBounds, map);
+            mapPos = ClampToCircle(mapPos, center, r - 6f);
+            DrawPrimitives.FillCircle(sb, mapPos, 3f, new Color(0.35f, 0.75f, 0.45f, 0.85f));
+            DrawPrimitives.DrawCircleOutline(sb, mapPos, 3f, new Color(0.2f, 0.45f, 0.28f, 0.9f), 10, 1f);
+        }
+
         foreach (var player in players)
         {
             if (player.IsDead) continue;

@@ -66,7 +66,7 @@ public static class DrawPrimitives
     sb.Draw(_pixel!, a, null, color, angle, Vector2.Zero, new Vector2(len, thickness), SpriteEffects.None, 0);
   }
 
-  private static void FillTriangle(SpriteBatch sb, Vector2 a, Vector2 b, Vector2 c, Color color)
+  public static void FillTriangle(SpriteBatch sb, Vector2 a, Vector2 b, Vector2 c, Color color)
   {
     var minX = (int)MathF.Floor(MathF.Min(a.X, MathF.Min(b.X, c.X)));
     var maxX = (int)MathF.Ceiling(MathF.Max(a.X, MathF.Max(b.X, c.X)));

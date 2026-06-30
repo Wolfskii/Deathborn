@@ -34,6 +34,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private bool _ghostMode;
     private bool _ghostModePending;
     private bool _interactablesSeeded;
+    private readonly ZoneBannerOverlay _zoneBanner = new();
+    private string? _currentZoneId;
+    private bool _zonePresenceInitialized;
 
     private Vector2 _camera;
     private Vector2 _moveDir;
@@ -89,7 +92,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             };
         }
 
-        SeedStarterTownInteractables();
+        WorldZones.Initialize(WorldMap.Realik);
+        SeedWorldTownInteractables();
         SeedHotbar();
         TextField.ReleaseFocus();
 
@@ -216,6 +220,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _buffTracker.Update(dt);
         UpdateHunterMarks(dt);
+        _zoneBanner.Update(dt);
+        UpdateZonePresence(localEntity);
 
         var allowWindowShortcuts = windowActive && !chatOpen;
         var buffCapturesMouse = _buffBar.Update(mouse, _prevMouse, _buffTracker);
@@ -329,6 +335,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         sb.Begin(samplerState: SamplerState.PointClamp);
         _bg.Draw(sb, _camera, ScreenCenter, zoom);
+        TownRenderer.Draw(sb, _camera, ScreenCenter, zoom);
 
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), zoom);
@@ -375,6 +382,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             }
         }
         _windows.Draw(sb, font);
+
+        if (!_ghostMode)
+            _zoneBanner.Draw(sb, font);
 
         if (_dragDrop.IsDragging)
             _dragDrop.DrawGhost(sb, font, Mouse.GetState().Position);
@@ -1118,9 +1128,53 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void ReportAbilityHit(long attackerId, long targetId, int damage, string ability)
     {
         if (damage <= 0) return;
+        if (!_players.TryGetValue(attackerId, out var attacker)) return;
+        if (!_players.TryGetValue(targetId, out var target)) return;
+        if (!WorldZones.AllowPvP(attacker.Position, target.Position))
+        {
+            if (attackerId == _screens.Net.LocalCharacterId)
+                _status = "Cannot attack here — safe zone.";
+            return;
+        }
 
         if (attackerId == _screens.Net.LocalCharacterId)
             _screens.Net.SendAbilityHit(targetId, damage, ability);
+    }
+
+    private void UpdateZonePresence(PlayerEntity? local)
+    {
+        if (local == null || local.IsDead || _ghostMode) return;
+
+        var zone = WorldZones.ZoneAt(local.Position);
+        var id = zone?.Id ?? WorldZones.WildernessId;
+        var safe = zone?.Safe == true;
+
+        _zoneBanner.SetPersistentZone(safe ? zone!.Name : null, safe);
+
+        if (!_zonePresenceInitialized)
+        {
+            _zonePresenceInitialized = true;
+            _currentZoneId = id;
+            if (safe)
+                _zoneBanner.ShowEnter(zone!.Name, "PvP disabled — safe area");
+            return;
+        }
+
+        if (id == _currentZoneId) return;
+
+        var wasSafe = _currentZoneId != WorldZones.WildernessId;
+        _currentZoneId = id;
+
+        if (safe)
+        {
+            _zoneBanner.ShowEnter(zone!.Name, "PvP disabled — safe area");
+            _status = $"Entered {zone.Name}. PvP is off.";
+        }
+        else if (wasSafe)
+        {
+            _zoneBanner.ShowEnter("The Wilderness", "PvP enabled — watch your back");
+            _status = "Left safe zone. PvP is enabled.";
+        }
     }
 
     private void OnPlayerHit(PlayerHitData data)
@@ -1368,37 +1422,61 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _hotbar.AssignSlot(i, AbilityCatalog.ToHotbarEntry(defaults[i]));
     }
 
-    private void SeedStarterTownInteractables()
+    private void SeedWorldTownInteractables()
     {
         if (_interactablesSeeded) return;
         _interactablesSeeded = true;
 
-        var origin = WorldMap.Realik.DefaultSpawn;
-        void Add(string id, string name, Vector2 offset, InteractableKind kind, Color tint, float pick = 20f)
+        void AddAt(string townId, string id, string name, Vector2 offset, InteractableKind kind, Color tint, float pick = 20f)
         {
+            var town = WorldZones.Get(townId);
+            if (town == null) return;
             _interactables.Add(new InteractableEntity
             {
-                Id = id, DisplayName = name, Position = origin + offset,
+                Id = id, DisplayName = name, Position = town.Center + offset,
                 Kind = kind, Tint = tint, PickRadius = pick,
             });
         }
 
-        Add("sign_welcome", "Welcome to Starter Town", new Vector2(0, -85), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
-        Add("npc_guide", "Guide Aldric", new Vector2(-70, -55), InteractableKind.Npc, new Color(0.72f, 0.58f, 0.42f));
-        Add("bank_starter", "Town Bank", new Vector2(70, -55), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
-        Add("fish_shore_1", "Fishing Spot", new Vector2(-38, -92), InteractableKind.Fishing, new Color(0.55f, 0.72f, 0.85f), 24);
-        Add("fish_shore_2", "Fishing Spot", new Vector2(38, -92), InteractableKind.Fishing, new Color(0.5f, 0.68f, 0.82f), 24);
-        Add("npc_fisher", "Old Fisher", new Vector2(92, -42), InteractableKind.Npc, new Color(0.65f, 0.7f, 0.75f));
-        Add("tree_oak_1", "Oak Tree", new Vector2(92, 0), InteractableKind.Tree, new Color(0.25f, 0.55f, 0.28f));
-        Add("tree_oak_2", "Oak Tree", new Vector2(72, 58), InteractableKind.Tree, new Color(0.22f, 0.5f, 0.26f));
-        Add("anvil_starter", "Public Anvil", new Vector2(42, 82), InteractableKind.Anvil, new Color(0.38f, 0.4f, 0.44f), 22);
-        Add("sign_wilderness", "Wilderness - PvP enabled", new Vector2(88, 72), InteractableKind.Sign, new Color(0.85f, 0.35f, 0.3f), 22);
-        Add("chest_starter", "Starter Chest", new Vector2(0, 92), InteractableKind.Chest, new Color(0.62f, 0.42f, 0.22f));
-        Add("tree_pine_1", "Pine Tree", new Vector2(-42, 82), InteractableKind.Tree, new Color(0.18f, 0.42f, 0.32f));
-        Add("sign_mine", "Mine entrance - danger", new Vector2(-72, 58), InteractableKind.Sign, new Color(0.78f, 0.55f, 0.35f), 22);
-        Add("chest_loot_1", "Abandoned Crate", new Vector2(-92, 42), InteractableKind.Chest, new Color(0.48f, 0.32f, 0.2f));
-        Add("rock_iron_1", "Iron Rock", new Vector2(-92, 0), InteractableKind.Rock, new Color(0.45f, 0.48f, 0.52f), 22);
-        Add("rock_copper_1", "Copper Rock", new Vector2(-72, -28), InteractableKind.Rock, new Color(0.58f, 0.4f, 0.28f), 22);
-        Add("npc_hermit", "Hermit", new Vector2(-92, -42), InteractableKind.Npc, new Color(0.55f, 0.45f, 0.38f));
+        // Starter Town
+        AddAt("starter_town", "sign_welcome", "Welcome to Starter Town", new Vector2(0, -85), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
+        AddAt("starter_town", "npc_guide", "Guide Aldric", new Vector2(-70, -55), InteractableKind.Npc, new Color(0.72f, 0.58f, 0.42f));
+        AddAt("starter_town", "bank_starter", "Town Bank", new Vector2(70, -55), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
+        AddAt("starter_town", "fish_shore_1", "Fishing Spot", new Vector2(-38, -92), InteractableKind.Fishing, new Color(0.55f, 0.72f, 0.85f), 24);
+        AddAt("starter_town", "fish_shore_2", "Fishing Spot", new Vector2(38, -92), InteractableKind.Fishing, new Color(0.5f, 0.68f, 0.82f), 24);
+        AddAt("starter_town", "npc_fisher", "Old Fisher", new Vector2(92, -42), InteractableKind.Npc, new Color(0.65f, 0.7f, 0.75f));
+        AddAt("starter_town", "tree_oak_1", "Oak Tree", new Vector2(92, 0), InteractableKind.Tree, new Color(0.25f, 0.55f, 0.28f));
+        AddAt("starter_town", "tree_oak_2", "Oak Tree", new Vector2(72, 58), InteractableKind.Tree, new Color(0.22f, 0.5f, 0.26f));
+        AddAt("starter_town", "anvil_starter", "Public Anvil", new Vector2(42, 82), InteractableKind.Anvil, new Color(0.38f, 0.4f, 0.44f), 22);
+        AddAt("starter_town", "sign_wilderness", "South Gate — Wilderness ahead", new Vector2(88, 72), InteractableKind.Sign, new Color(0.85f, 0.35f, 0.3f), 22);
+        AddAt("starter_town", "chest_starter", "Starter Chest", new Vector2(0, 92), InteractableKind.Chest, new Color(0.62f, 0.42f, 0.22f));
+        AddAt("starter_town", "tree_pine_1", "Pine Tree", new Vector2(-42, 82), InteractableKind.Tree, new Color(0.18f, 0.42f, 0.32f));
+        AddAt("starter_town", "sign_mine", "Mine road — danger", new Vector2(-72, 58), InteractableKind.Sign, new Color(0.78f, 0.55f, 0.35f), 22);
+        AddAt("starter_town", "chest_loot_1", "Abandoned Crate", new Vector2(-92, 42), InteractableKind.Chest, new Color(0.48f, 0.32f, 0.2f));
+        AddAt("starter_town", "rock_iron_1", "Iron Rock", new Vector2(-92, 0), InteractableKind.Rock, new Color(0.45f, 0.48f, 0.52f), 22);
+        AddAt("starter_town", "npc_hermit", "Hermit", new Vector2(-92, -42), InteractableKind.Npc, new Color(0.55f, 0.45f, 0.38f));
+
+        // Northhaven
+        AddAt("northhaven", "sign_northhaven", "Northhaven — Safe Haven", new Vector2(0, -78), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
+        AddAt("northhaven", "bank_northhaven", "Northhaven Bank", new Vector2(58, -40), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
+        AddAt("northhaven", "npc_castellan", "Castellan", new Vector2(-52, -36), InteractableKind.Npc, new Color(0.68f, 0.62f, 0.72f));
+        AddAt("northhaven", "anvil_northhaven", "Castle Forge", new Vector2(0, 48), InteractableKind.Anvil, new Color(0.38f, 0.4f, 0.44f), 22);
+
+        // Westmere
+        AddAt("westmere", "sign_westmere", "Westmere Village", new Vector2(0, -72), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
+        AddAt("westmere", "bank_westmere", "Village Bank", new Vector2(48, -28), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
+        AddAt("westmere", "npc_elder", "Village Elder", new Vector2(-44, -24), InteractableKind.Npc, new Color(0.62f, 0.52f, 0.42f));
+        AddAt("westmere", "tree_west_1", "Old Oak", new Vector2(-58, 38), InteractableKind.Tree, new Color(0.22f, 0.5f, 0.26f));
+
+        // Eastwatch
+        AddAt("eastwatch", "sign_eastwatch", "Eastwatch Keep", new Vector2(0, -76), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
+        AddAt("eastwatch", "bank_eastwatch", "Eastwatch Bank", new Vector2(54, -38), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
+        AddAt("eastwatch", "npc_watcher", "Wall Watcher", new Vector2(-48, -32), InteractableKind.Npc, new Color(0.58f, 0.62f, 0.72f));
+
+        // Southport
+        AddAt("southport", "sign_southport", "Southport — Safe Haven", new Vector2(0, -74), InteractableKind.Sign, new Color(0.75f, 0.68f, 0.38f), 22);
+        AddAt("southport", "bank_southport", "Harbor Bank", new Vector2(52, -34), InteractableKind.Bank, new Color(0.55f, 0.62f, 0.78f), 24);
+        AddAt("southport", "npc_harbormaster", "Harbor Master", new Vector2(-50, -30), InteractableKind.Npc, new Color(0.55f, 0.65f, 0.75f));
+        AddAt("southport", "fish_southport", "Harbor Fishing", new Vector2(0, 58), InteractableKind.Fishing, new Color(0.5f, 0.68f, 0.82f), 24);
     }
 }

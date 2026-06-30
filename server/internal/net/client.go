@@ -335,6 +335,9 @@ func (c *Client) readPump(database *db.DB) {
 			if !c.hub.world.ValidateAbilityHit(c.characterID, d.TargetID, d.Ability) {
 				continue
 			}
+			if !c.hub.world.PvPAllowedBetween(c.characterID, d.TargetID) {
+				continue
+			}
 			damage = int(float64(damage) * c.hub.world.DamageDealtMultiplier(c.characterID))
 			damage = int(float64(damage) * c.hub.world.DamageTakenMultiplier(d.TargetID))
 			if damage <= 0 {
