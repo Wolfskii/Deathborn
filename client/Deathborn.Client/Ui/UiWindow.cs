@@ -145,12 +145,17 @@ public abstract class UiWindow
     }
 
     protected static void DrawStatBar(
-        SpriteBatch sb, SpriteFont font, Rectangle area, string label, float current, float max, Color fill, string? valueText = null)
+        SpriteBatch sb, SpriteFont font, Rectangle area, string label, float current, float max, Color fill,
+        string? valueText = null, int barHeight = 14)
     {
         sb.DrawString(font, label, new Vector2(area.X, area.Y), new Color(210, 205, 195));
 
-        var barY = area.Y + font.LineSpacing;
-        var bar = new Rectangle(area.X, (int)barY, area.Width, 14);
+        var text = valueText ?? $"{(int)current}/{(int)max}";
+        var size = font.MeasureString(text);
+        sb.DrawString(font, text, new Vector2(area.Right - size.X, area.Y), new Color(200, 200, 210));
+
+        var barY = area.Y + font.LineSpacing + 2;
+        var bar = new Rectangle(area.X, (int)barY, area.Width, barHeight);
         DrawPrimitives.FillRect(sb, bar, new Color(18, 16, 14));
         DrawBorder(sb, bar, GoldDim, 1);
 
@@ -158,10 +163,6 @@ public abstract class UiWindow
         var fillW = (int)((bar.Width - 2) * pct);
         if (fillW > 0)
             DrawPrimitives.FillRect(sb, new Rectangle(bar.X + 1, bar.Y + 1, fillW, bar.Height - 2), fill);
-
-        var text = valueText ?? $"{(int)current}/{(int)max}";
-        var size = font.MeasureString(text);
-        sb.DrawString(font, text, new Vector2(bar.Right - size.X, area.Y), new Color(200, 200, 210));
     }
 
     protected abstract void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle contentArea);

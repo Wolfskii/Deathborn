@@ -8,8 +8,14 @@ namespace Deathborn.Client.Ui;
 
 public sealed class CharacterWindow : UiWindow
 {
-    private const int Width = 228;
-    private const int Height = 196;
+    private const int Width = 240;
+    private const int ContentPad = 10;
+    private const int BarRowGap = 6;
+    private const int BarHeight = 14;
+    private const int SectionGap = 8;
+
+    // Sized for ~22px line spacing with slack at the bottom.
+    private const int Height = 284;
 
     private static readonly Color HpFill = new(0.78f, 0.22f, 0.2f);
     private static readonly Color StaminaFill = new(0.82f, 0.72f, 0.18f);
@@ -42,22 +48,28 @@ public sealed class CharacterWindow : UiWindow
         var name = _nameProvider?.Invoke() ?? "Player";
         if (stats == null) return;
 
-        var y = area.Y + 4;
-        sb.DrawString(font, name, new Vector2(area.X, y), Color.White);
-        y += font.LineSpacing + 2;
+        var inner = new Rectangle(
+            area.X + ContentPad,
+            area.Y + ContentPad,
+            area.Width - ContentPad * 2,
+            area.Height - ContentPad * 2);
+
+        var y = inner.Y;
+        sb.DrawString(font, name, new Vector2(inner.X, y), Color.White);
+        y += font.LineSpacing + 4;
 
         var lvl = $"Lvl {stats.Level}";
-        sb.DrawString(font, lvl, new Vector2(area.X, y), PanelBorder);
-        y += font.LineSpacing + 8;
+        sb.DrawString(font, lvl, new Vector2(inner.X, y), PanelBorder);
+        y += font.LineSpacing + SectionGap;
 
-        var rowH = font.LineSpacing + 18;
-        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "HP", stats.Hp, stats.HpMax, HpFill);
-        y += rowH + 4;
-        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "Stamina", stats.Stamina, stats.StaminaMax, StaminaFill);
-        y += rowH + 4;
-        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "Mana", stats.Mana, stats.ManaMax, ManaFill);
-        y += rowH + 4;
-        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "EXP",
-            stats.ExpPercent, 100f, ExpFill, $"{stats.ExpPercent:0.00}%");
+        var rowH = font.LineSpacing + BarHeight;
+        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "HP", stats.Hp, stats.HpMax, HpFill, barHeight: BarHeight);
+        y += rowH + BarRowGap;
+        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "Stamina", stats.Stamina, stats.StaminaMax, StaminaFill, barHeight: BarHeight);
+        y += rowH + BarRowGap;
+        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "Mana", stats.Mana, stats.ManaMax, ManaFill, barHeight: BarHeight);
+        y += rowH + BarRowGap;
+        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "EXP",
+            stats.ExpPercent, 100f, ExpFill, $"{stats.ExpPercent:0.00}%", barHeight: BarHeight);
     }
 }
