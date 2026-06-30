@@ -44,6 +44,7 @@ public sealed class WorldMapOverlay
         DrawBorder(sb, new Rectangle(panel.X + 5, panel.Y + 5, panel.Width - 10, panel.Height - 10), GoldDim, 1);
 
         WorldMap.Realik.DrawOverlay(sb, _mapBounds, playerWorldPos);
+        DrawTownMarkers(sb, font);
 
         var title = "World Map";
         var titleSize = font.MeasureString(title);
@@ -57,6 +58,31 @@ public sealed class WorldMapOverlay
             new Vector2(GameViewport.Width / 2f - hintSize.X / 2f, panel.Bottom + 10),
             new Color(190, 190, 200));
     }
+
+    private void DrawTownMarkers(SpriteBatch sb, SpriteFont font)
+    {
+        if (WorldZones.Towns.Count == 0)
+            WorldZones.Initialize(WorldMap.Realik);
+
+        var map = WorldMap.Realik;
+        foreach (var town in WorldZones.Towns)
+        {
+            var pos = WorldToMap(town.Center, _mapBounds, map);
+            DrawPrimitives.FillCircle(sb, pos, 5f, new Color(0.35f, 0.75f, 0.45f, 0.9f));
+            DrawPrimitives.DrawCircleOutline(sb, pos, 5f, new Color(0.18f, 0.42f, 0.28f, 0.95f), 14, 1.5f);
+
+            var label = SpriteFontSafe.Filter(town.Name);
+            var size = SpriteFontSafe.MeasureString(font, label) * 0.55f;
+            var labelPos = new Vector2(pos.X - size.X / 2f, pos.Y + 7f);
+            SpriteFontSafe.DrawString(sb, font, label, labelPos, new Color(210, 225, 200),
+                0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
+        }
+    }
+
+    private static Vector2 WorldToMap(Vector2 world, Rectangle bounds, WorldMap map) =>
+        new(
+            bounds.X + world.X / map.WorldWidth * bounds.Width,
+            bounds.Y + world.Y / map.WorldHeight * bounds.Height);
 
     private static Rectangle ComputeMapBounds()
     {

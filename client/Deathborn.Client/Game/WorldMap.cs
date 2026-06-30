@@ -236,6 +236,48 @@ public sealed class WorldMap
         _overlaySourceWriteTime = _collisionWriteTime;
     }
 
+    /// <summary>Local area land tiles for the circular minimap (centered on worldCenter).</summary>
+    public void DrawLocalMinimap(
+        SpriteBatch sb,
+        Vector2 minimapCenter,
+        float minimapRadius,
+        Vector2 worldCenter,
+        float worldRadius)
+    {
+        if (worldRadius <= 0f || minimapRadius <= 0f) return;
+
+        var scale = minimapRadius / worldRadius;
+        var tileDraw = MathF.Max(1f, TileSize * scale);
+
+        var minTx = Math.Max(0, (int)((worldCenter.X - worldRadius) / TileSize) - 1);
+        var maxTx = Math.Min(TileWidth - 1, (int)((worldCenter.X + worldRadius) / TileSize) + 1);
+        var minTy = Math.Max(0, (int)((worldCenter.Y - worldRadius) / TileSize) - 1);
+        var maxTy = Math.Min(TileHeight - 1, (int)((worldCenter.Y + worldRadius) / TileSize) + 1);
+
+        var land = new Color(0.82f, 0.8f, 0.76f);
+        var r2 = minimapRadius * minimapRadius;
+
+        for (var ty = minTy; ty <= maxTy; ty++)
+        for (var tx = minTx; tx <= maxTx; tx++)
+        {
+            if (!_walkable[ty * TileWidth + tx]) continue;
+
+            var world = new Vector2((tx + 0.5f) * TileSize, (ty + 0.5f) * TileSize);
+            var screen = minimapCenter + (world - worldCenter) * scale;
+            var dx = screen.X - minimapCenter.X;
+            var dy = screen.Y - minimapCenter.Y;
+            if (dx * dx + dy * dy > r2) continue;
+
+            var half = tileDraw * 0.5f;
+            var rect = new Rectangle(
+                (int)MathF.Floor(screen.X - half),
+                (int)MathF.Floor(screen.Y - half),
+                Math.Max(1, (int)MathF.Ceiling(tileDraw)),
+                Math.Max(1, (int)MathF.Ceiling(tileDraw)));
+            DrawPrimitives.FillRect(sb, rect, land);
+        }
+    }
+
     /// <summary>Scaled land silhouette for the circular minimap background.</summary>
     public void DrawMinimapLand(SpriteBatch sb, Rectangle bounds)
     {
