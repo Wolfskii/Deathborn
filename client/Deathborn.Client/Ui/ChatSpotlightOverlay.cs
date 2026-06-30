@@ -15,6 +15,7 @@ public sealed class ChatSpotlightOverlay
 
     private readonly TextField _field = new() { Placeholder = "Say something…" };
     private float _openAnim;
+    private bool _awaitEnterRelease;
 
     public bool IsOpen { get; private set; }
 
@@ -33,6 +34,7 @@ public sealed class ChatSpotlightOverlay
         IsOpen = true;
         _openAnim = 0;
         _field.Text = "";
+        _awaitEnterRelease = true;
         LayoutField();
         _field.Focused = true;
         TypingChanged?.Invoke(true);
@@ -50,6 +52,7 @@ public sealed class ChatSpotlightOverlay
         }
 
         IsOpen = false;
+        _awaitEnterRelease = false;
         _field.Focused = false;
         TypingChanged?.Invoke(false);
     }
@@ -61,7 +64,12 @@ public sealed class ChatSpotlightOverlay
 
         _openAnim = MathF.Min(OpenAnimDuration, _openAnim + (float)gameTime.ElapsedGameTime.TotalSeconds);
 
-        if (InputKeys.EnterPressed(kb, prevKb))
+        if (_awaitEnterRelease)
+        {
+            if (!InputKeys.IsEnterDown(kb))
+                _awaitEnterRelease = false;
+        }
+        else if (InputKeys.EnterPressed(kb, prevKb))
         {
             Close(submit: true);
             return;

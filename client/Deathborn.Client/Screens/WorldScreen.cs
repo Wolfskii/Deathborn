@@ -66,6 +66,7 @@ public sealed class WorldScreen : IScreen
 
         SeedStarterTownInteractables();
         SeedHotbar();
+        TextField.ReleaseFocus();
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -120,8 +121,9 @@ public sealed class WorldScreen : IScreen
         {
             if (!_wasWindowActive)
             {
-                // Swallow the click that refocuses the window.
+                // Swallow input that refocuses the window.
                 _prevMouse = mouse;
+                _prevKb = kb;
             }
             _wasWindowActive = true;
         }
@@ -214,6 +216,15 @@ public sealed class WorldScreen : IScreen
 
         _hotbar.Draw(sb, font);
         _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
+        sb.End();
+
+        DrawChatOverlay(sb, font);
+    }
+
+    private void DrawChatOverlay(SpriteBatch sb, SpriteFont font)
+    {
+        if (!_chat.IsOpen) return;
+        sb.Begin();
         _chat.Draw(sb, font);
         sb.End();
     }
