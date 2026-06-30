@@ -21,7 +21,8 @@ public sealed class MinimapHud
         Vector2 cameraWorld,
         long localId,
         IEnumerable<PlayerEntity> players,
-        IEnumerable<BossEntity>? bosses = null)
+        IEnumerable<BossEntity>? bosses = null,
+        HousePlotZone? ownHouse = null)
     {
         var center = Center;
         var r = Config.MinimapScreenRadius;
@@ -73,6 +74,13 @@ public sealed class MinimapHud
                 DrawPrimitives.FillCircle(sb, mapPos, 4.5f, new Color(0.92f, 0.35f, 0.32f, 0.9f));
                 DrawPrimitives.DrawCircleOutline(sb, mapPos, 4.5f, new Color(0.55f, 0.12f, 0.12f, 0.95f), 12, 1.5f);
             }
+        }
+
+        if (ownHouse != null)
+        {
+            var mapPos = WorldToMinimap(ownHouse.Center, cameraWorld, worldRadius, center, r);
+            DrawPrimitives.FillCircle(sb, mapPos, 4f, new Color(0.55f, 0.82f, 0.95f, 0.95f));
+            DrawPrimitives.DrawCircleOutline(sb, mapPos, 4f, new Color(0.25f, 0.45f, 0.62f, 0.95f), 12, 1.5f);
         }
     }
 

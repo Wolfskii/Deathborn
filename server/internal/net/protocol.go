@@ -238,11 +238,39 @@ type SkillXpGainData struct {
 	HpMax     float64 `json:"hpMax,omitempty"`
 }
 
-// SnapshotData is the authoritative world state broadcast each tick.
+// BuildHouseSendData requests placing a house at the player's position or coords.
+type BuildHouseSendData struct {
+	X *float64 `json:"x,omitempty"`
+	Y *float64 `json:"y,omitempty"`
+}
+
+// PlaceFurnitureSendData places one furniture item in the owner's house.
+type PlaceFurnitureSendData struct {
+	Type string  `json:"type"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+}
+
+// HouseBuiltData is broadcast when a house is created.
+type HouseBuiltData struct {
+	House game.HouseState `json:"house"`
+}
+
+// HouseRemovedData is broadcast when a house is removed.
+type HouseRemovedData struct {
+	HouseID   int64 `json:"houseId"`
+	OwnerID   int64 `json:"ownerId"`
+}
+
+// HouseUpdatedData is broadcast when furniture changes.
+type HouseUpdatedData struct {
+	House game.HouseState `json:"house"`
+}
 type SnapshotData struct {
 	Tick       uint64                `json:"tick"`
 	Players    []game.PlayerState    `json:"players"`
 	Npcs       []game.NpcState       `json:"npcs,omitempty"`
+	Houses     []game.HouseState     `json:"houses,omitempty"`
 	WorldEvent *game.WorldEventState `json:"worldEvent,omitempty"`
 }
 
@@ -297,8 +325,8 @@ func BuildPlayerBuff(playerID int64, buffID string, duration float64, markTarget
 }
 
 // BuildSnapshot serializes a world snapshot for broadcast.
-func BuildSnapshot(tick uint64, players []game.PlayerState, npcs []game.NpcState, worldEvent *game.WorldEventState) []byte {
-	return encode("snapshot", SnapshotData{Tick: tick, Players: players, Npcs: npcs, WorldEvent: worldEvent})
+func BuildSnapshot(tick uint64, players []game.PlayerState, npcs []game.NpcState, houses []game.HouseState, worldEvent *game.WorldEventState) []byte {
+	return encode("snapshot", SnapshotData{Tick: tick, Players: players, Npcs: npcs, Houses: houses, WorldEvent: worldEvent})
 }
 
 // BuildPlayerAction serializes a player action for broadcast.
@@ -332,10 +360,22 @@ func BuildBossDeath(npcID int64, defID, name string, x, y float64) []byte {
 	return encode("boss_death", BossDeathData{NpcID: npcID, DefID: defID, Name: name, X: x, Y: y})
 }
 
+func BuildBossAction(npcID int64, action string, x, y float64) []byte {
+	return encode("boss_action", BossActionData{NpcID: npcID, Action: action, X: x, Y: y})
+}
+
 func BuildWorldEvent(d WorldEventData) []byte {
 	return encode("world_event", d)
 }
 
-func BuildBossAction(npcID int64, action string, x, y float64) []byte {
-	return encode("boss_action", BossActionData{NpcID: npcID, Action: action, X: x, Y: y})
+func BuildHouseBuilt(h game.HouseState) []byte {
+	return encode("house_built", HouseBuiltData{House: h})
+}
+
+func BuildHouseRemoved(houseID, ownerID int64) []byte {
+	return encode("house_removed", HouseRemovedData{HouseID: houseID, OwnerID: ownerID})
+}
+
+func BuildHouseUpdated(h game.HouseState) []byte {
+	return encode("house_updated", HouseUpdatedData{House: h})
 }

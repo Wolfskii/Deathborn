@@ -7,6 +7,9 @@ internal static class InputKeys
     public static bool EnterPressed(KeyboardState kb, KeyboardState prevKb) =>
         WasPressed(kb, prevKb, Keys.Enter);
 
+    public static bool EscapePressed(KeyboardState kb, KeyboardState prevKb) =>
+        WasPressed(kb, prevKb, Keys.Escape);
+
     public static bool IsEnterDown(KeyboardState kb) =>
         kb.IsKeyDown(Keys.Enter);
 

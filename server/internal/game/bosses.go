@@ -171,6 +171,9 @@ func (w *World) trySpawnBossLocked() bool {
 		if w.zones != nil && w.zones.InMonsterExclusion(p[0], p[1]) {
 			continue
 		}
+		if w.housing != nil && w.housing.Contains(p[0], p[1]) {
+			continue
+		}
 		if !w.CanWalk(p[0], p[1]) {
 			continue
 		}
@@ -272,6 +275,9 @@ func (w *World) nearestPlayerLocked(x, y, radius float64) (*player, float64) {
 		if w.zones != nil && w.zones.InSafeArea(p.x, p.y) {
 			continue
 		}
+		if w.housing != nil && w.housing.Contains(p.x, p.y) {
+			continue
+		}
 		dx := p.x - x
 		dy := p.y - y
 		d2 := dx*dx + dy*dy
@@ -305,6 +311,9 @@ func (w *World) moveBossTowardLocked(b *boss, tx, ty float64, dt float64) {
 	if w.zones != nil && w.zones.InMonsterExclusion(nx, ny) {
 		nx, ny = w.zones.PushOutOfMonsterExclusion(nx, ny)
 	}
+	if w.housing != nil && w.housing.Contains(nx, ny) {
+		return
+	}
 	if w.terrain != nil {
 		nx, ny = w.terrain.ResolveMove(b.x, b.y, nx-b.x, ny-b.y)
 	} else {
@@ -317,8 +326,18 @@ func (w *World) moveBossTowardLocked(b *boss, tx, ty float64, dt float64) {
 	b.x, b.y = nx, ny
 }
 
+func (w *World) playerInSafeHavenLocked(p *player) bool {
+	if w.zones != nil && w.zones.InSafeArea(p.x, p.y) {
+		return true
+	}
+	if w.housing != nil && w.housing.Contains(p.x, p.y) {
+		return true
+	}
+	return false
+}
+
 func (w *World) bossMeleeHitLocked(b *boss, target *player) *BossEvent {
-	if w.zones != nil && w.zones.InSafeArea(target.x, target.y) {
+	if w.playerInSafeHavenLocked(target) {
 		return nil
 	}
 	damage := 8
@@ -339,7 +358,7 @@ func (w *World) bossAbilityLocked(b *boss) []BossEvent {
 	switch b.ability {
 	case "ground_slam":
 		for _, p := range w.players {
-			if p.dead || (w.zones != nil && w.zones.InSafeArea(p.x, p.y)) {
+			if p.dead || w.playerInSafeHavenLocked(p) {
 				continue
 			}
 			if math.Hypot(p.x-b.x, p.y-b.y) <= b.abilityRange {
@@ -354,7 +373,7 @@ func (w *World) bossAbilityLocked(b *boss) []BossEvent {
 		}
 	case "lightning_bolt":
 		target, _ := w.nearestPlayerLocked(b.x, b.y, b.abilityRange)
-		if target != nil && (w.zones == nil || !w.zones.InSafeArea(target.x, target.y)) {
+		if target != nil && !w.playerInSafeHavenLocked(target) {
 			if hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(target.id, b.abilityDmg); ok {
 				events = append(events, BossEvent{
 					Type: "player_hit", NpcID: b.id, PlayerID: target.id, Damage: b.abilityDmg,
@@ -366,7 +385,7 @@ func (w *World) bossAbilityLocked(b *boss) []BossEvent {
 		}
 	case "poison_nova":
 		for _, p := range w.players {
-			if p.dead || (w.zones != nil && w.zones.InSafeArea(p.x, p.y)) {
+			if p.dead || w.playerInSafeHavenLocked(p) {
 				continue
 			}
 			if math.Hypot(p.x-b.x, p.y-b.y) <= b.abilityRange {

@@ -24,6 +24,7 @@ type World struct {
 	terrain  *worldmap.Map
 	zones    *ZoneIndex
 	bossMgr  *bossManager
+	housing  *HousingIndex
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
@@ -34,6 +35,7 @@ func NewWorld(terrain *worldmap.Map) *World {
 		terrain:  terrain,
 		zones:    NewZoneIndex(terrain),
 		bossMgr:  newBossManager(),
+		housing:  NewHousingIndex(),
 	}
 }
 
@@ -279,6 +281,17 @@ func (w *World) ApplyHeal(playerID int64, amount int) (hp, hpMax float64, ok boo
 	return p.hp, p.hpMax, true
 }
 
+// PlayerName returns a player's display name.
+func (w *World) PlayerName(id int64) (string, bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	p, ok := w.players[id]
+	if !ok {
+		return "", false
+	}
+	return p.name, true
+}
+
 // Position returns a player's current position, if present.
 func (w *World) Position(id int64) (x, y float64, ok bool) {
 	w.mu.RLock()
@@ -306,12 +319,15 @@ func (w *World) PvPAllowedBetween(attackerID, targetID int64) bool {
 	if w.bossMgr != nil && w.bossMgr.eventActive {
 		return false
 	}
-	if w.zones == nil {
-		return true
-	}
 	a, okA := w.players[attackerID]
 	t, okT := w.players[targetID]
 	if !okA || !okT {
+		return true
+	}
+	if w.housing != nil && !w.housing.PvPAllowedBetween(a.x, a.y, t.x, t.y) {
+		return false
+	}
+	if w.zones == nil {
 		return true
 	}
 	return w.zones.PvPAllowedBetween(a.x, a.y, t.x, t.y)

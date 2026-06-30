@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"math"
 	"net/http"
@@ -152,6 +153,14 @@ func dbSkillsToSet(m map[string]int64) skills.Set {
 		set[k] = v
 	}
 	return set
+}
+
+func dbFurnitureToDB(items []game.FurnitureItem) []db.FurnitureItem {
+	out := make([]db.FurnitureItem, 0, len(items))
+	for _, f := range items {
+		out = append(out, db.FurnitureItem{Type: f.Type, X: f.X, Y: f.Y})
+	}
+	return out
 }
 
 func (c *Client) readPump(database *db.DB) {
@@ -472,6 +481,58 @@ func (c *Client) readPump(database *db.DB) {
 			if d.Ability == "second_wind" {
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "second_wind", 0, 0, ""))
 			}
+
+		case "build_house":
+			if !c.spawned {
+				continue
+			}
+			var d BuildHouseSendData
+			_ = json.Unmarshal(env.Data, &d)
+			px, py, ok := c.hub.world.Position(c.characterID)
+			if !ok {
+				continue
+			}
+			if d.X != nil {
+				px = *d.X
+			}
+			if d.Y != nil {
+				py = *d.Y
+			}
+			name, _ := c.hub.world.PlayerName(c.characterID)
+			if _, msg, ok := c.hub.world.BuildHouse(c.characterID, name, px, py); !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			house, err := database.CreateHouse(context.Background(), c.characterID, name, px, py)
+			if err != nil {
+				if errors.Is(err, db.ErrHouseExists) {
+					c.safeSend(encode("error", MessageData{Message: "You already have a house."}))
+				} else {
+					c.safeSend(encode("error", MessageData{Message: "Could not build house."}))
+				}
+				continue
+			}
+			state := c.hub.world.RegisterHouse(house)
+			c.hub.Broadcast(BuildHouseBuilt(state))
+
+		case "place_furniture":
+			if !c.spawned {
+				continue
+			}
+			var d PlaceFurnitureSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.Type == "" {
+				continue
+			}
+			item := game.FurnitureItem{Type: d.Type, X: d.X, Y: d.Y}
+			state, msg, ok := c.hub.world.PlaceFurniture(c.characterID, item)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			if items, ok := c.hub.world.FurnitureForSave(c.characterID); ok {
+				_ = database.SaveHouseFurniture(context.Background(), c.characterID, dbFurnitureToDB(items))
+			}
+			c.hub.Broadcast(BuildHouseUpdated(state))
 
 		case "logout":
 			if !c.spawned {

@@ -54,6 +54,9 @@ public sealed class GameClient : IDisposable
     public event Action<BossSpawnData>? BossSpawn;
     public event Action<BossDeathData>? BossDeath;
     public event Action<BossActionData>? BossAction;
+    public event Action<HouseBuiltData>? HouseBuilt;
+    public event Action<HouseRemovedData>? HouseRemoved;
+    public event Action<HouseUpdatedData>? HouseUpdated;
     public event Action<string>? ServerError;
     public event Action? Disconnected;
 
@@ -210,6 +213,18 @@ public sealed class GameClient : IDisposable
     {
         if (LocalCharacterId < 0 || string.IsNullOrEmpty(ability)) return;
         Send("ability_use", new { ability });
+    }
+
+    public void SendBuildHouse(float? x = null, float? y = null)
+    {
+        if (LocalCharacterId < 0) return;
+        Send("build_house", x.HasValue || y.HasValue ? new { x, y } : new { });
+    }
+
+    public void SendPlaceFurniture(string type, float x, float y)
+    {
+        if (LocalCharacterId < 0 || string.IsNullOrEmpty(type)) return;
+        Send("place_furniture", new { type, x, y });
     }
 
     /// <summary>Saves position on the server, then closes the world connection.</summary>
@@ -385,6 +400,18 @@ public sealed class GameClient : IDisposable
             case "boss_action":
                 var bossAction = env.Data.Deserialize<BossActionData>(JsonOpts);
                 if (bossAction != null) BossAction?.Invoke(bossAction);
+                break;
+            case "house_built":
+                var houseBuilt = env.Data.Deserialize<HouseBuiltData>(JsonOpts);
+                if (houseBuilt != null) HouseBuilt?.Invoke(houseBuilt);
+                break;
+            case "house_removed":
+                var houseRemoved = env.Data.Deserialize<HouseRemovedData>(JsonOpts);
+                if (houseRemoved != null) HouseRemoved?.Invoke(houseRemoved);
+                break;
+            case "house_updated":
+                var houseUpdated = env.Data.Deserialize<HouseUpdatedData>(JsonOpts);
+                if (houseUpdated != null) HouseUpdated?.Invoke(houseUpdated);
                 break;
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);

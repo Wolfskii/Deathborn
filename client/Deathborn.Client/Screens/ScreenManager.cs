@@ -24,6 +24,10 @@ public sealed class ScreenManager
 
     public void SetOpenSkillsHandler(Action? handler) => _escMenu.OnOpenSkills = handler;
 
+    public void SetBuildHouseHandler(Action? handler) => _escMenu.OnBuildHouse = handler;
+
+    public void SetBuildHouseEnabled(bool enabled) => _escMenu.SetBuildHouseEnabled(enabled);
+
     public void Change(IScreen screen)
     {
         _current?.OnExit();

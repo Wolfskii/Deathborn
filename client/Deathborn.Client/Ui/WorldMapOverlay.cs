@@ -45,6 +45,7 @@ public sealed class WorldMapOverlay
 
         WorldMap.Realik.DrawOverlay(sb, _mapBounds, playerWorldPos);
         DrawTownMarkers(sb, font);
+        DrawHouseMarkers(sb);
         DrawBossMarkers(sb, bosses);
 
         var title = "World Map";
@@ -58,6 +59,17 @@ public sealed class WorldMapOverlay
         sb.DrawString(font, hint,
             new Vector2(GameViewport.Width / 2f - hintSize.X / 2f, panel.Bottom + 10),
             new Color(190, 190, 200));
+    }
+
+    private void DrawHouseMarkers(SpriteBatch sb)
+    {
+        var own = WorldZones.HouseByOwner(DeathbornGame.Instance.Client.LocalCharacterId);
+        if (own == null) return;
+
+        var map = WorldMap.Realik;
+        var pos = WorldToMap(own.Center, _mapBounds, map);
+        DrawPrimitives.FillCircle(sb, pos, 5f, new Color(0.45f, 0.78f, 0.92f, 0.95f));
+        DrawPrimitives.DrawCircleOutline(sb, pos, 5f, new Color(0.2f, 0.42f, 0.58f, 0.95f), 14, 1.5f);
     }
 
     private void DrawBossMarkers(SpriteBatch sb, IEnumerable<BossEntity>? bosses)

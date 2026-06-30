@@ -54,6 +54,12 @@ func main() {
 		terrain.DefaultSpawnX, terrain.DefaultSpawnY)
 
 	world := game.NewWorld(terrain)
+	if houses, err := database.ListHouses(ctx); err != nil {
+		log.Fatalf("load houses: %v", err)
+	} else {
+		world.LoadHouses(houses)
+		log.Printf("loaded %d player houses", len(houses))
+	}
 	hub := gnet.NewHub(world, database)
 	go hub.Run(ctx)
 
@@ -67,7 +73,7 @@ func main() {
 		for _, b := range world.TickBuffs(dt) {
 			hub.Broadcast(gnet.BuildPlayerBuff(b.PlayerID, b.BuffID, b.Duration, b.MarkTargetID))
 		}
-		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot(), world.NpcSnapshot(), world.WorldEventSnapshot()))
+		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot(), world.NpcSnapshot(), world.HouseSnapshot(), world.WorldEventSnapshot()))
 	})
 
 	authH := auth.NewHandler(database, cfg.JWTSecret)

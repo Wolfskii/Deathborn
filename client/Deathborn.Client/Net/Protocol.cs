@@ -83,8 +83,65 @@ public sealed class SnapshotData
     [JsonPropertyName("npcs")]
     public List<NpcState>? Npcs { get; set; }
 
+    [JsonPropertyName("houses")]
+    public List<HouseState>? Houses { get; set; }
+
     [JsonPropertyName("worldEvent")]
     public WorldEventState? WorldEvent { get; set; }
+}
+
+public sealed class FurnitureItem
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+}
+
+public sealed class HouseState
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("ownerId")]
+    public long OwnerId { get; set; }
+
+    [JsonPropertyName("ownerName")]
+    public string OwnerName { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("furniture")]
+    public List<FurnitureItem>? Furniture { get; set; }
+}
+
+public sealed class HouseBuiltData
+{
+    [JsonPropertyName("house")]
+    public HouseState House { get; set; } = new();
+}
+
+public sealed class HouseRemovedData
+{
+    [JsonPropertyName("houseId")]
+    public long HouseId { get; set; }
+
+    [JsonPropertyName("ownerId")]
+    public long OwnerId { get; set; }
+}
+
+public sealed class HouseUpdatedData
+{
+    [JsonPropertyName("house")]
+    public HouseState House { get; set; } = new();
 }
 
 public sealed class NpcState

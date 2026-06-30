@@ -40,6 +40,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly WorldFeedbackOverlay _feedback = new();
     private readonly BossTrackerOverlay _bossTracker = new();
     private readonly BossHealthBarOverlay _bossHealthBar = new();
+    private readonly HousingDecorateOverlay _housingDecorate = new();
+    private readonly List<HouseState> _houses = [];
     private Vector2? _lastInteractWorldPos;
     private string? _currentZoneId;
     private bool _zonePresenceInitialized;
@@ -79,6 +81,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.BossSpawn += OnBossSpawn;
         net.BossDeath += OnBossDeath;
         net.BossAction += OnBossAction;
+        net.HouseBuilt += OnHouseBuilt;
+        net.HouseRemoved += OnHouseRemoved;
+        net.HouseUpdated += OnHouseUpdated;
+        net.ServerError += OnServerError;
         net.Disconnected += OnDisconnected;
         net.ProjectileSpawned += OnProjectileSpawned;
         net.SpellEffectSpawned += OnSpellEffectSpawned;
@@ -123,6 +129,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetOpenSpellBookHandler(() => _windows.OpenSpellBook());
         _screens.SetOpenInventoryHandler(() => _windows.OpenInventory());
         _screens.SetOpenSkillsHandler(() => _windows.OpenSkills());
+        _screens.SetBuildHouseHandler(TryBuildHouse);
+        _screens.SetBuildHouseEnabled(!WorldZones.HasHouse(net.LocalCharacterId));
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -138,6 +146,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.BossSpawn -= OnBossSpawn;
         net.BossDeath -= OnBossDeath;
         net.BossAction -= OnBossAction;
+        net.HouseBuilt -= OnHouseBuilt;
+        net.HouseRemoved -= OnHouseRemoved;
+        net.HouseUpdated -= OnHouseUpdated;
+        net.ServerError -= OnServerError;
         net.Disconnected -= OnDisconnected;
         net.ProjectileSpawned -= OnProjectileSpawned;
         net.SpellEffectSpawned -= OnSpellEffectSpawned;
@@ -250,11 +262,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _zoneBanner.Update(dt);
         UpdateZonePresence(localEntity);
 
-        var allowWindowShortcuts = windowActive && !chatOpen;
+        var decorateActive = _housingDecorate.IsActive;
+        var blockGameplay = inputBlocked || decorateActive;
+        var allowWindowShortcuts = windowActive && !chatOpen && !decorateActive;
         var buffCapturesMouse = _buffBar.Update(mouse, _prevMouse, _buffTracker);
         var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts) || buffCapturesMouse;
 
-        _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
+        UpdateHousing(localEntity, kb, _prevKb, mouse, blockGameplay, uiCapturesMouse);
+
+        _moveDir = blockGameplay ? Vector2.Zero : ReadMoveDir(kb);
         var wantsRun = kb.IsKeyDown(Keys.LeftShift) || kb.IsKeyDown(Keys.RightShift);
         if (localEntity is { IsDead: false })
         {
@@ -275,7 +291,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 UpdateLocalAimFacing(localEntity, mouse.Position, _prevMouse.Position);
         }
 
-        if (inputBlocked || IsLocalDyingOrDead())
+        if (blockGameplay || IsLocalDyingOrDead())
         {
             if (_lastSentDir.LengthSquared() > 0.0001f || _lastSentRunning)
             {
@@ -321,26 +337,29 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         UpdateProjectiles(dt);
         _feedback.Update(dt, _players, _bosses);
-        _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked && !_dragDrop.IsDragging);
+        _hotbar.Update(dt, kb, _prevKb, acceptInput: !blockGameplay && !_dragDrop.IsDragging);
 
         if (_ghostMode && _ghost != null)
             _camera = _ghost.Position;
         else if (localEntity != null)
             _camera = localEntity.Position;
 
-        if (!inputBlocked && windowActive && !uiCapturesMouse && !_dragDrop.IsDragging)
+        if (!blockGameplay && windowActive && !uiCapturesMouse && !_dragDrop.IsDragging)
         {
             UpdateInteractFocus(mouse.Position);
             UpdateInteractPrompt();
 
-            if (kb.IsKeyDown(Keys.E) && !_prevKb.IsKeyDown(Keys.E))
-                TryInteractNearest();
+            if (!_housingDecorate.IsActive)
+            {
+                if (kb.IsKeyDown(Keys.E) && !_prevKb.IsKeyDown(Keys.E))
+                    TryInteractNearest();
 
-            if (kb.IsKeyDown(Keys.Space) && !_prevKb.IsKeyDown(Keys.Space))
-                TryDefaultAttack();
+                if (kb.IsKeyDown(Keys.Space) && !_prevKb.IsKeyDown(Keys.Space))
+                    TryDefaultAttack();
 
-            if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released)
-                HandleLeftClick(mouse.Position);
+                if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released)
+                    HandleLeftClick(mouse.Position);
+            }
         }
 
         UpdateDragDrop(mouse, _prevMouse, uiCapturesMouse);
@@ -371,6 +390,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         sb.Begin(samplerState: SamplerState.PointClamp);
         _bg.Draw(sb, _camera, ScreenCenter, zoom);
         TownRenderer.Draw(sb, _camera, ScreenCenter, zoom);
+        HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
 
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), zoom);
@@ -424,13 +444,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (!IsLocalDyingOrDead())
             {
                 _buffBar.Draw(sb, font, _buffTracker);
-                _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values);
+                _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values,
+                    WorldZones.HouseByOwner(_screens.Net.LocalCharacterId));
             }
         }
         _windows.Draw(sb, font);
 
         if (!_ghostMode)
+        {
             _zoneBanner.Draw(sb, font);
+            _housingDecorate.Draw(sb, font);
+        }
 
         if (_dragDrop.IsDragging)
             _dragDrop.DrawGhost(sb, font, Mouse.GetState().Position);
@@ -1210,18 +1234,41 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (local == null || local.IsDead || _ghostMode) return;
 
-        var zone = WorldZones.ZoneAt(local.Position);
-        var id = zone?.Id ?? WorldZones.WildernessId;
-        var safe = zone?.Safe == true;
+        var localId = _screens.Net.LocalCharacterId;
+        var town = WorldZones.ZoneAt(local.Position);
+        var house = town == null ? WorldZones.HouseAt(local.Position) : null;
 
-        _zoneBanner.SetPersistentZone(safe ? zone!.Name : null, safe);
+        string id;
+        string name;
+        bool safe;
+
+        if (town != null)
+        {
+            id = town.Id;
+            name = town.Name;
+            safe = town.Safe;
+        }
+        else if (house != null)
+        {
+            id = house.ZoneId;
+            name = house.DisplayName(localId);
+            safe = true;
+        }
+        else
+        {
+            id = WorldZones.WildernessId;
+            name = "The Wilderness";
+            safe = false;
+        }
+
+        _zoneBanner.SetPersistentZone(safe ? name : null, safe);
 
         if (!_zonePresenceInitialized)
         {
             _zonePresenceInitialized = true;
             _currentZoneId = id;
             if (safe)
-                _zoneBanner.ShowEnter(zone!.Name, "PvP disabled - safe area");
+                _zoneBanner.ShowEnter(name, "PvP disabled - safe haven");
             return;
         }
 
@@ -1232,8 +1279,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (safe)
         {
-            _zoneBanner.ShowEnter(zone!.Name, "PvP disabled - safe area");
-            _status = $"Entered {zone.Name}. PvP is off.";
+            _zoneBanner.ShowEnter(name, "PvP disabled - safe haven");
+            _status = $"Entered {name}. PvP is off.";
         }
         else if (wasSafe)
         {
@@ -1348,6 +1395,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (snap.WorldEvent != null)
             ApplyWorldEvent(snap.WorldEvent);
 
+        _houses.Clear();
+        if (snap.Houses != null)
+            _houses.AddRange(snap.Houses);
+        ApplyHouseList();
+
         var seen = new HashSet<long>();
         foreach (var s in snap.Npcs ?? [])
         {
@@ -1427,6 +1479,124 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_bosses.TryGetValue(data.NpcId, out var boss)) return;
         boss.Action = data.Action;
         boss.AbilityFlash = 0.5f;
+    }
+
+    private void OnHouseBuilt(HouseBuiltData data)
+    {
+        UpsertHouse(data.House);
+        _zoneBanner.ShowEnter(data.House.OwnerId == _screens.Net.LocalCharacterId
+            ? "Your Homestead"
+            : $"{data.House.OwnerName}'s Homestead",
+            "Safe haven established — PvP off, garden ready.");
+        if (data.House.OwnerId == _screens.Net.LocalCharacterId)
+            _status = "Homestead built! Tend your garden and press H inside to decorate.";
+    }
+
+    private void OnHouseRemoved(HouseRemovedData data)
+    {
+        _houses.RemoveAll(h => h.Id == data.HouseId);
+        ApplyHouseList();
+        if (data.OwnerId == _screens.Net.LocalCharacterId)
+        {
+            _housingDecorate.Deactivate();
+            _status = "Your homestead was lost.";
+        }
+    }
+
+    private void OnHouseUpdated(HouseUpdatedData data) => UpsertHouse(data.House);
+
+    private void OnServerError(string message) => _status = message;
+
+    private void UpsertHouse(HouseState house)
+    {
+        _houses.RemoveAll(h => h.Id == house.Id);
+        _houses.Add(house);
+        ApplyHouseList();
+    }
+
+    private void ApplyHouseList()
+    {
+        WorldZones.SyncHouses(_houses);
+        SyncHouseInteractables();
+        _screens.SetBuildHouseEnabled(!WorldZones.HasHouse(_screens.Net.LocalCharacterId));
+    }
+
+    private void SyncHouseInteractables()
+    {
+        _interactables.RemoveAll(i => i.Id.StartsWith("house_", StringComparison.Ordinal) && i.Id.Contains("_crop_", StringComparison.Ordinal));
+
+        var localId = _screens.Net.LocalCharacterId;
+        foreach (var house in WorldZones.Houses)
+        {
+            for (var i = 0; i < HousingConstants.GardenCropOffsets.Length; i++)
+            {
+                var isOwn = house.OwnerId == localId;
+                _interactables.Add(new InteractableEntity
+                {
+                    Id = HousingConstants.CropTargetId(house.Id, i),
+                    DisplayName = isOwn ? "Garden Plot" : $"{house.OwnerName}'s Garden",
+                    Position = house.Center + HousingConstants.GardenCropOffsets[i],
+                    Kind = InteractableKind.FarmPlot,
+                    Tint = isOwn ? new Color(0.3f, 0.55f, 0.26f) : new Color(0.26f, 0.48f, 0.22f),
+                    PickRadius = 22f,
+                });
+            }
+        }
+    }
+
+    private void TryBuildHouse()
+    {
+        if (WorldZones.HasHouse(_screens.Net.LocalCharacterId))
+        {
+            _status = "You already have a homestead (one per character).";
+            return;
+        }
+
+        var local = FindLocalPlayer();
+        if (local == null) return;
+
+        if (WorldZones.ZoneAt(local.Position) != null)
+        {
+            _status = "Leave town first — build in the wilderness.";
+            return;
+        }
+
+        _screens.Net.SendBuildHouse();
+        _status = "Building homestead at your location...";
+    }
+
+    private void UpdateHousing(
+        PlayerEntity? local,
+        KeyboardState kb,
+        KeyboardState prevKb,
+        MouseState mouse,
+        bool inputBlocked,
+        bool uiCapturesMouse)
+    {
+        if (local is { IsDead: false })
+        {
+            var ownHouse = WorldZones.HouseByOwner(_screens.Net.LocalCharacterId);
+            if (ownHouse != null
+                && HousingConstants.InHouseInterior(local.Position, ownHouse.Center)
+                && kb.IsKeyDown(Keys.H) && !prevKb.IsKeyDown(Keys.H))
+            {
+                _housingDecorate.Toggle();
+                _status = _housingDecorate.IsActive
+                    ? "Decorate mode — Tab to cycle, click to place, H/Esc to exit."
+                    : "Decorate mode off.";
+            }
+        }
+
+        if (!_housingDecorate.IsActive) return;
+
+        _housingDecorate.Update(kb, prevKb, mouse, inputBlocked);
+
+        if (_housingDecorate.TryConsumePlaceClick(mouse, _prevMouse, inputBlocked || uiCapturesMouse))
+        {
+            var world = ScreenToWorld(mouse.Position);
+            _screens.Net.SendPlaceFurniture(_housingDecorate.SelectedType, world.X, world.Y);
+            _status = $"Placing {_housingDecorate.SelectedType}...";
+        }
     }
 
     private void OnSnapshotPlayers(List<PlayerState> players)

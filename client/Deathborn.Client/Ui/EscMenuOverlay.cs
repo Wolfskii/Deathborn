@@ -10,13 +10,14 @@ namespace Deathborn.Client.Ui;
 public sealed class EscMenuOverlay
 {
     private const int PanelW = 380;
-    private const int BasePanelH = 370;
+    private const int BasePanelH = 410;
 
     private static readonly Color PanelFill = new(28, 24, 18);
     private static readonly Color PanelBorder = new(210, 170, 80);
     private static readonly Color GoldDim = new(130, 105, 55);
     private static readonly Color ButtonFill = new(48, 40, 30);
     private static readonly Color ButtonHover = new(68, 56, 38);
+    private static readonly Color ButtonDisabled = new(32, 28, 24);
 
     private Rectangle _panel;
     private Rectangle _sliderTrack;
@@ -25,15 +26,20 @@ public sealed class EscMenuOverlay
     private Rectangle _spellBookButton;
     private Rectangle _inventoryButton;
     private Rectangle _skillsButton;
+    private Rectangle _buildHouseButton;
     private bool _draggingVolume;
     private MouseState _prevMouse;
     private IReadOnlyList<string>? _infoLines;
+    private bool _buildHouseEnabled = true;
 
     public bool IsOpen { get; private set; }
     public Action? OnOpenCharacter;
     public Action? OnOpenSpellBook;
     public Action? OnOpenInventory;
     public Action? OnOpenSkills;
+    public Action? OnBuildHouse;
+
+    public void SetBuildHouseEnabled(bool enabled) => _buildHouseEnabled = enabled;
 
     public void Open()
     {
@@ -79,6 +85,12 @@ public sealed class EscMenuOverlay
             if (_skillsButton.Contains(mouse.Position))
             {
                 OnOpenSkills?.Invoke();
+                Close();
+            }
+
+            if (_buildHouseEnabled && _buildHouseButton.Contains(mouse.Position))
+            {
+                OnBuildHouse?.Invoke();
                 Close();
             }
 
@@ -144,10 +156,14 @@ public sealed class EscMenuOverlay
         DrawMenuButton(sb, font, _spellBookButton, "Spell Book (K)", _spellBookButton.Contains(mousePos));
         DrawMenuButton(sb, font, _inventoryButton, "Inventory (I)", _inventoryButton.Contains(mousePos));
         DrawMenuButton(sb, font, _skillsButton, "Skills (L)", _skillsButton.Contains(mousePos));
+        DrawMenuButton(sb, font, _buildHouseButton,
+            _buildHouseEnabled ? "Build House" : "Build House (already built)",
+            _buildHouseEnabled && _buildHouseButton.Contains(mousePos),
+            !_buildHouseEnabled);
 
         if (_infoLines is { Count: > 0 })
         {
-            var infoY = _skillsButton.Bottom + 18;
+            var infoY = _buildHouseButton.Bottom + 18;
             sb.DrawString(font, "Info", new Vector2(_panel.X + 24, infoY), PanelBorder);
             infoY += font.LineSpacing + 2;
 
@@ -178,6 +194,7 @@ public sealed class EscMenuOverlay
         _spellBookButton = new Rectangle(_panel.X + 24, _panel.Y + 192, PanelW - 48, 32);
         _inventoryButton = new Rectangle(_panel.X + 24, _panel.Y + 232, PanelW - 48, 32);
         _skillsButton = new Rectangle(_panel.X + 24, _panel.Y + 272, PanelW - 48, 32);
+        _buildHouseButton = new Rectangle(_panel.X + 24, _panel.Y + 312, PanelW - 48, 32);
     }
 
     private void SetVolumeFromMouse(int mouseX)
@@ -186,14 +203,14 @@ public sealed class EscMenuOverlay
         MusicPlayer.SetVolume(Math.Clamp(t, 0f, 1f));
     }
 
-    private static void DrawMenuButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover)
+    private static void DrawMenuButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover, bool disabled = false)
     {
-        DrawPrimitives.FillRect(sb, rect, hover ? ButtonHover : ButtonFill);
-        DrawBorder(sb, rect, hover ? PanelBorder : GoldDim, 1);
+        DrawPrimitives.FillRect(sb, rect, disabled ? ButtonDisabled : hover ? ButtonHover : ButtonFill);
+        DrawBorder(sb, rect, disabled ? GoldDim * 0.6f : hover ? PanelBorder : GoldDim, 1);
         var size = font.MeasureString(label);
         sb.DrawString(font, label,
             new Vector2(rect.X + (rect.Width - size.X) / 2f, rect.Y + (rect.Height - size.Y) / 2f),
-            Color.White);
+            disabled ? new Color(120, 115, 110) : Color.White);
     }
 
     private static void DrawPanel(SpriteBatch sb, Rectangle panel)

@@ -126,6 +126,10 @@ func (h *Hub) HandlePlayerDeath(database *db.DB, playerID, killerID int64) {
 		return
 	}
 	_ = database.MarkCharacterDead(context.Background(), playerID)
+	_ = database.DeleteHouseByCharacter(context.Background(), playerID)
+	if removed, ok := h.world.RemoveHouseByCharacter(playerID); ok {
+		h.Broadcast(BuildHouseRemoved(removed.ID, removed.OwnerID))
+	}
 	h.Broadcast(BuildPlayerDeath(playerID, killerID, x, y, dirX, dirY))
 	h.SendToCharacter(playerID, BuildYouDied(x, y, dirX, dirY), true)
 	h.world.RemovePlayer(playerID)
