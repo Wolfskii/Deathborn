@@ -19,7 +19,8 @@ type player struct {
 	skills           skills.Set
 	totalXp          int64
 	lastSkillInteract float64
-	inventory        []InventoryItem
+	inventory         []InventoryItem
+	insideHouseID     int64
 }
 
 // PlayerState is the immutable view of a player included in snapshots sent to
@@ -31,4 +32,5 @@ type PlayerState struct {
 	Y     float64 `json:"y"`
 	Hp    float64 `json:"hp"`
 	HpMax float64 `json:"hpMax"`
+	InsideHouseID int64 `json:"insideHouseId,omitempty"`
 }

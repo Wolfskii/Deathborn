@@ -43,6 +43,7 @@ public sealed class PlayerEntity
     public Vector2 Position;
     public Vector2 Target;
     public bool IsLocal;
+    public long InsideHouseId;
     public Vector2 MoveDir;
     public Vector2 InputDir;
     /// <summary>Mouse-facing while idle (local player only).</summary>
@@ -533,6 +534,7 @@ public sealed class PlayerEntity
             Position = new Vector2((float)s.X, (float)s.Y),
             Target = new Vector2((float)s.X, (float)s.Y),
             IsLocal = isLocal,
+            InsideHouseId = s.InsideHouseId,
         };
         if (s.HpMax > 0)
             entity.SyncStats((float)s.Hp, (float)s.HpMax);

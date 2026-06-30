@@ -32,6 +32,52 @@ public static class HouseRenderer
         }
     }
 
+    public static void DrawInteriorFloors(
+        SpriteBatch sb,
+        Vector2 camera,
+        Vector2 screenCenter,
+        float zoom,
+        IEnumerable<HousePlotZone> houses,
+        IEnumerable<PlayerEntity> players)
+    {
+        var occupied = new HashSet<long>();
+        foreach (var p in players)
+        {
+            if (p.InsideHouseId > 0)
+                occupied.Add(p.InsideHouseId);
+        }
+
+        foreach (var house in houses)
+        {
+            if (!occupied.Contains(house.Id)) continue;
+            var c = house.Center;
+            var tl = WorldToScreen(c + new Vector2(-HousingConstants.HouseHalfW, -HousingConstants.HouseHalfH - 12), camera, screenCenter, zoom);
+            var br = WorldToScreen(c + new Vector2(HousingConstants.HouseHalfW, HousingConstants.HouseHalfH - 28), camera, screenCenter, zoom);
+            var interior = new Rectangle((int)tl.X, (int)tl.Y, (int)(br.X - tl.X), (int)(br.Y - tl.Y));
+            DrawPrimitives.FillRect(sb, interior, new Color(0.42f, 0.36f, 0.28f, 0.92f));
+            DrawBorder(sb, interior, new Color(0.28f, 0.22f, 0.16f), Math.Max(1, (int)(2 * zoom)));
+        }
+    }
+
+    public static void DrawDoorHighlights(
+        SpriteBatch sb,
+        Vector2 camera,
+        Vector2 screenCenter,
+        float zoom,
+        IEnumerable<HousePlotZone> houses,
+        HousePlotZone? hovered)
+    {
+        foreach (var house in houses)
+        {
+            var door = HousingConstants.DoorWorldPosition(house.Center);
+            var screen = WorldToScreen(door, camera, screenCenter, zoom);
+            var r = HousingConstants.DoorInteractRadius * zoom;
+            var highlight = hovered?.Id == house.Id;
+            var color = highlight ? new Color(1f, 0.92f, 0.45f, 0.55f) : new Color(1f, 1f, 1f, 0.12f);
+            DrawPrimitives.DrawCircleOutline(sb, screen, r, color, 24, highlight ? 2.5f * zoom : 1.5f * zoom);
+        }
+    }
+
     private static void DrawPlot(
         SpriteBatch sb, HousePlotZone house,
         Vector2 camera, Vector2 screenCenter, float zoom)

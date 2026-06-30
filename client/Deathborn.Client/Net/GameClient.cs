@@ -236,6 +236,18 @@ public sealed class GameClient : IDisposable
         Send("pickup_item", new { dropId });
     }
 
+    public void SendHouseEnter(long houseId)
+    {
+        if (LocalCharacterId < 0 || houseId <= 0) return;
+        Send("house_enter", new { houseId });
+    }
+
+    public void SendHouseExit()
+    {
+        if (LocalCharacterId < 0) return;
+        Send("house_exit", new { });
+    }
+
     /// <summary>Saves position on the server, then closes the world connection.</summary>
     public async Task LogoutWorldAsync()
     {

@@ -29,7 +29,7 @@ public sealed class InteractableEntity
     {
         InteractableKind.Tree => $"You chop {DisplayName}. Woodcutting training...",
         InteractableKind.Rock => $"You mine {DisplayName}. Mining training...",
-        InteractableKind.Fishing => $"You fish at {DisplayName}. Fishing training...",
+        InteractableKind.Fishing => $"You cast a line at {DisplayName}...",
         InteractableKind.FarmPlot => $"You tend {DisplayName}. Farming training...",
         InteractableKind.CookingFire => $"You cook at {DisplayName}. Cooking training...",
         InteractableKind.GroundItem => ItemId == "house_key"

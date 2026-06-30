@@ -117,6 +117,11 @@ func (w *World) Step(dt float64) []HealEvent {
 			p.x += dx
 			p.y += dy
 		}
+		if p.insideHouseID > 0 && w.housing != nil {
+			if plot := w.housing.byID[p.insideHouseID]; plot != nil {
+				p.x, p.y = clampToInterior(p.x, p.y, plot.centerX, plot.centerY)
+			}
+		}
 
 		if p.hot == nil {
 			continue
@@ -187,6 +192,7 @@ func (w *World) Snapshot() []PlayerState {
 		out = append(out, PlayerState{
 			ID: p.id, Name: p.name, X: p.x, Y: p.y,
 			Hp: p.hp, HpMax: p.hpMax,
+			InsideHouseID: p.insideHouseID,
 		})
 	}
 	return out

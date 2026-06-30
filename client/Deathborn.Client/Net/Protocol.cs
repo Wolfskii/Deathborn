@@ -352,6 +352,9 @@ public sealed class PlayerState
 
     [JsonPropertyName("hpMax")]
     public double HpMax { get; set; }
+
+    [JsonPropertyName("insideHouseId")]
+    public long InsideHouseId { get; set; }
 }
 
 public sealed class MessageData

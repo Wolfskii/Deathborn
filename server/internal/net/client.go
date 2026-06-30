@@ -603,6 +603,26 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			c.hub.Broadcast(BuildHouseUpdated(state))
 
+		case "house_enter":
+			if !c.spawned {
+				continue
+			}
+			var d HouseEnterSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.HouseID <= 0 {
+				continue
+			}
+			if msg, ok := c.hub.world.EnterHouse(c.characterID, d.HouseID); !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+			}
+
+		case "house_exit":
+			if !c.spawned {
+				continue
+			}
+			if msg, ok := c.hub.world.ExitHouse(c.characterID); !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+			}
+
 		case "logout":
 			if !c.spawned {
 				continue

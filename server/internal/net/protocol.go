@@ -267,6 +267,14 @@ type PlaceFurnitureSendData struct {
 	Y    float64 `json:"y"`
 }
 
+// HouseEnterSendData requests entering a house through its door.
+type HouseEnterSendData struct {
+	HouseID int64 `json:"houseId"`
+}
+
+// HouseExitSendData requests leaving the current house interior.
+type HouseExitSendData struct{}
+
 // HouseBuiltData is broadcast when a house is created.
 type HouseBuiltData struct {
 	House game.HouseState `json:"house"`

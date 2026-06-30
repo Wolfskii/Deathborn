@@ -26,6 +26,35 @@ public static class HousingConstants
     public static bool InHouseInterior(Vector2 world, Vector2 center) =>
         world.X >= center.X - HouseHalfW && world.X <= center.X + HouseHalfW
         && world.Y >= center.Y - HouseHalfH - 12 && world.Y <= center.Y + HouseHalfH - 28;
+
+    public static Vector2 DoorWorldPosition(Vector2 center) =>
+        new(center.X, center.Y + HouseHalfH - 34);
+
+    public const float DoorInteractRadius = 38f;
+
+    public static bool IsNearDoor(Vector2 world, Vector2 center) =>
+        Vector2.Distance(world, DoorWorldPosition(center)) <= DoorInteractRadius;
+
+    public static bool IsNearInteriorExit(Vector2 world, Vector2 center) =>
+        Vector2.Distance(world, DoorWorldPosition(center)) <= 32f;
+
+    public static HousePlotZone? FindDoorAt(IEnumerable<HousePlotZone> houses, Vector2 world)
+    {
+        HousePlotZone? best = null;
+        var bestDist = float.MaxValue;
+        foreach (var house in houses)
+        {
+            var door = DoorWorldPosition(house.Center);
+            var d = Vector2.DistanceSquared(world, door);
+            if (d > DoorInteractRadius * DoorInteractRadius) continue;
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = house;
+            }
+        }
+        return best;
+    }
 }
 
 public sealed class HousePlotZone

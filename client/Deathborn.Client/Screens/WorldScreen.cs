@@ -41,7 +41,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly BossTrackerOverlay _bossTracker = new();
     private readonly BossHealthBarOverlay _bossHealthBar = new();
     private readonly HousingDecorateOverlay _housingDecorate = new();
+    private readonly FishingMinigameOverlay _fishing = new();
     private readonly List<HouseState> _houses = [];
+    private HousePlotZone? _hoveredDoorHouse;
     private Vector2? _lastInteractWorldPos;
     private string? _currentZoneId;
     private bool _zonePresenceInitialized;
@@ -134,6 +136,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetOpenSkillsHandler(() => _windows.OpenSkills());
         _screens.SetBuildHouseHandler(TryBuildHouse);
         UpdateBuildHouseEnabled();
+        _fishing.Caught += OnFishCaught;
+        _fishing.Cancelled += () => _status = "Fishing cancelled.";
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -168,6 +172,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.YouDied -= OnYouDied;
         net.SkillXpGain -= OnSkillXpGain;
         _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
+        _fishing.Caught -= OnFishCaught;
         _chat.Submitted -= OnChatSubmitted;
         _chat.TypingChanged -= OnChatTypingChanged;
         if (_chat.IsOpen) _chat.Close(submit: false);
@@ -268,12 +273,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         UpdateZonePresence(localEntity);
 
         var decorateActive = _housingDecorate.IsActive;
-        var blockGameplay = inputBlocked || decorateActive;
-        var allowWindowShortcuts = windowActive && !chatOpen && !decorateActive;
+        var fishingActive = _fishing.IsActive;
+        var blockGameplay = inputBlocked || decorateActive || fishingActive;
+        var allowWindowShortcuts = windowActive && !chatOpen && !decorateActive && !fishingActive;
         var buffCapturesMouse = _buffBar.Update(mouse, _prevMouse, _buffTracker);
         var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts) || buffCapturesMouse;
 
         UpdateHousing(localEntity, kb, _prevKb, mouse, blockGameplay, uiCapturesMouse);
+        if (fishingActive)
+            _fishing.Update(dt, kb, _prevKb, mouse, _prevMouse);
 
         _moveDir = blockGameplay ? Vector2.Zero : ReadMoveDir(kb);
         var wantsRun = kb.IsKeyDown(Keys.LeftShift) || kb.IsKeyDown(Keys.RightShift);
@@ -396,6 +404,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _bg.Draw(sb, _camera, ScreenCenter, zoom);
         TownRenderer.Draw(sb, _camera, ScreenCenter, zoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
+        HouseRenderer.DrawInteriorFloors(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _players.Values);
+        HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);
 
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), zoom);
@@ -450,7 +460,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             {
                 _buffBar.Draw(sb, font, _buffTracker);
                 _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values,
-                    WorldZones.HouseByOwner(_screens.Net.LocalCharacterId));
+                    LocalHomestead());
             }
         }
         _windows.Draw(sb, font);
@@ -459,6 +469,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         {
             _zoneBanner.Draw(sb, font);
             _housingDecorate.Draw(sb, font);
+            _fishing.Draw(sb, font);
         }
 
         if (_dragDrop.IsDragging)
@@ -692,7 +703,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
 
         sb.Begin(samplerState: SamplerState.PointClamp);
-        _worldMap.Draw(sb, font, local.Position, _bosses.Values);
+        _worldMap.Draw(sb, font, local.Position, _bosses.Values, LocalHomestead());
         sb.End();
     }
 
@@ -748,6 +759,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var mouseWorld = ScreenToWorld(mouseScreen);
         var nearest = FindNearestInRange(_camera);
         var underMouse = FindAtPoint(mouseWorld);
+        _hoveredDoorHouse = HousingConstants.FindDoorAt(WorldZones.Houses, mouseWorld);
 
         if (_focused != nearest)
         {
@@ -767,6 +779,23 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void UpdateInteractPrompt()
     {
+        var local = FindLocalPlayer();
+        if (local is { InsideHouseId: > 0 })
+        {
+            var house = WorldZones.Houses.FirstOrDefault(h => h.Id == local.InsideHouseId);
+            if (house != null && HousingConstants.IsNearInteriorExit(local.Position, house.Center))
+                _interactPrompt = "Click door to exit  (or [E])";
+            else
+                _interactPrompt = "Inside homestead — walk to the door to leave";
+            return;
+        }
+
+        if (_hoveredDoorHouse != null && Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(_hoveredDoorHouse.Center)) <= Config.InteractRange)
+        {
+            _interactPrompt = $"Click door to enter {_hoveredDoorHouse.DisplayName(_screens.Net.LocalCharacterId)}";
+            return;
+        }
+
         if (_focused != null)
             _interactPrompt = $"[E] Interact with {_focused.DisplayName}  (or click)";
         else if (_hovered != null)
@@ -806,6 +835,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void TryInteractNearest()
     {
+        if (TryHouseDoorInteract()) return;
         var target = FindNearestInRange(_camera);
         if (target == null) { _status = "Nothing in range to interact with."; return; }
         PerformInteract(target);
@@ -814,11 +844,38 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void HandleLeftClick(Point mouseScreen)
     {
         var world = ScreenToWorld(mouseScreen);
+        if (TryHouseDoorInteract(world)) return;
         var target = FindAtPoint(world);
         if (target != null && target.IsInRange(_camera))
             PerformInteract(target);
         else
             TryMeleeAttack(GetAimDirection());
+    }
+
+    private bool TryHouseDoorInteract(Vector2? worldPos = null)
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+        var world = worldPos ?? _camera;
+
+        if (local.InsideHouseId > 0)
+        {
+            var house = WorldZones.Houses.FirstOrDefault(h => h.Id == local.InsideHouseId);
+            if (house == null) return false;
+            if (!HousingConstants.IsNearInteriorExit(local.Position, house.Center)) return false;
+            _screens.Net.SendHouseExit();
+            _status = "Leaving homestead...";
+            return true;
+        }
+
+        var doorHouse = HousingConstants.FindDoorAt(WorldZones.Houses, world);
+        if (doorHouse == null) return false;
+        if (Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(doorHouse.Center)) > Config.InteractRange)
+            return false;
+
+        _screens.Net.SendHouseEnter(doorHouse.Id);
+        _status = $"Entering {doorHouse.DisplayName(_screens.Net.LocalCharacterId)}...";
+        return true;
     }
 
     private void TryDefaultAttack() => TryMeleeAttack(GetAimDirection());
@@ -1399,8 +1456,30 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
+        if (target.Kind == InteractableKind.Fishing)
+        {
+            _fishing.Start(target.Id, target.DisplayName, _skills.Level("fishing"));
+            _status = $"Casting at {target.DisplayName}...";
+            return;
+        }
+
         _status = target.InteractMessage();
         _screens.Net.SendInteract(target.Id);
+    }
+
+    private void OnFishCaught(string spotId)
+    {
+        _lastInteractWorldPos = null;
+        foreach (var spot in _interactables)
+        {
+            if (spot.Id == spotId)
+            {
+                _lastInteractWorldPos = spot.Position;
+                break;
+            }
+        }
+        _screens.Net.SendInteract(spotId);
+        _status = "You caught a fish! +Fishing XP.";
     }
 
     private void OnWorldSnapshot(SnapshotData snap)
@@ -1535,8 +1614,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void OnServerError(string message) => _status = message;
 
-    private bool LocalHasHomestead() =>
-        WorldZones.HasHouse(_screens.Net.LocalCharacterId) || _inventory.HasHouseKey();
+    private HousePlotZone? LocalHomestead() =>
+        WorldZones.HomesteadFor(_screens.Net.LocalCharacterId, _inventory.HouseKeyId());
+
+    private bool LocalHasHomestead() => LocalHomestead() != null;
 
     private void UpdateBuildHouseEnabled() =>
         _screens.SetBuildHouseEnabled(!LocalHasHomestead());
@@ -1634,8 +1715,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (local is { IsDead: false })
         {
-            var ownHouse = WorldZones.HouseByOwner(_screens.Net.LocalCharacterId)
-            ?? WorldZones.Houses.FirstOrDefault(h => h.Id == _inventory.HouseKeyId());
+            var ownHouse = LocalHomestead();
             if (ownHouse != null
                 && HousingConstants.InHouseInterior(local.Position, ownHouse.Center)
                 && kb.IsKeyDown(Keys.H) && !prevKb.IsKeyDown(Keys.H))
@@ -1674,6 +1754,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             else if (!_deathWatch.ContainsKey(s.Id))
             {
                 p.SetTarget(pos);
+                p.InsideHouseId = s.InsideHouseId;
             }
 
             if (s.HpMax > 0 && !_deathWatch.ContainsKey(s.Id))

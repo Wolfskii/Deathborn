@@ -76,11 +76,10 @@ public sealed class MinimapHud
             }
         }
 
-        if (ownHouse != null)
+        if (ownHouse != null && InLocalRange(ownHouse.Center, cameraWorld, worldRadius))
         {
             var mapPos = WorldToMinimap(ownHouse.Center, cameraWorld, worldRadius, center, r);
-            DrawPrimitives.FillCircle(sb, mapPos, 4f, new Color(0.55f, 0.82f, 0.95f, 0.95f));
-            DrawPrimitives.DrawCircleOutline(sb, mapPos, 4f, new Color(0.25f, 0.45f, 0.62f, 0.95f), 12, 1.5f);
+            HomesteadMapIcon.Draw(sb, mapPos, 0.55f);
         }
     }
 

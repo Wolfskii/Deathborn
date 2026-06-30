@@ -259,3 +259,46 @@ func (h *HousingIndex) AddFurniture(characterID int64, item FurnitureItem) bool 
 func CropTargetID(houseID int64, index int) string {
 	return fmt.Sprintf("house_%d_crop_%d", houseID, index)
 }
+
+// Door and interior layout (matches client HouseRenderer).
+func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
+	return centerX, centerY + HouseHalfH - 34
+}
+
+func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
+	return centerX, centerY - 20
+}
+
+func HouseExteriorSpawn(centerX, centerY float64) (float64, float64) {
+	return centerX, centerY + HouseHalfH - 18
+}
+
+func NearHouseDoor(x, y, centerX, centerY float64) bool {
+	dx, dy := HouseDoorPosition(centerX, centerY)
+	return math.Hypot(x-dx, y-dy) <= 38
+}
+
+func NearInteriorExit(x, y, centerX, centerY float64) bool {
+	dx, dy := HouseDoorPosition(centerX, centerY)
+	return math.Hypot(x-dx, y-dy) <= 32
+}
+
+func clampToInterior(x, y, centerX, centerY float64) (float64, float64) {
+	minX := centerX - HouseHalfW + 6
+	maxX := centerX + HouseHalfW - 6
+	minY := centerY - HouseHalfH - 8
+	maxY := centerY + HouseHalfH - 32
+	if x < minX {
+		x = minX
+	}
+	if x > maxX {
+		x = maxX
+	}
+	if y < minY {
+		y = minY
+	}
+	if y > maxY {
+		y = maxY
+	}
+	return x, y
+}

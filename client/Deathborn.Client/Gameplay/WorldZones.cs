@@ -94,6 +94,15 @@ public static class WorldZones
 
     public static bool HasHouse(long characterId) => HouseByOwner(characterId) != null;
 
+    /// <summary>Plot owned by the character or linked to their homestead key.</summary>
+    public static HousePlotZone? HomesteadFor(long characterId, long houseKeyHouseId = 0)
+    {
+        var owned = HouseByOwner(characterId);
+        if (owned != null) return owned;
+        if (houseKeyHouseId <= 0) return null;
+        return _houses.FirstOrDefault(h => h.Id == houseKeyHouseId);
+    }
+
     public static void SyncHouses(IEnumerable<HouseState>? houses)
     {
         _houses = [];

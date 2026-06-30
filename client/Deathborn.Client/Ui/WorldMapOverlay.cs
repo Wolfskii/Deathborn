@@ -30,7 +30,12 @@ public sealed class WorldMapOverlay
 
     public void Close() => IsOpen = false;
 
-    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 playerWorldPos, IEnumerable<BossEntity>? bosses = null)
+    public void Draw(
+        SpriteBatch sb,
+        SpriteFont font,
+        Vector2 playerWorldPos,
+        IEnumerable<BossEntity>? bosses = null,
+        HousePlotZone? homestead = null)
     {
         if (!IsOpen) return;
 
@@ -45,7 +50,7 @@ public sealed class WorldMapOverlay
 
         WorldMap.Realik.DrawOverlay(sb, _mapBounds, playerWorldPos);
         DrawTownMarkers(sb, font);
-        DrawHouseMarkers(sb);
+        DrawHouseMarkers(sb, font, homestead);
         DrawBossMarkers(sb, bosses);
 
         var title = "World Map";
@@ -61,15 +66,19 @@ public sealed class WorldMapOverlay
             new Color(190, 190, 200));
     }
 
-    private void DrawHouseMarkers(SpriteBatch sb)
+    private void DrawHouseMarkers(SpriteBatch sb, SpriteFont font, HousePlotZone? homestead)
     {
-        var own = WorldZones.HouseByOwner(DeathbornGame.Instance.Client.LocalCharacterId);
-        if (own == null) return;
+        if (homestead == null) return;
 
         var map = WorldMap.Realik;
-        var pos = WorldToMap(own.Center, _mapBounds, map);
-        DrawPrimitives.FillCircle(sb, pos, 5f, new Color(0.45f, 0.78f, 0.92f, 0.95f));
-        DrawPrimitives.DrawCircleOutline(sb, pos, 5f, new Color(0.2f, 0.42f, 0.58f, 0.95f), 14, 1.5f);
+        var pos = WorldToMap(homestead.Center, _mapBounds, map);
+        HomesteadMapIcon.Draw(sb, pos, 0.85f);
+
+        var label = SpriteFontSafe.Filter("Your Homestead");
+        var size = SpriteFontSafe.MeasureString(font, label) * 0.55f;
+        var labelPos = new Vector2(pos.X - size.X / 2f, pos.Y + 8f);
+        SpriteFontSafe.DrawString(sb, font, label, labelPos, new Color(180, 210, 235),
+            0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
     }
 
     private void DrawBossMarkers(SpriteBatch sb, IEnumerable<BossEntity>? bosses)

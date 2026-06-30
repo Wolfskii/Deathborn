@@ -126,3 +126,51 @@ func (w *World) HousingBlocksMonsters(x, y float64) bool {
 	defer w.mu.RUnlock()
 	return w.housing != nil && w.housing.Contains(x, y)
 }
+
+func (w *World) EnterHouse(characterID, houseID int64) (string, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p := w.players[characterID]
+	if p == nil || p.dead {
+		return "Cannot enter right now.", false
+	}
+	if w.housing == nil {
+		return "No house here.", false
+	}
+	plot := w.housing.byID[houseID]
+	if plot == nil {
+		return "No house here.", false
+	}
+	if p.insideHouseID > 0 {
+		return "You are already inside.", false
+	}
+	if !NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) {
+		return "Move closer to the door.", false
+	}
+	p.insideHouseID = houseID
+	p.x, p.y = HouseInteriorSpawn(plot.centerX, plot.centerY)
+	return "", true
+}
+
+func (w *World) ExitHouse(characterID int64) (string, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p := w.players[characterID]
+	if p == nil || p.dead {
+		return "Cannot exit right now.", false
+	}
+	if p.insideHouseID <= 0 || w.housing == nil {
+		return "You are not inside a house.", false
+	}
+	plot := w.housing.byID[p.insideHouseID]
+	if plot == nil {
+		p.insideHouseID = 0
+		return "You step outside.", true
+	}
+	if !NearInteriorExit(p.x, p.y, plot.centerX, plot.centerY) {
+		return "Move to the door to exit.", false
+	}
+	p.insideHouseID = 0
+	p.x, p.y = HouseExteriorSpawn(plot.centerX, plot.centerY)
+	return "", true
+}
