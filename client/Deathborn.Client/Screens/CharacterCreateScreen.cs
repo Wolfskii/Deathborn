@@ -16,13 +16,14 @@ public sealed class CharacterCreateScreen : IScreen
     private KeyboardState _prevKb;
     private MouseState _prevMouse;
     private Point _mouse;
+    private int _viewportW;
+    private int _viewportH;
 
     public CharacterCreateScreen(ScreenManager screens) => _screens = screens;
 
     public void OnEnter()
     {
-        _name.Bounds = new Rectangle(Config.Width / 2 - 180, 260, 360, 36);
-        _createBtn.Bounds = new Rectangle(Config.Width / 2 - 180, 320, 360, 36);
+        Layout();
         _name.Focused = true;
         _status = "";
         _busy = false;
@@ -46,6 +47,9 @@ public sealed class CharacterCreateScreen : IScreen
 
     public void Update(GameTime gameTime)
     {
+        if (_viewportW != GameViewport.Width || _viewportH != GameViewport.Height)
+            Layout();
+
         var kb = Keyboard.GetState();
         var mouse = Mouse.GetState();
         _mouse = mouse.Position;
@@ -70,7 +74,7 @@ public sealed class CharacterCreateScreen : IScreen
         var game = DeathbornGame.Instance;
         var sb = game.SpriteBatch;
         var font = game.Font;
-        var cx = Config.Width / 2f;
+        var cx = GameViewport.Width / 2f;
 
         sb.Begin();
         sb.DrawString(font, "Create your character", new Vector2(cx - 90, 180), Color.White);
@@ -80,6 +84,15 @@ public sealed class CharacterCreateScreen : IScreen
         if (!string.IsNullOrEmpty(_status))
             sb.DrawString(font, _status, new Vector2(cx - 180, 380), new Color(220, 180, 120));
         sb.End();
+    }
+
+    private void Layout()
+    {
+        _viewportW = GameViewport.Width;
+        _viewportH = GameViewport.Height;
+        var cx = GameViewport.Width / 2;
+        _name.Bounds = new Rectangle(cx - 180, 260, 360, 36);
+        _createBtn.Bounds = new Rectangle(cx - 180, 320, 360, 36);
     }
 
     private void Create()

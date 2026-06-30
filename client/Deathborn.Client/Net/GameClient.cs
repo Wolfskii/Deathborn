@@ -36,6 +36,11 @@ public sealed class GameClient : IDisposable
     public event Action? NeedCharacter;
     public event Action<WelcomeData>? Welcome;
     public event Action<List<PlayerState>>? Snapshot;
+    public event Action<ProjectileSpawnData>? ProjectileSpawned;
+    public event Action<PlayerActionData>? PlayerAction;
+    public event Action<ChatMessageData>? ChatMessage;
+    public event Action<ChatTypingData>? ChatTyping;
+    public event Action<PlayerHitData>? PlayerHit;
     public event Action<string>? ServerError;
     public event Action? Disconnected;
 
@@ -146,6 +151,49 @@ public sealed class GameClient : IDisposable
         Send("interact", new { targetId });
     }
 
+    public void SendCastFireball(float dirX, float dirY)
+    {
+        if (LocalCharacterId < 0) return;
+        Send("cast_fireball", new { dirX, dirY });
+    }
+
+    public void SendPlayerAction(string action, float dirX = 0, float dirY = 0, string? targetId = null)
+    {
+        if (LocalCharacterId < 0 || string.IsNullOrEmpty(action)) return;
+        Send("player_action", new { action, dirX, dirY, targetId });
+    }
+
+    public void SendChatMessage(string text)
+    {
+        if (LocalCharacterId < 0) return;
+        text = text.Trim();
+        if (text.Length == 0) return;
+        if (text.Length > Config.ChatMaxLength)
+            text = text[..Config.ChatMaxLength];
+        Send("chat_message", new { text });
+    }
+
+    public void SendChatTyping(bool typing)
+    {
+        if (LocalCharacterId < 0) return;
+        Send("chat_typing", new { typing });
+    }
+
+    public void SendAbilityHit(long targetId, int damage, string ability)
+    {
+        if (LocalCharacterId < 0 || targetId < 0 || damage <= 0) return;
+        Send("ability_hit", new { targetId, damage, ability });
+    }
+
+    /// <summary>Saves position on the server, then closes the world connection.</summary>
+    public async Task LogoutWorldAsync()
+    {
+        if (LocalCharacterId >= 0 && WsConnected)
+            Send("logout", new { });
+        await Task.Delay(40);
+        await DisconnectWorldAsync();
+    }
+
     private void Send(string type, object data)
     {
         if (_ws?.State != WebSocketState.Open) return;
@@ -241,6 +289,26 @@ public sealed class GameClient : IDisposable
                 var snap = env.Data.Deserialize<SnapshotData>(JsonOpts);
                 Snapshot?.Invoke(snap?.Players ?? []);
                 break;
+            case "projectile_spawn":
+                var spawn = env.Data.Deserialize<ProjectileSpawnData>(JsonOpts);
+                if (spawn != null) ProjectileSpawned?.Invoke(spawn);
+                break;
+            case "player_action":
+                var action = env.Data.Deserialize<PlayerActionData>(JsonOpts);
+                if (action != null) PlayerAction?.Invoke(action);
+                break;
+            case "chat_message":
+                var chat = env.Data.Deserialize<ChatMessageData>(JsonOpts);
+                if (chat != null) ChatMessage?.Invoke(chat);
+                break;
+            case "chat_typing":
+                var typing = env.Data.Deserialize<ChatTypingData>(JsonOpts);
+                if (typing != null) ChatTyping?.Invoke(typing);
+                break;
+            case "player_hit":
+                var hit = env.Data.Deserialize<PlayerHitData>(JsonOpts);
+                if (hit != null) PlayerHit?.Invoke(hit);
+                break;
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);
                 ServerError?.Invoke(err?.Message ?? "error");
@@ -250,7 +318,7 @@ public sealed class GameClient : IDisposable
 
     public void Dispose()
     {
-        DisconnectWorldAsync().GetAwaiter().GetResult();
+        LogoutWorldAsync().GetAwaiter().GetResult();
         _sendLock.Dispose();
         _http.Dispose();
     }

@@ -18,7 +18,7 @@ public sealed class MusicMuteButton
 
     private MouseState _prevMouse;
 
-    private Rectangle Bounds => new(Config.Width - Margin - Size, Margin, Size, Size);
+    private Rectangle Bounds => new(GameViewport.Width - Margin - Size, Margin, Size, Size);
 
     public void Update(GameTime gameTime)
     {

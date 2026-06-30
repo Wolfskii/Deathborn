@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -199,9 +200,133 @@ func (c *Client) readPump(database *db.DB) {
 				continue
 			}
 			log.Printf("interact account_id=%d character_id=%d target=%q", c.accountID, c.characterID, d.TargetID)
+			c.hub.Broadcast(BuildPlayerAction(c.characterID, "interact", 0, 0, d.TargetID))
 			// Range validation and gameplay effects come in later milestones.
+
+		case "player_action":
+			if !c.spawned {
+				continue
+			}
+			var d PlayerActionSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.Action == "" {
+				continue
+			}
+			dirX, dirY := normalizeDir(d.DirX, d.DirY)
+			c.hub.Broadcast(BuildPlayerAction(c.characterID, d.Action, dirX, dirY, d.TargetID))
+
+		case "cast_fireball":
+			if !c.spawned {
+				continue
+			}
+			var d CastFireballData
+			if json.Unmarshal(env.Data, &d) != nil {
+				continue
+			}
+			x, y, ok := c.hub.world.Position(c.characterID)
+			if !ok {
+				continue
+			}
+			dirX, dirY := normalizeDir(d.DirX, d.DirY)
+			dirX, dirY = cardinalDir(dirX, dirY)
+			ox, oy := projectileSpawnPoint(x, y, dirX, dirY)
+			c.hub.Broadcast(encode("projectile_spawn", ProjectileSpawnData{
+				OwnerID: c.characterID,
+				X:       ox,
+				Y:       oy,
+				DirX:    dirX,
+				DirY:    dirY,
+			}))
+			c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_fireball", dirX, dirY, ""))
+
+		case "chat_message":
+			if !c.spawned {
+				continue
+			}
+			var d ChatMessageSendData
+			if json.Unmarshal(env.Data, &d) != nil {
+				continue
+			}
+			text := strings.TrimSpace(d.Text)
+			if text == "" || len(text) > 120 {
+				continue
+			}
+			c.hub.Broadcast(encode("chat_message", ChatMessageData{
+				PlayerID: c.characterID,
+				Text:     text,
+			}))
+
+		case "chat_typing":
+			if !c.spawned {
+				continue
+			}
+			var d ChatTypingSendData
+			if json.Unmarshal(env.Data, &d) != nil {
+				continue
+			}
+			c.hub.Broadcast(encode("chat_typing", ChatTypingData{
+				PlayerID: c.characterID,
+				Typing:   d.Typing,
+			}))
+
+		case "ability_hit":
+			if !c.spawned {
+				continue
+			}
+			var d AbilityHitSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.TargetID <= 0 || d.Damage <= 0 || d.Ability == "" {
+				continue
+			}
+			if _, _, ok := c.hub.world.Position(d.TargetID); !ok {
+				continue
+			}
+			c.hub.Broadcast(encode("player_hit", PlayerHitData{
+				AttackerID: c.characterID,
+				TargetID:   d.TargetID,
+				Damage:     d.Damage,
+				Ability:    d.Ability,
+			}))
+
+		case "logout":
+			if !c.spawned {
+				continue
+			}
+			if x, y, ok := c.hub.world.Position(c.characterID); ok {
+				_ = database.SaveCharacterPosition(context.Background(), c.characterID, x, y)
+				log.Printf("logout save account_id=%d character_id=%d pos=(%.0f,%.0f)",
+					c.accountID, c.characterID, x, y)
+			}
+			return
 		}
 	}
+}
+
+func cardinalDir(dirX, dirY float64) (float64, float64) {
+	if math.Abs(dirX) > math.Abs(dirY) {
+		if dirX >= 0 {
+			return 1, 0
+		}
+		return -1, 0
+	}
+	if dirY >= 0 {
+		return 0, 1
+	}
+	return 0, -1
+}
+
+func projectileSpawnPoint(x, y, dirX, dirY float64) (float64, float64) {
+	const playerRadius = 12.0
+	const torsoYOffset = -11.0
+	const spawnOffset = 8.0
+	ox := x + dirX*(playerRadius+spawnOffset)
+	oy := y + torsoYOffset + dirY*(playerRadius+spawnOffset)
+	return ox, oy
+}
+
+func normalizeDir(dirX, dirY float64) (float64, float64) {
+	if l := math.Hypot(dirX, dirY); l > 0.01 {
+		return dirX / l, dirY / l
+	}
+	return 0, 1
 }
 
 func (c *Client) writePump() {

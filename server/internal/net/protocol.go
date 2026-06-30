@@ -32,6 +32,75 @@ type InteractData struct {
 	TargetID string `json:"targetId"`
 }
 
+// CastFireballData is sent when the player casts a fireball.
+type CastFireballData struct {
+	DirX float64 `json:"dirX"`
+	DirY float64 `json:"dirY"`
+}
+
+// PlayerActionSendData is sent when the player performs a visible action.
+type PlayerActionSendData struct {
+	Action   string  `json:"action"`
+	DirX     float64 `json:"dirX,omitempty"`
+	DirY     float64 `json:"dirY,omitempty"`
+	TargetID string  `json:"targetId,omitempty"`
+}
+
+// PlayerActionData is broadcast when any player performs a visible action.
+type PlayerActionData struct {
+	PlayerID int64   `json:"playerId"`
+	Action   string  `json:"action"`
+	DirX     float64 `json:"dirX,omitempty"`
+	DirY     float64 `json:"dirY,omitempty"`
+	TargetID string  `json:"targetId,omitempty"`
+}
+
+// ProjectileSpawnData is broadcast when a projectile is created.
+type ProjectileSpawnData struct {
+	OwnerID int64   `json:"ownerId"`
+	X       float64 `json:"x"`
+	Y       float64 `json:"y"`
+	DirX    float64 `json:"dirX"`
+	DirY    float64 `json:"dirY"`
+}
+
+// ChatMessageSendData is sent when a player posts chat.
+type ChatMessageSendData struct {
+	Text string `json:"text"`
+}
+
+// ChatMessageData is broadcast when a player posts chat.
+type ChatMessageData struct {
+	PlayerID int64  `json:"playerId"`
+	Text     string `json:"text"`
+}
+
+// ChatTypingSendData is sent when a player opens/closes the chat composer.
+type ChatTypingSendData struct {
+	Typing bool `json:"typing"`
+}
+
+// ChatTypingData is broadcast when a player's typing indicator changes.
+type ChatTypingData struct {
+	PlayerID int64 `json:"playerId"`
+	Typing   bool  `json:"typing"`
+}
+
+// AbilityHitSendData is sent when a player hits another with a damaging ability.
+type AbilityHitSendData struct {
+	TargetID int64  `json:"targetId"`
+	Damage   int    `json:"damage"`
+	Ability  string `json:"ability"`
+}
+
+// PlayerHitData is broadcast when a player is hit by an ability.
+type PlayerHitData struct {
+	AttackerID int64  `json:"attackerId"`
+	TargetID   int64  `json:"targetId"`
+	Damage     int    `json:"damage"`
+	Ability    string `json:"ability"`
+}
+
 // --- Server -> Client ---
 
 // WelcomeData tells the client which entity id is theirs and the spawn point.
@@ -63,4 +132,15 @@ func encode(typ string, data any) []byte {
 // BuildSnapshot serializes a world snapshot for broadcast.
 func BuildSnapshot(tick uint64, players []game.PlayerState) []byte {
 	return encode("snapshot", SnapshotData{Tick: tick, Players: players})
+}
+
+// BuildPlayerAction serializes a player action for broadcast.
+func BuildPlayerAction(playerID int64, action string, dirX, dirY float64, targetID string) []byte {
+	return encode("player_action", PlayerActionData{
+		PlayerID: playerID,
+		Action:   action,
+		DirX:     dirX,
+		DirY:     dirY,
+		TargetID: targetID,
+	})
 }

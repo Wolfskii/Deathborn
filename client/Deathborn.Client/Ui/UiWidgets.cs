@@ -52,6 +52,13 @@ public sealed class TextField
     private readonly KeyRepeat _backspaceRepeat = new();
     private readonly KeyRepeat _deleteRepeat = new();
 
+    public static void ReleaseFocus()
+    {
+        if (Active != null)
+            Active.Focused = false;
+        Active = null;
+    }
+
     public bool Focused
     {
         get => _focused;

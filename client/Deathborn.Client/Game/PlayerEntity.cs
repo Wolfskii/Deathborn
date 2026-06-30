@@ -8,6 +8,20 @@ namespace Deathborn.Client.Gameplay;
 public sealed class PlayerEntity
 {
     public const float Radius = 12f;
+    private const float SpriteScale = 1.5f;
+
+    private FourDirectionRunAnimation? _runAnim;
+    private FourDirectionIdleAnimation? _idleAnim;
+    private FourDirectionAttackAnimation? _attackAnim;
+    private FourDirectionRunAnimation RunAnim => _runAnim ??= CharacterSprites.CreateSwordsmanRun();
+    private FourDirectionIdleAnimation IdleAnim => _idleAnim ??= CharacterSprites.CreateSwordsmanIdle();
+    private FourDirectionAttackAnimation AttackAnim => _attackAnim ??= CharacterSprites.CreateSwordsmanAttack();
+    private readonly PlayerChatBubble _chatBubble = new();
+    private readonly ThinkingBubble _thinking = new();
+    private readonly HashSet<long> _meleeHitThisSwing = [];
+    private float _hitBlinkTimer;
+    private float _hitBlinkFlashAccum;
+    private bool _hitBlinkVisible = true;
 
     public long Id;
     public string Name = "";
@@ -15,6 +29,76 @@ public sealed class PlayerEntity
     public Vector2 Target;
     public bool IsLocal;
     public Vector2 MoveDir;
+    public Vector2 InputDir;
+
+    public bool IsAttacking => AttackAnim.IsPlaying;
+    public bool IsHitBlinking => _hitBlinkTimer > 0f;
+    public bool IsTyping
+    {
+        get => _thinking.Active;
+        set => _thinking.Active = value;
+    }
+
+    public static Vector2 CardinalFacing(Vector2 dir)
+    {
+        if (dir.LengthSquared() < 0.01f) return new Vector2(0, 1);
+        return FourDirectionRunAnimation.ResolveDirection(dir) switch
+        {
+            FacingDirection.Right => Vector2.UnitX,
+            FacingDirection.Left => -Vector2.UnitX,
+            FacingDirection.Up => new Vector2(0, -1),
+            _ => new Vector2(0, 1),
+        };
+    }
+
+    public Vector2 GetProjectileSpawnPoint(Vector2? direction = null)
+    {
+        var dir = CardinalFacing(direction ?? FacingDir);
+        var torso = Position + new Vector2(0, Config.CastTorsoOffsetY);
+        return torso + dir * (Radius + Config.CastSpawnDistance);
+    }
+
+    public void ShowChatMessage(string text) => _chatBubble.Show(text);
+
+    public void ApplyHit(int damage)
+    {
+        if (damage <= 0) return;
+        _hitBlinkTimer = Config.HitBlinkDuration;
+        _hitBlinkFlashAccum = 0f;
+        _hitBlinkVisible = true;
+    }
+
+    public void CheckLocalMeleeHits(
+        IReadOnlyDictionary<long, PlayerEntity> players,
+        Action<long, int, string> reportHit)
+    {
+        if (!IsLocal || !IsAttacking) return;
+
+        var def = MeleeAbilityDefinitions.Slash;
+        var frame = AttackAnim.Frame;
+        if (frame < def.HitFrameStart || frame > def.HitFrameEnd) return;
+
+        var facing = CardinalFacing(FacingDir);
+        foreach (var (id, other) in players)
+        {
+            if (id == Id || _meleeHitThisSwing.Contains(id)) continue;
+            if (!IsInMeleeArc(Position, facing, other.Position, def.Range, def.HalfWidth)) continue;
+
+            _meleeHitThisSwing.Add(id);
+            reportHit(id, def.Damage, def.Id);
+        }
+    }
+
+    private static bool IsInMeleeArc(
+        Vector2 attackerPos, Vector2 facing, Vector2 targetPos, float range, float halfWidth)
+    {
+        var toTarget = targetPos - attackerPos;
+        var forward = Vector2.Dot(toTarget, facing);
+        if (forward < 0f || forward > range + PlayerEntity.Radius) return false;
+
+        var lateral = MathF.Abs(toTarget.X * facing.Y - toTarget.Y * facing.X);
+        return lateral <= halfWidth + PlayerEntity.Radius;
+    }
 
     public void SetTarget(Vector2 pos)
     {
@@ -23,26 +107,112 @@ public sealed class PlayerEntity
         Target = pos;
     }
 
+    public void StartAttack(Vector2? facing = null)
+    {
+        if (IsAttacking) return;
+        _meleeHitThisSwing.Clear();
+        var dir = facing ?? FacingDir;
+        if (dir.LengthSquared() > 0.01f)
+            MoveDir = Vector2.Normalize(dir);
+        AttackAnim.Start(dir);
+    }
+
+    /// <summary>Play a networked action on this player (remote or echoed local).</summary>
+    public void PlayAction(string action, Vector2 facingDir, string? targetId = null)
+    {
+        switch (action)
+        {
+            case PlayerActions.MeleeAttack:
+                StartAttack(facingDir);
+                break;
+            case PlayerActions.CastFireball:
+                if (facingDir.LengthSquared() > 0.01f)
+                    MoveDir = Vector2.Normalize(facingDir);
+                break;
+            case PlayerActions.Interact:
+                // Interaction animations can hook in here when added.
+                break;
+        }
+    }
+
+    public bool IsMoving =>
+        !IsAttacking &&
+        ((IsLocal && InputDir.LengthSquared() > 0.01f) ||
+         Vector2.DistanceSquared(Position, Target) > 0.5f);
+
+    public Vector2 FacingDir
+    {
+        get
+        {
+            if (IsLocal && InputDir.LengthSquared() > 0.01f) return InputDir;
+            if (MoveDir.LengthSquared() > 0.01f) return MoveDir;
+            return new Vector2(0, 1);
+        }
+    }
+
     public void Update(float dt)
     {
         Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
-    }
 
-    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos)
-    {
-        var col = IsLocal ? new Color(0.35f, 0.8f, 1f) : new Color(1f, 0.45f, 0.35f);
-        DrawPrimitives.FillCircle(sb, screenPos, Radius, col);
-        DrawPrimitives.DrawCircleOutline(sb, screenPos, Radius, new Color(0, 0, 0, 0.6f));
-
-        if (IsLocal && MoveDir.LengthSquared() > 0.01f)
+        if (IsAttacking)
         {
-            var tip = screenPos + MoveDir * (Radius + 10);
-            DrawPrimitives.DrawLine(sb, screenPos, tip, Color.White, 3);
-            DrawPrimitives.FillCircle(sb, tip, 3, Color.White);
+            AttackAnim.Update(dt);
+            return;
         }
 
+        if (IsMoving)
+            RunAnim.Update(dt, FacingDir, true);
+        else
+            IdleAnim.Update(dt, FacingDir);
+
+        _chatBubble.Update(dt);
+        _thinking.Update(dt);
+        UpdateHitBlink(dt);
+    }
+
+    private void UpdateHitBlink(float dt)
+    {
+        if (_hitBlinkTimer <= 0f)
+        {
+            _hitBlinkVisible = true;
+            return;
+        }
+
+        _hitBlinkTimer -= dt;
+        _hitBlinkFlashAccum += dt;
+        if (_hitBlinkFlashAccum >= Config.HitBlinkInterval)
+        {
+            _hitBlinkFlashAccum = 0f;
+            _hitBlinkVisible = !_hitBlinkVisible;
+        }
+    }
+
+    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
+    {
+        var tint = IsLocal ? Color.White : new Color(0.92f, 0.82f, 0.78f);
+        var scale = SpriteScale * zoom;
+
+        if (_hitBlinkVisible)
+        {
+            if (IsAttacking)
+                AttackAnim.Draw(sb, screenPos, tint, scale);
+            else if (IsMoving)
+                RunAnim.Draw(sb, screenPos, tint, scale);
+            else
+                IdleAnim.Draw(sb, screenPos, tint, scale);
+        }
+
+        var headY = (-Radius - 14f) * zoom;
+        var bubbleAnchor = screenPos + new Vector2(0, headY);
+
+        if (_thinking.Active)
+            _thinking.Draw(sb, bubbleAnchor, zoom);
+
+        if (_chatBubble.IsVisible)
+            _chatBubble.Draw(sb, font, bubbleAnchor + new Vector2(0, -14f * zoom), zoom);
+
         var label = font.MeasureString(Name);
-        sb.DrawString(font, Name, screenPos + new Vector2(-label.X / 2, -Radius - 22), Color.White);
+        sb.DrawString(font, Name, screenPos + new Vector2(-label.X / 2, (-Radius - 38) * zoom), Color.White);
     }
 
     public static PlayerEntity FromState(PlayerState s, bool isLocal) => new()

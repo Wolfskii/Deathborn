@@ -45,6 +45,8 @@ public sealed class LoginScreen : IScreen
     private int _leftBrazierX;
     private int _rightBrazierX;
     private int _brazierBottomY;
+    private int _viewportW;
+    private int _viewportH;
 
     public LoginScreen(ScreenManager screens) => _screens = screens;
 
@@ -97,6 +99,9 @@ public sealed class LoginScreen : IScreen
 
     public void Update(GameTime gameTime)
     {
+        if (_viewportW != GameViewport.Width || _viewportH != GameViewport.Height)
+            Layout();
+
         _leftBrazier.Update(gameTime);
         _rightBrazier.Update(gameTime);
 
@@ -144,11 +149,11 @@ public sealed class LoginScreen : IScreen
         var game = DeathbornGame.Instance;
         var sb = game.SpriteBatch;
         var font = game.Font;
-        var cx = Config.Width / 2;
+        var cx = GameViewport.Width / 2;
 
         sb.Begin();
 
-        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, Config.Width, Config.Height), BgBlack);
+        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height), BgBlack);
 
         if (_logo is not null)
             sb.Draw(_logo, _logoBounds, Color.White);
@@ -182,7 +187,9 @@ public sealed class LoginScreen : IScreen
 
     private void Layout()
     {
-        var cx = Config.Width / 2;
+        _viewportW = GameViewport.Width;
+        _viewportH = GameViewport.Height;
+        var cx = GameViewport.Width / 2;
 
         if (_logo is not null)
         {

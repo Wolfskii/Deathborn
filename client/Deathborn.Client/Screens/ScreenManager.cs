@@ -18,9 +18,12 @@ public sealed class ScreenManager
     public void Change(IScreen screen)
     {
         _current?.OnExit();
+        TextField.ReleaseFocus();
         _current = screen;
         _current.OnEnter();
     }
+
+    public bool TryHandleEscape() => _current?.HandleEscape() ?? false;
 
     public void Update(GameTime gameTime)
     {

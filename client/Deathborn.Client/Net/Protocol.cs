@@ -65,3 +65,84 @@ public sealed class MessageData
     [JsonPropertyName("message")]
     public string Message { get; set; } = "";
 }
+
+public sealed class ProjectileSpawnData
+{
+    [JsonPropertyName("ownerId")]
+    public long OwnerId { get; set; }
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("dirX")]
+    public double DirX { get; set; }
+
+    [JsonPropertyName("dirY")]
+    public double DirY { get; set; }
+}
+
+public sealed class PlayerActionData
+{
+    [JsonPropertyName("playerId")]
+    public long PlayerId { get; set; }
+
+    [JsonPropertyName("action")]
+    public string Action { get; set; } = "";
+
+    [JsonPropertyName("dirX")]
+    public double DirX { get; set; }
+
+    [JsonPropertyName("dirY")]
+    public double DirY { get; set; }
+
+    [JsonPropertyName("targetId")]
+    public string? TargetId { get; set; }
+}
+
+public sealed class ChatMessageData
+{
+    [JsonPropertyName("playerId")]
+    public long PlayerId { get; set; }
+
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = "";
+}
+
+public sealed class ChatTypingData
+{
+    [JsonPropertyName("playerId")]
+    public long PlayerId { get; set; }
+
+    [JsonPropertyName("typing")]
+    public bool Typing { get; set; }
+}
+
+public sealed class AbilityHitSendData
+{
+    [JsonPropertyName("targetId")]
+    public long TargetId { get; set; }
+
+    [JsonPropertyName("damage")]
+    public int Damage { get; set; }
+
+    [JsonPropertyName("ability")]
+    public string Ability { get; set; } = "";
+}
+
+public sealed class PlayerHitData
+{
+    [JsonPropertyName("attackerId")]
+    public long AttackerId { get; set; }
+
+    [JsonPropertyName("targetId")]
+    public long TargetId { get; set; }
+
+    [JsonPropertyName("damage")]
+    public int Damage { get; set; }
+
+    [JsonPropertyName("ability")]
+    public string Ability { get; set; } = "";
+}

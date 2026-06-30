@@ -8,4 +8,7 @@ public interface IScreen
     void OnExit();
     void Update(GameTime gameTime);
     void Draw(GameTime gameTime);
+
+    /// <summary>Returns true when Escape was consumed (e.g. closing chat).</summary>
+    bool HandleEscape() => false;
 }

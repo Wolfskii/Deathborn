@@ -16,6 +16,7 @@ public sealed class DeathbornGame : Game
     private readonly GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch = null!;
     private ScreenManager _screens = null!;
+    private KeyboardState _prevKb;
 
     public SpriteFont Font { get; private set; } = null!;
     public GameClient Client { get; } = new();
@@ -25,8 +26,9 @@ public sealed class DeathbornGame : Game
         Instance = this;
         _graphics = new GraphicsDeviceManager(this)
         {
-            PreferredBackBufferWidth = Config.Width,
-            PreferredBackBufferHeight = Config.Height,
+            PreferredBackBufferWidth = Config.DefaultWidth,
+            PreferredBackBufferHeight = Config.DefaultHeight,
+            HardwareModeSwitch = false,
         };
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
@@ -36,15 +38,19 @@ public sealed class DeathbornGame : Game
 
     protected override void Initialize()
     {
+        Window.AllowUserResizing = true;
+        Window.ClientSizeChanged += OnClientSizeChanged;
+
         if (Config.DevInstance > 0)
         {
             Window.Title = $"DEATHBORN ({Config.DevInstance})";
-            Window.Position = new Point((Config.DevInstance - 1) * (Config.Width + 12), 40);
+            Window.Position = new Point((Config.DevInstance - 1) * (Config.DefaultWidth + 12), 40);
         }
 
         Window.TextInput += OnTextInput;
         _screens = new ScreenManager(this);
         base.Initialize();
+        SyncViewport();
     }
 
     private static void OnTextInput(object? sender, TextInputEventArgs e)
@@ -52,24 +58,68 @@ public sealed class DeathbornGame : Game
         TextField.Active?.AppendCharacter(e.Character);
     }
 
+    private void OnClientSizeChanged(object? sender, EventArgs e)
+    {
+        var w = Window.ClientBounds.Width;
+        var h = Window.ClientBounds.Height;
+        if (w <= 0 || h <= 0) return;
+
+        _graphics.PreferredBackBufferWidth = w;
+        _graphics.PreferredBackBufferHeight = h;
+        _graphics.ApplyChanges();
+        SyncViewport();
+    }
+
+    private void SyncViewport() => GameViewport.SyncFrom(GraphicsDevice);
+
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         DrawPrimitives.Init(GraphicsDevice);
         Font = Content.Load<SpriteFont>("Fonts/Default");
+        CharacterSprites.Load(Content);
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
+        SyncViewport();
     }
 
     protected override void Update(GameTime gameTime)
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed
-            || Keyboard.GetState().IsKeyDown(Keys.Escape))
+        SyncViewport();
+
+        var kb = Keyboard.GetState();
+
+        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
             Exit();
+
+        if (kb.IsKeyDown(Keys.Escape) && !_prevKb.IsKeyDown(Keys.Escape) && !_screens.TryHandleEscape())
+            Exit();
+
+        if ((kb.IsKeyDown(Keys.F11) && !_prevKb.IsKeyDown(Keys.F11))
+            || ((kb.IsKeyDown(Keys.LeftAlt) || kb.IsKeyDown(Keys.RightAlt))
+                && kb.IsKeyDown(Keys.Enter) && !_prevKb.IsKeyDown(Keys.Enter)))
+        {
+            ToggleFullscreen();
+        }
 
         _screens.Update(gameTime);
         MusicPlayer.Update();
+        _prevKb = kb;
         base.Update(gameTime);
+    }
+
+    private void ToggleFullscreen()
+    {
+        _graphics.IsFullScreen = !_graphics.IsFullScreen;
+
+        if (!_graphics.IsFullScreen)
+        {
+            _graphics.PreferredBackBufferWidth = Config.DefaultWidth;
+            _graphics.PreferredBackBufferHeight = Config.DefaultHeight;
+        }
+
+        _graphics.ApplyChanges();
+        SyncViewport();
     }
 
     protected override void Draw(GameTime gameTime)
@@ -81,7 +131,11 @@ public sealed class DeathbornGame : Game
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) Client.Dispose();
+        if (disposing)
+        {
+            Window.ClientSizeChanged -= OnClientSizeChanged;
+            Client.Dispose();
+        }
         base.Dispose(disposing);
     }
 }
