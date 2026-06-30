@@ -69,6 +69,8 @@ public sealed class PlayerEntity
 
     public void BeginDeath(Vector2? facing = null)
     {
+        if (IsDead) return;
+
         var dir = facing ?? FacingDir;
         if (dir.LengthSquared() > 0.01f)
             MoveDir = Vector2.Normalize(dir);
@@ -309,6 +311,13 @@ public sealed class PlayerEntity
         if (_whirlwindTimer > 0f)
             _whirlwindTimer = MathF.Max(0f, _whirlwindTimer - dt);
 
+        if (IsDead)
+        {
+            if (IsDying)
+                DeathAnim.Update(dt);
+            return;
+        }
+
         if (_isDashing)
         {
             _dashTimer = MathF.Max(0f, _dashTimer - dt);
@@ -324,13 +333,6 @@ public sealed class PlayerEntity
         }
 
         UpdateBandageVisual(dt);
-
-        if (IsDying || IsCorpse)
-        {
-            if (IsDying)
-                DeathAnim.Update(dt);
-            return;
-        }
 
         if (HurtAnim.IsPlaying)
             HurtAnim.Update(dt);
@@ -395,8 +397,8 @@ public sealed class PlayerEntity
             DeathAnim.Draw(sb, screenPos, tint, scale);
             if (IsCorpse)
             {
-                var crossY = screenPos.Y + (-Radius - 20f) * zoom;
-                CorpseMarkerDraw.DrawCross(sb, new Vector2(screenPos.X, crossY), zoom);
+                var markerY = screenPos.Y + (-Radius - 28f) * zoom;
+                CorpseMarkerDraw.DrawCorpseMarker(sb, new Vector2(screenPos.X, markerY), zoom);
             }
             return;
         }

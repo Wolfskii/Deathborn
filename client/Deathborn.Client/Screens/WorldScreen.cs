@@ -202,8 +202,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (menuOpen && _worldMap.IsOpen)
             _worldMap.Close();
 
-        var abilityBusy = _players.TryGetValue(_screens.Net.LocalCharacterId, out var busyPlayer) && busyPlayer.IsBusy;
-        var inputBlocked = chatOpen || menuOpen || abilityBusy;
+        var localEntity = FindLocalPlayer();
+        var abilityBusy = localEntity is { IsBusy: true };
+        var inputBlocked = chatOpen || menuOpen || abilityBusy || IsLocalDyingOrDead();
 
         _buffTracker.Update(dt);
         UpdateHunterMarks(dt);
@@ -213,16 +214,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts) || buffCapturesMouse;
 
         _moveDir = inputBlocked ? Vector2.Zero : ReadMoveDir(kb);
-        if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localPlayer))
+        if (localEntity is { IsDead: false })
         {
-            localPlayer.InputDir = _moveDir;
+            localEntity.InputDir = _moveDir;
             if (_moveDir.LengthSquared() > 0.0001f)
-                localPlayer.AimDir = PlayerEntity.CardinalFacing(_moveDir);
+                localEntity.AimDir = PlayerEntity.CardinalFacing(_moveDir);
             else if (windowActive && !inputBlocked)
-                UpdateLocalAimFacing(localPlayer, mouse.Position, _prevMouse.Position);
+                UpdateLocalAimFacing(localEntity, mouse.Position, _prevMouse.Position);
         }
 
-        if (inputBlocked)
+        if (inputBlocked || IsLocalDyingOrDead())
         {
             if (_lastSentDir.LengthSquared() > 0.0001f)
             {
@@ -244,21 +245,23 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var p in _players.Values) p.Update(dt);
         ProcessDeathWatch();
 
-        if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var localAttacker))
+        if (localEntity is { IsDead: false })
         {
-            localAttacker.CheckLocalMeleeHits(_players, (targetId, damage, ability) =>
-                ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
-            localAttacker.CheckWhirlwindHits(_players, (targetId, damage, ability) =>
-                ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
-            localAttacker.CheckDashHits(_players, (targetId, damage, ability) =>
-                ReportAbilityHit(localAttacker.Id, targetId, damage, ability));
+            localEntity.CheckLocalMeleeHits(_players, (targetId, damage, ability) =>
+                ReportAbilityHit(localEntity.Id, targetId, damage, ability));
+            localEntity.CheckWhirlwindHits(_players, (targetId, damage, ability) =>
+                ReportAbilityHit(localEntity.Id, targetId, damage, ability));
+            localEntity.CheckDashHits(_players, (targetId, damage, ability) =>
+                ReportAbilityHit(localEntity.Id, targetId, damage, ability));
         }
 
         UpdateProjectiles(dt);
         _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked);
 
-        if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
-            _camera = local.Position;
+        if (_ghostMode && _ghost != null)
+            _camera = _ghost.Position;
+        else if (localEntity != null)
+            _camera = localEntity.Position;
 
         if (!inputBlocked && windowActive && !uiCapturesMouse)
         {
@@ -338,8 +341,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_ghostMode)
         {
             _hotbar.Draw(sb, font);
-            _buffBar.Draw(sb, font, _buffTracker);
-            _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
+            if (!IsLocalDyingOrDead())
+            {
+                _buffBar.Draw(sb, font, _buffTracker);
+                _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
+            }
         }
         _windows.Draw(sb, font);
         sb.End();
@@ -370,6 +376,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
+    private PlayerEntity? FindLocalPlayer() =>
+        _players.Values.FirstOrDefault(p => p.IsLocal);
+
+    private bool IsLocalDyingOrDead()
+    {
+        var local = FindLocalPlayer();
+        return local is { IsDead: true };
+    }
+
     private void ProcessDeathWatch()
     {
         foreach (var id in _deathWatch.Keys.ToList())
@@ -377,9 +392,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (!_deathWatch.TryGetValue(id, out var player) || !player.IsCorpse)
                 continue;
 
+            var corpsePos = player.IsLocal ? _corpsePosition : player.Position;
             _corpses.Add(new PlayerCorpse(
                 CharacterSprites.CreateCorpseDeathAnim(),
-                player.Position,
+                corpsePos,
                 player.MoveDir));
 
             var wasLocal = player.IsLocal;
@@ -400,32 +416,48 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             Position = _corpsePosition + new Vector2(0, -GhostEntity.FloatHeight),
         };
         _effects.Clear();
-        _status = "Your spirit is free. Create a new character to return.";
+        _status = "Your spirit is free. Fly with WASD. Create a new character to return.";
         _chat.Close(submit: false);
         _worldMap.Close();
         _windows.Character.Close();
     }
 
-    private void OnPlayerDeath(PlayerDeathData data)
+    private void BeginPlayerDeath(long playerId, Vector2 deathPos, Vector2 facing)
     {
-        var facing = new Vector2((float)data.DirX, (float)data.DirY);
         if (facing.LengthSquared() < 0.01f)
             facing = new Vector2(0, 1);
 
-        if (_players.TryGetValue(data.PlayerId, out var player))
+        if (_players.TryGetValue(playerId, out var player))
         {
+            if (_deathWatch.ContainsKey(playerId))
+            {
+                if (player.IsLocal)
+                    _corpsePosition = deathPos;
+                return;
+            }
+
+            player.Position = deathPos;
+            player.Target = deathPos;
+            player.InputDir = Vector2.Zero;
             player.BeginDeath(facing);
-            _deathWatch[data.PlayerId] = player;
+            _deathWatch[playerId] = player;
             if (player.IsLocal)
-                _corpsePosition = player.Position;
+                _corpsePosition = deathPos;
         }
         else
         {
             _corpses.Add(new PlayerCorpse(
                 CharacterSprites.CreateCorpseDeathAnim(),
-                new Vector2((float)data.X, (float)data.Y),
+                deathPos,
                 facing));
         }
+    }
+
+    private void OnPlayerDeath(PlayerDeathData data)
+    {
+        var deathPos = new Vector2((float)data.X, (float)data.Y);
+        var facing = new Vector2((float)data.DirX, (float)data.DirY);
+        BeginPlayerDeath(data.PlayerId, deathPos, facing);
     }
 
     private void OnYouDied(YouDiedData data)
@@ -433,9 +465,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _corpsePosition = new Vector2((float)data.X, (float)data.Y);
         _ghostModePending = true;
 
-        var local = _players.Values.FirstOrDefault(p => p.IsLocal);
-        if (local is { IsCorpse: true })
-            ActivateGhostMode();
+        var facing = new Vector2((float)data.DirX, (float)data.DirY);
+        var local = FindLocalPlayer();
+        if (local != null)
+        {
+            if (!local.IsDead)
+                BeginPlayerDeath(local.Id, _corpsePosition, facing);
+            else if (!_deathWatch.ContainsKey(local.Id))
+                _deathWatch[local.Id] = local;
+
+            if (local.IsCorpse)
+                ActivateGhostMode();
+        }
     }
 
     private void OnNewLifeRequested() => _screens.Change(new CharacterCreateScreen(_screens));
@@ -963,14 +1004,21 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 p = PlayerEntity.FromState(s, s.Id == _screens.Net.LocalCharacterId);
                 _players[s.Id] = p;
             }
-            else p.SetTarget(pos);
+            else if (!_deathWatch.ContainsKey(s.Id))
+            {
+                p.SetTarget(pos);
+            }
 
-            if (s.HpMax > 0)
+            if (s.HpMax > 0 && !_deathWatch.ContainsKey(s.Id))
                 p.SyncStats((float)s.Hp, (float)s.HpMax);
         }
 
         foreach (var id in _players.Keys.Where(id => !seen.Contains(id)).ToList())
+        {
+            if (_deathWatch.ContainsKey(id))
+                continue;
             _players.Remove(id);
+        }
     }
 
     private void OnDisconnected() => _status = "Disconnected from server.";

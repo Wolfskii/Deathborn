@@ -29,11 +29,12 @@ public sealed class GhostEntity
         var bob = MathF.Sin(_bobTimer * 3f) * 4f * zoom;
         var drawPos = screenPos + new Vector2(0, bob);
         var scale = PlayerEntity.SpriteDrawScale * zoom;
-        var ghostTint = new Color(0.82f, 0.86f, 0.92f, 0.62f);
+        var ghostTint = new Color(0.78f, 0.82f, 0.95f, 0.72f);
 
-        DrawPrimitives.FillCircle(sb, drawPos + new Vector2(0, 8f * zoom), 16f * zoom, new Color(1f, 1f, 1f, 0.08f));
+        DrawPrimitives.FillCircle(sb, drawPos + new Vector2(0, 10f * zoom), 20f * zoom, new Color(0.75f, 0.85f, 1f, 0.12f));
+        DrawPrimitives.FillCircle(sb, drawPos + new Vector2(0, 8f * zoom), 16f * zoom, new Color(1f, 1f, 1f, 0.1f));
         _idle.Draw(sb, drawPos, ghostTint, scale);
-        DrawPrimitives.DrawCircleOutline(sb, drawPos + new Vector2(0, -6f * zoom), 14f * zoom,
-            new Color(0.9f, 0.95f, 1f, 0.28f), 24, 1.5f);
+        DrawPrimitives.DrawCircleOutline(sb, drawPos + new Vector2(0, -6f * zoom), 16f * zoom,
+            new Color(0.85f, 0.92f, 1f, 0.45f), 24, 2f);
     }
 }
