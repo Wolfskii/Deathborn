@@ -16,9 +16,11 @@ public interface IWorldEffect
     void Update(
         float dt,
         IReadOnlyDictionary<long, PlayerEntity> players,
+        IReadOnlyDictionary<long, BossEntity> bosses,
         IReadOnlyList<InteractableEntity> interactables,
         bool reportHits,
-        Action<long, int>? onPlayerHit);
+        Action<long, int>? onPlayerHit,
+        Action<long, int>? onNpcHit);
 
     void Draw(SpriteBatch sb, Vector2 screenPos, float zoom);
     void CancelByClash();

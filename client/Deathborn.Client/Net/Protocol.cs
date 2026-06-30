@@ -79,6 +79,150 @@ public sealed class SnapshotData
 
     [JsonPropertyName("players")]
     public List<PlayerState> Players { get; set; } = [];
+
+    [JsonPropertyName("npcs")]
+    public List<NpcState>? Npcs { get; set; }
+
+    [JsonPropertyName("worldEvent")]
+    public WorldEventState? WorldEvent { get; set; }
+}
+
+public sealed class NpcState
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("defId")]
+    public string DefId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("hp")]
+    public double Hp { get; set; }
+
+    [JsonPropertyName("hpMax")]
+    public double HpMax { get; set; }
+
+    [JsonPropertyName("isBoss")]
+    public bool IsBoss { get; set; }
+
+    [JsonPropertyName("action")]
+    public string? Action { get; set; }
+
+    [JsonPropertyName("dirX")]
+    public double DirX { get; set; }
+
+    [JsonPropertyName("dirY")]
+    public double DirY { get; set; }
+}
+
+public sealed class WorldEventState
+{
+    [JsonPropertyName("active")]
+    public bool Active { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("pvpOff")]
+    public bool PvPOff { get; set; }
+
+    [JsonPropertyName("bossCount")]
+    public int BossCount { get; set; }
+}
+
+public sealed class NpcHitData
+{
+    [JsonPropertyName("attackerId")]
+    public long AttackerId { get; set; }
+
+    [JsonPropertyName("targetNpcId")]
+    public long TargetNpcId { get; set; }
+
+    [JsonPropertyName("damage")]
+    public int Damage { get; set; }
+
+    [JsonPropertyName("ability")]
+    public string Ability { get; set; } = "";
+
+    [JsonPropertyName("hp")]
+    public double Hp { get; set; }
+
+    [JsonPropertyName("hpMax")]
+    public double HpMax { get; set; }
+}
+
+public sealed class BossSpawnData
+{
+    [JsonPropertyName("npcId")]
+    public long NpcId { get; set; }
+
+    [JsonPropertyName("defId")]
+    public string DefId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+}
+
+public sealed class BossDeathData
+{
+    [JsonPropertyName("npcId")]
+    public long NpcId { get; set; }
+
+    [JsonPropertyName("defId")]
+    public string DefId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+}
+
+public sealed class WorldEventData
+{
+    [JsonPropertyName("active")]
+    public bool Active { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("pvpOff")]
+    public bool PvPOff { get; set; }
+
+    [JsonPropertyName("bossCount")]
+    public int BossCount { get; set; }
+}
+
+public sealed class BossActionData
+{
+    [JsonPropertyName("npcId")]
+    public long NpcId { get; set; }
+
+    [JsonPropertyName("action")]
+    public string Action { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
 }
 
 public sealed class PlayerState

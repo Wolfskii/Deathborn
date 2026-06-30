@@ -59,13 +59,15 @@ func main() {
 
 	// Simulation loop: advance the world and broadcast a snapshot each tick.
 	go game.RunLoop(ctx, world, tickHz, func(tick uint64, heals []game.HealEvent, dt float64) {
+		hub.ProcessBossEvents(world.TickBosses(dt))
+		hub.ProcessBossEvents(world.DrainPendingBossEvents())
 		for _, h := range heals {
 			hub.Broadcast(gnet.BuildPlayerHeal(h.PlayerID, h.Amount, h.Ability, h.Hp, h.HpMax))
 		}
 		for _, b := range world.TickBuffs(dt) {
 			hub.Broadcast(gnet.BuildPlayerBuff(b.PlayerID, b.BuffID, b.Duration, b.MarkTargetID))
 		}
-		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot()))
+		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot(), world.NpcSnapshot(), world.WorldEventSnapshot()))
 	})
 
 	authH := auth.NewHandler(database, cfg.JWTSecret)

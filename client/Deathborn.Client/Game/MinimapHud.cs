@@ -20,7 +20,8 @@ public sealed class MinimapHud
         SpriteBatch sb,
         Vector2 cameraWorld,
         long localId,
-        IEnumerable<PlayerEntity> players)
+        IEnumerable<PlayerEntity> players,
+        IEnumerable<BossEntity>? bosses = null)
     {
         var center = Center;
         var r = Config.MinimapScreenRadius;
@@ -61,6 +62,17 @@ public sealed class MinimapHud
 
             DrawPrimitives.FillCircle(sb, mapPos, dotR + 1.5f, new Color(0, 0, 0, 0.45f));
             DrawPrimitives.FillCircle(sb, mapPos, dotR, color);
+        }
+
+        if (bosses != null)
+        {
+            foreach (var boss in bosses)
+            {
+                if (!InLocalRange(boss.Position, cameraWorld, worldRadius)) continue;
+                var mapPos = WorldToMinimap(boss.Position, cameraWorld, worldRadius, center, r);
+                DrawPrimitives.FillCircle(sb, mapPos, 4.5f, new Color(0.92f, 0.35f, 0.32f, 0.9f));
+                DrawPrimitives.DrawCircleOutline(sb, mapPos, 4.5f, new Color(0.55f, 0.12f, 0.12f, 0.95f), 12, 1.5f);
+            }
         }
     }
 

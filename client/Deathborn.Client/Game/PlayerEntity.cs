@@ -220,6 +220,60 @@ public sealed class PlayerEntity
             reportHit(id, Config.WarriorDashDamage, "warrior_dash");
         }
     }
+    public void CheckLocalBossMeleeHits(
+        IReadOnlyDictionary<long, BossEntity> bosses,
+        Action<long, int, string> reportHit)
+    {
+        if (!IsLocal || IsDead || !IsAttacking || bosses.Count == 0) return;
+
+        var def = _activeMeleeDef ?? MeleeAbilityDefinitions.Slash;
+        var frame = AttackAnim.Frame;
+        if (frame < def.HitFrameStart || frame > def.HitFrameEnd) return;
+
+        var facing = CardinalFacing(FacingDir);
+        foreach (var (id, boss) in bosses)
+        {
+            if (_meleeHitThisSwing.Contains(id)) continue;
+            if (!IsInMeleeArc(Position, facing, boss.Position, def.Range, def.HalfWidth + boss.Radius * 0.4f)) continue;
+            _meleeHitThisSwing.Add(id);
+            reportHit(id, def.Damage, def.Id);
+        }
+    }
+
+    public void CheckWhirlwindBossHits(
+        IReadOnlyDictionary<long, BossEntity> bosses,
+        Action<long, int, string> reportHit)
+    {
+        if (!IsLocal || !IsWhirlwinding || !_whirlwindHitPulse || bosses.Count == 0) return;
+        var radius = Config.WhirlwindRadius + BossEntity.DefaultRadius;
+        var radiusSq = radius * radius;
+        foreach (var (id, boss) in bosses)
+        {
+            if (_whirlwindHit.Contains(id)) continue;
+            if (Vector2.DistanceSquared(Position, boss.Position) > radiusSq) continue;
+            _whirlwindHit.Add(id);
+            reportHit(id, Config.WhirlwindDamage, "whirlwind");
+        }
+    }
+
+    public void CheckDashBossHits(
+        IReadOnlyDictionary<long, BossEntity> bosses,
+        Action<long, int, string> reportHit)
+    {
+        if (!IsLocal || !_isDashing || bosses.Count == 0) return;
+        var t = 1f - MathF.Max(0f, _dashTimer) / MathF.Max(0.001f, _dashDuration);
+        if (t < 0.35f || t > 0.85f) return;
+
+        var radiusSq = (PlayerEntity.Radius + BossEntity.DefaultRadius) * (PlayerEntity.Radius + BossEntity.DefaultRadius);
+        foreach (var (id, boss) in bosses)
+        {
+            if (_dashHit.Contains(id)) continue;
+            if (Vector2.DistanceSquared(Position, boss.Position) > radiusSq) continue;
+            _dashHit.Add(id);
+            reportHit(id, Config.WarriorDashDamage, "warrior_dash");
+        }
+    }
+
     public bool StartAttack(Vector2? facing = null)
     {
         if (IsBusy || IsDead) return false;

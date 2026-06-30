@@ -23,6 +23,7 @@ type World struct {
 	runSpeed float64
 	terrain  *worldmap.Map
 	zones    *ZoneIndex
+	bossMgr  *bossManager
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
@@ -32,6 +33,7 @@ func NewWorld(terrain *worldmap.Map) *World {
 		runSpeed: runSpeed,
 		terrain:  terrain,
 		zones:    NewZoneIndex(terrain),
+		bossMgr:  newBossManager(),
 	}
 }
 
@@ -301,6 +303,9 @@ func (w *World) PlayerHP(id int64) (hp, hpMax float64, ok bool) {
 func (w *World) PvPAllowedBetween(attackerID, targetID int64) bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	if w.bossMgr != nil && w.bossMgr.eventActive {
+		return false
+	}
 	if w.zones == nil {
 		return true
 	}

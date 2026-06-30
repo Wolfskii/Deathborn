@@ -32,9 +32,11 @@ public sealed class PoisonCloudEffect : IWorldEffect
     public void Update(
         float dt,
         IReadOnlyDictionary<long, PlayerEntity> players,
+        IReadOnlyDictionary<long, BossEntity> bosses,
         IReadOnlyList<InteractableEntity> interactables,
         bool reportHits,
-        Action<long, int>? onPlayerHit)
+        Action<long, int>? onPlayerHit,
+        Action<long, int>? onNpcHit)
     {
         _timer += dt;
         if (_timer >= Duration)

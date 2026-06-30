@@ -29,7 +29,9 @@ public sealed class WhirlwindEffect : IWorldEffect
     public void CancelByClash() { }
 
     public void Update(float dt, IReadOnlyDictionary<long, PlayerEntity> players,
-        IReadOnlyList<InteractableEntity> interactables, bool reportHits, Action<long, int>? onPlayerHit)
+        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyList<InteractableEntity> interactables, bool reportHits,
+        Action<long, int>? onPlayerHit, Action<long, int>? onNpcHit)
     {
         _timer += dt;
         if (players.TryGetValue(OwnerId, out var owner))

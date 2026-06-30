@@ -392,6 +392,39 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			c.grantCombatSkillXP(c.characterID, d.TargetID, d.Ability, damage)
 
+		case "ability_hit_npc":
+			if !c.spawned {
+				continue
+			}
+			var d AbilityHitNpcSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.TargetNpcID >= 0 || d.Ability == "" {
+				continue
+			}
+			damage := game.DamageForAbility(d.Ability)
+			if damage <= 0 {
+				continue
+			}
+			if _, _, ok := c.hub.world.NpcPosition(d.TargetNpcID); !ok {
+				continue
+			}
+			if !c.hub.world.ValidateNpcHit(c.characterID, d.TargetNpcID, d.Ability) {
+				continue
+			}
+			damage = int(float64(damage) * c.hub.world.DamageDealtMultiplier(c.characterID))
+			if damage <= 0 {
+				continue
+			}
+			hp, hpMax, justDied, ok := c.hub.world.ApplyDamageToNpc(d.TargetNpcID, damage)
+			if !ok {
+				continue
+			}
+			c.hub.Broadcast(BuildNpcHit(c.characterID, d.TargetNpcID, damage, d.Ability, hp, hpMax))
+			c.hub.ProcessBossEvents(c.hub.world.DrainPendingBossEvents())
+			if justDied {
+				// Boss death events already queued in ApplyDamageToNpc.
+				_ = justDied
+			}
+
 		case "ability_use":
 			if !c.spawned {
 				continue

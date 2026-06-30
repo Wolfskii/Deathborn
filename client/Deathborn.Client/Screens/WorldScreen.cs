@@ -14,6 +14,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly ScreenManager _screens;
     private readonly WorldBackgroundRenderer _bg = new();
     private readonly Dictionary<long, PlayerEntity> _players = new();
+    private readonly Dictionary<long, BossEntity> _bosses = new();
     private readonly List<InteractableEntity> _interactables = [];
     private readonly List<IWorldEffect> _effects = [];
     private readonly Hotbar _hotbar = new();
@@ -37,6 +38,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private bool _interactablesSeeded;
     private readonly ZoneBannerOverlay _zoneBanner = new();
     private readonly WorldFeedbackOverlay _feedback = new();
+    private readonly BossTrackerOverlay _bossTracker = new();
+    private readonly BossHealthBarOverlay _bossHealthBar = new();
     private Vector2? _lastInteractWorldPos;
     private string? _currentZoneId;
     private bool _zonePresenceInitialized;
@@ -70,7 +73,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     public void OnEnter()
     {
         var net = _screens.Net;
-        net.Snapshot += OnSnapshot;
+        net.Snapshot += OnWorldSnapshot;
+        net.NpcHit += OnNpcHit;
+        net.WorldEvent += OnWorldEvent;
+        net.BossSpawn += OnBossSpawn;
+        net.BossDeath += OnBossDeath;
+        net.BossAction += OnBossAction;
         net.Disconnected += OnDisconnected;
         net.ProjectileSpawned += OnProjectileSpawned;
         net.SpellEffectSpawned += OnSpellEffectSpawned;
@@ -124,7 +132,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         MusicPlayer.Stop();
 
         var net = _screens.Net;
-        net.Snapshot -= OnSnapshot;
+        net.Snapshot -= OnWorldSnapshot;
+        net.NpcHit -= OnNpcHit;
+        net.WorldEvent -= OnWorldEvent;
+        net.BossSpawn -= OnBossSpawn;
+        net.BossDeath -= OnBossDeath;
+        net.BossAction -= OnBossAction;
         net.Disconnected -= OnDisconnected;
         net.ProjectileSpawned -= OnProjectileSpawned;
         net.SpellEffectSpawned -= OnSpellEffectSpawned;
@@ -154,6 +167,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _ghostModePending = false;
         _interactables.Clear();
         _interactablesSeeded = false;
+        _bosses.Clear();
         _feedback.Clear();
         _lastInteractWorldPos = null;
     }
@@ -286,20 +300,27 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         foreach (var p in _players.Values) p.Update(dt);
+        foreach (var b in _bosses.Values) b.Update(dt);
         ProcessDeathWatch();
 
         if (localEntity is { IsDead: false })
         {
             localEntity.CheckLocalMeleeHits(_players, (targetId, damage, ability) =>
                 ReportAbilityHit(localEntity.Id, targetId, damage, ability));
+            localEntity.CheckLocalBossMeleeHits(_bosses, (targetId, damage, ability) =>
+                ReportAbilityHitNpc(localEntity.Id, targetId, damage, ability));
             localEntity.CheckWhirlwindHits(_players, (targetId, damage, ability) =>
                 ReportAbilityHit(localEntity.Id, targetId, damage, ability));
+            localEntity.CheckWhirlwindBossHits(_bosses, (targetId, damage, ability) =>
+                ReportAbilityHitNpc(localEntity.Id, targetId, damage, ability));
             localEntity.CheckDashHits(_players, (targetId, damage, ability) =>
                 ReportAbilityHit(localEntity.Id, targetId, damage, ability));
+            localEntity.CheckDashBossHits(_bosses, (targetId, damage, ability) =>
+                ReportAbilityHitNpc(localEntity.Id, targetId, damage, ability));
         }
 
         UpdateProjectiles(dt);
-        _feedback.Update(dt, _players);
+        _feedback.Update(dt, _players, _bosses);
         _hotbar.Update(dt, kb, _prevKb, acceptInput: !inputBlocked && !_dragDrop.IsDragging);
 
         if (_ghostMode && _ghost != null)
@@ -367,13 +388,22 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 PlayerEntity.DrawHunterMark(sb, WorldToScreen(p.Position), zoom);
         }
 
+        foreach (var b in _bosses.Values.OrderBy(b => b.Position.Y))
+            b.Draw(sb, font, WorldToScreen(b.Position), zoom);
+
         if (_ghostMode && _ghost != null)
             _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
 
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
-        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players);
+        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _bosses);
+
+        if (!_ghostMode && !IsLocalDyingOrDead())
+        {
+            _bossTracker.Draw(sb, font, _camera, _bosses.Values);
+            _bossHealthBar.Draw(sb, font, _camera, _bosses.Values);
+        }
 
         if (_debugHudVisible)
         {
@@ -394,7 +424,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (!IsLocalDyingOrDead())
             {
                 _buffBar.Draw(sb, font, _buffTracker);
-                _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values);
+                _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values);
             }
         }
         _windows.Draw(sb, font);
@@ -630,7 +660,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
 
         sb.Begin(samplerState: SamplerState.PointClamp);
-        _worldMap.Draw(sb, font, local.Position);
+        _worldMap.Draw(sb, font, local.Position, _bosses.Values);
         sb.End();
     }
 
@@ -1136,23 +1166,39 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var effect in _effects)
         {
             var ownerId = effect.OwnerId;
-            effect.Update(dt, _players, _interactables, ownerId == localId, (targetId, damage) =>
-                ReportAbilityHit(ownerId, targetId, damage, effect.AbilityId));
+            effect.Update(dt, _players, _bosses, _interactables, ownerId == localId,
+                (targetId, damage) => ReportAbilityHit(ownerId, targetId, damage, effect.AbilityId),
+                (npcId, damage) => ReportAbilityHitNpc(ownerId, npcId, damage, effect.AbilityId));
         }
 
         ResolveProjectileClashes();
         _effects.RemoveAll(e => !e.Alive);
     }
 
+    private void ReportAbilityHitNpc(long attackerId, long targetNpcId, int damage, string ability)
+    {
+        if (damage <= 0 || targetNpcId >= 0) return;
+        if (!_bosses.ContainsKey(targetNpcId)) return;
+        if (attackerId == _screens.Net.LocalCharacterId)
+            _screens.Net.SendAbilityHitNpc(targetNpcId, damage, ability);
+    }
+
     private void ReportAbilityHit(long attackerId, long targetId, int damage, string ability)
     {
         if (damage <= 0) return;
+        if (targetId < 0)
+        {
+            ReportAbilityHitNpc(attackerId, targetId, damage, ability);
+            return;
+        }
         if (!_players.TryGetValue(attackerId, out var attacker)) return;
         if (!_players.TryGetValue(targetId, out var target)) return;
         if (!WorldZones.AllowPvP(attacker.Position, target.Position))
         {
             if (attackerId == _screens.Net.LocalCharacterId)
-                _status = "Cannot attack here — safe zone.";
+                _status = WorldZones.WorldBossEventActive
+                    ? "PvP disabled during world boss event."
+                    : "Cannot attack here — safe zone.";
             return;
         }
 
@@ -1295,7 +1341,95 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.Net.SendInteract(target.Id);
     }
 
-    private void OnSnapshot(List<PlayerState> players)
+    private void OnWorldSnapshot(SnapshotData snap)
+    {
+        OnSnapshotPlayers(snap.Players);
+
+        if (snap.WorldEvent != null)
+            ApplyWorldEvent(snap.WorldEvent);
+
+        var seen = new HashSet<long>();
+        foreach (var s in snap.Npcs ?? [])
+        {
+            seen.Add(s.Id);
+            var pos = new Vector2((float)s.X, (float)s.Y);
+            if (!_bosses.TryGetValue(s.Id, out var b))
+            {
+                b = new BossEntity { Id = s.Id, Position = pos };
+                _bosses[s.Id] = b;
+            }
+            b.Sync(s);
+            b.SetTarget(pos);
+        }
+
+        foreach (var id in _bosses.Keys.Where(id => !seen.Contains(id)).ToList())
+            _bosses.Remove(id);
+    }
+
+    private void OnNpcHit(NpcHitData data)
+    {
+        if (!_bosses.TryGetValue(data.TargetNpcId, out var boss)) return;
+        boss.Hp = (float)data.Hp;
+        boss.HpMax = (float)data.HpMax;
+        _feedback.SpawnBossDamage(boss.Position, data.Damage);
+    }
+
+    private void OnWorldEvent(WorldEventData data)
+    {
+        WorldZones.WorldBossEventActive = data.Active && data.PvPOff;
+        ApplyWorldEvent(new WorldEventState
+        {
+            Active = data.Active,
+            Name = data.Name,
+            PvPOff = data.PvPOff,
+            BossCount = data.BossCount,
+        });
+    }
+
+    private void ApplyWorldEvent(WorldEventState data)
+    {
+        WorldZones.WorldBossEventActive = data.Active && data.PvPOff;
+        if (data.Active)
+        {
+            _zoneBanner.ShowEnter(data.Name ?? "World Boss Event", "PvP disabled - unite to defeat the threat!");
+            _status = "World boss event! PvP is off. Find the boss on your map.";
+        }
+        else if (data.PvPOff == false && !data.Active)
+        {
+            _zoneBanner.ShowEnter("Threat Subsided", "PvP rules return to normal");
+        }
+    }
+
+    private void OnBossSpawn(BossSpawnData data)
+    {
+        var pos = new Vector2((float)data.X, (float)data.Y);
+        if (!_bosses.TryGetValue(data.NpcId, out var boss))
+        {
+            boss = new BossEntity { Id = data.NpcId, Position = pos };
+            _bosses[data.NpcId] = boss;
+        }
+        boss.DefId = data.DefId;
+        boss.Name = data.Name;
+        boss.SetTarget(pos);
+        _zoneBanner.ShowEnter(data.Name, "World boss spawned - check your map!");
+        _status = $"{data.Name} has spawned in the wilderness!";
+    }
+
+    private void OnBossDeath(BossDeathData data)
+    {
+        _bosses.Remove(data.NpcId);
+        _zoneBanner.ShowEnter($"{data.Name} defeated!", "The world boss event may end soon.");
+        _status = $"{data.Name} has been defeated!";
+    }
+
+    private void OnBossAction(BossActionData data)
+    {
+        if (!_bosses.TryGetValue(data.NpcId, out var boss)) return;
+        boss.Action = data.Action;
+        boss.AbilityFlash = 0.5f;
+    }
+
+    private void OnSnapshotPlayers(List<PlayerState> players)
     {
         var seen = new HashSet<long>();
         foreach (var s in players)

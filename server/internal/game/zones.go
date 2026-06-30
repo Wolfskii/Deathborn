@@ -2,6 +2,8 @@ package game
 
 import "github.com/deathborn/server/internal/worldmap"
 
+const safeExclusionPad = 96.0
+
 type zoneDef struct {
 	id, name string
 	safe     bool
@@ -58,4 +60,61 @@ func (z *ZoneIndex) PvPAllowed(x, y float64) bool {
 // PvPAllowedBetween reports whether PvP may occur between two positions.
 func (z *ZoneIndex) PvPAllowedBetween(ax, ay, tx, ty float64) bool {
 	return z.PvPAllowed(ax, ay) && z.PvPAllowed(tx, ty)
+}
+
+// InSafeArea reports whether a position is inside a safe town.
+func (z *ZoneIndex) InSafeArea(x, y float64) bool {
+	zd := z.At(x, y)
+	return zd != nil && zd.safe
+}
+
+// InMonsterExclusion reports whether monsters/bosses may not enter (town + padding).
+func (z *ZoneIndex) InMonsterExclusion(x, y float64) bool {
+	for i := range z.zones {
+		zd := &z.zones[i]
+		if !zd.safe {
+			continue
+		}
+		if x >= zd.centerX-zd.halfW-safeExclusionPad && x <= zd.centerX+zd.halfW+safeExclusionPad &&
+			y >= zd.centerY-zd.halfH-safeExclusionPad && y <= zd.centerY+zd.halfH+safeExclusionPad {
+			return true
+		}
+	}
+	return false
+}
+
+// PushOutOfMonsterExclusion nudges a point to the nearest edge outside exclusion zones.
+func (z *ZoneIndex) PushOutOfMonsterExclusion(x, y float64) (float64, float64) {
+	if !z.InMonsterExclusion(x, y) {
+		return x, y
+	}
+	bestX, bestY := x, y
+	bestDist := -1.0
+	for i := range z.zones {
+		zd := &z.zones[i]
+		if !zd.safe {
+			continue
+		}
+		minX := zd.centerX - zd.halfW - safeExclusionPad
+		maxX := zd.centerX + zd.halfW + safeExclusionPad
+		minY := zd.centerY - zd.halfH - safeExclusionPad
+		maxY := zd.centerY + zd.halfH + safeExclusionPad
+		candidates := [][2]float64{
+			{minX - 8, y},
+			{maxX + 8, y},
+			{x, minY - 8},
+			{x, maxY + 8},
+		}
+		for _, c := range candidates {
+			if z.InMonsterExclusion(c[0], c[1]) {
+				continue
+			}
+			d := (c[0]-x)*(c[0]-x) + (c[1]-y)*(c[1]-y)
+			if bestDist < 0 || d < bestDist {
+				bestDist = d
+				bestX, bestY = c[0], c[1]
+			}
+		}
+	}
+	return bestX, bestY
 }

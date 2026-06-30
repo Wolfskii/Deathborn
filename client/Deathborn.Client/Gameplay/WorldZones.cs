@@ -79,7 +79,26 @@ public static class WorldZones
     public static bool IsSafe(Vector2 world) => ZoneAt(world)?.Safe == true;
 
     public static bool AllowPvP(Vector2 attacker, Vector2 target) =>
-        !IsSafe(attacker) && !IsSafe(target);
+        !WorldBossEventActive && !IsSafe(attacker) && !IsSafe(target);
+
+    public const float MonsterExclusionPad = 96f;
+
+    public static bool WorldBossEventActive { get; set; }
+
+    /// <summary>Monsters and bosses may not enter this padded area around safe towns.</summary>
+    public static bool InMonsterExclusion(Vector2 world)
+    {
+        foreach (var zone in _towns)
+        {
+            if (!zone.Safe) continue;
+            if (world.X >= zone.Center.X - zone.HalfWidth - MonsterExclusionPad
+                && world.X <= zone.Center.X + zone.HalfWidth + MonsterExclusionPad
+                && world.Y >= zone.Center.Y - zone.HalfHeight - MonsterExclusionPad
+                && world.Y <= zone.Center.Y + zone.HalfHeight + MonsterExclusionPad)
+                return true;
+        }
+        return false;
+    }
 
     public static string DisplayName(Vector2 world) =>
         ZoneAt(world)?.Name ?? "The Wilderness";

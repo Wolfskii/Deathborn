@@ -54,9 +54,11 @@ public sealed class SpellProjectile : IWorldEffect
     public void Update(
         float dt,
         IReadOnlyDictionary<long, PlayerEntity> players,
+        IReadOnlyDictionary<long, BossEntity> bosses,
         IReadOnlyList<InteractableEntity> interactables,
         bool reportHits,
-        Action<long, int>? onPlayerHit)
+        Action<long, int>? onPlayerHit,
+        Action<long, int>? onNpcHit)
     {
         if (!Alive) return;
 
@@ -91,6 +93,18 @@ public sealed class SpellProjectile : IWorldEffect
 
         if (_ignoreOwnerTimer <= 0)
         {
+            foreach (var (id, boss) in bosses)
+            {
+                var hit = Definition.Radius + boss.Radius;
+                if (Vector2.DistanceSquared(Position, boss.Position) <= hit * hit)
+                {
+                    if (reportHits && Definition.Damage > 0)
+                        onNpcHit?.Invoke(id, Definition.Damage);
+                    StartBurst();
+                    return;
+                }
+            }
+
             foreach (var (id, player) in players)
             {
                 if (id == OwnerId || player.IsDead) continue;

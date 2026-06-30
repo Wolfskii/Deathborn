@@ -50,7 +50,9 @@ public sealed class ArcBoltEffect : IWorldEffect
     }
 
     public void Update(float dt, IReadOnlyDictionary<long, PlayerEntity> players,
-        IReadOnlyList<InteractableEntity> interactables, bool reportHits, Action<long, int>? onPlayerHit)
+        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyList<InteractableEntity> interactables, bool reportHits,
+        Action<long, int>? onPlayerHit, Action<long, int>? onNpcHit)
     {
         _timer += dt;
         if (_timer >= 0.35f)

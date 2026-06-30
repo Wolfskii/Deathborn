@@ -37,7 +37,7 @@ public sealed class GameClient : IDisposable
     public event Action? AuthSucceeded;
     public event Action? NeedCharacter;
     public event Action<WelcomeData>? Welcome;
-    public event Action<List<PlayerState>>? Snapshot;
+    public event Action<SnapshotData>? Snapshot;
     public event Action<ProjectileSpawnData>? ProjectileSpawned;
     public event Action<SpellEffectSpawnData>? SpellEffectSpawned;
     public event Action<PlayerActionData>? PlayerAction;
@@ -49,6 +49,11 @@ public sealed class GameClient : IDisposable
     public event Action<PlayerDeathData>? PlayerDeath;
     public event Action<YouDiedData>? YouDied;
     public event Action<SkillXpGainData>? SkillXpGain;
+    public event Action<NpcHitData>? NpcHit;
+    public event Action<WorldEventData>? WorldEvent;
+    public event Action<BossSpawnData>? BossSpawn;
+    public event Action<BossDeathData>? BossDeath;
+    public event Action<BossActionData>? BossAction;
     public event Action<string>? ServerError;
     public event Action? Disconnected;
 
@@ -189,6 +194,12 @@ public sealed class GameClient : IDisposable
         Send("chat_typing", new { typing });
     }
 
+    public void SendAbilityHitNpc(long targetNpcId, int damage, string ability)
+    {
+        if (targetNpcId >= 0) return;
+        Send("ability_hit_npc", new { targetNpcId, damage, ability });
+    }
+
     public void SendAbilityHit(long targetId, int damage, string ability)
     {
         if (LocalCharacterId < 0 || targetId < 0 || string.IsNullOrEmpty(ability)) return;
@@ -305,7 +316,7 @@ public sealed class GameClient : IDisposable
                 break;
             case "snapshot":
                 var snap = env.Data.Deserialize<SnapshotData>(JsonOpts);
-                Snapshot?.Invoke(snap?.Players ?? []);
+                if (snap != null) Snapshot?.Invoke(snap);
                 break;
             case "projectile_spawn":
                 var spawn = env.Data.Deserialize<ProjectileSpawnData>(JsonOpts);
@@ -354,6 +365,26 @@ public sealed class GameClient : IDisposable
             case "skill_xp_gain":
                 var skillGain = env.Data.Deserialize<SkillXpGainData>(JsonOpts);
                 if (skillGain != null) SkillXpGain?.Invoke(skillGain);
+                break;
+            case "npc_hit":
+                var npcHit = env.Data.Deserialize<NpcHitData>(JsonOpts);
+                if (npcHit != null) NpcHit?.Invoke(npcHit);
+                break;
+            case "world_event":
+                var worldEvent = env.Data.Deserialize<WorldEventData>(JsonOpts);
+                if (worldEvent != null) WorldEvent?.Invoke(worldEvent);
+                break;
+            case "boss_spawn":
+                var bossSpawn = env.Data.Deserialize<BossSpawnData>(JsonOpts);
+                if (bossSpawn != null) BossSpawn?.Invoke(bossSpawn);
+                break;
+            case "boss_death":
+                var bossDeath = env.Data.Deserialize<BossDeathData>(JsonOpts);
+                if (bossDeath != null) BossDeath?.Invoke(bossDeath);
+                break;
+            case "boss_action":
+                var bossAction = env.Data.Deserialize<BossActionData>(JsonOpts);
+                if (bossAction != null) BossAction?.Invoke(bossAction);
                 break;
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);

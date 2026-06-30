@@ -135,7 +135,7 @@ public sealed class WorldFeedbackOverlay
         AddEntity(entityId, "Miss", new Color(170, 170, 185), duration: 0.9f, floatSpeed: 24f, scale: 0.85f, bold: false);
     }
 
-    public void Update(float dt, IReadOnlyDictionary<long, PlayerEntity> players)
+    public void Update(float dt, IReadOnlyDictionary<long, PlayerEntity> players, IReadOnlyDictionary<long, BossEntity>? bosses = null)
     {
         for (var i = _entries.Count - 1; i >= 0; i--)
         {
@@ -161,14 +161,22 @@ public sealed class WorldFeedbackOverlay
         }
     }
 
+    public void SpawnBossDamage(Vector2 worldPos, int damage)
+    {
+        if (damage <= 0) return;
+        AddFixed(worldPos + new Vector2(0, -52), damage.ToString(), new Color(235, 55, 45),
+            duration: 1.1f, floatSpeed: 34f, scale: 1.05f, bold: true);
+    }
+
     public void DrawWorld(
         SpriteBatch sb, SpriteFont font,
         Func<Vector2, Vector2> worldToScreen, float zoom,
-        IReadOnlyDictionary<long, PlayerEntity> players)
+        IReadOnlyDictionary<long, PlayerEntity> players,
+        IReadOnlyDictionary<long, BossEntity>? bosses = null)
     {
         foreach (var e in _entries)
         {
-            var world = ResolveWorldPos(e, players);
+            var world = ResolveWorldPos(e, players, bosses);
             var screen = worldToScreen(world);
             screen.X += e.RandomX;
             screen.Y -= e.Age * e.FloatSpeed;
@@ -232,13 +240,21 @@ public sealed class WorldFeedbackOverlay
         }
     }
 
-    private static Vector2 ResolveWorldPos(Entry e, IReadOnlyDictionary<long, PlayerEntity> players)
+    private static Vector2 ResolveWorldPos(
+        Entry e,
+        IReadOnlyDictionary<long, PlayerEntity> players,
+        IReadOnlyDictionary<long, BossEntity>? bosses)
     {
         if (e.FixedWorld is { } fixedPos)
             return fixedPos;
 
-        if (e.EntityId is long id && players.TryGetValue(id, out var p))
-            return p.Position + e.WorldOffset;
+        if (e.EntityId is long id)
+        {
+            if (id < 0 && bosses != null && bosses.TryGetValue(id, out var boss))
+                return boss.Position + e.WorldOffset;
+            if (players.TryGetValue(id, out var p))
+                return p.Position + e.WorldOffset;
+        }
 
         return e.WorldOffset;
     }

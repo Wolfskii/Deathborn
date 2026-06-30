@@ -30,7 +30,7 @@ public sealed class WorldMapOverlay
 
     public void Close() => IsOpen = false;
 
-    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 playerWorldPos)
+    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 playerWorldPos, IEnumerable<BossEntity>? bosses = null)
     {
         if (!IsOpen) return;
 
@@ -45,6 +45,7 @@ public sealed class WorldMapOverlay
 
         WorldMap.Realik.DrawOverlay(sb, _mapBounds, playerWorldPos);
         DrawTownMarkers(sb, font);
+        DrawBossMarkers(sb, bosses);
 
         var title = "World Map";
         var titleSize = font.MeasureString(title);
@@ -57,6 +58,19 @@ public sealed class WorldMapOverlay
         sb.DrawString(font, hint,
             new Vector2(GameViewport.Width / 2f - hintSize.X / 2f, panel.Bottom + 10),
             new Color(190, 190, 200));
+    }
+
+    private void DrawBossMarkers(SpriteBatch sb, IEnumerable<BossEntity>? bosses)
+    {
+        if (bosses == null) return;
+        var map = WorldMap.Realik;
+        foreach (var boss in bosses)
+        {
+            var pos = WorldToMap(boss.Position, _mapBounds, map);
+            DrawPrimitives.FillCircle(sb, pos, 6f, new Color(0.9f, 0.32f, 0.28f, 0.95f));
+            DrawPrimitives.DrawCircleOutline(sb, pos, 6f, new Color(0.45f, 0.1f, 0.1f, 0.95f), 14, 2f);
+            BossEntity.DrawBossIcon(sb, pos, 0.7f);
+        }
     }
 
     private void DrawTownMarkers(SpriteBatch sb, SpriteFont font)

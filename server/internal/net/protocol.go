@@ -117,6 +117,13 @@ type AbilityHitSendData struct {
 	Ability  string `json:"ability"`
 }
 
+// AbilityHitNpcSendData is sent when a player hits an NPC/boss.
+type AbilityHitNpcSendData struct {
+	TargetNpcID int64  `json:"targetNpcId"`
+	Damage      int    `json:"damage"`
+	Ability     string `json:"ability"`
+}
+
 // PlayerHitData is broadcast when a player is hit by an ability.
 type PlayerHitData struct {
 	AttackerID int64   `json:"attackerId"`
@@ -125,6 +132,50 @@ type PlayerHitData struct {
 	Ability    string  `json:"ability"`
 	Hp         float64 `json:"hp"`
 	HpMax      float64 `json:"hpMax"`
+}
+
+// NpcHitData is broadcast when an NPC/boss is hit.
+type NpcHitData struct {
+	AttackerID  int64   `json:"attackerId"`
+	TargetNpcID int64   `json:"targetNpcId"`
+	Damage      int     `json:"damage"`
+	Ability     string  `json:"ability"`
+	Hp          float64 `json:"hp"`
+	HpMax       float64 `json:"hpMax"`
+}
+
+// BossSpawnData announces a world boss spawn.
+type BossSpawnData struct {
+	NpcID int64   `json:"npcId"`
+	DefID string  `json:"defId"`
+	Name  string  `json:"name"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+}
+
+// BossDeathData announces a world boss death.
+type BossDeathData struct {
+	NpcID int64   `json:"npcId"`
+	DefID string  `json:"defId"`
+	Name  string  `json:"name"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+}
+
+// WorldEventData announces world boss event state (PvP toggle).
+type WorldEventData struct {
+	Active  bool   `json:"active"`
+	Name    string `json:"name,omitempty"`
+	PvPOff  bool   `json:"pvpOff"`
+	BossCnt int    `json:"bossCount"`
+}
+
+// BossActionData is broadcast when a boss uses a visible ability.
+type BossActionData struct {
+	NpcID  int64  `json:"npcId"`
+	Action string `json:"action"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
 }
 
 // PlayerDeathData is broadcast when a player dies.
@@ -189,8 +240,10 @@ type SkillXpGainData struct {
 
 // SnapshotData is the authoritative world state broadcast each tick.
 type SnapshotData struct {
-	Tick    uint64             `json:"tick"`
-	Players []game.PlayerState `json:"players"`
+	Tick       uint64                `json:"tick"`
+	Players    []game.PlayerState    `json:"players"`
+	Npcs       []game.NpcState       `json:"npcs,omitempty"`
+	WorldEvent *game.WorldEventState `json:"worldEvent,omitempty"`
 }
 
 // MessageData carries a human-readable message ("error", "need_character").
@@ -244,8 +297,8 @@ func BuildPlayerBuff(playerID int64, buffID string, duration float64, markTarget
 }
 
 // BuildSnapshot serializes a world snapshot for broadcast.
-func BuildSnapshot(tick uint64, players []game.PlayerState) []byte {
-	return encode("snapshot", SnapshotData{Tick: tick, Players: players})
+func BuildSnapshot(tick uint64, players []game.PlayerState, npcs []game.NpcState, worldEvent *game.WorldEventState) []byte {
+	return encode("snapshot", SnapshotData{Tick: tick, Players: players, Npcs: npcs, WorldEvent: worldEvent})
 }
 
 // BuildPlayerAction serializes a player action for broadcast.
@@ -262,4 +315,27 @@ func BuildPlayerAction(playerID int64, action string, dirX, dirY float64, target
 // BuildSkillXpGain serializes a skill XP gain for the affected player.
 func BuildSkillXpGain(d SkillXpGainData) []byte {
 	return encode("skill_xp_gain", d)
+}
+
+func BuildNpcHit(attackerID, targetNpcID int64, damage int, ability string, hp, hpMax float64) []byte {
+	return encode("npc_hit", NpcHitData{
+		AttackerID: attackerID, TargetNpcID: targetNpcID,
+		Damage: damage, Ability: ability, Hp: hp, HpMax: hpMax,
+	})
+}
+
+func BuildBossSpawn(npcID int64, defID, name string, x, y float64) []byte {
+	return encode("boss_spawn", BossSpawnData{NpcID: npcID, DefID: defID, Name: name, X: x, Y: y})
+}
+
+func BuildBossDeath(npcID int64, defID, name string, x, y float64) []byte {
+	return encode("boss_death", BossDeathData{NpcID: npcID, DefID: defID, Name: name, X: x, Y: y})
+}
+
+func BuildWorldEvent(d WorldEventData) []byte {
+	return encode("world_event", d)
+}
+
+func BuildBossAction(npcID int64, action string, x, y float64) []byte {
+	return encode("boss_action", BossActionData{NpcID: npcID, Action: action, X: x, Y: y})
 }

@@ -84,6 +84,41 @@ func (h *Hub) SendToCharacter(characterID int64, msg []byte, markUnspawned bool)
 	h.directSend <- directMessage{characterID: characterID, payload: msg, markUnspawned: markUnspawned}
 }
 
+// ProcessBossEvents broadcasts boss lifecycle and combat events.
+func (h *Hub) ProcessBossEvents(events []game.BossEvent) {
+	for _, ev := range events {
+		switch ev.Type {
+		case "spawn":
+			h.Broadcast(BuildBossSpawn(ev.NpcID, ev.DefID, ev.Name, ev.X, ev.Y))
+		case "death":
+			h.Broadcast(BuildBossDeath(ev.NpcID, ev.DefID, ev.Name, ev.X, ev.Y))
+		case "world_event":
+			h.Broadcast(BuildWorldEvent(WorldEventData{
+				Active: ev.Active, Name: ev.Name, PvPOff: ev.Active, BossCnt: ev.BossCnt,
+			}))
+		case "player_hit":
+			ability := ev.Name
+			if ability == "" {
+				ability = "boss_attack"
+			}
+			h.Broadcast(encode("player_hit", PlayerHitData{
+				AttackerID: ev.NpcID,
+				TargetID:   ev.PlayerID,
+				Damage:     ev.Damage,
+				Ability:    ability,
+				Hp:         ev.Hp,
+				HpMax:      ev.HpMax,
+			}))
+			if ev.JustDied {
+				h.HandlePlayerDeath(h.db, ev.PlayerID, ev.NpcID)
+			}
+		case "boss_action":
+			x, y, _ := h.world.NpcPosition(ev.NpcID)
+			h.Broadcast(BuildBossAction(ev.NpcID, ev.Name, x, y))
+		}
+	}
+}
+
 // HandlePlayerDeath removes a player from the world and notifies clients.
 func (h *Hub) HandlePlayerDeath(database *db.DB, playerID, killerID int64) {
 	x, y, dirX, dirY, ok := h.world.DeathPose(playerID)
