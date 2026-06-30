@@ -22,6 +22,9 @@ func (w *World) BuildHouse(characterID int64, ownerName string, x, y float64) (H
 	if w.housing == nil {
 		w.housing = NewHousingIndex()
 	}
+	if p, ok := w.players[characterID]; ok && playerHasHouseKey(p.inventory) {
+		return HouseState{}, "You already carry a homestead key.", false
+	}
 	if msg := w.housing.CanBuildAt(w, characterID, x, y); msg != "" {
 		return HouseState{}, msg, false
 	}
@@ -68,6 +71,32 @@ func (w *World) PlaceFurniture(characterID int64, item FurnitureItem) (HouseStat
 	w.housing.AddFurniture(characterID, item)
 	p := w.housing.ByCharacter(characterID)
 	return p.state(), "", true
+}
+
+func (w *World) RemoveHouseByID(houseID int64) (HouseState, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.housing == nil {
+		return HouseState{}, false
+	}
+	p := w.housing.RemoveByID(houseID)
+	if p == nil {
+		return HouseState{}, false
+	}
+	return p.state(), true
+}
+
+func (w *World) TransferHouse(houseID, newCharacterID int64, newOwnerName string) (HouseState, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.housing == nil {
+		return HouseState{}, false
+	}
+	p := w.housing.TransferOwnership(houseID, newCharacterID, newOwnerName)
+	if p == nil {
+		return HouseState{}, false
+	}
+	return p.state(), true
 }
 
 func (w *World) FurnitureForSave(characterID int64) ([]FurnitureItem, bool) {

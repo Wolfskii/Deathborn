@@ -223,6 +223,22 @@ type WelcomeData struct {
 	Name        string             `json:"name"`
 	Skills      map[string]int64   `json:"skills,omitempty"`
 	TotalXp     int64              `json:"totalXp,omitempty"`
+	Inventory   []game.InventoryItem `json:"inventory,omitempty"`
+}
+
+// InventoryData syncs a player's inventory to the client.
+type InventoryData struct {
+	Items []game.InventoryItem `json:"items"`
+}
+
+// PickupItemSendData requests picking up a ground loot pile.
+type PickupItemSendData struct {
+	DropID int64 `json:"dropId"`
+}
+
+// WorldItemRemovedData is broadcast when ground loot is picked up.
+type WorldItemRemovedData struct {
+	DropID int64 `json:"dropId"`
 }
 
 // SkillXpGainData is sent when a player gains skill XP.
@@ -267,11 +283,12 @@ type HouseUpdatedData struct {
 	House game.HouseState `json:"house"`
 }
 type SnapshotData struct {
-	Tick       uint64                `json:"tick"`
-	Players    []game.PlayerState    `json:"players"`
-	Npcs       []game.NpcState       `json:"npcs,omitempty"`
-	Houses     []game.HouseState     `json:"houses,omitempty"`
-	WorldEvent *game.WorldEventState `json:"worldEvent,omitempty"`
+	Tick       uint64                    `json:"tick"`
+	Players    []game.PlayerState        `json:"players"`
+	Npcs       []game.NpcState           `json:"npcs,omitempty"`
+	Houses     []game.HouseState         `json:"houses,omitempty"`
+	WorldItems []game.WorldItemDropState `json:"worldItems,omitempty"`
+	WorldEvent *game.WorldEventState     `json:"worldEvent,omitempty"`
 }
 
 // MessageData carries a human-readable message ("error", "need_character").
@@ -325,8 +342,8 @@ func BuildPlayerBuff(playerID int64, buffID string, duration float64, markTarget
 }
 
 // BuildSnapshot serializes a world snapshot for broadcast.
-func BuildSnapshot(tick uint64, players []game.PlayerState, npcs []game.NpcState, houses []game.HouseState, worldEvent *game.WorldEventState) []byte {
-	return encode("snapshot", SnapshotData{Tick: tick, Players: players, Npcs: npcs, Houses: houses, WorldEvent: worldEvent})
+func BuildSnapshot(tick uint64, players []game.PlayerState, npcs []game.NpcState, houses []game.HouseState, worldItems []game.WorldItemDropState, worldEvent *game.WorldEventState) []byte {
+	return encode("snapshot", SnapshotData{Tick: tick, Players: players, Npcs: npcs, Houses: houses, WorldItems: worldItems, WorldEvent: worldEvent})
 }
 
 // BuildPlayerAction serializes a player action for broadcast.
@@ -378,4 +395,12 @@ func BuildHouseRemoved(houseID, ownerID int64) []byte {
 
 func BuildHouseUpdated(h game.HouseState) []byte {
 	return encode("house_updated", HouseUpdatedData{House: h})
+}
+
+func BuildInventory(items []game.InventoryItem) []byte {
+	return encode("inventory", InventoryData{Items: items})
+}
+
+func BuildWorldItemRemoved(dropID int64) []byte {
+	return encode("world_item_removed", WorldItemRemovedData{DropID: dropID})
 }

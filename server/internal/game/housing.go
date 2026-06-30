@@ -189,6 +189,28 @@ func (h *HousingIndex) RemoveByCharacter(characterID int64) *housePlot {
 	return p
 }
 
+func (h *HousingIndex) RemoveByID(houseID int64) *housePlot {
+	p := h.byID[houseID]
+	if p == nil {
+		return nil
+	}
+	delete(h.byID, houseID)
+	delete(h.byCharacter, p.characterID)
+	return p
+}
+
+func (h *HousingIndex) TransferOwnership(houseID, newCharacterID int64, newOwnerName string) *housePlot {
+	p := h.byID[houseID]
+	if p == nil {
+		return nil
+	}
+	delete(h.byCharacter, p.characterID)
+	p.characterID = newCharacterID
+	p.ownerName = newOwnerName
+	h.byCharacter[newCharacterID] = p
+	return p
+}
+
 func (h *HousingIndex) SetFurniture(characterID int64, items []FurnitureItem) bool {
 	p := h.byCharacter[characterID]
 	if p == nil {

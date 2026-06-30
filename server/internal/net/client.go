@@ -127,7 +127,14 @@ func (c *Client) spawn(ch db.Character) {
 	if !c.hub.world.CanWalk(x, y) {
 		x, y = c.hub.spawnXY()
 	}
-	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP)
+	ctx := context.Background()
+	inv, err := c.hub.db.GetCharacterInventory(ctx, ch.ID)
+	if err != nil || len(inv) == 0 {
+		inv = db.StarterInventory()
+		_ = c.hub.db.SaveCharacterInventory(ctx, ch.ID, inv)
+	}
+	gameInv := game.InventoryFromDB(inv)
+	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP, gameInv)
 	log.Printf("character spawned account_id=%d character_id=%d name=%q pos=(%.0f,%.0f)",
 		c.accountID, ch.ID, ch.Name, x, y)
 	skillMap := map[string]int64{}
@@ -144,6 +151,7 @@ func (c *Client) spawn(ch db.Character) {
 		Name:        ch.Name,
 		Skills:      skillMap,
 		TotalXp:     ch.TotalXP,
+		Inventory:   gameInv,
 	}))
 }
 
@@ -174,6 +182,9 @@ func (c *Client) readPump(database *db.DB) {
 						m[k] = v
 					}
 					_ = database.SaveCharacterSkills(context.Background(), c.characterID, m, total)
+				}
+				if inv, ok := c.hub.world.PlayerInventory(c.characterID); ok {
+					_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(inv))
 				}
 				log.Printf("ws disconnected account_id=%d character_id=%d saved_pos=(%.0f,%.0f)",
 					c.accountID, c.characterID, x, y)
@@ -229,6 +240,15 @@ func (c *Client) readPump(database *db.DB) {
 				c.safeSend(encode("error", MessageData{Message: "could not create character"}))
 				continue
 			}
+			ctx := context.Background()
+			if removed, err := database.DeleteHousesForDeadCharactersWithKeys(ctx, c.accountID); err == nil {
+				for _, houseID := range removed {
+					if state, ok := c.hub.world.RemoveHouseByID(houseID); ok {
+						c.hub.Broadcast(BuildHouseRemoved(state.ID, state.OwnerID))
+					}
+				}
+			}
+			_ = database.InitCharacterInventory(ctx, ch.ID)
 			log.Printf("character created account_id=%d character_id=%d name=%q", c.accountID, ch.ID, ch.Name)
 			c.spawn(ch)
 
@@ -513,7 +533,47 @@ func (c *Client) readPump(database *db.DB) {
 				continue
 			}
 			state := c.hub.world.RegisterHouse(house)
+			inv, err := database.GrantHouseKey(context.Background(), c.characterID, house.ID)
+			if err != nil {
+				c.safeSend(encode("error", MessageData{Message: "Could not grant homestead key."}))
+				continue
+			}
+			gameInv := game.InventoryFromDB(inv)
+			c.hub.world.SetPlayerInventory(c.characterID, gameInv)
+			c.safeSend(BuildInventory(gameInv))
 			c.hub.Broadcast(BuildHouseBuilt(state))
+
+		case "pickup_item":
+			if !c.spawned {
+				continue
+			}
+			var d PickupItemSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.DropID <= 0 {
+				continue
+			}
+			dropState, msg, ok := c.hub.world.CanPickupDrop(c.characterID, d.DropID)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			if _, ok := c.hub.world.RemoveDrop(d.DropID); !ok {
+				c.safeSend(encode("error", MessageData{Message: "That item is gone."}))
+				continue
+			}
+			_ = database.DeleteWorldItemDrop(context.Background(), d.DropID)
+			item := game.InventoryItem{ItemID: dropState.ItemID, Count: dropState.Count, HouseID: dropState.HouseID}
+			newInv := c.hub.world.AddInventoryItem(c.characterID, item)
+			_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(newInv))
+			if dropState.ItemID == db.ItemHouseKey && dropState.HouseID > 0 {
+				ownerName, _ := c.hub.world.PlayerName(c.characterID)
+				if row, err := database.TransferHouse(context.Background(), dropState.HouseID, c.characterID, ownerName); err == nil {
+					if state, ok := c.hub.world.TransferHouse(row.ID, c.characterID, ownerName); ok {
+						c.hub.Broadcast(BuildHouseUpdated(state))
+					}
+				}
+			}
+			c.safeSend(BuildInventory(newInv))
+			c.hub.Broadcast(BuildWorldItemRemoved(d.DropID))
 
 		case "place_furniture":
 			if !c.spawned {

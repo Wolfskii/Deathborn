@@ -19,6 +19,7 @@ type player struct {
 	skills           skills.Set
 	totalXp          int64
 	lastSkillInteract float64
+	inventory        []InventoryItem
 }
 
 // PlayerState is the immutable view of a player included in snapshots sent to

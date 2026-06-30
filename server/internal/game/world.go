@@ -25,6 +25,7 @@ type World struct {
 	zones    *ZoneIndex
 	bossMgr  *bossManager
 	housing  *HousingIndex
+	drops    *WorldDropIndex
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
@@ -40,7 +41,7 @@ func NewWorld(terrain *worldmap.Map) *World {
 }
 
 // AddPlayer inserts a player at a position (e.g. on connect/spawn).
-func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64) {
+func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64, inventory []InventoryItem) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if skillXP == nil {
@@ -52,6 +53,7 @@ func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Se
 		id: id, name: name, x: x, y: y,
 		hp: hpMax, hpMax: hpMax,
 		skills: skillXP, totalXp: totalXp,
+		inventory: append([]InventoryItem(nil), inventory...),
 	}
 }
 

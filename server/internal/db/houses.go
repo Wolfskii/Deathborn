@@ -28,12 +28,10 @@ type House struct {
 	Furniture   []FurnitureItem
 }
 
-// ListHouses returns all houses for characters that are still alive.
+// ListHouses returns all houses (including those owned by dead characters until key transfer).
 func (d *DB) ListHouses(ctx context.Context) ([]House, error) {
 	rows, err := d.Pool.Query(ctx,
-		`SELECT h.id, h.character_id, h.owner_name, h.center_x, h.center_y, h.furniture
-		 FROM houses h
-		 INNER JOIN characters c ON c.id = h.character_id AND c.alive = TRUE`)
+		`SELECT id, character_id, owner_name, center_x, center_y, furniture FROM houses`)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +113,32 @@ func (d *DB) SaveHouseFurniture(ctx context.Context, characterID int64, items []
 func (d *DB) DeleteHouseByCharacter(ctx context.Context, characterID int64) error {
 	_, err := d.Pool.Exec(ctx, `DELETE FROM houses WHERE character_id = $1`, characterID)
 	return err
+}
+
+// DeleteHouse removes a house by id.
+func (d *DB) DeleteHouse(ctx context.Context, houseID int64) error {
+	_, err := d.Pool.Exec(ctx, `DELETE FROM houses WHERE id = $1`, houseID)
+	return err
+}
+
+// TransferHouse updates ownership to a new living character.
+func (d *DB) TransferHouse(ctx context.Context, houseID, newCharacterID int64, newOwnerName string) (House, error) {
+	var h House
+	var furnitureJSON []byte
+	err := d.Pool.QueryRow(ctx,
+		`UPDATE houses SET character_id = $2, owner_name = $3
+		 WHERE id = $1
+		 RETURNING id, character_id, owner_name, center_x, center_y, furniture`,
+		houseID, newCharacterID, newOwnerName,
+	).Scan(&h.ID, &h.CharacterID, &h.OwnerName, &h.CenterX, &h.CenterY, &furnitureJSON)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return House{}, ErrNotFound
+	}
+	if err != nil {
+		return House{}, err
+	}
+	h.Furniture = decodeFurniture(furnitureJSON)
+	return h, nil
 }
 
 func decodeFurniture(raw []byte) []FurnitureItem {
