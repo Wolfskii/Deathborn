@@ -4,12 +4,14 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
-public enum InteractableKind { Generic, Tree, Rock, Chest, Npc, Fishing, Bank, Sign, Anvil, FarmPlot, CookingFire }
+public enum InteractableKind { Generic, Tree, Rock, Chest, Npc, Fishing, Bank, Sign, Anvil, FarmPlot, CookingFire, GroundItem }
 
 public sealed class InteractableEntity
 {
     public string Id = "";
     public string DisplayName = "";
+    public string ItemId = "";
+    public long DropId;
     public Vector2 Position;
     public InteractableKind Kind;
     public Color Tint = new(0.55f, 0.45f, 0.32f);
@@ -30,6 +32,9 @@ public sealed class InteractableEntity
         InteractableKind.Fishing => $"You fish at {DisplayName}. Fishing training...",
         InteractableKind.FarmPlot => $"You tend {DisplayName}. Farming training...",
         InteractableKind.CookingFire => $"You cook at {DisplayName}. Cooking training...",
+        InteractableKind.GroundItem => ItemId == "house_key"
+            ? "You pick up the Homestead Key."
+            : $"You pick up {DisplayName}.",
         InteractableKind.Chest => $"You open {DisplayName}. It is empty for now.",
         InteractableKind.Bank => $"You approach {DisplayName}. Banking coming in a later milestone.",
         InteractableKind.Anvil => $"You inspect {DisplayName}. Smithing coming in a later milestone.",
@@ -82,6 +87,10 @@ public sealed class InteractableEntity
             case InteractableKind.CookingFire:
                 DrawPrimitives.FillCircle(sb, screenPos + new Vector2(0, 4 * zoom), r * 0.45f, new Color(0.25f, 0.22f, 0.18f));
                 DrawPrimitives.FillCircle(sb, screenPos + new Vector2(0, -2 * zoom), r * 0.35f, new Color(0.95f, 0.45f, 0.12f, 0.85f));
+                break;
+            case InteractableKind.GroundItem:
+                DrawPrimitives.FillCircle(sb, screenPos, r * 0.55f, new Color(0.85f, 0.72f, 0.28f));
+                DrawPrimitives.FillRect(sb, CenteredRect(screenPos + new Vector2(6 * zoom, 0), r * 0.35f, r * 0.2f), new Color(0.75f, 0.62f, 0.22f));
                 break;
             default:
                 DrawPrimitives.FillCircle(sb, screenPos, r, body);

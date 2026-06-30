@@ -84,6 +84,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.HouseBuilt += OnHouseBuilt;
         net.HouseRemoved += OnHouseRemoved;
         net.HouseUpdated += OnHouseUpdated;
+        net.InventoryUpdated += OnInventoryUpdated;
+        net.WorldItemRemoved += OnWorldItemRemoved;
         net.ServerError += OnServerError;
         net.Disconnected += OnDisconnected;
         net.ProjectileSpawned += OnProjectileSpawned;
@@ -111,6 +113,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         _skills.ApplySnapshot(net.SpawnSkills, net.SpawnTotalXp);
+        _inventory.ApplyFromServer(net.SpawnInventory);
         SyncLocalStatsFromSkills();
 
         WorldZones.Initialize(WorldMap.Realik);
@@ -130,7 +133,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetOpenInventoryHandler(() => _windows.OpenInventory());
         _screens.SetOpenSkillsHandler(() => _windows.OpenSkills());
         _screens.SetBuildHouseHandler(TryBuildHouse);
-        _screens.SetBuildHouseEnabled(!WorldZones.HasHouse(net.LocalCharacterId));
+        UpdateBuildHouseEnabled();
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -149,6 +152,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.HouseBuilt -= OnHouseBuilt;
         net.HouseRemoved -= OnHouseRemoved;
         net.HouseUpdated -= OnHouseUpdated;
+        net.InventoryUpdated -= OnInventoryUpdated;
+        net.WorldItemRemoved -= OnWorldItemRemoved;
         net.ServerError -= OnServerError;
         net.Disconnected -= OnDisconnected;
         net.ProjectileSpawned -= OnProjectileSpawned;
@@ -578,6 +583,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         _corpsePosition = new Vector2((float)data.X, (float)data.Y);
         _ghostModePending = true;
+        _inventory.ApplyFromServer([]);
+        UpdateBuildHouseEnabled();
+        _housingDecorate.Deactivate();
 
         var facing = new Vector2((float)data.DirX, (float)data.DirY);
         var local = FindLocalPlayer();
@@ -1384,6 +1392,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void PerformInteract(InteractableEntity target)
     {
         _lastInteractWorldPos = target.Position;
+        if (target.Kind == InteractableKind.GroundItem && target.DropId > 0)
+        {
+            _screens.Net.SendPickupItem(target.DropId);
+            _status = target.InteractMessage();
+            return;
+        }
+
         _status = target.InteractMessage();
         _screens.Net.SendInteract(target.Id);
     }
@@ -1399,6 +1414,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (snap.Houses != null)
             _houses.AddRange(snap.Houses);
         ApplyHouseList();
+
+        SyncWorldItemInteractables(snap.WorldItems);
 
         var seen = new HashSet<long>();
         foreach (var s in snap.Npcs ?? [])
@@ -1489,7 +1506,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             : $"{data.House.OwnerName}'s Homestead",
             "Safe haven established — PvP off, garden ready.");
         if (data.House.OwnerId == _screens.Net.LocalCharacterId)
-            _status = "Homestead built! Tend your garden and press H inside to decorate.";
+            _status = "Homestead built! You received a Homestead Key. Tend your garden and press H inside to decorate.";
     }
 
     private void OnHouseRemoved(HouseRemovedData data)
@@ -1499,13 +1516,30 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (data.OwnerId == _screens.Net.LocalCharacterId)
         {
             _housingDecorate.Deactivate();
-            _status = "Your homestead was lost.";
+            _status = "The homestead was abandoned and removed.";
         }
     }
 
     private void OnHouseUpdated(HouseUpdatedData data) => UpsertHouse(data.House);
 
+    private void OnInventoryUpdated(InventoryData data)
+    {
+        _inventory.ApplyFromServer(data.Items);
+        UpdateBuildHouseEnabled();
+    }
+
+    private void OnWorldItemRemoved(WorldItemRemovedData data)
+    {
+        _interactables.RemoveAll(i => i.DropId == data.DropId);
+    }
+
     private void OnServerError(string message) => _status = message;
+
+    private bool LocalHasHomestead() =>
+        WorldZones.HasHouse(_screens.Net.LocalCharacterId) || _inventory.HasHouseKey();
+
+    private void UpdateBuildHouseEnabled() =>
+        _screens.SetBuildHouseEnabled(!LocalHasHomestead());
 
     private void UpsertHouse(HouseState house)
     {
@@ -1518,7 +1552,32 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         WorldZones.SyncHouses(_houses);
         SyncHouseInteractables();
-        _screens.SetBuildHouseEnabled(!WorldZones.HasHouse(_screens.Net.LocalCharacterId));
+        UpdateBuildHouseEnabled();
+    }
+
+    private void SyncWorldItemInteractables(List<WorldItemDropState>? drops)
+    {
+        _interactables.RemoveAll(i => i.Kind == InteractableKind.GroundItem);
+        if (drops == null) return;
+
+        foreach (var drop in drops)
+        {
+            var info = ItemCatalog.Get(drop.ItemId);
+            var name = drop.ItemId == "house_key" ? "Homestead Key" : info?.Name ?? drop.ItemId;
+            _interactables.Add(new InteractableEntity
+            {
+                Id = $"world_item_{drop.Id}",
+                DropId = drop.Id,
+                ItemId = drop.ItemId,
+                DisplayName = drop.Count > 1 ? $"{name} x{drop.Count}" : name,
+                Position = new Vector2((float)drop.X, (float)drop.Y),
+                Kind = InteractableKind.GroundItem,
+                Tint = drop.ItemId == "house_key"
+                    ? new Color(0.92f, 0.78f, 0.28f)
+                    : new Color(0.72f, 0.58f, 0.42f),
+                PickRadius = 18f,
+            });
+        }
     }
 
     private void SyncHouseInteractables()
@@ -1546,9 +1605,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void TryBuildHouse()
     {
-        if (WorldZones.HasHouse(_screens.Net.LocalCharacterId))
+        if (LocalHasHomestead())
         {
-            _status = "You already have a homestead (one per character).";
+            _status = "You already have a homestead or carry its key.";
             return;
         }
 
@@ -1575,7 +1634,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (local is { IsDead: false })
         {
-            var ownHouse = WorldZones.HouseByOwner(_screens.Net.LocalCharacterId);
+            var ownHouse = WorldZones.HouseByOwner(_screens.Net.LocalCharacterId)
+            ?? WorldZones.Houses.FirstOrDefault(h => h.Id == _inventory.HouseKeyId());
             if (ownHouse != null
                 && HousingConstants.InHouseInterior(local.Position, ownHouse.Center)
                 && kb.IsKeyDown(Keys.H) && !prevKb.IsKeyDown(Keys.H))

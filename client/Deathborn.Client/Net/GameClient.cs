@@ -31,6 +31,7 @@ public sealed class GameClient : IDisposable
     public float SpawnY { get; private set; }
     public Dictionary<string, long> SpawnSkills { get; private set; } = new();
     public long SpawnTotalXp { get; private set; }
+    public List<InventoryItemState> SpawnInventory { get; private set; } = [];
     public bool WsConnected => _ws?.State == WebSocketState.Open;
 
     public event Action<string>? AuthFailed;
@@ -57,6 +58,8 @@ public sealed class GameClient : IDisposable
     public event Action<HouseBuiltData>? HouseBuilt;
     public event Action<HouseRemovedData>? HouseRemoved;
     public event Action<HouseUpdatedData>? HouseUpdated;
+    public event Action<InventoryData>? InventoryUpdated;
+    public event Action<WorldItemRemovedData>? WorldItemRemoved;
     public event Action<string>? ServerError;
     public event Action? Disconnected;
 
@@ -227,6 +230,12 @@ public sealed class GameClient : IDisposable
         Send("place_furniture", new { type, x, y });
     }
 
+    public void SendPickupItem(long dropId)
+    {
+        if (LocalCharacterId < 0 || dropId <= 0) return;
+        Send("pickup_item", new { dropId });
+    }
+
     /// <summary>Saves position on the server, then closes the world connection.</summary>
     public async Task LogoutWorldAsync()
     {
@@ -324,6 +333,7 @@ public sealed class GameClient : IDisposable
                 SpawnName = welcome.Name;
                 SpawnSkills = welcome.Skills ?? new Dictionary<string, long>();
                 SpawnTotalXp = welcome.TotalXp;
+                SpawnInventory = welcome.Inventory ?? [];
                 Welcome?.Invoke(welcome);
                 break;
             case "need_character":
@@ -412,6 +422,14 @@ public sealed class GameClient : IDisposable
             case "house_updated":
                 var houseUpdated = env.Data.Deserialize<HouseUpdatedData>(JsonOpts);
                 if (houseUpdated != null) HouseUpdated?.Invoke(houseUpdated);
+                break;
+            case "inventory":
+                var inventory = env.Data.Deserialize<InventoryData>(JsonOpts);
+                if (inventory != null) InventoryUpdated?.Invoke(inventory);
+                break;
+            case "world_item_removed":
+                var itemRemoved = env.Data.Deserialize<WorldItemRemovedData>(JsonOpts);
+                if (itemRemoved != null) WorldItemRemoved?.Invoke(itemRemoved);
                 break;
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);

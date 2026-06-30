@@ -4,6 +4,7 @@ public sealed class InventorySlot
 {
     public string? ItemId;
     public int Count;
+    public long HouseId;
     public bool IsEmpty => string.IsNullOrEmpty(ItemId) || Count <= 0;
 }
 
@@ -20,19 +21,31 @@ public sealed class PlayerInventory
     {
         for (var i = 0; i < SlotCount; i++)
             Slots[i] = new InventorySlot();
-        SeedStarterItems();
     }
 
-    private void SeedStarterItems()
+    public void ApplyFromServer(IReadOnlyList<Net.InventoryItemState>? items)
     {
-        AddItem("bandage", 5);
-        AddItem("health_potion", 3);
-        AddItem("mana_potion", 2);
-        AddItem("stamina_potion", 2);
-        AddItem("antidote", 1);
+        foreach (var slot in Slots)
+        {
+            slot.ItemId = null;
+            slot.Count = 0;
+            slot.HouseId = 0;
+        }
+        if (items == null) return;
+
+        var idx = 0;
+        foreach (var item in items)
+        {
+            if (idx >= SlotCount || item.Count <= 0) break;
+            if (ItemCatalog.Get(item.ItemId) == null) continue;
+            Slots[idx].ItemId = item.ItemId;
+            Slots[idx].Count = item.Count;
+            Slots[idx].HouseId = item.HouseId;
+            idx++;
+        }
     }
 
-    public bool AddItem(string itemId, int count)
+    public bool AddItem(string itemId, int count, long houseId = 0)
     {
         if (count <= 0) return false;
         var info = ItemCatalog.Get(itemId);
@@ -41,7 +54,7 @@ public sealed class PlayerInventory
         var remaining = count;
         for (var i = 0; i < SlotCount && remaining > 0; i++)
         {
-            if (Slots[i].ItemId != itemId) continue;
+            if (Slots[i].ItemId != itemId || Slots[i].HouseId != houseId) continue;
             var space = info.MaxStack - Slots[i].Count;
             if (space <= 0) continue;
             var add = Math.Min(space, remaining);
@@ -55,6 +68,7 @@ public sealed class PlayerInventory
             var add = Math.Min(info.MaxStack, remaining);
             Slots[i].ItemId = itemId;
             Slots[i].Count = add;
+            Slots[i].HouseId = houseId;
             remaining -= add;
         }
 
@@ -75,6 +89,7 @@ public sealed class PlayerInventory
             {
                 Slots[i].ItemId = null;
                 Slots[i].Count = 0;
+                Slots[i].HouseId = 0;
             }
         }
         return remaining == 0;
@@ -90,4 +105,14 @@ public sealed class PlayerInventory
     }
 
     public bool HasItem(string itemId, int count = 1) => CountOf(itemId) >= count;
+
+    public bool HasHouseKey() => CountOf("house_key") > 0;
+
+    public long HouseKeyId()
+    {
+        foreach (var slot in Slots)
+            if (slot.ItemId == "house_key" && slot.HouseId > 0)
+                return slot.HouseId;
+        return 0;
+    }
 }

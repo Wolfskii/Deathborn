@@ -40,6 +40,54 @@ public sealed class WelcomeData
 
     [JsonPropertyName("totalXp")]
     public long TotalXp { get; set; }
+
+    [JsonPropertyName("inventory")]
+    public List<InventoryItemState>? Inventory { get; set; }
+}
+
+public sealed class InventoryItemState
+{
+    [JsonPropertyName("itemId")]
+    public string ItemId { get; set; } = "";
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+
+    [JsonPropertyName("houseId")]
+    public long HouseId { get; set; }
+}
+
+public sealed class InventoryData
+{
+    [JsonPropertyName("items")]
+    public List<InventoryItemState> Items { get; set; } = [];
+}
+
+public sealed class WorldItemDropState
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("itemId")]
+    public string ItemId { get; set; } = "";
+
+    [JsonPropertyName("houseId")]
+    public long HouseId { get; set; }
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+}
+
+public sealed class WorldItemRemovedData
+{
+    [JsonPropertyName("dropId")]
+    public long DropId { get; set; }
 }
 
 public sealed class SkillXpGainData
@@ -85,6 +133,9 @@ public sealed class SnapshotData
 
     [JsonPropertyName("houses")]
     public List<HouseState>? Houses { get; set; }
+
+    [JsonPropertyName("worldItems")]
+    public List<WorldItemDropState>? WorldItems { get; set; }
 
     [JsonPropertyName("worldEvent")]
     public WorldEventState? WorldEvent { get; set; }

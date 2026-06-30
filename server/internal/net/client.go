@@ -519,6 +519,15 @@ func (c *Client) readPump(database *db.DB) {
 				py = *d.Y
 			}
 			name, _ := c.hub.world.PlayerName(c.characterID)
+			ctx := context.Background()
+			if existing, err := database.GetHouseByAccount(ctx, c.accountID); err == nil {
+				if existing.CharacterID == c.characterID {
+					c.safeSend(encode("error", MessageData{Message: "You already have a house."}))
+					continue
+				}
+				c.safeSend(encode("error", MessageData{Message: "Your account already has a homestead — reclaim the key from your corpse or the ground."}))
+				continue
+			}
 			if _, msg, ok := c.hub.world.BuildHouse(c.characterID, name, px, py); !ok {
 				c.safeSend(encode("error", MessageData{Message: msg}))
 				continue

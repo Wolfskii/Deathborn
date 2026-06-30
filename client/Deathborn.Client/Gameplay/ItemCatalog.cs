@@ -42,6 +42,11 @@ public static class ItemCatalog
             Id = "antidote", Name = "Antidote", MaxStack = 10, Cooldown = 1f,
             Description = "Cures poison and minor toxins.",
         },
+        ["house_key"] = new()
+        {
+            Id = "house_key", Name = "Homestead Key", MaxStack = 1, Cooldown = 0f,
+            Description = "Proves ownership of a homestead plot. Drop it on death — anyone can claim the plot by picking it up.",
+        },
     };
 
     public static ItemInfo? Get(string id) => All.GetValueOrDefault(id);

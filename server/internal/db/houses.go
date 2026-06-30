@@ -69,6 +69,28 @@ func (d *DB) GetHouseByCharacter(ctx context.Context, characterID int64) (House,
 	return h, nil
 }
 
+// GetHouseByAccount returns a house owned by any character on the account.
+func (d *DB) GetHouseByAccount(ctx context.Context, accountID int64) (House, error) {
+	var h House
+	var furnitureJSON []byte
+	err := d.Pool.QueryRow(ctx,
+		`SELECT h.id, h.character_id, h.owner_name, h.center_x, h.center_y, h.furniture
+		 FROM houses h
+		 INNER JOIN characters c ON c.id = h.character_id
+		 WHERE c.account_id = $1
+		 LIMIT 1`,
+		accountID,
+	).Scan(&h.ID, &h.CharacterID, &h.OwnerName, &h.CenterX, &h.CenterY, &furnitureJSON)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return House{}, ErrNotFound
+	}
+	if err != nil {
+		return House{}, err
+	}
+	h.Furniture = decodeFurniture(furnitureJSON)
+	return h, nil
+}
+
 // CreateHouse inserts a new house for a character.
 func (d *DB) CreateHouse(ctx context.Context, characterID int64, ownerName string, x, y float64) (House, error) {
 	var h House
