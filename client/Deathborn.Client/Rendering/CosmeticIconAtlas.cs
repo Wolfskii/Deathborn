@@ -4,14 +4,15 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace Deathborn.Client.Rendering;
 
-/// <summary>5x4 cosmetic icon sheet (320x256 at 64px cells) — Content/Icons/cosmetic_sheet.png</summary>
+/// <summary>5x4 cosmetic icon sheet (1024x819) — Content/Icons/cosmetic_sheet.png</summary>
 public static class CosmeticIconAtlas
 {
     public const int Columns = 5;
     public const int Rows = 4;
-    public const int CellSize = 64;
 
     private static Texture2D? _sheet;
+    private static int _cellWidth;
+    private static int _cellHeight;
 
     private static readonly Dictionary<string, Point> Cells = new()
     {
@@ -42,24 +43,35 @@ public static class CosmeticIconAtlas
         try
         {
             _sheet = content.Load<Texture2D>("Icons/cosmetic_sheet");
+            _cellWidth = _sheet.Width / Columns;
+            _cellHeight = _sheet.Height / Rows;
         }
         catch
         {
             _sheet = null;
+            _cellWidth = 0;
+            _cellHeight = 0;
         }
     }
 
     public static bool HasIcon(string? id) =>
         !string.IsNullOrEmpty(id) && Cells.ContainsKey(id);
 
-    public static bool TryDraw(SpriteBatch sb, string? id, Rectangle dest)
+    public static bool TryDraw(SpriteBatch sb, string? id, Rectangle dest, bool trimFrame = true)
     {
         if (_sheet == null || string.IsNullOrEmpty(id) || !Cells.TryGetValue(id, out var cell))
             return false;
 
-        var cellW = _sheet.Width / Columns;
-        var cellH = _sheet.Height / Rows;
-        var src = new Rectangle(cell.X * cellW, cell.Y * cellH, cellW, cellH);
+        var src = new Rectangle(cell.X * _cellWidth, cell.Y * _cellHeight, _cellWidth, _cellHeight);
+        if (trimFrame)
+        {
+            var insetX = Math.Max(2, _cellWidth / 10);
+            var insetY = Math.Max(2, _cellHeight / 10);
+            src = new Rectangle(
+                src.X + insetX, src.Y + insetY,
+                src.Width - insetX * 2, src.Height - insetY * 2);
+        }
+
         sb.Draw(_sheet, dest, src, Color.White);
         return true;
     }

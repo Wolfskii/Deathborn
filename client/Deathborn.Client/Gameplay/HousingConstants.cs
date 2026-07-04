@@ -47,8 +47,12 @@ public static class HousingConstants
     public static bool IsNearDoor(Vector2 world, Vector2 center) =>
         Vector2.Distance(world, DoorWorldPosition(center)) <= DoorInteractRadius;
 
-    public static bool IsNearInteriorExit(Vector2 world, Vector2 center) =>
-        Vector2.Distance(world, InteriorDoorWorldPosition(center)) <= 36f;
+    public static bool IsNearInteriorExit(Vector2 world, Vector2 center)
+    {
+        var door = InteriorDoorWorldPosition(center);
+        if (world.Y < door.Y - 14) return false;
+        return Vector2.Distance(world, door) <= 26f;
+    }
 
     public static HousePlotZone? FindDoorAt(IEnumerable<HousePlotZone> houses, Vector2 world)
     {

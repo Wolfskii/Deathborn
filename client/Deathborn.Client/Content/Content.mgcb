@@ -134,6 +134,20 @@
 
 #end Icons/ability_sheet.png
 
+#begin Icons/cosmetic_sheet.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Icons/cosmetic_sheet.png
+
+#end Icons/cosmetic_sheet.png
+
 #begin Tiles/dungeon_floor_tileset.png
 /importer:TextureImporter
 /processor:TextureProcessor

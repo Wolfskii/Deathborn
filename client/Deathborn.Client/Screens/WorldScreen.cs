@@ -2155,6 +2155,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var local = FindLocalPlayer();
         var wasEquipped = local?.HeadCosmetic == slot.ItemId;
         _screens.Net.SendEquipCosmetic(slotIndex);
+        if (local != null)
+            local.HeadCosmetic = wasEquipped ? null : slot.ItemId;
         _status = wasEquipped
             ? $"Removed {ItemCatalog.Get(slot.ItemId)?.Name ?? slot.ItemId}."
             : $"Wearing {ItemCatalog.Get(slot.ItemId)?.Name ?? slot.ItemId}.";

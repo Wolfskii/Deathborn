@@ -268,8 +268,7 @@ func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
 }
 
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
-	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
-	return dx, dy - 40
+	return centerX, centerY - 12
 }
 
 func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
@@ -304,14 +303,18 @@ func NearHouseDoor(x, y, centerX, centerY float64) bool {
 
 func NearInteriorExit(x, y, centerX, centerY float64) bool {
 	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
-	return math.Hypot(x-dx, y-dy) <= 36
+	if y < dy-14 {
+		return false
+	}
+	return math.Hypot(x-dx, y-dy) <= 26
 }
 
 func clampToInterior(x, y, centerX, centerY float64) (float64, float64) {
-	minX := centerX - InteriorHalfW + 8
-	maxX := centerX + InteriorHalfW - 8
-	minY := centerY - InteriorHalfH + 8
-	maxY := centerY + InteriorHalfH - 28
+	const inset = 16.0
+	minX := centerX - InteriorHalfW + inset
+	maxX := centerX + InteriorHalfW - inset
+	minY := centerY - InteriorHalfH + inset
+	maxY := centerY + InteriorHalfH - 8 - inset
 	if x < minX {
 		x = minX
 	}

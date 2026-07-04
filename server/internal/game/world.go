@@ -115,17 +115,19 @@ func (w *World) Step(dt float64) []HealEvent {
 			dx = p.dirX * w.runSpeed * dt
 			dy = p.dirY * w.runSpeed * dt
 		}
-		if w.terrain != nil {
+		if p.insideHouseID > 0 && w.housing != nil {
+			p.x += dx
+			p.y += dy
+			if plot := w.housing.byID[p.insideHouseID]; plot != nil {
+				p.x, p.y = clampToInterior(p.x, p.y, plot.centerX, plot.centerY)
+			}
+		} else if w.terrain != nil {
 			p.x, p.y = w.terrain.ResolveMove(p.x, p.y, dx, dy)
 		} else {
 			p.x += dx
 			p.y += dy
 		}
-		if p.insideHouseID > 0 && w.housing != nil {
-			if plot := w.housing.byID[p.insideHouseID]; plot != nil {
-				p.x, p.y = clampToInterior(p.x, p.y, plot.centerX, plot.centerY)
-			}
-		} else if w.housing != nil {
+		if p.insideHouseID <= 0 && w.housing != nil {
 			tryAutoEnterHouse(p, w.housing)
 		}
 
@@ -183,7 +185,13 @@ func (w *World) DashPlayer(id int64, dirX, dirY, distance float64) (newX, newY f
 	p.dirX, p.dirY = dirX, dirY
 	dx := dirX * distance
 	dy := dirY * distance
-	if w.terrain != nil {
+	if p.insideHouseID > 0 && w.housing != nil {
+		p.x += dx
+		p.y += dy
+		if plot := w.housing.byID[p.insideHouseID]; plot != nil {
+			p.x, p.y = clampToInterior(p.x, p.y, plot.centerX, plot.centerY)
+		}
+	} else if w.terrain != nil {
 		p.x, p.y = w.terrain.ResolveMove(p.x, p.y, dx, dy)
 	} else {
 		p.x += dx

@@ -11,8 +11,8 @@ public static class PlayerCosmeticDraw
     {
         if (string.IsNullOrEmpty(cosmeticId)) return;
 
-        var head = screenPos + new Vector2(0, (-PlayerEntity.Radius - 10f) * zoom);
-        var size = (int)(22f * zoom);
+        var head = screenPos + new Vector2(0, (-PlayerEntity.Radius - 12f) * zoom);
+        var size = (int)(34f * zoom);
         var icon = new Rectangle((int)(head.X - size / 2f), (int)(head.Y - size), size, size);
 
         if (CosmeticIconAtlas.TryDraw(sb, cosmeticId, icon))

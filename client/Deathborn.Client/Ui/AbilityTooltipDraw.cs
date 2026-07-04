@@ -10,6 +10,8 @@ public static class AbilityTooltipDraw
     public static void DrawItem(SpriteBatch sb, SpriteFont font, ItemInfo info, Rectangle anchor, Point viewportSize)
     {
         var lines = new List<string> { info.Description };
+        if (info.Kind == ItemKind.Cosmetic)
+            lines.Add("Click to wear or remove.");
         if (info.Heal is > 0) lines.Add($"Heals: {info.Heal} HP");
         if (info.ManaRestore is > 0) lines.Add($"Restores: {info.ManaRestore:0} mana");
         if (info.StaminaRestore is > 0) lines.Add($"Restores: {info.StaminaRestore:0} stamina");
@@ -22,11 +24,16 @@ public static class AbilityTooltipDraw
     {
         var id = entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
         var kind = entry.GetValueOrDefault("kind") as string;
-        if (kind == "item")
+        if (kind == "item" || kind == "cosmetic")
         {
             var itemId = entry.GetValueOrDefault("itemId") as string ?? id;
             if (itemId != null && ItemCatalog.Get(itemId) is { } item)
-                DrawPanel(sb, font, BuildItemLines(item), item.Name, anchor, viewportSize, preferAbove: true);
+            {
+                var lines = BuildItemLines(item);
+                if (kind == "cosmetic")
+                    lines.Add("Click to wear or remove.");
+                DrawPanel(sb, font, lines, item.Name, anchor, viewportSize, preferAbove: true);
+            }
             return;
         }
 
