@@ -10,6 +10,10 @@ public static class HousingConstants
     public const float HouseHalfW = 52f;
     public const float HouseHalfH = 44f;
 
+    /// <summary>Instanced interior room (larger than exterior shell).</summary>
+    public const float InteriorHalfW = 140f;
+    public const float InteriorHalfH = 105f;
+
     public static readonly Vector2[] GardenCropOffsets =
     [
         new(-48, 52), new(0, 58), new(48, 52),
@@ -24,11 +28,19 @@ public static class HousingConstants
         && world.Y >= center.Y - PlotHalfH && world.Y <= center.Y + PlotHalfH;
 
     public static bool InHouseInterior(Vector2 world, Vector2 center) =>
-        world.X >= center.X - HouseHalfW && world.X <= center.X + HouseHalfW
-        && world.Y >= center.Y - HouseHalfH - 12 && world.Y <= center.Y + HouseHalfH - 28;
+        world.X >= center.X - InteriorHalfW && world.X <= center.X + InteriorHalfW
+        && world.Y >= center.Y - InteriorHalfH && world.Y <= center.Y + InteriorHalfH - 8;
 
+    /// <summary>Exterior door on the homestead building.</summary>
     public static Vector2 DoorWorldPosition(Vector2 center) =>
         new(center.X, center.Y + HouseHalfH - 34);
+
+    /// <summary>Exit door inside the instanced room.</summary>
+    public static Vector2 InteriorDoorWorldPosition(Vector2 center) =>
+        new(center.X, center.Y + InteriorHalfH - 20);
+
+    public static Vector2 InteriorLocalMin => new(-InteriorHalfW, -InteriorHalfH);
+    public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8);
 
     public const float DoorInteractRadius = 38f;
 
@@ -36,7 +48,7 @@ public static class HousingConstants
         Vector2.Distance(world, DoorWorldPosition(center)) <= DoorInteractRadius;
 
     public static bool IsNearInteriorExit(Vector2 world, Vector2 center) =>
-        Vector2.Distance(world, DoorWorldPosition(center)) <= 32f;
+        Vector2.Distance(world, InteriorDoorWorldPosition(center)) <= 36f;
 
     public static HousePlotZone? FindDoorAt(IEnumerable<HousePlotZone> houses, Vector2 world)
     {

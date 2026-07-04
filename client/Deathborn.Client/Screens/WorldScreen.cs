@@ -29,6 +29,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly DragDropManager _dragDrop = new();
     private readonly PlayerInventory _inventory = new();
     private readonly PlayerSkills _skills = new();
+    private readonly PlayerFriends _friends = new();
+    private readonly PlayerContextMenuOverlay _playerContextMenu = new();
     private readonly List<PlayerCorpse> _corpses = [];
     private readonly Dictionary<long, PlayerEntity> _deathWatch = new();
     private GhostEntity? _ghost;
@@ -51,16 +53,20 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private Vector2 _camera;
     private Vector2 _moveDir;
     private float _inputAccum;
-    private string _status = "Connected. WASD to move. [L] skills. Enter to chat. Space or click to attack. [E] to interact.";
+    private string _status = "Connected. WASD to move. [F] friends. Right-click players. Enter to chat. Space or click to attack. [E] to interact.";
     private string _interactPrompt = "";
     private InteractableEntity? _focused;
     private InteractableEntity? _hovered;
+    private PlayerEntity? _hoveredPlayer;
     private KeyboardState _prevKb;
     private MouseState _prevMouse;
     private bool _wasWindowActive = true;
     private bool _debugHudVisible;
     private int? _pendingHotbarDragIndex;
     private Point _hotbarDragStartMouse;
+    private float _interiorFade;
+    private long _interiorHouseId;
+    private HousePlotZone? _cachedInteriorHouse;
 
     private string[] _debugLines = [];
 
@@ -72,6 +78,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _chat.Submitted += OnChatSubmitted;
         _chat.TypingChanged += OnChatTypingChanged;
         _deathOverlay.NewLifeRequested += OnNewLifeRequested;
+        _playerContextMenu.ItemChosen += OnPlayerContextMenu;
     }
 
     public void OnEnter()
@@ -88,6 +95,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.HouseUpdated += OnHouseUpdated;
         net.InventoryUpdated += OnInventoryUpdated;
         net.WorldItemRemoved += OnWorldItemRemoved;
+        net.WorldItemAdded += OnWorldItemAdded;
         net.ServerError += OnServerError;
         net.Disconnected += OnDisconnected;
         net.ProjectileSpawned += OnProjectileSpawned;
@@ -101,6 +109,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.PlayerDeath += OnPlayerDeath;
         net.YouDied += OnYouDied;
         net.SkillXpGain += OnSkillXpGain;
+        net.FriendsUpdated += OnFriendsUpdated;
+        net.PrivateMessage += OnPrivateMessage;
 
         if (net.LocalCharacterId >= 0 && !_players.ContainsKey(net.LocalCharacterId))
         {
@@ -132,6 +142,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _windows.Inventory.Bind(_dragDrop, _inventory);
         _windows.Inventory.SlotClicked += OnInventorySlotClicked;
         _windows.Skills.Bind(() => _skills);
+        _windows.Friends.Bind(
+            _friends,
+            () => _screens.Net.LocalCharacterId,
+            (targetId, text) => _screens.Net.SendPm(targetId, text),
+            (fromAccountId, accept) => _screens.Net.SendFriendRespond(fromAccountId, accept),
+            friendAccountId => _screens.Net.SendFriendRemove(friendAccountId));
         _screens.SetOpenCharacterHandler(() => _windows.OpenCharacter());
         _screens.SetOpenSpellBookHandler(() => _windows.OpenSpellBook());
         _screens.SetOpenInventoryHandler(() => _windows.OpenInventory());
@@ -160,6 +176,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.HouseUpdated -= OnHouseUpdated;
         net.InventoryUpdated -= OnInventoryUpdated;
         net.WorldItemRemoved -= OnWorldItemRemoved;
+        net.WorldItemAdded -= OnWorldItemAdded;
         net.ServerError -= OnServerError;
         net.Disconnected -= OnDisconnected;
         net.ProjectileSpawned -= OnProjectileSpawned;
@@ -173,7 +190,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.PlayerDeath -= OnPlayerDeath;
         net.YouDied -= OnYouDied;
         net.SkillXpGain -= OnSkillXpGain;
+        net.FriendsUpdated -= OnFriendsUpdated;
+        net.PrivateMessage -= OnPrivateMessage;
         _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
+        _playerContextMenu.ItemChosen -= OnPlayerContextMenu;
         _fishing.Caught -= OnFishCaught;
         _chat.Submitted -= OnChatSubmitted;
         _chat.TypingChanged -= OnChatTypingChanged;
@@ -202,6 +222,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     public bool HandleEscape()
     {
+        if (_playerContextMenu.IsOpen)
+        {
+            _playerContextMenu.Close();
+            return true;
+        }
+
         if (_worldMap.IsOpen)
         {
             _worldMap.Close();
@@ -244,10 +270,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (windowActive && kb.IsKeyDown(Keys.F12) && !_prevKb.IsKeyDown(Keys.F12))
             _debugHudVisible = !_debugHudVisible;
 
-        if (windowActive && InputKeys.EnterPressed(kb, _prevKb) && !_chat.IsOpen)
+        if (windowActive && InputKeys.EnterPressed(kb, _prevKb) && !_chat.IsOpen && !_windows.Friends.IsPmFocused)
             _chat.Open();
 
         _chat.Update(gameTime, kb, _prevKb);
+        _windows.Friends.TickInput(gameTime, kb, _prevKb);
 
         if (_ghostMode)
         {
@@ -261,7 +288,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var chatOpen = _chat.IsOpen;
         var menuOpen = _screens.EscMenuOpen;
 
-        if (windowActive && !chatOpen && kb.IsKeyDown(Keys.M) && !_prevKb.IsKeyDown(Keys.M))
+        if (windowActive && !chatOpen && kb.IsKeyDown(Keys.M) && !_prevKb.IsKeyDown(Keys.M) && InteriorHouse() == null)
             _worldMap.Toggle();
 
         if (menuOpen && _worldMap.IsOpen)
@@ -282,6 +309,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var allowWindowShortcuts = windowActive && !chatOpen && !decorateActive && !fishingActive;
         var buffCapturesMouse = _buffBar.Update(mouse, _prevMouse, _buffTracker);
         var uiCapturesMouse = _windows.Update(mouse, _prevMouse, kb, _prevKb, allowWindowShortcuts) || buffCapturesMouse;
+        var contextCapturesMouse = _playerContextMenu.Update(mouse, _prevMouse, blockGameplay || uiCapturesMouse);
+        uiCapturesMouse |= contextCapturesMouse;
 
         UpdateHousing(localEntity, kb, _prevKb, mouse, blockGameplay, uiCapturesMouse);
         if (fishingActive)
@@ -361,9 +390,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         else if (localEntity != null)
             _camera = localEntity.Position;
 
+        UpdateInteriorFade(dt, localEntity);
+
         if (!blockGameplay && windowActive && !uiCapturesMouse && !_dragDrop.IsDragging)
         {
             UpdateInteractFocus(mouse.Position);
+            UpdatePlayerHover(mouse.Position);
             UpdateInteractPrompt();
 
             if (!_housingDecorate.IsActive)
@@ -377,7 +409,19 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released
                     && !IsOverHotbar(mouse.Position))
                     HandleLeftClick(mouse.Position);
+
+                if (mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released
+                    && !IsOverHotbar(mouse.Position) && !_playerContextMenu.IsOpen)
+                    HandleRightClick(mouse.Position);
             }
+        }
+        else if (!blockGameplay && windowActive)
+        {
+            UpdatePlayerHover(mouse.Position);
+        }
+        else
+        {
+            _hoveredPlayer = null;
         }
 
         UpdateDragDrop(mouse, _prevMouse, uiCapturesMouse);
@@ -404,12 +448,88 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var font = game.Font;
 
         var zoom = GameViewport.WorldZoom;
+        var interiorHouse = InteriorHouse();
 
         sb.Begin(samplerState: SamplerState.PointClamp);
+
+        if (interiorHouse != null)
+            DrawInteriorWorld(sb, font, interiorHouse, zoom);
+        else
+            DrawExteriorWorld(sb, font, zoom);
+
+        if (_debugHudVisible)
+        {
+            var y = 12f;
+            foreach (var line in _debugLines)
+            {
+                sb.DrawString(font, line, new Vector2(12, y), y == 12 ? Color.White : new Color(200, 200, 210));
+                y += font.LineSpacing;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(_interactPrompt))
+        {
+            var hotbarTop = GameViewport.Height - Hotbar.SlotHeight - 28;
+            var promptY = hotbarTop - 14 - font.LineSpacing;
+            SpriteFontSafe.DrawString(sb, font, _interactPrompt,
+                new Vector2(GameViewport.Width / 2f - 200, promptY), new Color(220, 220, 180));
+        }
+
+        if (!_ghostMode)
+        {
+            _hotbar.Draw(sb, font, _inventory);
+            if (!IsLocalDyingOrDead() && !_dragDrop.IsDragging)
+                DrawHotbarTooltip(sb, font);
+            if (!IsLocalDyingOrDead() && interiorHouse == null)
+            {
+                _buffBar.Draw(sb, font, _buffTracker);
+                _minimap.Draw(sb, font, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values,
+                    LocalHomestead());
+            }
+            else if (!IsLocalDyingOrDead())
+                _buffBar.Draw(sb, font, _buffTracker);
+        }
+        _windows.Draw(sb, font);
+        _playerContextMenu.Draw(sb, font);
+
+        if (!_ghostMode)
+        {
+            if (interiorHouse == null)
+                _zoneBanner.Draw(sb, font);
+            _housingDecorate.Draw(sb, font);
+            _fishing.Draw(sb, font);
+        }
+
+        if (_dragDrop.IsDragging)
+            _dragDrop.DrawGhost(sb, font, Mouse.GetState().Position);
+
+        _feedback.DrawScreen(sb, font);
+
+        if (interiorHouse != null && _interiorFade < 1f)
+        {
+            var alpha = (int)(255 * (1f - _interiorFade));
+            DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height), new Color(0, 0, 0, alpha));
+        }
+
+        sb.End();
+
+        DrawChatOverlay(sb, font, zoom);
+        if (interiorHouse == null)
+            DrawWorldMapOverlay(sb, font);
+
+        if (_ghostMode)
+        {
+            sb.Begin();
+            _deathOverlay.Draw(sb, font);
+            sb.End();
+        }
+    }
+
+    private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, float zoom)
+    {
         _bg.Draw(sb, _camera, ScreenCenter, zoom);
         TownRenderer.Draw(sb, _camera, ScreenCenter, zoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
-        HouseRenderer.DrawInteriorFloors(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _players.Values);
         HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);
 
         foreach (var obj in _interactables)
@@ -421,12 +541,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var corpse in _corpses)
             corpse.Draw(sb, WorldToScreen(corpse.Position), zoom);
 
-        foreach (var p in _players.Values.OrderBy(p => p.Position.Y))
-        {
-            p.Draw(sb, font, WorldToScreen(p.Position), zoom);
-            if (_hunterMarks.ContainsKey(p.Id))
-                PlayerEntity.DrawHunterMark(sb, WorldToScreen(p.Position), zoom);
-        }
+        DrawPlayers(sb, font, zoom, houseId: null);
 
         foreach (var b in _bosses.Values.OrderBy(b => b.Position.Y))
             b.Draw(sb, font, WorldToScreen(b.Position), zoom);
@@ -444,57 +559,72 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _bossTracker.Draw(sb, font, _camera, _bosses.Values);
             _bossHealthBar.Draw(sb, font, _camera, _bosses.Values);
         }
+    }
 
-        if (_debugHudVisible)
+    private void DrawInteriorWorld(SpriteBatch sb, SpriteFont font, HousePlotZone house, float zoom)
+    {
+        var local = FindLocalPlayer();
+        var exitHighlight = local != null && HousingConstants.IsNearInteriorExit(local.Position, house.Center);
+        HouseInteriorRenderer.Draw(sb, font, house, ScreenCenter, zoom, exitHighlight,
+            house.DisplayName(_screens.Net.LocalCharacterId));
+
+        DrawPlayers(sb, font, zoom, house.Id);
+
+        foreach (var effect in _effects.Where(e => e.DrawUnderEntities))
+            effect.Draw(sb, WorldToScreen(effect.Position), zoom);
+
+        foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
+            effect.Draw(sb, WorldToScreen(effect.Position), zoom);
+
+        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _bosses);
+    }
+
+    private void DrawPlayers(SpriteBatch sb, SpriteFont font, float drawZoom, long? houseId)
+    {
+        IEnumerable<PlayerEntity> players = _players.Values;
+        if (houseId is long hid)
+            players = players.Where(p => p.InsideHouseId == hid);
+        else
+            players = players.Where(p => p.InsideHouseId <= 0);
+
+        foreach (var p in players.OrderBy(p => p.Position.Y))
         {
-            var y = 12f;
-            foreach (var line in _debugLines)
-            {
-                sb.DrawString(font, line, new Vector2(12, y), y == 12 ? Color.White : new Color(200, 200, 210));
-                y += font.LineSpacing;
-            }
+            var screenPos = WorldToScreen(p.Position);
+            if (p == _hoveredPlayer)
+                p.DrawHoverHighlight(sb, screenPos, drawZoom);
+            p.Draw(sb, font, screenPos, drawZoom);
+            if (_hunterMarks.ContainsKey(p.Id))
+                PlayerEntity.DrawHunterMark(sb, screenPos, drawZoom);
+        }
+    }
+
+    private void UpdateInteriorFade(float dt, PlayerEntity? local)
+    {
+        var insideId = local?.InsideHouseId ?? 0;
+        if (insideId != _interiorHouseId)
+        {
+            _interiorHouseId = insideId;
+            _interiorFade = 0f;
         }
 
-        if (!string.IsNullOrEmpty(_interactPrompt))
-            sb.DrawString(font, _interactPrompt, new Vector2(GameViewport.Width / 2f - 200, GameViewport.Height - 108), new Color(220, 220, 180));
+        if (insideId > 0)
+            _interiorFade = MathF.Min(1f, _interiorFade + dt * 2.8f);
+    }
 
-        if (!_ghostMode)
+    private HousePlotZone? InteriorHouse()
+    {
+        var local = FindLocalPlayer();
+        if (local is not { InsideHouseId: > 0 })
         {
-            _hotbar.Draw(sb, font, _inventory);
-            if (!IsLocalDyingOrDead() && !_dragDrop.IsDragging)
-                DrawHotbarTooltip(sb, font);
-            if (!IsLocalDyingOrDead())
-            {
-                _buffBar.Draw(sb, font, _buffTracker);
-                _minimap.Draw(sb, font, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values,
-                    LocalHomestead());
-            }
-        }
-        _windows.Draw(sb, font);
-
-        if (!_ghostMode)
-        {
-            _zoneBanner.Draw(sb, font);
-            _housingDecorate.Draw(sb, font);
-            _fishing.Draw(sb, font);
+            _cachedInteriorHouse = null;
+            return null;
         }
 
-        if (_dragDrop.IsDragging)
-            _dragDrop.DrawGhost(sb, font, Mouse.GetState().Position);
-
-        _feedback.DrawScreen(sb, font);
-
-        sb.End();
-
-        DrawChatOverlay(sb, font, zoom);
-        DrawWorldMapOverlay(sb, font);
-
-        if (_ghostMode)
-        {
-            sb.Begin();
-            _deathOverlay.Draw(sb, font);
-            sb.End();
-        }
+        var id = local.InsideHouseId;
+        var house = WorldZones.Houses.FirstOrDefault(h => h.Id == id);
+        if (house != null)
+            _cachedInteriorHouse = house;
+        return house ?? _cachedInteriorHouse;
     }
 
     private void UpdateGhostMode(float dt, KeyboardState kb, MouseState mouse, bool windowActive)
@@ -702,6 +832,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 ? $"Assigned {n} to hotbar slot {Hotbar.KeyLabels[hotbarIdx]}."
                 : $"Hotbar slot {Hotbar.KeyLabels[hotbarIdx]} updated.";
         }
+        else if (TryDropPayloadInWorld(payload, mouse.Position))
+        {
+            // dropped on ground
+        }
         else if (payload.Kind == DragPayloadKind.Hotbar && payload.SourceHotbarIndex >= 0
                  && !Hotbar.TryGetSlotIndexAt(mouse.Position, out _)
                  && !_windows.IsPointOverOpenWindow(mouse.Position)
@@ -786,18 +920,28 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private Vector2 ScreenCenter => GameViewport.Center;
 
-    private Vector2 WorldToScreen(Vector2 world) =>
-        (world - _camera) * GameViewport.WorldZoom + ScreenCenter;
+    private Vector2 WorldToScreen(Vector2 world)
+    {
+        if (FindLocalPlayer() is { InsideHouseId: > 0 })
+            return ScreenCenter + (world - _camera) * GameViewport.WorldZoom;
+        return (world - _camera) * GameViewport.WorldZoom + ScreenCenter;
+    }
 
-    private Vector2 ScreenToWorld(Point screen) =>
-        (new Vector2(screen.X, screen.Y) - ScreenCenter) / GameViewport.WorldZoom + _camera;
+    private Vector2 ScreenToWorld(Point screen)
+    {
+        if (FindLocalPlayer() is { InsideHouseId: > 0 })
+            return _camera + (new Vector2(screen.X, screen.Y) - ScreenCenter) / GameViewport.WorldZoom;
+        return (new Vector2(screen.X, screen.Y) - ScreenCenter) / GameViewport.WorldZoom + _camera;
+    }
 
     private void UpdateInteractFocus(Point mouseScreen)
     {
         var mouseWorld = ScreenToWorld(mouseScreen);
         var nearest = FindNearestInRange(_camera);
         var underMouse = FindAtPoint(mouseWorld);
-        _hoveredDoorHouse = HousingConstants.FindDoorAt(WorldZones.Houses, mouseWorld);
+        _hoveredDoorHouse = InteriorHouse() == null
+            ? HousingConstants.FindDoorAt(WorldZones.Houses, mouseWorld)
+            : null;
 
         if (_focused != nearest)
         {
@@ -820,17 +964,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var local = FindLocalPlayer();
         if (local is { InsideHouseId: > 0 })
         {
-            var house = WorldZones.Houses.FirstOrDefault(h => h.Id == local.InsideHouseId);
+            var house = InteriorHouse();
             if (house != null && HousingConstants.IsNearInteriorExit(local.Position, house.Center))
-                _interactPrompt = "Click door to exit  (or [E])";
+                _interactPrompt = "Walk into the door to exit  (or [E])";
             else
-                _interactPrompt = "Inside homestead — walk to the door to leave";
+                _interactPrompt = "Walk to the bottom door to leave";
             return;
         }
 
         if (_hoveredDoorHouse != null && Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(_hoveredDoorHouse.Center)) <= Config.InteractRange)
         {
-            _interactPrompt = $"Click door to enter {_hoveredDoorHouse.DisplayName(_screens.Net.LocalCharacterId)}";
+            _interactPrompt = $"Walk into the door to enter {_hoveredDoorHouse.DisplayName(_screens.Net.LocalCharacterId)}";
             return;
         }
 
@@ -856,6 +1000,75 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (d < bestDist) { bestDist = d; best = obj; }
         }
         return best;
+    }
+
+    private PlayerEntity? FindPlayerAtPoint(Vector2 worldPos)
+    {
+        var pickRadius = PlayerEntity.Radius * 1.5f;
+        PlayerEntity? best = null;
+        var bestDist = float.MaxValue;
+        var interiorId = InteriorHouse()?.Id;
+        foreach (var p in _players.Values)
+        {
+            if (p.IsLocal || p.IsDead) continue;
+            if (interiorId is long hid)
+            {
+                if (p.InsideHouseId != hid) continue;
+            }
+            else if (p.InsideHouseId > 0)
+            {
+                continue;
+            }
+            var d = Vector2.DistanceSquared(p.Position, worldPos);
+            if (d > pickRadius * pickRadius) continue;
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = p;
+            }
+        }
+        return best;
+    }
+
+    private void UpdatePlayerHover(Point mouseScreen)
+    {
+        _hoveredPlayer = FindPlayerAtPoint(ScreenToWorld(mouseScreen));
+    }
+
+    private void HandleRightClick(Point mouseScreen)
+    {
+        var player = FindPlayerAtPoint(ScreenToWorld(mouseScreen));
+        if (player == null) return;
+
+        var canAdd = !_friends.IsFriendCharacter(player.Id) && !_friends.HasPendingOutCharacter(player.Id);
+        _playerContextMenu.Open(mouseScreen, player.Id, player.Name, canAdd, canWhisper: true);
+    }
+
+    private void OnPlayerContextMenu(PlayerContextAction action, long characterId, string name)
+    {
+        switch (action)
+        {
+            case PlayerContextAction.AddFriend:
+                _screens.Net.SendFriendAdd(characterId);
+                _status = $"Friend request sent to {name}.";
+                break;
+            case PlayerContextAction.Whisper:
+                _windows.Friends.OpenWhisper(characterId, name);
+                break;
+        }
+    }
+
+    private void OnFriendsUpdated(FriendsData data) => _friends.Apply(data);
+
+    private void OnPrivateMessage(PmData data)
+    {
+        _friends.AddMessage(data, _screens.Net.LocalCharacterId);
+        if (!data.Outgoing)
+        {
+            _status = $"Whisper from {data.FromName}: {data.Text}";
+            if (!_windows.Friends.IsOpen)
+                _windows.Friends.OpenWhisper(data.FromCharacterId, data.FromName);
+        }
     }
 
     private InteractableEntity? FindNearestInRange(Vector2 from)
@@ -898,7 +1111,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (local.InsideHouseId > 0)
         {
-            var house = WorldZones.Houses.FirstOrDefault(h => h.Id == local.InsideHouseId);
+            var house = InteriorHouse();
             if (house == null) return false;
             if (!HousingConstants.IsNearInteriorExit(local.Position, house.Center)) return false;
             _screens.Net.SendHouseExit();
@@ -1529,8 +1742,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _houses.Clear();
         if (snap.Houses != null)
+        {
             _houses.AddRange(snap.Houses);
-        ApplyHouseList();
+            ApplyHouseList();
+        }
 
         SyncWorldItemInteractables(snap.WorldItems);
 
@@ -1557,7 +1772,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_bosses.TryGetValue(data.TargetNpcId, out var boss)) return;
         boss.Hp = (float)data.Hp;
         boss.HpMax = (float)data.HpMax;
-        _feedback.SpawnBossDamage(boss.Position, data.Damage);
+        _feedback.SpawnBossDamage(data.TargetNpcId, data.Damage);
     }
 
     private void OnWorldEvent(WorldEventData data)
@@ -1676,6 +1891,79 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _interactables.RemoveAll(i => i.DropId == data.DropId);
     }
 
+    private void OnWorldItemAdded(WorldItemDropState drop) => AddWorldItemInteractable(drop);
+
+    private void AddWorldItemInteractable(WorldItemDropState drop)
+    {
+        _interactables.RemoveAll(i => i.DropId == drop.Id);
+        var info = ItemCatalog.Get(drop.ItemId);
+        var name = drop.ItemId == "house_key" ? "Homestead Key" : info?.Name ?? drop.ItemId;
+        _interactables.Add(new InteractableEntity
+        {
+            Id = $"world_item_{drop.Id}",
+            DropId = drop.Id,
+            ItemId = drop.ItemId,
+            DisplayName = drop.Count > 1 ? $"{name} x{drop.Count}" : name,
+            Position = new Vector2((float)drop.X, (float)drop.Y),
+            Kind = InteractableKind.GroundItem,
+            Tint = drop.ItemId == "house_key"
+                ? new Color(0.92f, 0.78f, 0.28f)
+                : new Color(0.72f, 0.58f, 0.42f),
+            PickRadius = 18f,
+        });
+    }
+
+    private bool TryDropPayloadInWorld(DragPayload payload, Point mouseScreen)
+    {
+        if (IsLocalDyingOrDead()) return false;
+        if (_windows.IsPointOverOpenWindow(mouseScreen) || IsOverHotbar(mouseScreen)) return false;
+
+        var slot = ResolveDropInventorySlot(payload);
+        if (slot < 0) return false;
+
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+
+        var world = ScreenToWorld(mouseScreen);
+        world = ClampDropPosition(local.Position, world);
+
+        _screens.Net.SendDropItem(slot, world.X, world.Y);
+
+        if (payload.Kind == DragPayloadKind.Hotbar && payload.SourceHotbarIndex >= 0)
+            _hotbar.AssignSlot(payload.SourceHotbarIndex, null);
+
+        var name = payload.DisplayName ?? "Item";
+        _status = $"Dropped {name}.";
+        return true;
+    }
+
+    private static int ResolveDropInventorySlot(DragPayload payload) => payload.Kind switch
+    {
+        DragPayloadKind.Item when payload.SourceInventoryIndex >= 0 => payload.SourceInventoryIndex,
+        DragPayloadKind.Hotbar => InventorySlotFromHotbarEntry(payload.HotbarEntry),
+        _ => -1,
+    };
+
+    private static int InventorySlotFromHotbarEntry(Dictionary<string, object>? entry)
+    {
+        if (entry?.GetValueOrDefault("fromInventory") is not true) return -1;
+        if (!entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj)) return -1;
+        return slotObj switch
+        {
+            int idx => idx,
+            long l => (int)l,
+            _ => -1,
+        };
+    }
+
+    private static Vector2 ClampDropPosition(Vector2 playerPos, Vector2 target)
+    {
+        const float dropRange = 96f;
+        var offset = target - playerPos;
+        if (offset.LengthSquared() <= dropRange * dropRange) return target;
+        return playerPos + new Vector2(8f, 10f);
+    }
+
     private void OnServerError(string message) => _status = message;
 
     private HousePlotZone? LocalHomestead() =>
@@ -1706,23 +1994,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (drops == null) return;
 
         foreach (var drop in drops)
-        {
-            var info = ItemCatalog.Get(drop.ItemId);
-            var name = drop.ItemId == "house_key" ? "Homestead Key" : info?.Name ?? drop.ItemId;
-            _interactables.Add(new InteractableEntity
-            {
-                Id = $"world_item_{drop.Id}",
-                DropId = drop.Id,
-                ItemId = drop.ItemId,
-                DisplayName = drop.Count > 1 ? $"{name} x{drop.Count}" : name,
-                Position = new Vector2((float)drop.X, (float)drop.Y),
-                Kind = InteractableKind.GroundItem,
-                Tint = drop.ItemId == "house_key"
-                    ? new Color(0.92f, 0.78f, 0.28f)
-                    : new Color(0.72f, 0.58f, 0.42f),
-                PickRadius = 18f,
-            });
-        }
+            AddWorldItemInteractable(drop);
     }
 
     private void SyncHouseInteractables()
@@ -1817,9 +2089,23 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             }
             else if (!_deathWatch.ContainsKey(s.Id))
             {
-                p.SetTarget(pos);
-                p.InsideHouseId = s.InsideHouseId;
+                var houseChanged = p.InsideHouseId != s.InsideHouseId;
+                if (houseChanged)
+                {
+                    p.InsideHouseId = s.InsideHouseId;
+                    p.Position = pos;
+                    p.Target = pos;
+                    if (p.InputDir.LengthSquared() > 0.0001f)
+                        p.MoveDir = PlayerEntity.CardinalFacing(p.InputDir);
+                }
+                else
+                {
+                    p.SetTarget(pos);
+                    p.InsideHouseId = s.InsideHouseId;
+                }
             }
+
+            p.HeadCosmetic = string.IsNullOrEmpty(s.HeadCosmetic) ? null : s.HeadCosmetic;
 
             if (s.HpMax > 0 && !_deathWatch.ContainsKey(s.Id))
                 p.SyncStats((float)s.Hp, (float)s.HpMax);
@@ -1835,6 +2121,45 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void OnDisconnected() => _status = "Disconnected from server.";
 
+    private bool EquipCosmeticFromEntry(Dictionary<string, object> entry)
+    {
+        if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+        {
+            var slot = slotObj switch
+            {
+                int idx => idx,
+                long l => (int)l,
+                _ => -1,
+            };
+            if (slot >= 0)
+            {
+                EquipCosmeticFromSlot(slot);
+                return true;
+            }
+        }
+        _status = "Cannot equip cosmetic.";
+        return false;
+    }
+
+    private void EquipCosmeticFromSlot(int slotIndex)
+    {
+        if (_ghostMode || IsLocalDyingOrDead()) return;
+        if (slotIndex < 0 || slotIndex >= PlayerInventory.SlotCount) return;
+        var slot = _inventory.Slots[slotIndex];
+        if (slot.IsEmpty || slot.ItemId == null || !ItemCatalog.IsCosmetic(slot.ItemId))
+        {
+            _status = "That item is not wearable.";
+            return;
+        }
+
+        var local = FindLocalPlayer();
+        var wasEquipped = local?.HeadCosmetic == slot.ItemId;
+        _screens.Net.SendEquipCosmetic(slotIndex);
+        _status = wasEquipped
+            ? $"Removed {ItemCatalog.Get(slot.ItemId)?.Name ?? slot.ItemId}."
+            : $"Wearing {ItemCatalog.Get(slot.ItemId)?.Name ?? slot.ItemId}.";
+    }
+
     private void OnInventorySlotClicked(int slotIndex)
     {
         if (_ghostMode || IsLocalDyingOrDead()) return;
@@ -1843,6 +2168,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (slot.ItemId == "house_key")
         {
             _status = "The homestead key is not a consumable.";
+            return;
+        }
+        if (ItemCatalog.IsCosmetic(slot.ItemId))
+        {
+            EquipCosmeticFromSlot(slotIndex);
             return;
         }
         TryUseEntry(null, ItemCatalog.ToHotbarEntry(slot.ItemId, slotIndex));
@@ -1925,6 +2255,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = UseStaminaPotion(entry);
         else if (id == "antidote")
             used = UseAntidote(entry);
+        else if (entry.GetValueOrDefault("kind") as string == "cosmetic")
+            used = EquipCosmeticFromEntry(entry);
         else
         {
             _status = key != null
@@ -2042,8 +2374,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var local = FindLocalPlayer();
         if (local == null) return false;
         var info = ItemCatalog.Get("health_potion")!;
-        local.Stats.Hp = MathF.Min(local.Stats.HpMax, local.Stats.Hp + info.Heal!.Value);
-        _status = $"+{info.Heal} HP from Health Potion.";
+        var heal = info.Heal!.Value;
+        local.Stats.Hp = MathF.Min(local.Stats.HpMax, local.Stats.Hp + heal);
+        _feedback.SpawnHeal(local.Id, heal);
+        _status = $"+{heal} HP from Health Potion.";
         return true;
     }
 

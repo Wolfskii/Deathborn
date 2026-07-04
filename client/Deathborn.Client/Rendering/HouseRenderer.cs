@@ -145,8 +145,25 @@ public static class HouseRenderer
         Vector2 camera, Vector2 screenCenter, float zoom)
     {
         var screen = WorldToScreen(item.Position, camera, screenCenter, zoom);
-        var z = zoom;
-        switch (item.Type)
+        DrawFurnitureShape(sb, item.Type, screen, zoom);
+    }
+
+    public static void DrawFurnitureItem(
+        SpriteBatch sb,
+        FurnitureItemState item,
+        Vector2 houseCenter,
+        Vector2 screenCenter,
+        float worldZoom,
+        float zoomScale)
+    {
+        var z = worldZoom * zoomScale;
+        var screen = screenCenter + (item.Position - houseCenter) * z;
+        DrawFurnitureShape(sb, item.Type, screen, z);
+    }
+
+    private static void DrawFurnitureShape(SpriteBatch sb, string type, Vector2 screen, float z)
+    {
+        switch (type)
         {
             case "bed":
                 DrawPrimitives.FillRect(sb, CenteredRect(screen, 36 * z, 18 * z), new Color(0.55f, 0.42f, 0.62f));

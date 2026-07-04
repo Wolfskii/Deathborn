@@ -9,7 +9,7 @@ const (
 
 	BattleShoutDuration = 8.0
 	IronSkinDuration    = 10.0
-	HunterMarkDuration  = 12.0
+	HunterMarkDuration  = 900.0
 
 	BattleShoutDamageBonus = 0.25
 	IronSkinDamageReduce   = 0.30

@@ -12,6 +12,8 @@ const (
 	PlotHalfH        = 88.0
 	HouseHalfW       = 52.0
 	HouseHalfH       = 44.0
+	InteriorHalfW    = 140.0
+	InteriorHalfH    = 105.0
 	HouseMinSeparation = 220.0
 	MaxFurniture     = 24
 )
@@ -118,8 +120,8 @@ func (h *HousingIndex) PvPAllowedBetween(ax, ay, tx, ty float64) bool {
 }
 
 func InHouseInterior(x, y float64, centerX, centerY float64) bool {
-	return x >= centerX-HouseHalfW && x <= centerX+HouseHalfW &&
-		y >= centerY-HouseHalfH-12 && y <= centerY+HouseHalfH-28
+	return x >= centerX-InteriorHalfW && x <= centerX+InteriorHalfW &&
+		y >= centerY-InteriorHalfH && y <= centerY+InteriorHalfH-8
 }
 
 // GardenCropOffsets returns local offsets for 6 farm tiles in the garden.
@@ -266,11 +268,33 @@ func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
 }
 
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY - 20
+	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
+	return dx, dy - 40
+}
+
+func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
+	return centerX, centerY + InteriorHalfH - 20
 }
 
 func HouseExteriorSpawn(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY + HouseHalfH - 18
+	dx, dy := HouseDoorPosition(centerX, centerY)
+	return dx, dy + 32
+}
+
+const houseTransitionCooldownSec = 1.1
+
+func (p *player) tickHouseTransitionCooldown(dt float64) {
+	if p.houseTransitionCooldown > 0 {
+		p.houseTransitionCooldown -= dt
+	}
+}
+
+func (p *player) lockHouseTransition() {
+	p.houseTransitionCooldown = houseTransitionCooldownSec
+}
+
+func canAutoHouseTransition(p *player) bool {
+	return p.houseTransitionCooldown <= 0
 }
 
 func NearHouseDoor(x, y, centerX, centerY float64) bool {
@@ -279,15 +303,15 @@ func NearHouseDoor(x, y, centerX, centerY float64) bool {
 }
 
 func NearInteriorExit(x, y, centerX, centerY float64) bool {
-	dx, dy := HouseDoorPosition(centerX, centerY)
-	return math.Hypot(x-dx, y-dy) <= 32
+	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
+	return math.Hypot(x-dx, y-dy) <= 36
 }
 
 func clampToInterior(x, y, centerX, centerY float64) (float64, float64) {
-	minX := centerX - HouseHalfW + 6
-	maxX := centerX + HouseHalfW - 6
-	minY := centerY - HouseHalfH - 8
-	maxY := centerY + HouseHalfH - 32
+	minX := centerX - InteriorHalfW + 8
+	maxX := centerX + InteriorHalfW - 8
+	minY := centerY - InteriorHalfH + 8
+	maxY := centerY + InteriorHalfH - 28
 	if x < minX {
 		x = minX
 	}

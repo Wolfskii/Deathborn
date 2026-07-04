@@ -242,6 +242,18 @@ type InventoryMoveSendData struct {
 	ToSlot   int `json:"toSlot"`
 }
 
+// DropItemSendData drops one inventory stack onto the ground near the player.
+type DropItemSendData struct {
+	Slot int     `json:"slot"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+}
+
+// EquipCosmeticSendData toggles a cosmetic item from an inventory slot.
+type EquipCosmeticSendData struct {
+	Slot int `json:"slot"`
+}
+
 // WorldItemRemovedData is broadcast when ground loot is picked up.
 type WorldItemRemovedData struct {
 	DropID int64 `json:"dropId"`
@@ -417,4 +429,8 @@ func BuildInventory(items []game.InventoryItem) []byte {
 
 func BuildWorldItemRemoved(dropID int64) []byte {
 	return encode("world_item_removed", WorldItemRemovedData{DropID: dropID})
+}
+
+func BuildWorldItemAdded(drop game.WorldItemDropState) []byte {
+	return encode("world_item_added", drop)
 }

@@ -92,7 +92,7 @@ public static class Config
     public const float IronSkinDuration = 10f;
 
     public const float HunterMarkCooldown = 8f;
-    public const float HunterMarkDuration = 12f;
+    public const float HunterMarkDuration = 900f;
     public const float HunterMarkRange = 200f;
 
     public const float SecondWindCooldown = 15f;

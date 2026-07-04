@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"sync"
 
 	"github.com/deathborn/server/internal/db"
 	"github.com/deathborn/server/internal/game"
@@ -19,6 +20,9 @@ type Hub struct {
 	broadcast  chan []byte
 	directSend chan directMessage
 	clients    map[*Client]bool
+
+	onlineMu      sync.RWMutex
+	onlineAccount map[int64]int64
 }
 
 type directMessage struct {
@@ -82,6 +86,37 @@ func (h *Hub) SendToCharacter(characterID int64, msg []byte, markUnspawned bool)
 		return
 	}
 	h.directSend <- directMessage{characterID: characterID, payload: msg, markUnspawned: markUnspawned}
+}
+
+func (h *Hub) SetOnline(accountID, characterID int64) {
+	if accountID <= 0 || characterID <= 0 {
+		return
+	}
+	h.onlineMu.Lock()
+	if h.onlineAccount == nil {
+		h.onlineAccount = make(map[int64]int64)
+	}
+	h.onlineAccount[accountID] = characterID
+	h.onlineMu.Unlock()
+}
+
+func (h *Hub) ClearOnline(accountID int64) {
+	if accountID <= 0 {
+		return
+	}
+	h.onlineMu.Lock()
+	delete(h.onlineAccount, accountID)
+	h.onlineMu.Unlock()
+}
+
+func (h *Hub) OnlineCharacter(accountID int64) (int64, bool) {
+	h.onlineMu.RLock()
+	defer h.onlineMu.RUnlock()
+	if h.onlineAccount == nil {
+		return 0, false
+	}
+	id, ok := h.onlineAccount[accountID]
+	return id, ok
 }
 
 // ProcessBossEvents broadcasts boss lifecycle and combat events.

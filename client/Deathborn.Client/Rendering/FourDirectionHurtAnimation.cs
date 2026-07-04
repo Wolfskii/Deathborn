@@ -60,4 +60,14 @@ public sealed class FourDirectionHurtAnimation
         var origin = new Vector2(FrameSize / 2f, FrameSize - 6f);
         sb.Draw(_texture, screenPos, src, tint, 0f, origin, scale, SpriteEffects.None, 0f);
     }
+
+    public void DrawOutline(SpriteBatch sb, Vector2 screenPos, Color outline, float scale, float thickness = 1f)
+    {
+        if (!IsPlaying) return;
+
+        var row = DirectionRows[(int)_facing];
+        var src = new Rectangle(_frame * FrameSize, row * FrameSize, FrameSize, FrameSize);
+        var origin = new Vector2(FrameSize / 2f, FrameSize - 6f);
+        SpriteOutlineDraw.Draw(sb, _texture, screenPos, src, origin, outline, scale, thickness);
+    }
 }

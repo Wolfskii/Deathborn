@@ -104,7 +104,7 @@ public static class AbilityCatalog
             ["hunter_mark"] = A("hunter_mark", "Hunter's Mark", "utility", "Support",
                 "Mark a foe so you can track them.", Config.HunterMarkCooldown,
                 ResourceCostKind.Mana, 10, altKind: ResourceCostKind.Stamina, altCost: 12,
-                range: Config.HunterMarkRange, extra: $"{Config.HunterMarkDuration:0}s track"),
+                range: Config.HunterMarkRange, extra: "15 min track"),
             ["bandage"] = A("bandage", "Bandage", "item", "Support",
                 "Apply a bandage to heal over time.", Config.BandageCooldown,
                 ResourceCostKind.Stamina, 6,

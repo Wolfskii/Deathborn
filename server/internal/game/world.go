@@ -41,7 +41,7 @@ func NewWorld(terrain *worldmap.Map) *World {
 }
 
 // AddPlayer inserts a player at a position (e.g. on connect/spawn).
-func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64, inventory []InventoryItem) {
+func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64, inventory []InventoryItem, headCosmetic string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if skillXP == nil {
@@ -49,12 +49,15 @@ func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Se
 	}
 	hpLevel := skillXP.Level(skills.Hitpoints)
 	hpMax := skills.HitpointsMax(hpLevel)
-	w.players[id] = &player{
+	p := &player{
 		id: id, name: name, x: x, y: y,
 		hp: hpMax, hpMax: hpMax,
 		skills: skillXP, totalXp: totalXp,
 		inventory: append([]InventoryItem(nil), inventory...),
+		headCosmetic: headCosmetic,
 	}
+	syncPlayerCosmeticInventory(p)
+	w.players[id] = p
 }
 
 // DeathPose returns a dead player's position and facing for the death broadcast.
@@ -105,6 +108,7 @@ func (w *World) Step(dt float64) []HealEvent {
 		if p.dead {
 			continue
 		}
+		p.tickHouseTransitionCooldown(dt)
 		dx := p.dirX * w.speed * dt
 		dy := p.dirY * w.speed * dt
 		if p.running {
@@ -120,6 +124,14 @@ func (w *World) Step(dt float64) []HealEvent {
 		if p.insideHouseID > 0 && w.housing != nil {
 			if plot := w.housing.byID[p.insideHouseID]; plot != nil {
 				p.x, p.y = clampToInterior(p.x, p.y, plot.centerX, plot.centerY)
+			}
+		} else if w.housing != nil {
+			tryAutoEnterHouse(p, w.housing)
+		}
+
+		if p.insideHouseID > 0 && w.housing != nil {
+			if plot := w.housing.byID[p.insideHouseID]; plot != nil {
+				tryAutoExitHouse(p, plot)
 			}
 		}
 
@@ -193,6 +205,7 @@ func (w *World) Snapshot() []PlayerState {
 			ID: p.id, Name: p.name, X: p.x, Y: p.y,
 			Hp: p.hp, HpMax: p.hpMax,
 			InsideHouseID: p.insideHouseID,
+			HeadCosmetic:  p.headCosmetic,
 		})
 	}
 	return out

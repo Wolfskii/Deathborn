@@ -180,10 +180,19 @@ public sealed class WorldMap
         {
             var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
             var walk = _walkable[ty * TileWidth + tx];
-            var color = walk ? LandColor(tx, ty) : WaterColor(tx, ty);
-            DrawPrimitives.FillRect(sb, rect, color);
+            if (walk)
+            {
+                if (!DungeonFloorTiles.TryDrawFloor(sb, tx, ty, rect))
+                    DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
+            }
+            else if (!WaterTiles.TryDraw(sb, tx, ty, rect))
+                DrawPrimitives.FillRect(sb, rect, WaterColor(tx, ty));
         }
     }
+
+    public static Rectangle GetTileScreenRect(
+        int tx, int ty, Vector2 camera, Vector2 screenCenter, float zoom, float tileSize) =>
+        TileScreenRect(tx, ty, camera, screenCenter, zoom, tileSize);
 
     /// <summary>
     /// Pixel-snapped tile bounds so neighbours share edges with no sub-pixel gaps
@@ -254,7 +263,6 @@ public sealed class WorldMap
         var minTy = Math.Max(0, (int)((worldCenter.Y - worldRadius) / TileSize) - 1);
         var maxTy = Math.Min(TileHeight - 1, (int)((worldCenter.Y + worldRadius) / TileSize) + 1);
 
-        var land = new Color(0.82f, 0.8f, 0.76f);
         var r2 = minimapRadius * minimapRadius;
 
         for (var ty = minTy; ty <= maxTy; ty++)
@@ -274,7 +282,12 @@ public sealed class WorldMap
                 (int)MathF.Floor(screen.Y - half),
                 Math.Max(1, (int)MathF.Ceiling(tileDraw)),
                 Math.Max(1, (int)MathF.Ceiling(tileDraw)));
-            DrawPrimitives.FillRect(sb, rect, land);
+
+            if (!DungeonFloorTiles.TryDrawFloor(sb, tx, ty, rect))
+            {
+                var land = new Color(0.82f, 0.8f, 0.76f);
+                DrawPrimitives.FillRect(sb, rect, land);
+            }
         }
     }
 

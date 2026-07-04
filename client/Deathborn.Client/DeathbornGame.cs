@@ -80,6 +80,9 @@ public sealed class DeathbornGame : Game
         Font = Content.Load<SpriteFont>("Fonts/Default");
         CharacterSprites.Load(Content);
         AbilityIconAtlas.Load(Content);
+        CosmeticIconAtlas.Load(Content);
+        DungeonFloorTiles.Load(Content);
+        WaterTiles.Load(Content);
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
         SyncViewport();

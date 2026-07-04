@@ -57,17 +57,20 @@ public sealed class WorldFeedbackOverlay
     public void SpawnDamage(long targetId, int damage, bool blocked = false)
     {
         if (damage <= 0 && !blocked) return;
-        var text = blocked ? "Block" : damage.ToString();
+        var text = blocked ? "Block" : $"-{damage}";
         var color = blocked
             ? new Color(120, 170, 230)
-            : new Color(235, 55, 45);
-        AddEntity(targetId, text, color, duration: 1.1f, floatSpeed: 34f, scale: blocked ? 0.9f : 1.05f + Math.Min(damage, 30) * 0.01f, bold: true);
+            : new Color(255, 72, 58);
+        var offset = targetId < 0 ? new Vector2(0, -58) : new Vector2(0, -48);
+        AddEntity(targetId, text, color, duration: 1.15f, floatSpeed: 36f, scale: blocked ? 0.9f : 1.08f + Math.Min(damage, 30) * 0.012f, bold: true,
+            worldOffset: offset);
     }
 
     public void SpawnHeal(long entityId, int amount)
     {
         if (amount <= 0) return;
-        AddEntity(entityId, $"+{amount}", new Color(70, 210, 90), duration: 1.2f, floatSpeed: 26f, scale: 1f, bold: true);
+        AddEntity(entityId, $"+{amount}", new Color(88, 235, 108), duration: 1.25f, floatSpeed: 28f, scale: 1.05f, bold: true,
+            worldOffset: new Vector2(0, -48));
     }
 
     public void SpawnSkillXp(long entityId, string skillName, long amount, bool leveledUp, int level, Vector2? worldPos = null)
@@ -161,11 +164,10 @@ public sealed class WorldFeedbackOverlay
         }
     }
 
-    public void SpawnBossDamage(Vector2 worldPos, int damage)
+    public void SpawnBossDamage(long targetNpcId, int damage)
     {
         if (damage <= 0) return;
-        AddFixed(worldPos + new Vector2(0, -52), damage.ToString(), new Color(235, 55, 45),
-            duration: 1.1f, floatSpeed: 34f, scale: 1.05f, bold: true);
+        SpawnDamage(targetNpcId, damage);
     }
 
     public void DrawWorld(
@@ -184,7 +186,10 @@ public sealed class WorldFeedbackOverlay
             var t = e.Age / e.Duration;
             var alpha = t < 0.12f ? t / 0.12f : t > 0.72f ? (1f - t) / 0.28f : 1f;
             var scale = e.Scale * (1f + MathF.Sin(MathF.Min(t, 1f) * MathF.PI) * 0.08f);
-            DrawFloatingText(sb, font, e.Text, screen, e.Color * alpha, scale, e.Bold);
+            var filtered = SpriteFontSafe.Filter(e.Text);
+            var textSize = SpriteFontSafe.MeasureString(font, filtered) * scale;
+            var drawPos = new Vector2(screen.X - textSize.X / 2f, screen.Y - textSize.Y);
+            DrawFloatingText(sb, font, e.Text, drawPos, e.Color * alpha, scale, e.Bold);
             DrawEntrySparkles(sb, worldToScreen, world, e.Sparkles, alpha);
         }
     }

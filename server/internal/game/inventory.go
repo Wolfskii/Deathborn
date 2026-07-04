@@ -1,6 +1,10 @@
 package game
 
-import "github.com/deathborn/server/internal/db"
+import (
+	"math"
+
+	"github.com/deathborn/server/internal/db"
+)
 
 const (
 	PickupRange      = 48.0
@@ -45,9 +49,10 @@ func InventoryToDB(items []InventoryItem) []db.InventoryItem {
 }
 
 func maxStack(itemID string) int {
-	switch itemID {
-	case "house_key":
+	if IsCosmeticItem(itemID) || itemID == "house_key" {
 		return 1
+	}
+	switch itemID {
 	case "bandage", "antidote":
 		return 10
 	default:
@@ -211,7 +216,41 @@ func (w *World) MoveInventorySlot(characterID int64, from, to int) ([]InventoryI
 		return nil, msg, false
 	}
 	p.inventory = slotsToItems(slots)
+	syncPlayerCosmeticInventory(p)
 	return append([]InventoryItem(nil), p.inventory...), "", true
+}
+
+func (w *World) DropInventorySlot(characterID int64, slot int, x, y float64) ([]InventoryItem, WorldItemDropState, string, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, ok := w.players[characterID]
+	if !ok || p.dead {
+		return nil, WorldItemDropState{}, "Cannot drop right now.", false
+	}
+	if slot < 0 || slot >= InventorySlotCount {
+		return nil, WorldItemDropState{}, "Invalid slot.", false
+	}
+	slots := itemsToSlots(p.inventory)
+	item := slots[slot]
+	if item.ItemID == "" || item.Count <= 0 {
+		return nil, WorldItemDropState{}, "That slot is empty.", false
+	}
+	dropX, dropY := clampDropPosition(p.x, p.y, x, y)
+	dropped := item
+	slots[slot] = InventoryItem{}
+	p.inventory = slotsToItems(slots)
+	syncPlayerCosmeticInventory(p)
+	return append([]InventoryItem(nil), p.inventory...), WorldItemDropState{
+		ItemID: dropped.ItemID, Count: dropped.Count, HouseID: dropped.HouseID, X: dropX, Y: dropY,
+	}, "", true
+}
+
+func clampDropPosition(playerX, playerY, x, y float64) (float64, float64) {
+	const dropRange = 96.0
+	if math.Hypot(x-playerX, y-playerY) <= dropRange {
+		return x, y
+	}
+	return playerX + 8, playerY + 10
 }
 
 func (w *World) AddInventoryItem(characterID int64, item InventoryItem) []InventoryItem {
@@ -232,6 +271,7 @@ func (w *World) ClearInventory(characterID int64) {
 	defer w.mu.Unlock()
 	if p, ok := w.players[characterID]; ok {
 		p.inventory = nil
+		p.headCosmetic = ""
 	}
 }
 

@@ -51,6 +51,16 @@ public sealed class FourDirectionRunAnimation
         sb.Draw(_texture, screenPos, src, tint, 0f, origin, scale, SpriteEffects.None, 0f);
     }
 
+    public void DrawOutline(SpriteBatch sb, Vector2 screenPos, Color outline, float scale, float thickness = 1f)
+    {
+        var src = new Rectangle(
+            SwordsmanSpriteSheet.FrameStartX + _frame * SwordsmanSpriteSheet.FrameStride,
+            SwordsmanSpriteSheet.DirectionRowTops[(int)_facing],
+            FrameWidth,
+            FrameHeight);
+        SpriteOutlineDraw.Draw(sb, _texture, screenPos, src, SwordsmanSpriteSheet.BodyAnchor, outline, scale, thickness);
+    }
+
     public static FacingDirection ResolveDirection(Vector2 dir)
     {
         if (Math.Abs(dir.X) > Math.Abs(dir.Y))

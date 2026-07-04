@@ -29,6 +29,9 @@ public static class HotbarIconDraw
         if (AbilityIconAtlas.TryDraw(sb, spellId, bounds))
             return;
 
+        if (CosmeticIconAtlas.TryDraw(sb, spellId, bounds))
+            return;
+
         switch (spellId)
         {
             case "fireball":

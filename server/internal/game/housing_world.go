@@ -1,6 +1,10 @@
 package game
 
-import "github.com/deathborn/server/internal/db"
+import (
+	"math"
+
+	"github.com/deathborn/server/internal/db"
+)
 
 func (w *World) LoadHouses(houses []db.House) {
 	if w.housing == nil {
@@ -127,6 +131,50 @@ func (w *World) HousingBlocksMonsters(x, y float64) bool {
 	return w.housing != nil && w.housing.Contains(x, y)
 }
 
+func tryAutoEnterHouse(p *player, housing *HousingIndex) {
+	if p.insideHouseID > 0 || p.dead || !canAutoHouseTransition(p) {
+		return
+	}
+	// Walk north into the exterior door from the garden side.
+	if p.dirY >= -0.12 {
+		return
+	}
+	if p.dirX*p.dirX+p.dirY*p.dirY < 0.01 {
+		return
+	}
+	var best *housePlot
+	bestDist := math.MaxFloat64
+	for _, plot := range housing.byID {
+		if !NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) {
+			continue
+		}
+		dx, dy := HouseDoorPosition(plot.centerX, plot.centerY)
+		d := math.Hypot(p.x-dx, p.y-dy)
+		if d < bestDist {
+			bestDist = d
+			best = plot
+		}
+	}
+	if best == nil {
+		return
+	}
+	p.insideHouseID = best.id
+	p.x, p.y = HouseInteriorSpawn(best.centerX, best.centerY)
+	p.lockHouseTransition()
+}
+
+func tryAutoExitHouse(p *player, plot *housePlot) {
+	if p.dead || !canAutoHouseTransition(p) || p.dirY < 0.12 {
+		return
+	}
+	if !NearInteriorExit(p.x, p.y, plot.centerX, plot.centerY) {
+		return
+	}
+	p.insideHouseID = 0
+	p.x, p.y = HouseExteriorSpawn(plot.centerX, plot.centerY)
+	p.lockHouseTransition()
+}
+
 func (w *World) EnterHouse(characterID, houseID int64) (string, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -149,6 +197,7 @@ func (w *World) EnterHouse(characterID, houseID int64) (string, bool) {
 	}
 	p.insideHouseID = houseID
 	p.x, p.y = HouseInteriorSpawn(plot.centerX, plot.centerY)
+	p.lockHouseTransition()
 	return "", true
 }
 
@@ -172,5 +221,6 @@ func (w *World) ExitHouse(characterID int64) (string, bool) {
 	}
 	p.insideHouseID = 0
 	p.x, p.y = HouseExteriorSpawn(plot.centerX, plot.centerY)
+	p.lockHouseTransition()
 	return "", true
 }

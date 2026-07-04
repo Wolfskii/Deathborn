@@ -21,6 +21,8 @@ type player struct {
 	lastSkillInteract float64
 	inventory         []InventoryItem
 	insideHouseID     int64
+	headCosmetic      string
+	houseTransitionCooldown float64
 }
 
 // PlayerState is the immutable view of a player included in snapshots sent to
@@ -32,5 +34,6 @@ type PlayerState struct {
 	Y     float64 `json:"y"`
 	Hp    float64 `json:"hp"`
 	HpMax float64 `json:"hpMax"`
-	InsideHouseID int64 `json:"insideHouseId,omitempty"`
+	InsideHouseID int64   `json:"insideHouseId,omitempty"`
+	HeadCosmetic  string  `json:"headCosmetic,omitempty"`
 }

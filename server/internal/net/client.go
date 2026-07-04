@@ -134,7 +134,8 @@ func (c *Client) spawn(ch db.Character) {
 		_ = c.hub.db.SaveCharacterInventory(ctx, ch.ID, inv)
 	}
 	gameInv := game.InventoryFromDB(inv)
-	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP, gameInv)
+	cosmetics, _ := c.hub.db.GetCharacterCosmetics(ctx, ch.ID)
+	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP, gameInv, game.CosmeticsFromDB(cosmetics))
 	log.Printf("character spawned account_id=%d character_id=%d name=%q pos=(%.0f,%.0f)",
 		c.accountID, ch.ID, ch.Name, x, y)
 	skillMap := map[string]int64{}
@@ -153,6 +154,8 @@ func (c *Client) spawn(ch db.Character) {
 		TotalXp:     ch.TotalXP,
 		Inventory:   gameInv,
 	}))
+	c.hub.SetOnline(c.accountID, ch.ID)
+	c.hub.syncFriendsToAccount(c.accountID)
 }
 
 func dbSkillsToSet(m map[string]int64) skills.Set {
@@ -186,12 +189,18 @@ func (c *Client) readPump(database *db.DB) {
 				if inv, ok := c.hub.world.PlayerInventory(c.characterID); ok {
 					_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(inv))
 				}
+				cosmetics := db.EquippedCosmetics{}
+				if head := c.hub.world.HeadCosmetic(c.characterID); head != "" {
+					cosmetics[game.CosmeticSlotHead] = head
+				}
+				_ = database.SaveCharacterCosmetics(context.Background(), c.characterID, cosmetics)
 				log.Printf("ws disconnected account_id=%d character_id=%d saved_pos=(%.0f,%.0f)",
 					c.accountID, c.characterID, x, y)
 			} else {
 				log.Printf("ws disconnected account_id=%d character_id=%d", c.accountID, c.characterID)
 			}
 			c.hub.world.RemovePlayer(c.characterID)
+			c.hub.ClearOnline(c.accountID)
 		} else {
 			log.Printf("ws disconnected account_id=%d (no character)", c.accountID)
 		}
@@ -374,6 +383,46 @@ func (c *Client) readPump(database *db.DB) {
 				PlayerID: c.characterID,
 				Typing:   d.Typing,
 			}))
+
+		case "friend_add":
+			if !c.spawned {
+				continue
+			}
+			var d FriendAddSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.TargetCharacterID <= 0 {
+				continue
+			}
+			c.handleFriendAdd(database, d.TargetCharacterID)
+
+		case "friend_respond":
+			if !c.spawned {
+				continue
+			}
+			var d FriendRespondSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.FromAccountID <= 0 {
+				continue
+			}
+			c.handleFriendRespond(database, d.FromAccountID, d.Accept)
+
+		case "friend_remove":
+			if !c.spawned {
+				continue
+			}
+			var d FriendRemoveSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.FriendAccountID <= 0 {
+				continue
+			}
+			c.handleFriendRemove(database, d.FriendAccountID)
+
+		case "pm_send":
+			if !c.spawned {
+				continue
+			}
+			var d PmSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.TargetCharacterID <= 0 {
+				continue
+			}
+			c.handlePmSend(database, d.TargetCharacterID, d.Text)
 
 		case "ability_hit":
 			if !c.spawned {
@@ -567,6 +616,51 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(newInv))
 			c.safeSend(BuildInventory(newInv))
+
+		case "drop_item":
+			if !c.spawned {
+				continue
+			}
+			var d DropItemSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.Slot < 0 {
+				continue
+			}
+			newInv, dropState, msg, ok := c.hub.world.DropInventorySlot(c.characterID, d.Slot, d.X, d.Y)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			row, err := database.CreateWorldItemDrop(context.Background(), db.WorldItemDrop{
+				ItemID: dropState.ItemID, HouseID: dropState.HouseID, Count: dropState.Count,
+				X: dropState.X, Y: dropState.Y, SourceCharacterID: c.characterID,
+			})
+			if err != nil {
+				c.safeSend(encode("error", MessageData{Message: "Could not drop item."}))
+				continue
+			}
+			dropState = c.hub.world.RegisterDrop(row)
+			_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(newInv))
+			c.safeSend(BuildInventory(newInv))
+			c.hub.Broadcast(BuildWorldItemAdded(dropState))
+
+		case "equip_cosmetic":
+			if !c.spawned {
+				continue
+			}
+			var d EquipCosmeticSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.Slot < 0 {
+				continue
+			}
+			head, msg, ok := c.hub.world.EquipCosmeticFromSlot(c.characterID, d.Slot)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			cosmetics := db.EquippedCosmetics{}
+			if head != "" {
+				cosmetics[game.CosmeticSlotHead] = head
+			}
+			_ = database.SaveCharacterCosmetics(context.Background(), c.characterID, cosmetics)
 
 		case "pickup_item":
 			if !c.spawned {

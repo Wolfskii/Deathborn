@@ -69,4 +69,28 @@ public sealed class FourDirectionAttackAnimation
 
         sb.Draw(_texture, screenPos, src, tint, 0f, origin, scale, SpriteEffects.None, 0f);
     }
+
+    public void DrawOutline(SpriteBatch sb, Vector2 screenPos, Color outline, float scale, float thickness = 1f)
+    {
+        if (!IsPlaying) return;
+
+        var srcX = SwordsmanSpriteSheet.FrameStartX + _frame * SwordsmanSpriteSheet.FrameStride;
+        var srcW = SwordsmanSpriteSheet.AttackFrameWidth;
+        var origin = SwordsmanSpriteSheet.BodyAnchor;
+
+        if (_facing == FacingDirection.Left)
+        {
+            srcX -= SwordsmanSpriteSheet.AttackLeftSourcePad;
+            srcW += SwordsmanSpriteSheet.AttackLeftSourcePad;
+            origin.X += SwordsmanSpriteSheet.AttackLeftSourcePad;
+        }
+
+        var src = new Rectangle(
+            srcX,
+            SwordsmanSpriteSheet.DirectionRowTops[(int)_facing],
+            srcW,
+            SwordsmanSpriteSheet.AttackFrameHeight);
+
+        SpriteOutlineDraw.Draw(sb, _texture, screenPos, src, origin, outline, scale, thickness);
+    }
 }

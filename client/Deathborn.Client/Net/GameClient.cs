@@ -60,8 +60,11 @@ public sealed class GameClient : IDisposable
     public event Action<HouseUpdatedData>? HouseUpdated;
     public event Action<InventoryData>? InventoryUpdated;
     public event Action<WorldItemRemovedData>? WorldItemRemoved;
+    public event Action<WorldItemDropState>? WorldItemAdded;
     public event Action<string>? ServerError;
     public event Action? Disconnected;
+    public event Action<FriendsData>? FriendsUpdated;
+    public event Action<PmData>? PrivateMessage;
 
     public async Task RegisterAsync(string email, string password)
     {
@@ -252,6 +255,44 @@ public sealed class GameClient : IDisposable
     {
         if (LocalCharacterId < 0) return;
         Send("inventory_move", new { fromSlot, toSlot });
+    }
+
+    public void SendDropItem(int slot, float x, float y)
+    {
+        if (LocalCharacterId < 0 || slot < 0) return;
+        Send("drop_item", new { slot, x, y });
+    }
+
+    public void SendEquipCosmetic(int slot)
+    {
+        if (LocalCharacterId < 0 || slot < 0) return;
+        Send("equip_cosmetic", new { slot });
+    }
+
+    public void SendFriendAdd(long targetCharacterId)
+    {
+        if (LocalCharacterId < 0 || targetCharacterId <= 0) return;
+        Send("friend_add", new { targetCharacterId });
+    }
+
+    public void SendFriendRespond(long fromAccountId, bool accept)
+    {
+        if (LocalCharacterId < 0 || fromAccountId <= 0) return;
+        Send("friend_respond", new { fromAccountId, accept });
+    }
+
+    public void SendFriendRemove(long friendAccountId)
+    {
+        if (LocalCharacterId < 0 || friendAccountId <= 0) return;
+        Send("friend_remove", new { friendAccountId });
+    }
+
+    public void SendPm(long targetCharacterId, string text)
+    {
+        if (LocalCharacterId < 0 || targetCharacterId <= 0) return;
+        text = text.Trim();
+        if (text.Length == 0) return;
+        Send("pm_send", new { targetCharacterId, text });
     }
 
     /// <summary>Saves position on the server, then closes the world connection.</summary>
@@ -448,6 +489,22 @@ public sealed class GameClient : IDisposable
             case "world_item_removed":
                 var itemRemoved = env.Data.Deserialize<WorldItemRemovedData>(JsonOpts);
                 if (itemRemoved != null) WorldItemRemoved?.Invoke(itemRemoved);
+                break;
+            case "world_item_added":
+                var itemAdded = env.Data.Deserialize<WorldItemDropState>(JsonOpts);
+                if (itemAdded != null) WorldItemAdded?.Invoke(itemAdded);
+                break;
+            case "friends":
+                var friends = env.Data.Deserialize<FriendsData>(JsonOpts);
+                if (friends != null)
+                {
+                    friends.Friends ??= [];
+                    FriendsUpdated?.Invoke(friends);
+                }
+                break;
+            case "pm":
+                var pm = env.Data.Deserialize<PmData>(JsonOpts);
+                if (pm != null) PrivateMessage?.Invoke(pm);
                 break;
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);

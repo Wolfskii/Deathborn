@@ -81,7 +81,7 @@ public sealed class InventoryWindow : UiWindow
         if (_inventory == null) return;
 
         LayoutCells();
-        sb.DrawString(font, "Drag items to your hotbar", new Vector2(area.X + 8, area.Y + 2), GoldDim);
+        sb.DrawString(font, "Drag items to hotbar or drop in world", new Vector2(area.X + 8, area.Y + 2), GoldDim);
 
         for (var i = 0; i < _cellRects.Count; i++)
         {

@@ -358,6 +358,9 @@ public sealed class PlayerState
 
     [JsonPropertyName("insideHouseId")]
     public long InsideHouseId { get; set; }
+
+    [JsonPropertyName("headCosmetic")]
+    public string? HeadCosmetic { get; set; }
 }
 
 public sealed class MessageData
@@ -544,4 +547,51 @@ public sealed class PlayerBuffData
 
     [JsonPropertyName("markTargetId")]
     public long MarkTargetId { get; set; }
+}
+
+public sealed class FriendEntryState
+{
+    [JsonPropertyName("accountId")]
+    public long AccountId { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("characterId")]
+    public long CharacterId { get; set; }
+
+    [JsonPropertyName("online")]
+    public bool Online { get; set; }
+
+    [JsonPropertyName("pendingIn")]
+    public bool PendingIn { get; set; }
+
+    [JsonPropertyName("pendingOut")]
+    public bool PendingOut { get; set; }
+
+    public bool IsConfirmedFriend => !PendingIn && !PendingOut;
+}
+
+public sealed class FriendsData
+{
+    [JsonPropertyName("friends")]
+    public List<FriendEntryState> Friends { get; set; } = [];
+}
+
+public sealed class PmData
+{
+    [JsonPropertyName("fromCharacterId")]
+    public long FromCharacterId { get; set; }
+
+    [JsonPropertyName("fromName")]
+    public string FromName { get; set; } = "";
+
+    [JsonPropertyName("fromAccountId")]
+    public long FromAccountId { get; set; }
+
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = "";
+
+    [JsonPropertyName("outgoing")]
+    public bool Outgoing { get; set; }
 }

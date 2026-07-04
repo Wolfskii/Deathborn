@@ -52,4 +52,16 @@ public sealed class FourDirectionIdleAnimation
 
         sb.Draw(_texture, screenPos, src, tint, 0f, SwordsmanSpriteSheet.BodyAnchor, scale, SpriteEffects.None, 0f);
     }
+
+    public void DrawOutline(SpriteBatch sb, Vector2 screenPos, Color outline, float scale, float thickness = 1f)
+    {
+        var facing = (int)_facing;
+        var src = new Rectangle(
+            SwordsmanSpriteSheet.FrameStartX
+                + (SwordsmanSpriteSheet.IdleFrameOffsets[facing] + _frame) * SwordsmanSpriteSheet.FrameStride,
+            SwordsmanSpriteSheet.DirectionRowTops[facing],
+            FrameWidth,
+            FrameHeight);
+        SpriteOutlineDraw.Draw(sb, _texture, screenPos, src, SwordsmanSpriteSheet.BodyAnchor, outline, scale, thickness);
+    }
 }

@@ -12,6 +12,7 @@ public sealed class GameWindowManager
     public SpellBookWindow SpellBook { get; }
     public InventoryWindow Inventory { get; }
     public SkillsWindow Skills { get; }
+    public FriendsWindow Friends { get; }
 
     public GameWindowManager()
     {
@@ -19,10 +20,12 @@ public sealed class GameWindowManager
         SpellBook = new SpellBookWindow();
         Inventory = new InventoryWindow();
         Skills = new SkillsWindow();
+        Friends = new FriendsWindow();
         Register(Character);
         Register(SpellBook);
         Register(Inventory);
         Register(Skills);
+        Register(Friends);
     }
 
     public void Register(UiWindow window)
@@ -41,6 +44,7 @@ public sealed class GameWindowManager
     public void OpenSpellBook() => SpellBook.Open();
     public void OpenInventory() => Inventory.Open();
     public void OpenSkills() => Skills.Open();
+    public void OpenFriends() => Friends.Open();
 
     /// <summary>True when an open window is under the mouse (blocks world clicks).</summary>
     public bool Update(MouseState mouse, MouseState prevMouse, KeyboardState kb, KeyboardState prevKb, bool allowShortcuts)

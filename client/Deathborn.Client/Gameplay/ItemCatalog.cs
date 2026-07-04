@@ -1,10 +1,18 @@
 namespace Deathborn.Client.Gameplay;
 
+public enum ItemKind
+{
+    Consumable,
+    Cosmetic,
+    Key,
+}
+
 public sealed class ItemInfo
 {
     public required string Id { get; init; }
     public required string Name { get; init; }
     public required string Description { get; init; }
+    public ItemKind Kind { get; init; } = ItemKind.Consumable;
     public int MaxStack { get; init; } = 20;
     public float Cooldown { get; init; }
     public int? Heal { get; init; }
@@ -44,18 +52,42 @@ public static class ItemCatalog
         },
         ["house_key"] = new()
         {
-            Id = "house_key", Name = "Homestead Key", MaxStack = 1, Cooldown = 0f,
-            Description = "Proves ownership of a homestead plot. Drop it on death — anyone can claim the plot by picking it up.",
+            Id = "house_key", Name = "Homestead Key", Kind = ItemKind.Key, MaxStack = 1, Cooldown = 0f,
+            Description = "Proves ownership of a homestead plot. Drop it on death - anyone can claim the plot by picking it up.",
         },
     };
+
+    static ItemCatalog()
+    {
+        foreach (var c in CosmeticCatalog.All)
+            All[c.Id] = c;
+    }
 
     public static ItemInfo? Get(string id) => All.GetValueOrDefault(id);
 
     public static IReadOnlyCollection<ItemInfo> AllItems => All.Values;
 
+    public static bool IsCosmetic(string? id) =>
+        id != null && All.TryGetValue(id, out var info) && info.Kind == ItemKind.Cosmetic;
+
     public static Dictionary<string, object> ToHotbarEntry(string itemId, int inventorySlot = -1)
     {
         var info = Get(itemId) ?? throw new ArgumentException($"Unknown item: {itemId}");
+        if (info.Kind == ItemKind.Cosmetic)
+        {
+            var entry = new Dictionary<string, object>
+            {
+                [HotbarEntry.IdKey] = itemId,
+                ["name"] = info.Name,
+                ["kind"] = "cosmetic",
+                ["itemId"] = itemId,
+                ["fromInventory"] = true,
+            };
+            if (inventorySlot >= 0)
+                entry[HotbarEntry.InventorySlotKey] = inventorySlot;
+            return HotbarEntry.Clone(entry);
+        }
+
         var abilityId = itemId switch
         {
             "bandage" => "bandage",
@@ -64,7 +96,7 @@ public static class ItemCatalog
             "stamina_potion" => "stamina_potion",
             _ => itemId,
         };
-        var entry = new Dictionary<string, object>
+        var hotbar = new Dictionary<string, object>
         {
             [HotbarEntry.IdKey] = abilityId,
             ["name"] = info.Name,
@@ -74,7 +106,7 @@ public static class ItemCatalog
             [HotbarEntry.CooldownKey] = info.Cooldown,
         };
         if (inventorySlot >= 0)
-            entry[HotbarEntry.InventorySlotKey] = inventorySlot;
-        return HotbarEntry.Clone(entry);
+            hotbar[HotbarEntry.InventorySlotKey] = inventorySlot;
+        return HotbarEntry.Clone(hotbar);
     }
 }

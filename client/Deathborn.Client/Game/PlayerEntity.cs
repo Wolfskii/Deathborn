@@ -44,6 +44,7 @@ public sealed class PlayerEntity
     public Vector2 Target;
     public bool IsLocal;
     public long InsideHouseId;
+    public string? HeadCosmetic;
     public Vector2 MoveDir;
     public Vector2 InputDir;
     /// <summary>Mouse-facing while idle (local player only).</summary>
@@ -480,6 +481,8 @@ public sealed class PlayerEntity
         else
             IdleAnim.Draw(sb, screenPos, tint, scale);
 
+        PlayerCosmeticDraw.DrawHead(sb, HeadCosmetic, screenPos, FacingDir, zoom);
+
         var nameTop = screenPos.Y + (-Radius - 28f) * zoom;
         if (!IsLocal)
         {
@@ -509,6 +512,35 @@ public sealed class PlayerEntity
         DrawPrimitives.FillCircle(sb, c, 4f * zoom, new Color(0.95f, 0.25f, 0.3f, 0.85f));
     }
 
+    /// <summary>Sprite-fitted hover border using the current animation frame.</summary>
+    public void DrawHoverHighlight(SpriteBatch sb, Vector2 screenPos, float zoom)
+    {
+        if (IsDead || IsLocal) return;
+
+        var scale = SpriteScale * zoom;
+        var outerThick = Math.Max(2.5f, 3.1f * zoom);
+        var innerThick = Math.Max(2f, 2.5f * zoom);
+
+        DrawHoverOutlinePass(sb, screenPos, new Color(255, 255, 255, 0.45f), scale, outerThick);
+        DrawHoverOutlinePass(sb, screenPos, new Color(255, 252, 185, 1f), scale, innerThick);
+        DrawHoverOutlinePass(sb, screenPos, new Color(255, 238, 120, 0.92f), scale, innerThick * 0.72f);
+    }
+
+    private void DrawHoverOutlinePass(
+        SpriteBatch sb, Vector2 screenPos, Color outline, float scale, float thickness)
+    {
+        if (IsHurt)
+            HurtAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
+        else if (IsWhirlwinding || IsDashing)
+            RunAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
+        else if (IsAttacking)
+            AttackAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
+        else if (IsMoving)
+            RunAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
+        else
+            IdleAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
+    }
+
     private void DrawBandageHoT(SpriteBatch sb, Vector2 screenPos, float zoom)
     {
         for (var i = 0; i < 4; i++)
@@ -535,6 +567,7 @@ public sealed class PlayerEntity
             Target = new Vector2((float)s.X, (float)s.Y),
             IsLocal = isLocal,
             InsideHouseId = s.InsideHouseId,
+            HeadCosmetic = string.IsNullOrEmpty(s.HeadCosmetic) ? null : s.HeadCosmetic,
         };
         if (s.HpMax > 0)
             entity.SyncStats((float)s.Hp, (float)s.HpMax);

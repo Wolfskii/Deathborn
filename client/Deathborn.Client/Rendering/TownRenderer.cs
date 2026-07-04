@@ -7,8 +7,6 @@ namespace Deathborn.Client.Rendering;
 /// <summary>Procedural town walls, buildings, and dirt paths between safe havens.</summary>
 public static class TownRenderer
 {
-    private static readonly Color PathFill = new(92, 78, 58);
-    private static readonly Color PathEdge = new(72, 60, 44);
     private static readonly Color WallStone = new(118, 112, 104);
     private static readonly Color WallTop = new(148, 142, 132);
     private static readonly Color Roof = new(88, 52, 38);
@@ -54,26 +52,32 @@ public static class TownRenderer
         var len = delta.Length();
         if (len < 1f) return;
 
-        var step = map.TileSize * 0.85f;
+        var step = map.TileSize * 0.5f;
         var dir = delta / len;
+        var perp = new Vector2(-dir.Y, dir.X);
         var count = (int)(len / step);
-        var roadW = MathF.Max(2f, 22f * zoom);
+        var drawn = new HashSet<(int, int)>();
 
         for (var i = 0; i <= count; i++)
         {
-            var world = from + dir * (i * step);
-            if (!map.IsWalkable(world.X, world.Y, 6f)) continue;
+            var along = from + dir * (i * step);
+            for (var lane = -1; lane <= 1; lane++)
+            {
+                var world = along + perp * (lane * map.TileSize * 0.42f);
+                if (!map.IsWalkable(world.X, world.Y, 4f)) continue;
 
-            var screen = WorldToScreen(world, camera, screenCenter, zoom);
-            if (!OnScreen(screen, screenCenter)) continue;
+                var tx = (int)(world.X / map.TileSize);
+                var ty = (int)(world.Y / map.TileSize);
+                if (!drawn.Add((tx, ty))) continue;
 
-            var rect = new Rectangle(
-                (int)(screen.X - roadW * 0.5f),
-                (int)(screen.Y - roadW * 0.35f),
-                (int)roadW,
-                (int)(roadW * 0.7f));
-            DrawPrimitives.FillRect(sb, rect, PathFill);
-            DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, 1), PathEdge);
+                var rect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
+                if (!OnScreen(new Vector2(rect.Center.X, rect.Center.Y), screenCenter)) continue;
+
+                if (!DungeonFloorTiles.TryDrawRoad(sb, rect))
+                {
+                    DrawPrimitives.FillRect(sb, rect, new Color(18, 16, 14));
+                }
+            }
         }
     }
 
