@@ -57,7 +57,7 @@ public sealed class DragDropManager
         DrawPrimitives.FillRect(sb, rect, new Color(20, 22, 30, 210));
         DrawBorder(sb, rect, new Color(210, 170, 80));
 
-        var icon = new Rectangle(rect.X + 6, rect.Y + 6, rect.Width - 12, rect.Height - 12);
+        var icon = HotbarIconDraw.FitSquare(rect, top: 6, bottom: 6, horizontalPad: 6);
         HotbarIconDraw.Draw(sb, Active.IconId, icon);
 
         var name = Active.DisplayName ?? "?";

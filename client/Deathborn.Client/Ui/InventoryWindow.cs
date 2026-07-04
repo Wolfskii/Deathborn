@@ -81,7 +81,7 @@ public sealed class InventoryWindow : UiWindow
 
             if (slot.IsEmpty) continue;
 
-            var icon = new Rectangle(rect.X + 6, rect.Y + 6, rect.Width - 12, rect.Height - 14);
+            var icon = HotbarIconDraw.FitSquare(rect, top: 4, bottom: 12, horizontalPad: 4);
             HotbarIconDraw.Draw(sb, slot.ItemId, icon);
 
             if (slot.Count > 1)

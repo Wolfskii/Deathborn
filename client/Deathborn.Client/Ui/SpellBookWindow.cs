@@ -90,7 +90,7 @@ public sealed class SpellBookWindow : UiWindow
 
             if (i >= abilities.Count) continue;
             var ability = abilities[i];
-            var icon = new Rectangle(rect.X + 8, rect.Y + 10, rect.Width - 16, rect.Height - 24);
+            var icon = HotbarIconDraw.FitSquare(rect, top: 6, bottom: 26, horizontalPad: 4);
             HotbarIconDraw.Draw(sb, ability.Id, icon);
             var cost = AbilityResourceCosts.FormatCostLine(ability);
             sb.DrawString(font, SpriteFontSafe.Filter(cost), new Vector2(rect.X + 4, rect.Bottom - 22),

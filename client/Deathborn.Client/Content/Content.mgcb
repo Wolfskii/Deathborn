@@ -119,3 +119,17 @@
 /build:Characters/Swordsman/Hurt.png
 
 #end Characters/Swordsman/Hurt.png
+
+#begin Icons/ability_sheet.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Icons/ability_sheet.png
+
+#end Icons/ability_sheet.png

@@ -79,6 +79,7 @@ public sealed class DeathbornGame : Game
         DrawPrimitives.Init(GraphicsDevice);
         Font = Content.Load<SpriteFont>("Fonts/Default");
         CharacterSprites.Load(Content);
+        AbilityIconAtlas.Load(Content);
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
         SyncViewport();

@@ -47,7 +47,7 @@ public sealed class HotbarSlot
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, 2, bounds.Height), border);
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.Right - 2, bounds.Y, 2, bounds.Height), border);
 
-        var icon = new Rectangle(bounds.X + 5, bounds.Y + 16, bounds.Width - 10, bounds.Height - 30);
+        var icon = HotbarIconDraw.FitSquare(bounds, top: 14, bottom: 17, horizontalPad: 2);
         var spellId = Entry?.GetValueOrDefault(HotbarEntry.IdKey) as string;
         HotbarIconDraw.Draw(sb, spellId, icon);
 

@@ -4,9 +4,20 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
-/// <summary>Procedural hotbar spell icons drawn without external assets.</summary>
+/// <summary>Ability/item icons — texture sheet when loaded, procedural fallback otherwise.</summary>
 public static class HotbarIconDraw
 {
+    public static Rectangle FitSquare(Rectangle bounds, int top = 0, int bottom = 0, int horizontalPad = 0)
+    {
+        var availH = bounds.Height - top - bottom;
+        var availW = bounds.Width - horizontalPad * 2;
+        var size = Math.Min(availW, availH);
+        return new Rectangle(
+            bounds.X + (bounds.Width - size) / 2,
+            bounds.Y + top + (availH - size) / 2,
+            size, size);
+    }
+
     public static void Draw(SpriteBatch sb, string? spellId, Rectangle bounds)
     {
         if (string.IsNullOrEmpty(spellId))
@@ -14,6 +25,9 @@ public static class HotbarIconDraw
             DrawPrimitives.FillRect(sb, bounds, new Color(30, 30, 36));
             return;
         }
+
+        if (AbilityIconAtlas.TryDraw(sb, spellId, bounds))
+            return;
 
         switch (spellId)
         {
