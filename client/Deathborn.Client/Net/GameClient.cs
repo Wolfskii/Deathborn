@@ -248,6 +248,12 @@ public sealed class GameClient : IDisposable
         Send("house_exit", new { });
     }
 
+    public void SendInventoryMove(int fromSlot, int toSlot)
+    {
+        if (LocalCharacterId < 0) return;
+        Send("inventory_move", new { fromSlot, toSlot });
+    }
+
     /// <summary>Saves position on the server, then closes the world connection.</summary>
     public async Task LogoutWorldAsync()
     {

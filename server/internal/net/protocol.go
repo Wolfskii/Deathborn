@@ -236,6 +236,12 @@ type PickupItemSendData struct {
 	DropID int64 `json:"dropId"`
 }
 
+// InventoryMoveSendData reorders stacks within the player's inventory grid.
+type InventoryMoveSendData struct {
+	FromSlot int `json:"fromSlot"`
+	ToSlot   int `json:"toSlot"`
+}
+
 // WorldItemRemovedData is broadcast when ground loot is picked up.
 type WorldItemRemovedData struct {
 	DropID int64 `json:"dropId"`

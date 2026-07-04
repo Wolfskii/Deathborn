@@ -24,6 +24,8 @@ public sealed class SpellBookWindow : UiWindow
     private Rectangle _prevButton;
     private Rectangle _nextButton;
 
+    public event Action<string>? AbilityClicked;
+
     public SpellBookWindow() : base("Spell Book", Width, Height, Keys.K, new Point(420, 80)) { }
 
     public void Bind(DragDropManager dragDrop) => _dragDrop = dragDrop;
@@ -70,8 +72,17 @@ public sealed class SpellBookWindow : UiWindow
             }
         }
 
-        if (mouse.LeftButton == ButtonState.Released)
+        if (mouse.LeftButton == ButtonState.Released && prevMouse.LeftButton == ButtonState.Pressed)
+        {
+            if (_pendingDragAbilityId != null)
+            {
+                var dx = mouse.X - _dragStartMouse.X;
+                var dy = mouse.Y - _dragStartMouse.Y;
+                if (dx * dx + dy * dy <= 36)
+                    AbilityClicked?.Invoke(_pendingDragAbilityId);
+            }
             _pendingDragAbilityId = null;
+        }
     }
 
     protected override void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle area)

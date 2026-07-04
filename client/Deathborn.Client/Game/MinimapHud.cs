@@ -10,6 +10,7 @@ public sealed class MinimapHud
 {
     private static readonly Color WaterFill = new(0.06f, 0.12f, 0.24f, 0.95f);
     private static readonly Color FrameFill = new(0.08f, 0.08f, 0.1f, 0.92f);
+    private static readonly Color CompassColor = new(0.75f, 0.62f, 0.38f, 0.92f);
 
     public Vector2 Center =>
         new(
@@ -18,6 +19,7 @@ public sealed class MinimapHud
 
     public void Draw(
         SpriteBatch sb,
+        SpriteFont font,
         Vector2 cameraWorld,
         long localId,
         IEnumerable<PlayerEntity> players,
@@ -34,7 +36,7 @@ public sealed class MinimapHud
 
         map.DrawLocalMinimap(sb, center, r, cameraWorld, worldRadius);
 
-        DrawViewportRect(sb, cameraWorld, worldRadius, center, r);
+        DrawCompassMarkers(sb, font, center, r);
 
         DrawPrimitives.DrawCircleOutline(sb, center, r, new Color(0.75f, 0.62f, 0.38f, 0.9f), 48, 2.5f);
 
@@ -83,44 +85,22 @@ public sealed class MinimapHud
         }
     }
 
-    private static void DrawViewportRect(
-        SpriteBatch sb,
-        Vector2 cameraWorld,
-        float worldRadius,
-        Vector2 center,
-        float radius)
+    private static void DrawCompassMarkers(SpriteBatch sb, SpriteFont font, Vector2 center, float radius)
     {
-        var zoom = GameViewport.WorldZoom;
-        var halfW = GameViewport.Width / (2f * zoom);
-        var halfH = GameViewport.Height / (2f * zoom);
-        var topLeft = cameraWorld - new Vector2(halfW, halfH);
-        var bottomRight = cameraWorld + new Vector2(halfW, halfH);
-
-        var a = WorldToMinimap(topLeft, cameraWorld, worldRadius, center, radius);
-        var b = WorldToMinimap(bottomRight, cameraWorld, worldRadius, center, radius);
-        var color = new Color(1f, 1f, 1f, 0.22f);
-
-        DrawClippedLine(sb, a, new Vector2(b.X, a.Y), color, center, radius);
-        DrawClippedLine(sb, new Vector2(b.X, a.Y), b, color, center, radius);
-        DrawClippedLine(sb, b, new Vector2(a.X, b.Y), color, center, radius);
-        DrawClippedLine(sb, new Vector2(a.X, b.Y), a, color, center, radius);
+        const float scale = 0.58f;
+        const float pad = 11f;
+        DrawCompassLabel(sb, font, "N", center + new Vector2(0, -radius - pad), scale);
+        DrawCompassLabel(sb, font, "S", center + new Vector2(0, radius + pad - 2), scale);
+        DrawCompassLabel(sb, font, "W", center + new Vector2(-radius - pad, 0), scale);
+        DrawCompassLabel(sb, font, "E", center + new Vector2(radius + pad - 2, 0), scale);
     }
 
-    private static void DrawClippedLine(
-        SpriteBatch sb, Vector2 a, Vector2 b, Color color, Vector2 center, float radius)
+    private static void DrawCompassLabel(SpriteBatch sb, SpriteFont font, string label, Vector2 pos, float scale)
     {
-        if (!SegmentIntersectsCircle(a, b, center, radius)) return;
-        a = ClampToCircle(a, center, radius - 1f);
-        b = ClampToCircle(b, center, radius - 1f);
-        DrawPrimitives.DrawLine(sb, a, b, color, 1f);
-    }
-
-    private static bool SegmentIntersectsCircle(Vector2 a, Vector2 b, Vector2 center, float radius)
-    {
-        a = ClampToCircle(a, center, radius);
-        b = ClampToCircle(b, center, radius);
-        return Vector2.DistanceSquared(a, center) <= radius * radius
-            || Vector2.DistanceSquared(b, center) <= radius * radius;
+        var size = SpriteFontSafe.MeasureString(font, label) * scale;
+        var drawPos = new Vector2(pos.X - size.X / 2f, pos.Y - size.Y / 2f);
+        SpriteFontSafe.DrawString(sb, font, label, drawPos, CompassColor,
+            0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
     private static bool InLocalRange(Vector2 world, Vector2 worldCenter, float worldRadius)

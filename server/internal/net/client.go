@@ -552,6 +552,22 @@ func (c *Client) readPump(database *db.DB) {
 			c.safeSend(BuildInventory(gameInv))
 			c.hub.Broadcast(BuildHouseBuilt(state))
 
+		case "inventory_move":
+			if !c.spawned {
+				continue
+			}
+			var d InventoryMoveSendData
+			if json.Unmarshal(env.Data, &d) != nil {
+				continue
+			}
+			newInv, msg, ok := c.hub.world.MoveInventorySlot(c.characterID, d.FromSlot, d.ToSlot)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(newInv))
+			c.safeSend(BuildInventory(newInv))
+
 		case "pickup_item":
 			if !c.spawned {
 				continue

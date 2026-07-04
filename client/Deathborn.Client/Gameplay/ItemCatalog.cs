@@ -53,7 +53,7 @@ public static class ItemCatalog
 
     public static IReadOnlyCollection<ItemInfo> AllItems => All.Values;
 
-    public static Dictionary<string, object> ToHotbarEntry(string itemId)
+    public static Dictionary<string, object> ToHotbarEntry(string itemId, int inventorySlot = -1)
     {
         var info = Get(itemId) ?? throw new ArgumentException($"Unknown item: {itemId}");
         var abilityId = itemId switch
@@ -64,7 +64,7 @@ public static class ItemCatalog
             "stamina_potion" => "stamina_potion",
             _ => itemId,
         };
-        return HotbarEntry.Clone(new Dictionary<string, object>
+        var entry = new Dictionary<string, object>
         {
             [HotbarEntry.IdKey] = abilityId,
             ["name"] = info.Name,
@@ -72,6 +72,9 @@ public static class ItemCatalog
             ["itemId"] = itemId,
             ["fromInventory"] = true,
             [HotbarEntry.CooldownKey] = info.Cooldown,
-        });
+        };
+        if (inventorySlot >= 0)
+            entry[HotbarEntry.InventorySlotKey] = inventorySlot;
+        return HotbarEntry.Clone(entry);
     }
 }

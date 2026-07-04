@@ -4,6 +4,7 @@ public static class HotbarEntry
 {
     public const string IdKey = "id";
     public const string CooldownKey = "cooldown";
+    public const string InventorySlotKey = "inventorySlot";
 
     public static float GetCooldown(Dictionary<string, object>? entry)
     {

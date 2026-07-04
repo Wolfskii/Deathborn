@@ -18,6 +18,8 @@ public sealed class InventoryWindow : UiWindow
     private Point _dragStartMouse;
     private readonly List<Rectangle> _cellRects = new(PlayerInventory.SlotCount);
 
+    public event Action<int>? SlotClicked;
+
     public InventoryWindow() : base("Inventory", Width, Height, Keys.I, new Point(80, 120)) { }
 
     public void Bind(DragDropManager dragDrop, PlayerInventory inventory)
@@ -61,8 +63,17 @@ public sealed class InventoryWindow : UiWindow
             }
         }
 
-        if (mouse.LeftButton == ButtonState.Released)
+        if (mouse.LeftButton == ButtonState.Released && prevMouse.LeftButton == ButtonState.Pressed)
+        {
+            if (_pendingDragSlot is int clickedSlot)
+            {
+                var dx = mouse.X - _dragStartMouse.X;
+                var dy = mouse.Y - _dragStartMouse.Y;
+                if (dx * dx + dy * dy <= 36)
+                    SlotClicked?.Invoke(clickedSlot);
+            }
             _pendingDragSlot = null;
+        }
     }
 
     protected override void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle area)
@@ -81,20 +92,24 @@ public sealed class InventoryWindow : UiWindow
 
             if (slot.IsEmpty) continue;
 
-            var icon = HotbarIconDraw.FitSquare(rect, top: 4, bottom: 12, horizontalPad: 4);
+            var icon = new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2);
             HotbarIconDraw.Draw(sb, slot.ItemId, icon);
 
             if (slot.Count > 1)
             {
                 var label = slot.Count.ToString();
                 var size = font.MeasureString(label);
-                sb.DrawString(font, label,
-                    new Vector2(rect.Right - size.X - 3, rect.Bottom - size.Y - 1),
-                    new Color(245, 240, 220));
+                var labelX = rect.Right - size.X - 4;
+                var labelY = rect.Bottom - size.Y - 3;
+                DrawPrimitives.FillRect(sb,
+                    new Rectangle((int)labelX - 2, (int)labelY - 1, (int)size.X + 4, (int)size.Y + 2),
+                    new Color(0, 0, 0, 0.62f));
+                sb.DrawString(font, label, new Vector2(labelX, labelY), new Color(245, 240, 220));
             }
         }
 
-        if (_hoverSlot is int hs && !_inventory.Slots[hs].IsEmpty)
+        if (_dragDrop?.IsDragging != true
+            && _hoverSlot is int hs && !_inventory.Slots[hs].IsEmpty)
         {
             var info = ItemCatalog.Get(_inventory.Slots[hs].ItemId!);
             if (info != null)

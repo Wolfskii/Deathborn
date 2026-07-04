@@ -128,7 +128,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Name : net.SpawnName,
             () => _skills);
         _windows.SpellBook.Bind(_dragDrop);
+        _windows.SpellBook.AbilityClicked += OnSpellBookAbilityClicked;
         _windows.Inventory.Bind(_dragDrop, _inventory);
+        _windows.Inventory.SlotClicked += OnInventorySlotClicked;
         _windows.Skills.Bind(() => _skills);
         _screens.SetOpenCharacterHandler(() => _windows.OpenCharacter());
         _screens.SetOpenSpellBookHandler(() => _windows.OpenSpellBook());
@@ -178,6 +180,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_chat.IsOpen) _chat.Close(submit: false);
         _hotbar.SlotActivated -= OnHotbarSlot;
         _hotbar.CooldownBlocked -= OnHotbarCooldownBlocked;
+        _windows.SpellBook.AbilityClicked -= OnSpellBookAbilityClicked;
+        _windows.Inventory.SlotClicked -= OnInventorySlotClicked;
         _screens.SetOpenCharacterHandler(null);
         _windows.Character.Close();
         _worldMap.Close();
@@ -370,7 +374,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 if (kb.IsKeyDown(Keys.Space) && !_prevKb.IsKeyDown(Keys.Space))
                     TryDefaultAttack();
 
-                if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released)
+                if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released
+                    && !IsOverHotbar(mouse.Position))
                     HandleLeftClick(mouse.Position);
             }
         }
@@ -455,13 +460,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (!_ghostMode)
         {
-            _hotbar.Draw(sb, font);
+            _hotbar.Draw(sb, font, _inventory);
             if (!IsLocalDyingOrDead() && !_dragDrop.IsDragging)
                 DrawHotbarTooltip(sb, font);
             if (!IsLocalDyingOrDead())
             {
                 _buffBar.Draw(sb, font, _buffTracker);
-                _minimap.Draw(sb, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values,
+                _minimap.Draw(sb, font, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values,
                     LocalHomestead());
             }
         }
@@ -643,8 +648,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             }
         }
 
-        if (mouse.LeftButton == ButtonState.Released)
+        if (mouse.LeftButton == ButtonState.Released && prevMouse.LeftButton == ButtonState.Pressed)
+        {
+            if (!_dragDrop.IsDragging && !IsLocalDyingOrDead() && _pendingHotbarDragIndex is int pending)
+            {
+                var dx = mouse.X - _hotbarDragStartMouse.X;
+                var dy = mouse.Y - _hotbarDragStartMouse.Y;
+                if (dx * dx + dy * dy <= 36
+                    && Hotbar.TryGetSlotIndexAt(mouse.Position, out var idx) && idx == pending)
+                    _hotbar.TryActivate(pending);
+            }
             _pendingHotbarDragIndex = null;
+        }
 
         if (!_dragDrop.IsDragging) return;
 
@@ -652,13 +667,24 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
 
         var payload = _dragDrop.Active!;
-        if (Hotbar.TryGetSlotIndexAt(mouse.Position, out var hotbarIdx))
+        if (_windows.Inventory.IsOpen && _windows.Inventory.TryGetSlotAt(mouse.Position, out var inventoryIdx))
+        {
+            if (payload.Kind == DragPayloadKind.Item && payload.SourceInventoryIndex >= 0)
+            {
+                if (payload.SourceInventoryIndex != inventoryIdx)
+                {
+                    _inventory.MoveSlot(payload.SourceInventoryIndex, inventoryIdx);
+                    _screens.Net.SendInventoryMove(payload.SourceInventoryIndex, inventoryIdx);
+                }
+            }
+        }
+        else if (Hotbar.TryGetSlotIndexAt(mouse.Position, out var hotbarIdx))
         {
             var replaced = _hotbar.Slots[hotbarIdx].Entry;
             var newEntry = payload.Kind switch
             {
                 DragPayloadKind.Ability => AbilityCatalog.ToHotbarEntry(payload.AbilityId!),
-                DragPayloadKind.Item => ItemCatalog.ToHotbarEntry(payload.ItemId!),
+                DragPayloadKind.Item => ItemCatalog.ToHotbarEntry(payload.ItemId!, payload.SourceInventoryIndex),
                 DragPayloadKind.Hotbar => payload.HotbarEntry,
                 _ => null,
             };
@@ -1616,7 +1642,33 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void OnInventoryUpdated(InventoryData data)
     {
         _inventory.ApplyFromServer(data.Items);
+        RefreshHotbarInventoryLinks();
         UpdateBuildHouseEnabled();
+    }
+
+    private void RefreshHotbarInventoryLinks()
+    {
+        for (var i = 0; i < _hotbar.Slots.Length; i++)
+        {
+            var entry = _hotbar.Slots[i].Entry;
+            if (entry?.GetValueOrDefault("fromInventory") is not true) continue;
+
+            if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+            {
+                var slot = slotObj switch
+                {
+                    int idx => idx,
+                    long l => (int)l,
+                    _ => -1,
+                };
+                if (slot < 0 || slot >= PlayerInventory.SlotCount) continue;
+                var invSlot = _inventory.Slots[slot];
+                var itemId = entry.GetValueOrDefault("itemId") as string
+                    ?? entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+                if (invSlot.IsEmpty || invSlot.ItemId != itemId)
+                    _hotbar.AssignSlot(i, null);
+            }
+        }
     }
 
     private void OnWorldItemRemoved(WorldItemRemovedData data)
@@ -1783,18 +1835,51 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void OnDisconnected() => _status = "Disconnected from server.";
 
-    private void OnHotbarSlot(int index, Dictionary<string, object>? entry)
+    private void OnInventorySlotClicked(int slotIndex)
     {
-        var key = Hotbar.KeyLabels[index];
+        if (_ghostMode || IsLocalDyingOrDead()) return;
+        var slot = _inventory.Slots[slotIndex];
+        if (slot.IsEmpty || slot.ItemId == null) return;
+        if (slot.ItemId == "house_key")
+        {
+            _status = "The homestead key is not a consumable.";
+            return;
+        }
+        TryUseEntry(null, ItemCatalog.ToHotbarEntry(slot.ItemId, slotIndex));
+    }
+
+    private void OnSpellBookAbilityClicked(string abilityId)
+    {
+        if (_ghostMode || IsLocalDyingOrDead()) return;
+        TryUseEntry(null, AbilityCatalog.ToHotbarEntry(abilityId));
+    }
+
+    private void OnHotbarSlot(int index, Dictionary<string, object>? entry) =>
+        TryUseEntry(index, entry);
+
+    private void TryUseEntry(int? hotbarIndex, Dictionary<string, object>? entry)
+    {
+        var key = hotbarIndex is int hi ? Hotbar.KeyLabels[hi] : null;
         if (entry == null)
         {
-            _status = $"Hotbar slot {key} is empty.";
+            if (key != null)
+                _status = $"Hotbar slot {key} is empty.";
             return;
+        }
+
+        var id = entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        if (hotbarIndex == null && id != null)
+        {
+            var cdSlot = FindHotbarSlotForAbility(id, entry);
+            if (cdSlot >= 0 && _hotbar.Slots[cdSlot].IsOnCooldown)
+            {
+                OnHotbarCooldownBlocked(cdSlot, _hotbar.Slots[cdSlot].CooldownRemaining);
+                return;
+            }
         }
 
         var cooldown = HotbarEntry.GetCooldown(entry);
         var used = false;
-        var id = entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
 
         if (id == "fireball")
         {
@@ -1842,12 +1927,48 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = UseAntidote(entry);
         else
         {
-            _status = $"Used slot {key}: {entry.GetValueOrDefault("name")} ({entry.GetValueOrDefault("kind")})";
+            _status = key != null
+                ? $"Used slot {key}: {entry.GetValueOrDefault("name")} ({entry.GetValueOrDefault("kind")})"
+                : $"Used {entry.GetValueOrDefault("name")}.";
             used = true;
         }
 
         if (used && cooldown > 0f)
-            _hotbar.StartCooldown(index, cooldown);
+        {
+            var cdSlot = hotbarIndex ?? FindHotbarSlotForAbility(id!, entry);
+            if (cdSlot >= 0)
+                _hotbar.StartCooldown(cdSlot, cooldown);
+        }
+    }
+
+    private int FindHotbarSlotForAbility(string abilityId, Dictionary<string, object> entry)
+    {
+        if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+        {
+            var invSlot = slotObj switch
+            {
+                int i => i,
+                long l => (int)l,
+                _ => -1,
+            };
+            if (invSlot >= 0)
+            {
+                for (var i = 0; i < _hotbar.Slots.Length; i++)
+                {
+                    var e = _hotbar.Slots[i].Entry;
+                    if (e == null) continue;
+                    if (e.TryGetValue(HotbarEntry.InventorySlotKey, out var s) && s.Equals(slotObj))
+                        return i;
+                }
+            }
+        }
+
+        for (var i = 0; i < _hotbar.Slots.Length; i++)
+        {
+            if (_hotbar.Slots[i].Entry?.GetValueOrDefault(HotbarEntry.IdKey) as string == abilityId)
+                return i;
+        }
+        return -1;
     }
 
     private void OnHotbarCooldownBlocked(int index, float remaining)
@@ -1876,7 +1997,23 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         };
 
         if (used && entry.GetValueOrDefault("fromInventory") is true)
-            _inventory.Consume(itemId);
+        {
+            if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+            {
+                var slotIdx = slotObj switch
+                {
+                    int i => i,
+                    long l => (int)l,
+                    _ => -1,
+                };
+                if (slotIdx >= 0)
+                    _inventory.ConsumeAt(slotIdx);
+                else
+                    _inventory.Consume(itemId);
+            }
+            else
+                _inventory.Consume(itemId);
+        }
         return used;
     }
 

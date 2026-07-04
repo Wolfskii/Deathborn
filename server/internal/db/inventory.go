@@ -12,6 +12,7 @@ const ItemHouseKey = "house_key"
 
 // InventoryItem is one stack in a character's inventory.
 type InventoryItem struct {
+	Slot    int    `json:"slot,omitempty"`
 	ItemID  string `json:"itemId"`
 	Count   int    `json:"count"`
 	HouseID int64  `json:"houseId,omitempty"`
@@ -35,6 +36,7 @@ func (d *DB) GetCharacterInventory(ctx context.Context, characterID int64) ([]In
 
 // SaveCharacterInventory replaces a character's inventory.
 func (d *DB) SaveCharacterInventory(ctx context.Context, characterID int64, items []InventoryItem) error {
+	items = normalizeInventorySlots(items)
 	raw, err := json.Marshal(items)
 	if err != nil {
 		return err
@@ -58,12 +60,18 @@ func (d *DB) GrantHouseKey(ctx context.Context, characterID, houseID int64) ([]I
 	if err != nil {
 		return nil, err
 	}
+	items = normalizeInventorySlots(items)
 	for _, it := range items {
 		if it.ItemID == ItemHouseKey && it.HouseID == houseID {
 			return items, nil
 		}
 	}
-	items = append(items, InventoryItem{ItemID: ItemHouseKey, Count: 1, HouseID: houseID})
+	slot := firstEmptySlot(items)
+	if slot < 0 {
+		return items, errors.New("inventory full")
+	}
+	items = append(items, InventoryItem{Slot: slot, ItemID: ItemHouseKey, Count: 1, HouseID: houseID})
+	items = normalizeInventorySlots(items)
 	if err := d.SaveCharacterInventory(ctx, characterID, items); err != nil {
 		return nil, err
 	}
@@ -72,13 +80,13 @@ func (d *DB) GrantHouseKey(ctx context.Context, characterID, houseID int64) ([]I
 
 // StarterInventory matches the client default loadout.
 func StarterInventory() []InventoryItem {
-	return []InventoryItem{
-		{ItemID: "bandage", Count: 5},
-		{ItemID: "health_potion", Count: 3},
-		{ItemID: "mana_potion", Count: 2},
-		{ItemID: "stamina_potion", Count: 2},
-		{ItemID: "antidote", Count: 1},
-	}
+	return normalizeInventorySlots([]InventoryItem{
+		{Slot: 0, ItemID: "bandage", Count: 5},
+		{Slot: 1, ItemID: "health_potion", Count: 3},
+		{Slot: 2, ItemID: "mana_potion", Count: 2},
+		{Slot: 3, ItemID: "stamina_potion", Count: 2},
+		{Slot: 4, ItemID: "antidote", Count: 1},
+	})
 }
 
 // InitCharacterInventory sets starter items for a new character.
@@ -131,5 +139,56 @@ func decodeInventory(raw []byte) []InventoryItem {
 	if json.Unmarshal(raw, &items) != nil {
 		return nil
 	}
-	return items
+	return normalizeInventorySlots(items)
+}
+
+const inventorySlotCount = 20
+
+func normalizeInventorySlots(items []InventoryItem) []InventoryItem {
+	var slots [inventorySlotCount]InventoryItem
+	next := 0
+	for _, it := range items {
+		if it.Count <= 0 || it.ItemID == "" {
+			continue
+		}
+		slot := it.Slot
+		if slot < 0 || slot >= inventorySlotCount || slots[slot].ItemID != "" {
+			for slot = next; slot < inventorySlotCount; slot++ {
+				if slots[slot].ItemID == "" {
+					break
+				}
+			}
+			next = slot + 1
+		}
+		if slot < 0 || slot >= inventorySlotCount {
+			continue
+		}
+		slots[slot] = InventoryItem{
+			Slot: slot, ItemID: it.ItemID, Count: it.Count, HouseID: it.HouseID,
+		}
+	}
+	out := make([]InventoryItem, 0, inventorySlotCount)
+	for i := 0; i < inventorySlotCount; i++ {
+		if slots[i].ItemID == "" || slots[i].Count <= 0 {
+			continue
+		}
+		slots[i].Slot = i
+		out = append(out, slots[i])
+	}
+	return out
+}
+
+func firstEmptySlot(items []InventoryItem) int {
+	var slots [inventorySlotCount]bool
+	for _, it := range items {
+		if it.Slot >= 0 && it.Slot < inventorySlotCount {
+			slots[it.Slot] = true
+		}
+	}
+	for i := 0; i < inventorySlotCount; i++ {
+		if !slots[i] {
+			return i
+		}
+	}
+	return -1
 }

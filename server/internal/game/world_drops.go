@@ -172,22 +172,3 @@ func (w *World) CanPickupDrop(characterID, dropID int64) (WorldItemDropState, st
 	}
 	return drop.state(), "", true
 }
-
-func (w *World) AddInventoryItem(characterID int64, item InventoryItem) []InventoryItem {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p, ok := w.players[characterID]
-	if !ok {
-		return nil
-	}
-	p.inventory = append(p.inventory, item)
-	return append([]InventoryItem(nil), p.inventory...)
-}
-
-func (w *World) ClearInventory(characterID int64) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if p, ok := w.players[characterID]; ok {
-		p.inventory = nil
-	}
-}

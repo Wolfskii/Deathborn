@@ -34,7 +34,7 @@ public sealed class HotbarSlot
         if (_flashT > 0.2f) { Flash = false; _flashT = 0; }
     }
 
-    public void Draw(SpriteBatch sb, SpriteFont font, Rectangle bounds)
+    public void Draw(SpriteBatch sb, SpriteFont font, Rectangle bounds, PlayerInventory? inventory = null)
     {
         var onCooldown = IsOnCooldown;
         var active = Flash && !onCooldown;
@@ -57,8 +57,46 @@ public sealed class HotbarSlot
             new Color(0, 0, 0, 0.62f));
         sb.DrawString(font, KeyLabel, new Vector2(bounds.X + 5, bounds.Y + 3), new Color(215, 215, 190));
 
+        if (inventory != null && Entry != null && Entry.GetValueOrDefault("fromInventory") is true)
+        {
+            var count = GetLinkedStackCount(Entry, inventory);
+            if (count > 0)
+                DrawStackCount(sb, font, bounds, count);
+        }
+
         if (onCooldown && CooldownTotal > 0f)
             DrawCooldownOverlay(sb, font, bounds);
+    }
+
+    private static int GetLinkedStackCount(Dictionary<string, object> entry, PlayerInventory inventory)
+    {
+        if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+        {
+            var slot = slotObj switch
+            {
+                int i => i,
+                long l => (int)l,
+                _ => -1,
+            };
+            if (slot >= 0) return inventory.CountAt(slot);
+        }
+
+        var itemId = entry.GetValueOrDefault("itemId") as string
+            ?? entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        return itemId != null ? inventory.CountOf(itemId) : 0;
+    }
+
+    private static void DrawStackCount(SpriteBatch sb, SpriteFont font, Rectangle bounds, int count)
+    {
+        var label = count.ToString();
+        var size = font.MeasureString(label) * 0.65f;
+        var labelX = bounds.Right - size.X - 4;
+        var labelY = bounds.Bottom - size.Y - 3;
+        DrawPrimitives.FillRect(sb,
+            new Rectangle((int)labelX - 2, (int)labelY - 1, (int)size.X + 4, (int)size.Y + 2),
+            new Color(0, 0, 0, 0.62f));
+        sb.DrawString(font, label, new Vector2(labelX, labelY), new Color(245, 240, 220),
+            0f, Vector2.Zero, 0.65f, SpriteEffects.None, 0f);
     }
 
     private void DrawCooldownOverlay(SpriteBatch sb, SpriteFont font, Rectangle bounds)
@@ -180,7 +218,7 @@ public sealed class Hotbar
 
     public void StartCooldown(int index, float seconds) => Slots[index].StartCooldown(seconds);
 
-    public void Draw(SpriteBatch sb, SpriteFont font)
+    public void Draw(SpriteBatch sb, SpriteFont font, PlayerInventory? inventory = null)
     {
         var totalW = 10 * SlotWidth + 9 * SlotGap;
         var x0 = GameViewport.Width / 2 - totalW / 2;
@@ -193,7 +231,7 @@ public sealed class Hotbar
         for (var i = 0; i < 10; i++)
         {
             var rect = new Rectangle(x0 + i * (SlotWidth + SlotGap), y, SlotWidth, SlotHeight);
-            Slots[i].Draw(sb, font, rect);
+            Slots[i].Draw(sb, font, rect, inventory);
         }
     }
 }

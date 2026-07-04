@@ -47,6 +47,9 @@ public sealed class WelcomeData
 
 public sealed class InventoryItemState
 {
+    [JsonPropertyName("slot")]
+    public int Slot { get; set; } = -1;
+
     [JsonPropertyName("itemId")]
     public string ItemId { get; set; } = "";
 
