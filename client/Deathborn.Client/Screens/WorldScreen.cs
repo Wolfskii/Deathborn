@@ -456,6 +456,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_ghostMode)
         {
             _hotbar.Draw(sb, font);
+            if (!IsLocalDyingOrDead() && !_dragDrop.IsDragging)
+                DrawHotbarTooltip(sb, font);
             if (!IsLocalDyingOrDead())
             {
                 _buffBar.Draw(sb, font, _buffTracker);
@@ -684,6 +686,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         _dragDrop.End();
+    }
+
+    private void DrawHotbarTooltip(SpriteBatch sb, SpriteFont font)
+    {
+        if (!Hotbar.TryGetSlotIndexAt(Mouse.GetState().Position, out var idx)) return;
+        var entry = _hotbar.Slots[idx].Entry;
+        if (entry == null) return;
+
+        AbilityTooltipDraw.DrawHotbarEntry(sb, font, entry, Hotbar.GetSlotBounds(idx),
+            new Point(GameViewport.Width, GameViewport.Height));
     }
 
     private static bool IsOverHotbar(Point p)

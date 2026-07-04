@@ -47,14 +47,15 @@ public sealed class HotbarSlot
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, 2, bounds.Height), border);
         DrawPrimitives.FillRect(sb, new Rectangle(bounds.Right - 2, bounds.Y, 2, bounds.Height), border);
 
-        var icon = HotbarIconDraw.FitSquare(bounds, top: 14, bottom: 17, horizontalPad: 2);
+        var icon = new Rectangle(bounds.X + 1, bounds.Y + 1, bounds.Width - 2, bounds.Height - 2);
         var spellId = Entry?.GetValueOrDefault(HotbarEntry.IdKey) as string;
         HotbarIconDraw.Draw(sb, spellId, icon);
 
+        var keySize = font.MeasureString(KeyLabel);
+        DrawPrimitives.FillRect(sb,
+            new Rectangle(bounds.X + 2, bounds.Y + 2, (int)keySize.X + 6, (int)keySize.Y + 2),
+            new Color(0, 0, 0, 0.62f));
         sb.DrawString(font, KeyLabel, new Vector2(bounds.X + 5, bounds.Y + 3), new Color(215, 215, 190));
-
-        if (Entry != null && Entry.TryGetValue("name", out var n))
-            sb.DrawString(font, n.ToString()!, new Vector2(bounds.X + 5, bounds.Bottom - 15), Color.White);
 
         if (onCooldown && CooldownTotal > 0f)
             DrawCooldownOverlay(sb, font, bounds);
