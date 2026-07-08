@@ -9,7 +9,15 @@ public sealed class PlayerEntity
 {
     public const float Radius = 12f;
     public const float SpriteDrawScale = 1.5f;
+    /// <summary>Collision circle sits slightly north of the feet anchor (top-down body mass).</summary>
+    public const float CollisionCenterYOffset = -6f;
     private const float SpriteScale = SpriteDrawScale;
+
+    /// <summary>World Y for Y-sorting — feet on the ground.</summary>
+    public float SortY => Position.Y;
+
+    public static Vector2 CollisionCenter(Vector2 feetPosition) =>
+        feetPosition + new Vector2(0, CollisionCenterYOffset);
 
     private FourDirectionRunAnimation? _runAnim;
     private FourDirectionIdleAnimation? _idleAnim;

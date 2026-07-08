@@ -97,19 +97,49 @@ public static class TinySwordsTerrain
             var topTy = ty - 1;
             if (topTy >= 0)
             {
-                if (ty >= 2 && map.GetElevation(tx, ty - 2) == landingElev + 1)
-                {
-                    var backdropRect = WorldMap.GetTileScreenRect(tx, topTy, camera, screenCenter, zoom, map.TileSize);
-                    DrawPiece(sb, sheet, 18, elevated: true, backdropRect);
-                }
-
+                DrawRampTopBackdrop(sb, map, tx, topTy, landingElev, sheet, camera, screenCenter, zoom);
                 var topRect = WorldMap.GetTileScreenRect(tx, topTy, camera, screenCenter, zoom, map.TileSize);
                 DrawPiece(sb, sheet, ramp == 1 ? 25 : 28, elevated: false, topRect);
             }
 
+            DrawRampCellGround(sb, map, tx, ty, landingElev, camera, screenCenter, zoom);
             var bottomRect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
             DrawPiece(sb, sheet, ramp == 1 ? 29 : 32, elevated: false, bottomRect);
         }
+    }
+
+    /// <summary>
+    /// Ramp-top cells skip the normal ground pass; fill gaps with cliff, water, or grass
+    /// before the stair sprite is drawn on top.
+    /// </summary>
+    private static void DrawRampTopBackdrop(
+        SpriteBatch sb, WorldMap map, int tx, int topTy, int landingElev, Texture2D sheet,
+        Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var rect = WorldMap.GetTileScreenRect(tx, topTy, camera, screenCenter, zoom, map.TileSize);
+        var northTy = topTy - 1;
+        if (northTy >= 0 && map.GetElevation(tx, northTy) == landingElev + 1)
+        {
+            DrawPiece(sb, sheet, 18, elevated: true, rect);
+            return;
+        }
+
+        if (northTy >= 0 && map.GetElevation(tx, northTy) < 0)
+        {
+            WaterTiles.TryDraw(sb, tx, topTy, rect);
+            return;
+        }
+
+        DrawRampCellGround(sb, map, tx, topTy, landingElev, camera, screenCenter, zoom);
+    }
+
+    private static void DrawRampCellGround(
+        SpriteBatch sb, WorldMap map, int tx, int ty, int elev,
+        Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        if (elev < 0) return;
+        var rect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
+        DrawGroundTop(sb, map, tx, ty, rect, elev);
     }
 
     private static void DrawShadowPass(

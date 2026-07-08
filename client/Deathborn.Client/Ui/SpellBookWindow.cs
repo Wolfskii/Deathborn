@@ -101,20 +101,16 @@ public sealed class SpellBookWindow : UiWindow
 
             if (i >= abilities.Count) continue;
             var ability = abilities[i];
-            var icon = HotbarIconDraw.FitSquare(rect, top: 6, bottom: 26, horizontalPad: 4);
+            var icon = new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2);
             HotbarIconDraw.Draw(sb, ability.Id, icon);
-            var cost = AbilityResourceCosts.FormatCostLine(ability);
-            sb.DrawString(font, SpriteFontSafe.Filter(cost), new Vector2(rect.X + 4, rect.Bottom - 22),
-                new Color(160, 175, 195), 0f, Vector2.Zero, 0.45f, SpriteEffects.None, 0f);
-            sb.DrawString(font, SpriteFontSafe.Filter(ability.Name), new Vector2(rect.X + 4, rect.Bottom - 14),
-                Color.White, 0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
+            DrawAbilityLabels(sb, font, rect, ability);
         }
 
         DrawPageButton(sb, font, _prevButton, "< Prev", _pageIndex > 0);
         DrawPageButton(sb, font, _nextButton, "Next >", _pageIndex < AbilityCatalog.PageOrder.Length - 1);
 
         var footer = $"Page {_pageIndex + 1} / {AbilityCatalog.PageOrder.Length}  -  drag to hotbar";
-        sb.DrawString(font, footer, new Vector2(area.X + 8, area.Bottom - 18), GoldDim);
+        SpriteFontSafe.DrawOutlined(sb, font, footer, new Vector2(area.X + 8, Bounds.Bottom - 10), Color.White, Color.Black);
 
         if (_hoverAbilityId != null)
         {
@@ -160,6 +156,26 @@ public sealed class SpellBookWindow : UiWindow
     {
         DrawPrimitives.FillRect(sb, rect, hover ? new Color(42, 38, 32) : new Color(22, 20, 18));
         DrawBorder(sb, rect, hover ? PanelBorder : GoldDim);
+    }
+
+    private static void DrawAbilityLabels(SpriteBatch sb, SpriteFont font, Rectangle rect, AbilityInfo ability)
+    {
+        const float costScale = 0.45f;
+        const float nameScale = 0.55f;
+        var cost = SpriteFontSafe.Filter(AbilityResourceCosts.FormatCostLine(ability));
+        var name = SpriteFontSafe.Filter(ability.Name);
+        var costH = font.MeasureString(cost).Y * costScale;
+        var nameH = font.MeasureString(name).Y * nameScale;
+        var barH = (int)(costH + nameH + 6);
+        var bar = new Rectangle(rect.X + 1, rect.Bottom - barH - 1, rect.Width - 2, barH);
+        DrawPrimitives.FillRect(sb, bar, new Color(0, 0, 0, 0.62f));
+
+        var textX = rect.X + 4f;
+        var costY = bar.Y + 2f;
+        sb.DrawString(font, cost, new Vector2(textX, costY), new Color(160, 175, 195),
+            0f, Vector2.Zero, costScale, SpriteEffects.None, 0f);
+        sb.DrawString(font, name, new Vector2(textX, costY + costH), Color.White,
+            0f, Vector2.Zero, nameScale, SpriteEffects.None, 0f);
     }
 
     private static void DrawPageButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool enabled)

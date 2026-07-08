@@ -11,6 +11,9 @@ import (
 var collisionData []byte
 
 const playerRadius = 12.0
+const playerCollisionYOffset = -6.0
+
+func playerCollisionY(y float64) float64 { return y + playerCollisionYOffset }
 
 // Map is a tile walkability grid for the Realik continent.
 type Map struct {
@@ -168,19 +171,20 @@ func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
 	return true
 }
 
-// CanWalk reports whether a circle at (x,y) may stand on land.
+// CanWalk reports whether a circle at (x,y) may stand on land. (x,y) is the feet position.
 func (m *Map) CanWalk(x, y, radius float64) bool {
-	if x < radius || y < radius || x > m.WorldWidth-radius || y > m.WorldHeight-radius {
+	cy := playerCollisionY(y)
+	if x < radius || cy < radius || x > m.WorldWidth-radius || cy > m.WorldHeight-radius {
 		return false
 	}
 	if radius <= 0 {
-		return m.walkTile(x, y)
+		return m.walkTile(x, cy)
 	}
-	return m.walkTile(x, y) &&
-		m.walkTile(x+radius, y) &&
-		m.walkTile(x-radius, y) &&
-		m.walkTile(x, y+radius) &&
-		m.walkTile(x, y-radius)
+	return m.walkTile(x, cy) &&
+		m.walkTile(x+radius, cy) &&
+		m.walkTile(x-radius, cy) &&
+		m.walkTile(x, cy+radius) &&
+		m.walkTile(x, cy-radius)
 }
 
 // ResolveMove applies axis-separated sliding against land/water tiles and foliage.

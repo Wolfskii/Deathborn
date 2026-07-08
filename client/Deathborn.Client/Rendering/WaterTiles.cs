@@ -14,11 +14,12 @@ public static class WaterTiles
     public const int TilePixelSize = 64;
     public const int FoamFrameSize = 192;
     public const int FoamFrameCount = 16;
-    public const float FoamFrameDuration = 0.1f;
+    public const float FoamFrameDuration = 0.13f;
 
     private static Texture2D? _bgSheet;
     private static Texture2D? _foamSheet;
     private static float _animTime;
+    private static float _foamPhaseTime;
 
     public static bool IsLoaded => _bgSheet != null;
 
@@ -28,7 +29,12 @@ public static class WaterTiles
         _foamSheet = content.Load<Texture2D>("Tiles/tiny_swords_water_foam");
     }
 
-    public static void Update(float dt) => _animTime += dt;
+    public static void Update(float dt)
+    {
+        _animTime += dt;
+        var speed = 0.88f + 0.12f * MathF.Sin(_animTime * 0.35f);
+        _foamPhaseTime += dt * speed;
+    }
 
     public static bool TryDraw(SpriteBatch sb, int worldTx, int worldTy, Rectangle dest)
     {
@@ -86,7 +92,11 @@ public static class WaterTiles
     private static int FoamFrame(int tx, int ty)
     {
         var phase = (tx * 5 + ty * 11) % FoamFrameCount;
-        return ((int)(_animTime / FoamFrameDuration) + phase) % FoamFrameCount;
+        var tileMul = 0.92f + 0.08f * MathF.Sin(tx * 0.7f + ty * 1.1f);
+        var floatFrame = _foamPhaseTime / FoamFrameDuration * tileMul + phase;
+        var mod = floatFrame % FoamFrameCount;
+        if (mod < 0f) mod += FoamFrameCount;
+        return (int)mod;
     }
 
     private static Rectangle ExpandDest(Rectangle dest, float tileSpan)

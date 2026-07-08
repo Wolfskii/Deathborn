@@ -608,14 +608,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var f in WorldFoliage.GetVisible(WorldMap.Realik, _camera, ScreenCenter, zoom))
         {
             var foliage = f;
-            drawables.Add((foliage.Position.Y, () =>
+            drawables.Add((WorldFoliage.SortY(foliage), () =>
                 WorldFoliage.DrawInstance(sb, foliage, _camera, ScreenCenter, zoom, entityPositions)));
         }
 
         foreach (var p in players)
         {
             var player = p;
-            drawables.Add((player.Position.Y, () =>
+            drawables.Add((player.SortY, () =>
             {
                 var screenPos = WorldToScreen(player.Position);
                 if (player == _hoveredPlayer)
@@ -629,7 +629,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var n in npcs)
         {
             var npc = n;
-            drawables.Add((npc.Position.Y, () =>
+            drawables.Add((npc.SortY, () =>
                 npc.Draw(sb, font, WorldToScreen(npc.Position), zoom)));
         }
 
@@ -646,7 +646,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         else
             players = players.Where(p => p.InsideHouseId <= 0);
 
-        foreach (var p in players.OrderBy(p => p.Position.Y))
+        foreach (var p in players.OrderBy(p => p.SortY))
         {
             var screenPos = WorldToScreen(p.Position);
             if (p == _hoveredPlayer)

@@ -137,12 +137,13 @@ func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, f
 	if idx == nil {
 		return x, y
 	}
+	cy := playerCollisionY(y)
 	for iter := 0; iter < 4; iter++ {
 		pushed := false
 		for i := range idx.circles {
 			f := &idx.circles[i]
 			dx := x - f.x
-			dy := y - f.y
+			dy := cy - f.y
 			minDist := f.radius + entityRadius
 			distSq := dx*dx + dy*dy
 			if distSq >= minDist*minDist || distSq < 0.0001 {
@@ -151,14 +152,14 @@ func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, f
 			dist := math.Sqrt(distSq)
 			push := (minDist - dist) / dist
 			x += dx * push
-			y += dy * push
+			cy += dy * push
 			pushed = true
 		}
 		if !pushed {
 			break
 		}
 	}
-	return x, y
+	return x, cy - playerCollisionYOffset
 }
 
 type townRect struct {

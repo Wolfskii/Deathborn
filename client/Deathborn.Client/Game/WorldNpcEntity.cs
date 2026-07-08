@@ -24,6 +24,7 @@ public sealed class WorldNpcEntity
     public float AbilityFlash;
     public bool IsBoss;
 
+    public float SortY => Position.Y;
     public float Radius => NpcCatalog.Get(DefId).Radius;
     public float DisplayScale => NpcCatalog.Get(DefId).DisplayScale;
     public bool IsAttackable => NpcCategoryRules.IsAttackable(Disposition);

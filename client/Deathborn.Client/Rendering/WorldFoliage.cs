@@ -84,6 +84,10 @@ public static class WorldFoliage
     public static Vector2 ColliderCenter(FoliageInstance f) =>
         new(f.Position.X, f.Position.Y - f.FootInset * f.Scale - f.CollisionRadius);
 
+    /// <summary>Ground contact / trunk base used for Y-sort (not the texture bottom).</summary>
+    public static float SortY(FoliageInstance f) =>
+        f.Position.Y - f.FootInset * f.Scale;
+
     public static bool BlocksCircle(Vector2 pos, float radius)
     {
         foreach (var f in Instances)
@@ -97,7 +101,14 @@ public static class WorldFoliage
         return false;
     }
 
-    public static Vector2 ResolvePosition(Vector2 pos, float entityRadius)
+    public static Vector2 ResolvePosition(Vector2 feet, float entityRadius)
+    {
+        var center = PlayerEntity.CollisionCenter(feet);
+        var resolved = ResolveCollisionCenter(center, entityRadius);
+        return feet + (resolved - center);
+    }
+
+    private static Vector2 ResolveCollisionCenter(Vector2 pos, float entityRadius)
     {
         for (var iter = 0; iter < 4; iter++)
         {
@@ -147,10 +158,9 @@ public static class WorldFoliage
     {
         if (f.Kind is FoliageKind.Rock or FoliageKind.WaterRock) return false;
 
-        // Only fade when the entity sorts BEHIND the foliage (its feet are above the
-        // foliage anchor). If the entity is south of the anchor it Y-sorts in front,
-        // draws on top, and needs no transparency.
-        if (pos.Y >= f.Position.Y) return false;
+        // Only fade when the entity sorts BEHIND the foliage (feet north of the trunk base).
+        var foliageSortY = SortY(f);
+        if (pos.Y >= foliageSortY) return false;
 
         var scale = f.Scale;
         var topY = f.Position.Y - f.CanopyTopInset * scale;
@@ -197,7 +207,7 @@ public static class WorldFoliage
         if (tex == null) return;
 
         var (frameW, frameH, frameCount, fps) = FrameSpec(f.Kind);
-        var frame = (int)((_animTime * fps + f.AnimPhase) % frameCount);
+        var frame = AnimFrame(f, frameCount, fps);
         var src = new Rectangle(frame * frameW, 0, frameW, frameH);
 
         var drawW = frameW * f.Scale * zoom;
@@ -243,12 +253,55 @@ public static class WorldFoliage
 
     private static (int frameW, int frameH, int frameCount, float fps) FrameSpec(FoliageKind kind) => kind switch
     {
-        FoliageKind.Bush => (128, 128, 8, 8f),
-        FoliageKind.Tree => (192, 192, 8, 6f),
+        FoliageKind.Bush => (128, 128, 8, 5.5f),
+        FoliageKind.Tree => (192, 192, 8, 4.5f),
         FoliageKind.Rock => (64, 64, 1, 1f),
-        FoliageKind.WaterRock => (64, 64, 16, 10f),
+        FoliageKind.WaterRock => (64, 64, 16, 7f),
         _ => (64, 64, 1, 1f),
     };
+
+    /// <summary>
+    /// Trees and bushes hold still during calm spells, then sway with eased gusts.
+    /// Water rocks ripple continuously with gentle speed variation.
+    /// </summary>
+    private static int AnimFrame(FoliageInstance f, int frameCount, float baseFps)
+    {
+        if (frameCount <= 1) return 0;
+
+        var seed = f.AnimPhase;
+        if (f.Kind == FoliageKind.WaterRock)
+        {
+            var wave = 0.78f + 0.22f * MathF.Sin(_animTime * 0.55f + seed * 0.31f);
+            return ModFrame(_animTime * baseFps * wave + seed, frameCount);
+        }
+
+        if (f.Kind is not (FoliageKind.Bush or FoliageKind.Tree))
+            return 0;
+
+        var cycleLen = 6f + (seed % 89) * (12f / 89f);
+        var calmFrac = 0.32f + (seed % 67) * (0.40f / 67f);
+        var speedMul = 0.72f + (seed % 43) * (0.56f / 43f);
+
+        var t = _animTime + seed * 0.173f;
+        var cyclePos = t % cycleLen;
+        var calmDuration = cycleLen * calmFrac;
+        if (cyclePos < calmDuration)
+            return 0;
+
+        var gustElapsed = cyclePos - calmDuration;
+        var gustDuration = cycleLen - calmDuration;
+        var gustT = gustElapsed / gustDuration;
+        var windIntegral = (1f - MathF.Cos(gustT * MathF.PI)) / MathF.PI;
+        var floatFrame = windIntegral * gustDuration * baseFps * speedMul + seed * 0.1f;
+        return ModFrame(floatFrame, frameCount);
+    }
+
+    private static int ModFrame(float floatFrame, int frameCount)
+    {
+        var mod = floatFrame % frameCount;
+        if (mod < 0f) mod += frameCount;
+        return (int)mod;
+    }
 
     private static void Generate(WorldMap map)
     {

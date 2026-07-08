@@ -346,6 +346,8 @@ public sealed class WorldMap
     }
 
     private static readonly Color OverlayLand = new(138, 134, 128);
+    /// <summary>Flat grass fill for the circular minimap (no tile sprites).</summary>
+    public static readonly Color MinimapLandFill = new(110, 150, 92);
 
     public void EnsureOverlayTexture(GraphicsDevice device)
     {
@@ -367,7 +369,7 @@ public sealed class WorldMap
         _overlaySourceWriteTime = _collisionWriteTime;
     }
 
-    /// <summary>Local area land tiles for the circular minimap (centered on worldCenter).</summary>
+    /// <summary>Local area land fill for the circular minimap (centered on worldCenter).</summary>
     public void DrawLocalMinimap(
         SpriteBatch sb,
         Vector2 minimapCenter,
@@ -378,7 +380,6 @@ public sealed class WorldMap
         if (worldRadius <= 0f || minimapRadius <= 0f) return;
 
         var scale = minimapRadius / worldRadius;
-        var tileDraw = MathF.Max(1f, TileSize * scale);
 
         var minTx = Math.Max(0, (int)((worldCenter.X - worldRadius) / TileSize) - 1);
         var maxTx = Math.Min(TileWidth - 1, (int)((worldCenter.X + worldRadius) / TileSize) + 1);
@@ -392,24 +393,24 @@ public sealed class WorldMap
         {
             if (!_walkable[ty * TileWidth + tx]) continue;
 
-            var world = new Vector2((tx + 0.5f) * TileSize, (ty + 0.5f) * TileSize);
-            var screen = minimapCenter + (world - worldCenter) * scale;
-            var dx = screen.X - minimapCenter.X;
-            var dy = screen.Y - minimapCenter.Y;
+            var left = minimapCenter.X + (tx * TileSize - worldCenter.X) * scale;
+            var top = minimapCenter.Y + (ty * TileSize - worldCenter.Y) * scale;
+            var right = minimapCenter.X + ((tx + 1) * TileSize - worldCenter.X) * scale;
+            var bottom = minimapCenter.Y + ((ty + 1) * TileSize - worldCenter.Y) * scale;
+
+            var cx = (left + right) * 0.5f;
+            var cy = (top + bottom) * 0.5f;
+            var dx = cx - minimapCenter.X;
+            var dy = cy - minimapCenter.Y;
             if (dx * dx + dy * dy > r2) continue;
 
-            var half = tileDraw * 0.5f;
             var rect = new Rectangle(
-                (int)MathF.Floor(screen.X - half),
-                (int)MathF.Floor(screen.Y - half),
-                Math.Max(1, (int)MathF.Ceiling(tileDraw)),
-                Math.Max(1, (int)MathF.Ceiling(tileDraw)));
+                (int)MathF.Floor(left),
+                (int)MathF.Floor(top),
+                Math.Max(1, (int)MathF.Ceiling(right) - (int)MathF.Floor(left)),
+                Math.Max(1, (int)MathF.Ceiling(bottom) - (int)MathF.Floor(top)));
 
-            if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
-            {
-                var land = new Color(0.82f, 0.8f, 0.76f);
-                DrawPrimitives.FillRect(sb, rect, land);
-            }
+            DrawPrimitives.FillRect(sb, rect, MinimapLandFill);
         }
     }
 
@@ -417,7 +418,7 @@ public sealed class WorldMap
     public void DrawMinimapLand(SpriteBatch sb, Rectangle bounds)
     {
         EnsureOverlayTexture(sb.GraphicsDevice);
-        sb.Draw(_landOverlayTexture!, bounds, new Color(0.82f, 0.8f, 0.76f, 1f));
+        sb.Draw(_landOverlayTexture!, bounds, MinimapLandFill);
     }
 
     /// <summary>Land-only continent silhouette for the world map overlay.</summary>
