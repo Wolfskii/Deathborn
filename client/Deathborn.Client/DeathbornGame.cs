@@ -83,6 +83,7 @@ public sealed class DeathbornGame : Game
         CosmeticIconAtlas.Load(Content);
         DungeonFloorTiles.Load(Content);
         WaterTiles.Load(Content);
+        TerrainLandTiles.Load(Content);
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
         SyncViewport();

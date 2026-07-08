@@ -182,7 +182,8 @@ public sealed class WorldMap
             var walk = _walkable[ty * TileWidth + tx];
             if (walk)
             {
-                if (!DungeonFloorTiles.TryDrawFloor(sb, tx, ty, rect))
+                WaterTiles.TryDrawFoam(sb, this, tx, ty, rect);
+                if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
                     DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
             }
             else if (!WaterTiles.TryDraw(sb, tx, ty, rect))
@@ -283,7 +284,7 @@ public sealed class WorldMap
                 Math.Max(1, (int)MathF.Ceiling(tileDraw)),
                 Math.Max(1, (int)MathF.Ceiling(tileDraw)));
 
-            if (!DungeonFloorTiles.TryDrawFloor(sb, tx, ty, rect))
+            if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
             {
                 var land = new Color(0.82f, 0.8f, 0.76f);
                 DrawPrimitives.FillRect(sb, rect, land);

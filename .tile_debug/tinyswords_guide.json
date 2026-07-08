@@ -1,0 +1,754 @@
+{
+  "folder": "TinySwords/Terrain/Tileset",
+  "tileSize": 64,
+  "description": "Terrain tileset guide for the Tiny Swords asset pack. All terrain tiles snap to a 64x64 pixel grid unless noted otherwise.",
+  "guideVersion": "0.0.0.7",
+  "assets": [
+    {
+      "id": "shadow",
+      "name": "Shadow",
+      "files": ["Shadow.png"],
+      "type": "static-sprite",
+      "size": { "width": 192, "height": 192 },
+      "spriteSize": { "width": 128, "height": 128 },
+      "spriteOffset": { "x": 32, "y": 32 },
+      "placement": {
+        "gridTileSize": 64,
+        "anchorNote": "Place the sprite on the 64x64 tile grid like regular tiles, even though the visible shadow is 128x128. The extra size lets edges overlap adjacent tiles for a smooth shadow blob.",
+        "offsetFromElevatedGround": {
+          "x": 0,
+          "y": 64,
+          "note": "Place shadow tiles on the flat ground layer directly below the walkable area of Elevated Ground, shifted one full 64x64 tile downward to create the illusion of height."
+        }
+      },
+      "usage": {
+        "summary": "Soft circular shadow used under elevated terrain to fake depth.",
+        "steps": [
+          "Use on a layer below elevated ground walkable tiles.",
+          "Place each shadow sprite on the 64x64 grid; the 128x128 artwork will overlap neighboring cells.",
+          "Offset the shadow row one tile (64 px) below the elevated walkable footprint."
+        ]
+      },
+      "placementRules": {
+        "elevatedGroundOnly": {
+          "rule": "Shadows may only be applied under Elevated Ground. For every cell with elevation >= 1 whose SOUTH neighbor is a LOWER LAND elevation (>= 0) AND whose SOUTH-SOUTH neighbor is also land (>= 0), draw the shadow sprite anchored one tile (64px) below the cell.",
+          "appliesTo": "Cells with elevation >= 1 where both the south and south-south neighbors are land (elevation >= 0) and south is lower than the cell.",
+          "doNotApply": "No shadows on water. The 128x128 shadow sprite drops two rows into the south column; if either of those rows is water (elevation -1), the shadow would bleed onto open water and is suppressed entirely. Also no shadows under elevation-0 flat ground."
+        }
+      }
+    },
+    {
+      "id": "water-background",
+      "name": "Water Background color",
+      "files": ["Water Background color.png"],
+      "type": "static-tile",
+      "size": { "width": 64, "height": 64 },
+      "usage": {
+        "summary": "Solid water fill tile.",
+        "note": "Paint as the lowest background layer beneath terrain and decorations. No special placement rules."
+      }
+    },
+    {
+      "id": "water-foam",
+      "name": "Water Foam",
+      "files": ["Water Foam.png", "Water Foam.aseprite"],
+      "type": "animation",
+      "sourceFile": "Water Foam.aseprite",
+      "frameSize": { "width": 192, "height": 192 },
+      "frameCount": 16,
+      "frameDurationMs": 100,
+      "fps": 10,
+      "loopDurationMs": 1600,
+      "layout": "horizontal-strip",
+      "sheetSize": { "width": 3072, "height": 192 },
+      "loop": true,
+      "frames": [
+        { "index": 0, "x": 0, "y": 0, "width": 192, "height": 192 },
+        { "index": 1, "x": 192, "y": 0, "width": 192, "height": 192 },
+        { "index": 2, "x": 384, "y": 0, "width": 192, "height": 192 },
+        { "index": 3, "x": 576, "y": 0, "width": 192, "height": 192 },
+        { "index": 4, "x": 768, "y": 0, "width": 192, "height": 192 },
+        { "index": 5, "x": 960, "y": 0, "width": 192, "height": 192 },
+        { "index": 6, "x": 1152, "y": 0, "width": 192, "height": 192 },
+        { "index": 7, "x": 1344, "y": 0, "width": 192, "height": 192 },
+        { "index": 8, "x": 1536, "y": 0, "width": 192, "height": 192 },
+        { "index": 9, "x": 1728, "y": 0, "width": 192, "height": 192 },
+        { "index": 10, "x": 1920, "y": 0, "width": 192, "height": 192 },
+        { "index": 11, "x": 2112, "y": 0, "width": 192, "height": 192 },
+        { "index": 12, "x": 2304, "y": 0, "width": 192, "height": 192 },
+        { "index": 13, "x": 2496, "y": 0, "width": 192, "height": 192 },
+        { "index": 14, "x": 2688, "y": 0, "width": 192, "height": 192 },
+        { "index": 15, "x": 2880, "y": 0, "width": 192, "height": 192 }
+      ],
+      "usage": {
+        "summary": "Animated foam overlay for water shorelines.",
+        "note": "Each frame is 192x192 (3x3 tiles). Place over water/land edges on a layer above the water background. Loop all 16 frames at 100 ms each. Edit timing in Water Foam.aseprite if needed."
+      },
+      "placementRules": {
+        "shoreline": {
+          "rule": "Foam is placed UNDER every first-level Flat Ground tile (elevation 0), centered on the tile. The 192x192 foam frame's inner 64x64 sits beneath the land tile and is overdrawn by it; the outer ring extends into the 8 neighboring cells, producing the visible shoreline against adjacent water.",
+          "appliesTo": "Exactly the elevation-0 flat-ground tiles - one foam per tile, no other location.",
+          "doNotApply": "No foam under Elevated Ground / cliffs (elevation >= 1) - those use the cliff-to-water pieces 21-24 which already include shoreline foam. No foam directly on open water cells."
+        },
+        "anchor": {
+          "frameSize": 192,
+          "note": "Center the 192x192 frame on the 64x64 flat-ground tile: offset the top-left by (-64, -64). The center 64x64 of the frame sits behind the land tile; the surrounding ring laps into neighbouring cells.",
+          "offset": { "x": -64, "y": -64 }
+        },
+        "layer": {
+          "rule": "Draw foam above the Water Background layer but UNDER all Ground/Elevated tiles. The flat-ground tile overdraws the foam center so only the outer ring remains visible. Elevated/cliff tiles overdraw any foam that bled into their cells.",
+          "order": "water-background -> water-foam (centered on each el-0 tile) -> ground/elevation tiles"
+        },
+        "animation": {
+          "rule": "Loop all 16 frames at 100ms (per frames[]). Static renders pick a single representative frame.",
+          "staticFrameIndex": 8
+        }
+      }
+    },
+    {
+      "id": "tilemaps",
+      "name": "Terrain Tilemaps",
+      "files": [
+        "Tilemap_color1.png",
+        "Tilemap_color2.png",
+        "Tilemap_color3.png",
+        "Tilemap_color4.png",
+        "Tilemap_color5.png",
+        "Tilemap_color6.png"
+      ],
+      "type": "tilemap-sheet",
+      "size": { "width": 576, "height": 384 },
+      "grid": { "columns": 9, "rows": 6, "cellSize": 64 },
+      "colorVariants": [
+        { "file": "Tilemap_color1.png", "palette": "color1", "kind": "ground", "elevationLevel": 0, "label": "lowest" },
+        { "file": "Tilemap_color2.png", "palette": "color2", "kind": "ground", "elevationLevel": 1 },
+        { "file": "Tilemap_color3.png", "palette": "color3", "kind": "ground", "elevationLevel": 2 },
+        { "file": "Tilemap_color4.png", "palette": "color4", "kind": "ground", "elevationLevel": 3 },
+        { "file": "Tilemap_color5.png", "palette": "color5", "kind": "ground", "elevationLevel": 4, "label": "highest" },
+        { "file": "Tilemap_color6.png", "palette": "color6", "kind": "road-overlay", "elevationLevel": null, "label": "road" }
+      ],
+      "layoutNote": "All six color variants share identical tile geometry; only the palette differs. Column 4 (x=256) is an empty divider. Flat Ground occupies columns 0-3. Elevated Ground occupies columns 5-8.",
+      "autotile": {
+        "terrainTypes": {
+          "water": {
+            "elevation": -1,
+            "description": "Implicit terrain below elevation 0. Use Water Background color.png as the fill layer."
+          },
+          "land": {
+            "elevationRange": [0, 4],
+            "description": "Walkable ground at any elevation level. Tile artwork comes from Tilemap_color1 through Tilemap_color5."
+          },
+          "road": {
+            "description": "Overlay terrain painted on top of any ground elevation. Autotiles only against other road cells."
+          }
+        },
+        "elevationSystem": {
+          "description": "Each map cell stores { elevation: int, hasRoad: bool }. Ground tilemap file = Tilemap_color<elevation+1>.png for elevation 0-4. Roads use Tilemap_color6.png on a separate overlay layer and never affect ground tile selection.",
+          "levels": [
+            { "elevation": 0, "file": "Tilemap_color1.png", "label": "lowest" },
+            { "elevation": 1, "file": "Tilemap_color2.png" },
+            { "elevation": 2, "file": "Tilemap_color3.png" },
+            { "elevation": 3, "file": "Tilemap_color4.png" },
+            { "elevation": 4, "file": "Tilemap_color5.png", "label": "highest" }
+          ],
+          "roadOverlay": {
+            "file": "Tilemap_color6.png",
+            "layer": "above-ground",
+            "connectsTo": "self",
+            "note": "Road overlay can be painted on top of any elevation. It does not replace the ground tile underneath."
+          },
+          "rules": [
+            "Elevation 0 (Tilemap_color1) is the lowest walkable ground level, typically adjacent to water.",
+            "Each step up in elevation uses the next color tilemap (color2 through color5).",
+            "When two adjacent cells differ in elevation, the higher cell exposes a south-facing cliff edge and stacks cliff tiles downward.",
+            "Tilemap_color6 is exclusively for road overlay; it is not an elevation level."
+          ]
+        },
+        "neighborMask": {
+          "description": "4-neighbor RuleTile-style bitmask for autotile selection.",
+          "order": ["N", "E", "S", "W"],
+          "encoding": "mask = (Nsame << 3) | (Esame << 2) | (Ssame << 1) | Wsame",
+          "bitMeaning": {
+            "1": "neighbor is SAME terrain group (land elevation >= cell elevation, or another road cell for roads)",
+            "0": "neighbor is OTHER (strictly lower land elevation, water, off-map, or non-road)"
+          },
+          "outOfBounds": "Treated as 0 (OTHER)."
+        },
+        "flatGroundLookup": {
+          "description": "Canonical 16-entry mask-to-piece-id table for Flat Ground tops and Elevated grass surfaces. Mask string is NESW.",
+          "0000": 16,
+          "0001": 12,
+          "0010": 13,
+          "0011": 3,
+          "0100": 10,
+          "0101": 11,
+          "0110": 1,
+          "0111": 2,
+          "1000": 15,
+          "1001": 9,
+          "1010": 14,
+          "1011": 6,
+          "1100": 7,
+          "1101": 8,
+          "1110": 4,
+          "1111": 5
+        },
+        "elevatedGroundRules": {
+          "cliffAssetCoverage": {
+            "rule": "The asset provides cliff-face art for the south direction only (sheet pieces 42/43/44/45 on walkable ground below; 51/52/53/54 when the south neighbor is water). N/W/E plateau boundaries use elevated-grass rim pieces (sheet 6/7/8/15/17; semantic elevatedGround ids 1/2/3/4/6) that mark the edge of the green surface but do not draw a vertical cliff face. Cliff bases (42-45) are sprite overlays drawn on top of underlying walkable tiles at the south edge of each tier.",
+            "southOnlyDrop": "Only the south neighbor is required to step down by exactly one elevation step (or to water, or off-map). Non-south neighbors may be same elevation, higher walkable land, lower walkable land, water, or off-map.",
+            "inlandLakes": "Cliff-to-water pieces (semantic elevatedGround 21-24; sheet 51/52/53/54) are not used by the default generator around inland lakes. Water below an elevated cell renders as a flush grass-surface edge (elevatedGround 1/2/3/4/6/7/8/9 and strips 13/14/15), not a cliff face."
+          },
+          "description": "When a cell elevation > 0 and its south neighbor has lower elevation, substitute south-facing grass pieces with cliff-lip pieces from the Elevated Ground region.",
+          "applyWhen": {
+            "cellElevationMin": 1,
+            "southNeighborElevation": "lessThanCell"
+          },
+          "southCliffLipSubstitutions": {
+            "7": 10,
+            "8": 11,
+            "9": 12,
+            "15": 16,
+            "conditional": "These substitutions (grass lip -> grass-meets-rock lip) are applied ONLY when the cell directly NORTH is water (a 1-tile strip). When land continues above, keep the all-grass lip piece (7/8/9/15). See waterCliffTopRule."
+          },
+          "implicitLipMappings": {
+            "description": "These flat-ground lookup results have no grass-only elevated variant; use the cliff-lip piece with the same id from the Elevated Ground region.",
+            "masks": {
+              "0100": 10,
+              "0101": 11,
+              "0001": 12,
+              "0000": 16
+            }
+          },
+          "waterCliffTopRule": {
+            "description": "Selects the tile placed directly ABOVE a water-terminating cliff face (the cliff base pieces 21/22/23/24, raw sheet #51/52/53/54). The choice depends on what sits TWO tiles above the cliff (i.e. the cell directly north of this top cell).",
+            "rule": "If the cell two tiles above the water cliff is WATER, the top cell uses the grass-meets-rock lip 10/11/12/16 (raw sheet #33/34/35/36) - a thin strip reading as rock with grass on top. If the cell two tiles above is anything else (land continues), the top cell uses the all-grass lip 7/8/9/15 (raw sheet #24/25/26/27).",
+            "appliesTo": "Cells whose SOUTH neighbor is water (south.elevation == -1), so a water cliff (21-24) is drawn below them.",
+            "sheetIds": {
+              "waterCliffFaces": [51, 52, 53, 54],
+              "lipWhenWaterAbove": [33, 34, 35, 36],
+              "lipWhenLandAbove": [24, 25, 26, 27],
+              "note": "Raw #1-54 numbering. Semantic elevatedGround ids: water cliffs 21/22/23/24; grass-meets-rock lip 10/11/12/16; all-grass lip 7/8/9/15. L/M/R/narrow order in each group."
+            },
+            "implementationNote": "The 4-neighbor autotile mask already encodes this: when north is water the N bit is 0, so flatGroundLookup yields 10/11/12/16 directly; when north is same-elevation land the N bit is 1, yielding 7/8/9/15. The renderer therefore only needs to NOT force the 7/8/9/15 -> 10/11/12/16 substitution when north is land.",
+            "rationale": "A thick platform sitting on water should keep grass running to its edge (one rock row into the water). A 1-tile-tall strip on water should show the grass-on-rock tile so it reads as a small rocky outcrop rather than a floating grass sliver."
+          },
+          "seamCoverRule": {
+            "description": "Allows adjacent elevation zones to meet on N/E/W without carving a water channel between them.",
+            "applyWhen": {
+              "cellElevationMin": 1,
+              "neighborDirections": ["N", "E", "W"],
+              "neighborElevation": "lessThanCellAndAtLeastZero"
+            },
+            "rule": "On the higher cell, select the 1-tile-wide vertical-strip family (13 top / 14 middle / 15 bottom) instead of a normal wide-platform edge piece. The strip's open E/W/N edges draw grass-to-water shoreline art that overdraws the lower tier on the shared boundary, hiding the would-be teal seam. When the higher cell also has a south drop, use narrow lip 16 (via southCliffLipSubstitutions 15 -> 16) or all-grass lip 15 when land continues above.",
+            "stripSelection": {
+              "top": 13,
+              "middle": 14,
+              "bottom": 15,
+              "southLipNarrow": 16
+            },
+            "renderOrder": "Draw the lower-tier ground tile first, then the higher-cell strip overdraws the shared edge. Walkability and collision remain on the higher zone.",
+            "dataNote": "Elevation data may keep lower walkable land on the N/E/W side; autopad must not promote those neighbors when seam cover applies. Water may remain under an elevated strip; the strip tiles visually hide it."
+          },
+          "coordinateRegion": "Use piece coordinates from categories.elevatedGround, not flatGround, when rendering elevated or cliff tiles."
+        },
+        "cliffRules": {
+          "description": "Single-row cliff base placed at (x, y+1) below an elevated cell whose south neighbor is lower. Combined with the lip substitution at the cell itself (pieces 10-12 or 16 via southCliffLipSubstitutions), total visible cliff height is always 2 tiles. Pieces 17-20 and 21-24 are alternatives for the same row, never stacked.",
+          "trigger": "cell.elevation > south.elevation",
+          "rule": "Place exactly one base tile at (x, y+1). No middle rows.",
+          "piecesOnWalkableLand": {
+            "left": 17,
+            "middle": 18,
+            "right": 19,
+            "narrow": 20,
+            "appliesWhen": "south.elevation >= 0 (lands on flat ground)"
+          },
+          "piecesOnWater": {
+            "left": 21,
+            "middle": 22,
+            "right": 23,
+            "narrow": 24,
+            "appliesWhen": "south.elevation == -1 (lands on water). Used at any source elevation N >= 1."
+          },
+          "landToLandMaxDrop": 1,
+          "horizontalVariantSelection": {
+            "description": "Pick left/middle/right/narrow from the cliff column's E/W neighbors at the lip row. A side is a rounded END only when that neighbor is strictly lower (open ground or water); when the neighbor is same-or-higher land, a rock wall continues there and the face is flush (left/mid/right). Both sides open -> narrow; open left only -> left (17); open right only -> right (19); neither open -> mid (18). Matches autotile lip continuity: a left lip (10) pairs with a left face (17), not narrow (20)."
+          }
+        },
+        "stairsRules": {
+          "description": "Side ramps connecting lower terrain to elevated platforms. Each ramp is a 2-tile vertical stack.",
+          "pieces": {
+            "leftRamp": { "top": 25, "bottom": 29 },
+            "rightRamp": { "top": 28, "bottom": 32 }
+          },
+          "rampBackdrop": {
+            "rule": "Sheet IDs 37 (left-ramp top) and 40 (right-ramp top) MAY have a cliff-face-middle backdrop (sheet 43, semantic elevatedGround id 18) painted in the same cell underneath the ramp top sprite. Paint the backdrop ONLY when the cell directly NORTH of the ramp top (at (sx, sy - 2)) is itself at the platform tier (landing + 1). When that condition holds, an actual cliff face continues above the ramp and sheet 43 reads as the continuation of that wall. When it does not (the cell above is base grass, water, or any tier below the platform tier), the ramp is sitting on a 1-cell plateau jut, the cap of a narrow spine, or otherwise has no cliff above; in that case painting 43 produces a phantom rock wall floating in front of grass and must be skipped.",
+            "appliesTo": [37, 40],
+            "backdropPiece": 43,
+            "backdropSemanticId": 18,
+            "backdropTier": "platform (landing + 1)",
+            "condition": "get_elevation(grid, sx, sy - 2) == landing + 1",
+            "rationale": "Without the conditional check, every ramp gets a cliff backdrop including narrow-spine ramps and ramps on jut-only plateau corners. Those reads as a phantom wall behind the ramp slope. Restricting the backdrop to ramps that have an actual platform tier directly above keeps the rocky look where it belongs (multi-cell plateaus and tier-N->tier-(N-1) descents on nested plateaus) and leaves grass behind ramps that are climbing out of an isolated jut.",
+            "incorrect": "Painting sheet 43 unconditionally behind every ramp top. Phantom cliff walls appear in front of base-grass cells with nothing rocky above them."
+          },
+          "flankAndToothCarve": {
+            "rule": "When a side ramp's flank (try_left/try_right west/east cell) or facing-side platform tooth would protrude beside the ramp at platform tier h, the generator must DEMOTE that cell to the landing tier (h - 1) instead of carving it to water (-1). Demoting keeps the playfield walkable and lets the natural south-facing 1-step drop above the demoted cell render as sheet 43 (cliff face middle on walkable land), so the area reads as a continuous rock wall rather than a stranded 1-2 cell puddle.",
+            "forbidden": "Setting flank or facing-tooth cells to -1 (water). Tiny ramp-side puddles do not fit the tileset.",
+            "rationale": "Per the user's adjacency rules, sheet 43 is the right asset for the cliff-face row immediately south of a plateau drop. Demoting flank/tooth cells to h - 1 produces exactly that south drop and lets the renderer paint 43 there at no extra cost."
+          },
+          "scenarios": [
+            {
+              "name": "sideRamp",
+              "description": "Side ramp at an elevation transition, diagonally adjacent to a platform edge corner.",
+              "requiredPieces": ["top", "bottom"],
+              "topConnection": "Apply sideRampAdjacency substitution on the diagonal platform corner (piece 5). Top ramp part (25 or 28) draws at (sx, sy-1).",
+              "bottomConnection": "Bottom ramp part (29 or 32) draws on the landing cell (sx, sy).",
+              "incorrect": "Using only the top part without the bottom rocky base, or omitting the piece-5 corner substitution."
+            }
+          ],
+          "facing": {
+            "leftRamp": "Faces left; player ascends going right. Stack: top=25 at sy-1, bottom=29 at sy.",
+            "rightRamp": "Faces right; mirror of leftRamp. Stack: top=28 at sy-1, bottom=32 at sy."
+          },
+          "elevationLimit": {
+            "rule": "A stair ramp may land on any land tier (elevation >= 0); its diagonal platform corner must be exactly one elevation higher. Ramps therefore bridge a single step: 0->1, 1->2, 2->3, or 3->4.",
+            "waterRule": "The landing cell (sx, sy) and the rest of the ramp stack must be land, never water. The cell directly north of the ramp may be water when using diagonal adjacency. A level-0 landing is permitted only when the ramp cells do not sit on or against water.",
+            "rationale": "Level-0 landings are allowed so the player can climb from the base ground (level 0) up to level 1; this makes every tier reachable from the one below (see accessibilityRules). The water guard still keeps stairs from dropping into the sea.",
+            "minLandingElevation": 0
+          },
+          "sideRampAdjacency": {
+            "rule": "A side ramp may attach to a wide platform's edge column OR to a 1-tile-wide vertical-strip platform. A LEFT-side ramp may touch pieces 1, 4, or 7 (left-edge column: top-left corner, left edge, bottom-left corner). A RIGHT-side ramp may touch pieces 3, 6, or 9 (right-edge column: top-right corner, right edge, bottom-right corner). Either side may also touch narrow-strip pieces 13, 14, or 15 on a 1-tile-wide spine.",
+            "substitution": "When a side ramp touches a wide-platform edge piece, that tile is replaced with piece 5 (center grass). This removes the shoreline/border on the touched side so the ramp connects cleanly into solid grass.",
+            "leftSidePieces": [1, 4, 7],
+            "rightSidePieces": [3, 6, 9],
+            "replacementPiece": 5,
+            "narrowStripPieces": [13, 14, 15, 16, 17],
+            "narrowStripSubstitution": {
+              "rule": "When a side ramp connects to a 1-tile-wide vertical-strip platform, swap the touched piece to narrow-lip 16 (grass-on-rock). This handles both the spine top (id 15) and any cliff-face-end (id 17) that ends up at the touched diagonal: in either case the rendered tile becomes id 16, reading as a clean narrow lip leaning into the ramp.",
+              "replacementPiece": 16,
+              "substitutions": { "13": 16, "14": 16, "15": 16, "16": 16, "17": 16 },
+              "note": "id 17 (cliff face left end on walkable ground) is included so cliff-face cells touched by a ramp on a narrow spine collapse to the same narrow-lip 16 instead of the wider cliff-middle substitution (cliffBaseAdjacency: 17/19 -> 18) used for wide platforms."
+            },
+            "narrowStripLipNote": "When the narrow platform's south neighbor is lower, the lip is already 16 (narrow cliff lip) via elevatedGroundRules.southCliffLipSubstitutions (15 -> 16). A ramp may attach along a stack of several strip cells (13/14/15/16/17); only the diagonally touched cell is substituted.",
+            "diagonalAdjacency": "The ramp tile and the touched/substituted platform tile are DIAGONAL neighbors, not vertically stacked. The ramp sits one tile to the side of the platform corner it climbs into: a left-ramp sits down-and-left of the corner, a right-ramp sits down-and-right of the corner.",
+            "leftRampTouchOffset": { "dx": 1, "dy": -1, "note": "From a left-ramp at (sx, sy), the touched/substituted platform corner is at (sx+1, sy-1)." },
+            "rightRampTouchOffset": { "dx": -1, "dy": -1, "note": "From a right-ramp at (sx, sy), the touched/substituted platform corner is at (sx-1, sy-1)." },
+            "waterBehindRamp": "Because the platform is up-and-to-the-side (diagonal), the cell directly NORTH of the ramp may be water. Only the substituted corner tile (the diagonal neighbor) must be land; the cell straight above the ramp is exempt from the no-water-contact rule.",
+            "renderAlignment": "Each ramp is a 2-tile vertical stack. Top part (25 or 28) draws at (sx, sy-1) so the grass slope leans against the platform cliff edge. Bottom part (29 or 32) draws at the landing cell (sx, sy). Collision/landing stays on (sx, sy).",
+            "rationale": "Edge pieces draw a grass-to-other border on their open side. A ramp occupies that side, so the border must disappear; swapping to the fully-surrounded center piece (5) yields seamless grass under the ramp connection.",
+            "incorrect": "Attaching a side ramp to an interior, top, or bottom edge piece (2, 8); placing the ramp directly below the corner instead of diagonally to the side; or leaving the original edge piece (with its border) where the ramp touches."
+          },
+          "cliffBaseAdjacency": {
+            "rule": "When a ramp's bottom (rocky base) sits horizontally adjacent to a cliff base piece, and that cliff base is an END variant (17 = cliff face left, 19 = cliff face right), it must be replaced with the MIDDLE variant (18 = cliff face middle). This keeps the cliff face reading as a continuous wall where the ramp meets it, instead of capping the cliff with an end-stone right next to the ramp.",
+            "allowedEnds": [17, 19],
+            "replacementPiece": 18,
+            "leftRampCliffOffset": { "dx": 1, "dy": 0, "note": "From a left-ramp at (sx, sy), the horizontally adjacent cliff base is at (sx+1, sy). It is expected to be piece 17 (cliff face left end) before substitution." },
+            "rightRampCliffOffset": { "dx": -1, "dy": 0, "note": "From a right-ramp at (sx, sy), the horizontally adjacent cliff base is at (sx-1, sy). It is expected to be piece 19 (cliff face right end) before substitution." },
+            "rationale": "After sideRampAdjacency swaps the platform corner to piece 5, the cliff column at that corner still renders as a left/right end (17/19). With the ramp's stone base immediately beside it, the end-cap reads as a seam. Substituting the middle variant (18) merges the cliff and ramp stones into one continuous rock face.",
+            "incorrect": "Leaving piece 17 or 19 in place adjacent to a ramp bottom; or substituting when the touched cliff is the 1-tile narrow base (20) - that case is unsupported."
+          },
+          "rampBaseGroundApron": {
+            "rule": "A ramp's bottom (rocky base) must open onto a walkable shelf so the player has room to step off. On the exit side - LEFT of the base for a LEFT ramp, RIGHT for a RIGHT ramp - there must be a 2-tile-wide block of lower-tier ground (the exit cell and the cell beyond it, on both the base row and the row below), plus the cell directly BELOW the base. This is a 2x2 walkable pocket on the open-lower side plus the cell under the base.",
+            "sheetIds": {
+              "leftRampBottom": 46,
+              "rightRampBottom": 49,
+              "groundTile": 11,
+              "note": "Sheet (#1-54 row-major) numbering. #46 = left-ramp bottom (semantic stairs id 29), #49 = right-ramp bottom (semantic stairs id 32), #11 = center grass (semantic flatGround id 5)."
+            },
+            "requiredGroundCells": {
+              "description": "All listed cells (relative to the base/anchor at (sx,sy)) must be land at the landing elevation (platformElevation - 1).",
+              "leftRamp": [
+                { "dx": -1, "dy": 0, "role": "exit" },
+                { "dx": -2, "dy": 0, "role": "beyond-exit (extra walk room)" },
+                { "dx": -1, "dy": 1, "role": "below-exit" },
+                { "dx": -2, "dy": 1, "role": "below-beyond" },
+                { "dx": 0, "dy": 1, "role": "bottom of base" }
+              ],
+              "rightRamp": [
+                { "dx": 1, "dy": 0, "role": "exit" },
+                { "dx": 2, "dy": 0, "role": "beyond-exit (extra walk room)" },
+                { "dx": 1, "dy": 1, "role": "below-exit" },
+                { "dx": 2, "dy": 1, "role": "below-beyond" },
+                { "dx": 0, "dy": 1, "role": "bottom of base" }
+              ]
+            },
+            "facingSideClearance": {
+              "rule": "The platform-row cell on the ramp's OPEN/facing side - one tile beyond the flank, at (sx+1, sy-1) for a RIGHT ramp or (sx-1, sy-1) for a LEFT ramp - must NOT be elevated ground. If a platform occupies it, push that platform back one tile (carve the cell to water) so its cliff does not drop directly onto the exit and box the ramp in a canyon.",
+              "rightRamp": { "dx": 1, "dy": -1 },
+              "leftRamp": { "dx": -1, "dy": -1 },
+              "rationale": "The carved flank is only one tile wide, so a platform edge often remains immediately on the ramp's facing side, dropping a cliff straight onto the landing/exit. Clearing that one cell moves the elevated ground one tile away from the ramp, leaving the exit readable as open lower-tier ground."
+            },
+            "groundDefinition": "A cell is 'ground' here when it is land at the ramp's landing elevation (platformElevation - 1). The east/west neighbor of the base directly above the exit (the ramp's water flank / the platform corner) is NOT required to be ground - see renderingNote.",
+            "renderingNote": "The exit cell itself usually autotiles to a TOP-EDGE shoreline tile (sheet #2, mask 0111), NOT center grass (#11): the cell directly north of the exit is occupied by the ramp's water flank or the platform's lower edge, so the exit cannot be land on all four sides. Requiring a true #11 on the exit side is not geometrically achievable for a side ramp (it would force the lower tier to wrap up beside the platform flank, which terracing essentially never produces). The guarantee here is instead a 2-tile-wide walkable shelf, so there is always solid ground to step onto beyond the immediate edge tile.",
+            "rationale": "An earlier version required only one lower-tier cell on the exit side, which could be a 1-tile spit; the player would step off the ramp straight into water. Requiring a 2x2 walkable pocket guarantees real standing room at the ramp foot.",
+            "incorrect": "Placing a ramp whose exit side is a 1-tile ledge bordered by water; or a base whose below cell is water or a cliff drop."
+          }
+        },
+        "roadOverlay": {
+          "file": "Tilemap_color6.png",
+          "description": "Road overlay painted on top of any ground elevation. Roads autotile only against other road cells; grass, cliffs, water, and off-map edges are treated as OTHER.",
+          "lookup": "flatGroundLookup",
+          "coordinateRegion": "flatGround",
+          "neighborMask": {
+            "description": "4-neighbour RuleTile-style bitmask for road autotile selection. Same encoding as land autotile (order N/E/S/W).",
+            "sameCheck": "Nsame = (north.hasRoad == true) ? 1 : 0; repeat for E, S, W.",
+            "otherWhen": "Off-map, water, grass without road, or any cell where hasRoad is false.",
+            "note": "Roads do not autotile against grass or cliffs. A road cell adjacent to non-road land uses the outer-edge piece for that side."
+          },
+          "renderLayer": {
+            "order": "water-background -> water-foam -> ground/cliffs/ramps -> road-overlay -> props -> shadows (shadows are drawn below elevated ground, not above roads)",
+            "rule": "Draw road tiles above ground, cliff, and ramp tiles but below y-sorted props so trees, bushes, and other decorations overhang the road."
+          },
+          "placementRules": {
+            "landOnly": {
+              "rule": "Roads may only be placed on walkable land (elevation >= 0). Never paint roads on water cells.",
+              "appliesTo": "Every cell with hasRoad=true."
+            },
+            "anyElevation": {
+              "rule": "Roads may run on any elevation tier (0 through 4). The ground tile underneath is unchanged; color6 is an overlay only.",
+              "note": "Use Tilemap_color<elevation+1>.png for the ground layer and Tilemap_color6.png for the road layer on the same cell."
+            },
+            "elevationChangeViaRamps": {
+              "rule": "A road may change elevation only by passing through an existing stair-ramp cell (top or bottom part). Between ramps, all connected road cells on a path segment must share the same elevation.",
+              "rampCells": "Both the landing cell (bottom, at sy) and the slope cell (top, at sy-1) of a side ramp may carry road overlay.",
+              "incorrect": "Painting a road cell that jumps elevation without traversing a ramp; or placing road on a cliff-base cell that is not walkable."
+            },
+            "overlayOnly": {
+              "rule": "Road overlay never replaces or alters ground-tile selection. Ground autotile runs first; road autotile is a separate pass on cells where hasRoad=true.",
+              "doNotApply": "Do not substitute ground pieces for road pieces or vice versa."
+            }
+          },
+          "note": "Tilemap_color6 shares the same 9x6 grid geometry as color1-5. Baseline rendering uses flatGround piece coordinates from color6 for all tiers. Optionally, elevatedGround or stairs regions of color6 may be used for elevated road segments in a future refinement."
+        },
+        "autotileAlgorithm": [
+          "Input: 2D grid where each cell has { elevation: int (-1=water, 0..4=land), hasRoad: bool }.",
+          "For each cell (x, y):",
+          "  1. Skip ground placement if elevation < 0 (water cells use Water Background color.png).",
+          "  2. Resolve ground tilemap: Tilemap_color<elevation+1>.png.",
+          "  3. Compute neighbor mask: Nsame = (north.elevation >= cell.elevation) ? 1 : 0; repeat for E, S, W. Equal-or-higher land counts as same group so lower tiers render center grass (piece 5 / raw 11) under plateau rims instead of grass-to-water shoreline edges. mask = (Nsame<<3)|(Esame<<2)|(Ssame<<1)|Wsame.",
+          "  4. pieceId = flatGroundLookup[mask].",
+          "  5. If cell.elevation > 0 AND south.elevation < cell.elevation:",
+          "     a. Apply elevatedGroundRules.southCliffLipSubstitutions to pieceId if listed (when gap >= 2 or south is water) ONLY if the north neighbor is water; otherwise keep the all-grass lip piece (see waterCliffTopRule).",
+          "     b. Otherwise if mask is in implicitLipMappings, use that cliff-lip piece id.",
+          "     c. Resolve coordinates from categories.elevatedGround.",
+          "     d. Place exactly one cliff base tile at (x, y+1): pick variant (left/middle/right/narrow) by edge position; pick walkable-bottom (17-20) when south.elevation >= 0, water-bottom (21-24) when south.elevation == -1.",
+          "  6. Else: resolve coordinates from categories.flatGround (elevation 0 shoreline) or categories.elevatedGround pieces 1-9/13-15 (elevation > 0 interior/top).",
+          "  7. If cell.hasRoad: recompute mask using hasRoad equality (Nsame = north.hasRoad ? 1 : 0; repeat E, S, W), lookup flatGroundLookup, resolve coordinates from categories.flatGround on Tilemap_color6.png, draw on the road overlay layer above ground/cliffs/ramps and below props.",
+          "  8. For concave inner corners (e.g. water holes), reverse edge direction: a bottom edge of a hole uses the top-edge tile (piece 2), and so on."
+        ],
+        "placementConstraints": {
+          "description": "Hard adjacency invariants. Violations produce visual water-strip defects because the asset has no grass-to-lower-grass border tile, only grass-to-water.",
+          "elevationGradient": {
+            "rule": "Non-south neighbors (N/E/W, water, off-map) may be any walkable elevation, water, or off-map. Plateau rim pieces (elevatedGround 1/2/3/4/6; sheet 6/7/8/15/17) sit flush against lower base land without drawing a cliff on those sides. Only the SOUTH neighbor must step down by exactly 1 (to walkable land), to water (-1), or be off-map.",
+            "autotileSameness": "Land autotile mask bits use elevation >= cell.elevation (not strict equality). A lower cell beside or below a higher plateau therefore selects center grass (flatGround 5 / raw 11), not a grass-to-water shoreline edge; the plateau above keeps its grass-surface rim pieces. This avoids teal water-strip defects without requiring water moats or seam-cover strips on N/E/W.",
+            "rationale": "Cliff-face art exists only on the south face (sheet 42/43/44/45 on land, 51/52/53/54 on water). Equal-or-higher sameness lets plateau rims abut lower land cleanly: lower tiers underdraw with center grass, upper tiers overdraw with elevated-grass edge art.",
+            "applies": "All ground tilemaps (Tilemap_color1..5).",
+            "exception": "Stair ramp cells are exempt from autopad south demotion; they keep their authored elevation so the ramp can bridge a 1-step drop. Ramps explicitly bridge a south-facing 1-tile elevation drop and are placed manually.",
+            "seamCoverException": {
+              "rule": "A non-south neighbor may have elevation in [0, N-1] (lower walkable land, not water) when the higher cell at (x, y) renders a vertical-strip piece from the 13/14/15/16 family per elevatedGroundRules.seamCoverRule. Water between elevation zones is therefore not mandatory; an elevated strip may sit above lower land with id-15-family tiles covering the seam.",
+              "appliesWhen": "Higher cell uses seamCoverRule strip selection on that boundary.",
+              "autopad": "Do not promote the lower neighbor to the higher elevation when seam cover applies. Default generator does not produce narrow spines; N/E/W autopad promotion is disabled entirely.",
+              "deprecatedForDefaultGenerator": "N/E/W promotion in autopad; plateaus use flush-on-grass N/E/W boundaries instead."
+            }
+          },
+          "seamCoverExemptions": {
+            "pieces": [13, 14, 15, 16],
+            "rule": "Vertical-strip and narrow-lip pieces are exempt from forbiddenPieceAdjacencies land-to-lower-land checks when elevatedGroundRules.seamCoverRule applies on that cell."
+          },
+          "mapDesignRules": {
+            "description": "High-level constraints on how generated maps should be shaped. Renderer/autopad still enforce the geometric invariants; these rules narrow the design space the generator is allowed to produce.",
+            "rivers": {
+              "rule": "Rivers (long, narrow, branching water carved across the land) are NOT allowed. Inland water is restricted to lakes only.",
+              "rationale": "Rivers force long thin water corridors that look ruled and stripe the map. Relief comes from deliberately placed plateaus, not water-carved valleys."
+            },
+            "lakes": {
+              "rule": "Inland water is restricted to small and medium lakes (roughly circular, radius 2-6 tiles). Lakes are sparse and roughly distributed across the map.",
+              "preferredCount": "8-12 lakes across a 200x200 map.",
+              "preferredRadius": [2, 6],
+              "rationale": "Lakes break the landscape with discrete water features. Inland lakes sit flush in the surrounding land tier (see elevatedLakeRule); only the left sea uses an elevation-0 shoreline ring."
+            },
+            "lakeShorelineRing": {
+              "rule": "Only the left sea (water connected to the west map edge) requires an elevation-0 shoreline ring: every land cell 8-adjacent to a sea cell must be elevation 0. Land may rise to elevation 1+ only at Chebyshev distance >= 2 from all sea water. Inland lakes do not use this ring.",
+              "adjacency": "8-neighbor (king moves including diagonals), evaluated against sea cells only.",
+              "scope": "Sea shoreline only. Does not apply to inland lakes or elevated ponds; those use elevatedLakeRule.",
+              "renderingConsequence": "Sea perimeter uses flatGround shoreline pieces (1/2/3/10/11/12) with foam. Inland lakes border their surrounding tier directly with grass-surface edge pieces.",
+              "incorrect": "Applying an elevation-0 ring around inland lakes, forcing base land down to sea level before the lake can be bordered at elevation 1+."
+            },
+            "elevatedLakeRule": {
+              "rule": "Inland lakes and elevated ponds are water holes (-1) embedded in the surrounding land tier (base elevation 1 or a plateau tier 2/3/4). Surrounding cells keep their own elevation and border the water with grass-surface edge pieces (elevatedGround 1/2/3/4/6/7/8/9 and strips 13/14/15, or 16 for a 1-tile pocket). No elevation-0 ring and no cliff face (17-24) is drawn around a lake; the south edge of an elevated cell above lake water renders as flush grass, not a cliff.",
+              "foam": "Land cells (elevation >= 0) with any 8-neighbor water receive shoreline foam under the grass tile, at any tier.",
+              "defaultGenerator": "May carve small ponds inside plateaus at the plateau top tier.",
+              "minPondCells": 6,
+              "minPondCellsRationale": "Ponds with fewer than minPondCells carved tiles look like 1-2 tile puddles that do not fit the tileset. Generators must skip carving when the candidate set is below the threshold. When skipped, the cells stay at the plateau top tier and the natural south-facing cliff at the plateau edge renders sheet 43 (cliff face middle on walkable land) below the drop, which is the intended look for that area."
+            },
+            "elevationModel": {
+              "name": "flatBasePlusPlateaus",
+              "rule": "The map uses two elevation roles only: a flat base tier and a small number of large plateaus. Interior cells away from edges do not need special piece logic - only palette differs between tiers.",
+              "baseLand": {
+                "elevation": 1,
+                "description": "All land right of the sea coast starts at elevation 1. This is the default walkable ground covering most of the map."
+              },
+              "shoreline": {
+                "elevation": 0,
+                "description": "Thin ring around the left sea only. Autotiles to flatGround 1/2/3/10/11/12."
+              },
+              "plateaus": {
+                "elevations": [2, 3, 4],
+                "description": "A handful of deliberately placed blobs. Each plateau exposes a south-facing cliff dropping exactly one step to the tier below. N/E/W boundaries sit flush on lower base land; rim pieces (6/7/8/15/17) mark the elevated surface edge without a vertical cliff on those sides.",
+                "notUsed": "Noise relief, narrow seam-covered spines, relaxation cascades, or deliberate plateau moats."
+              },
+              "deprecatedForDefaultGenerator": [
+                "seamCoverRule (still valid for manual maps; default generator does not produce narrow spines)",
+                "narrowStripPieces ramp attachment (ramps target wide plateau corners only)"
+              ]
+            },
+            "plateauPlacement": {
+              "rule": "Place 4-6 plateaus on the flat base. Each is a noise-rippled disc (radius 6-10) at elevation 2, optionally nesting smaller elevation-3 and elevation-4 blobs centered slightly north.",
+              "minCells": 40,
+              "minCellsNote": "Matches accessibilityRules.minRegionSizeForRamp so each plateau receives ramps.",
+              "nweBoundaries": "Plateau N/E/W boundaries may sit directly on lower base land (elevation 1). Moats are not required. Plateaus may abut inland lakes or contain elevated ponds (see elevatedLakeRule).",
+              "southCliff": "Only the south perimeter of each plateau tier borders lower walkable land; the renderer places cliff lips (7/8/9) and cliff bases (17-19 on land). Water below a plateau cell uses flush grass edges, not cliff faces.",
+              "spacing": "Skip placement if the blob would overlap or 8-touch any existing water (lakes from the lake pass or the sea). Tiny 1-2 cell pond remnants stranded inside a plateau are forbidden; the only ponds allowed inside plateaus are the deliberate ones carved in Pass 3.5 (subject to elevatedLakeRule.minPondCells). When a plateau cell would otherwise have its south neighbor at lake level, the renderer paints sheet 43 (cliff face middle on walkable land) at the south-facing drop instead of leaving a stranded puddle.",
+              "nestedTiers": "Elevation-3 and elevation-4 blobs are strictly inside their parent tier and offset north so each tier exposes its own south cliff edge."
+            },
+            "elevationZeroDesign": {
+              "rule": "Elevation 0 is exclusively the left-sea shoreline tier (see lakeShorelineRing). It is applied in a final pass after lakes and plateaus are carved. Inland lakes do not create elevation-0 cells.",
+              "renderingConsequence": "Elevation-0 pieces appear on the sea coast; inland lake shores use the surrounding tier's grass-surface edge pieces with foam.",
+              "intent": "Away from the sea coast and plateau south cliffs, elevation-0 cells should be rare. Most visible land is elevation 1+."
+            }
+          },
+          "forbiddenPieceAdjacencies": [
+            {
+              "if": "cell uses pieces [1,2,3]",
+              "northNeighborMustNotBe": "lower-elevation grass [7,8,9,13,14,15,16]"
+            },
+            {
+              "if": "cell uses pieces [7,8,9,13,14,15,16]",
+              "southNeighborMustNotBe": "lower-elevation grass [1,2,3]"
+            },
+            {
+              "if": "cell uses piece 4",
+              "westNeighborMustNotBe": "lower-elevation grass using piece 6, 13, 14, 15, 16"
+            },
+            {
+              "if": "cell uses piece 6",
+              "eastNeighborMustNotBe": "lower-elevation grass using piece 4, 13, 14, 15, 16"
+            },
+            {
+              "if": "cell uses piece 16",
+              "anyNonSouthNeighborMustNotBe": "lower-elevation grass"
+            }
+          ],
+          "landToLandStepLimit": {
+            "rule": "Land-to-land south drops must be exactly 1 elevation step. cell.elevation - south.elevation must equal 1 when south.elevation >= 0.",
+            "exception": "Drops to water (south.elevation == -1) are allowed from any elevation; one row of pieces 21-24 represents the entire drop.",
+            "rationale": "The tileset has no middle/stacking cliff piece. A drop of N > 1 cannot be rendered without inserting intermediate platforms.",
+            "resolution": "Apply the combined autopad algorithm to convert tall drops into stepped pyramids."
+          },
+          "resolution": "Use the autopad algorithm below to pre-process the input map. After autopad, ground tiles can never violate these constraints because no non-south N/E/W neighbor is lower-elevation walkable land and every land-to-land south drop is exactly one step."
+        },
+        "accessibilityRules": {
+          "description": "Reachability invariant: every elevated tier must be walkable-up from the tier directly below it, so the whole map is traversable on foot from the base ground.",
+          "rule": "For each elevation level N >= 1, every connected region of elevation-N cells must have at least one stair ramp linking it to an adjacent elevation-(N-1) region. The ramp lands on the lower tier (N-1) and its diagonal platform corner sits on the higher tier (N).",
+          "definitions": {
+            "region": "A maximal group of same-elevation land cells connected orthogonally (4-neighbor: N/E/S/W).",
+            "access": "A 2-part side ramp (see stairsRules) bridging exactly one elevation step between an elevation-N region and a bordering elevation-(N-1) region."
+          },
+          "requirements": [
+            "Level 0 is the base walkable tier and needs no ramp; the player starts there.",
+            "Each elevation-1 region has >= 1 ramp landing on a bordering level-0 region (requires elevationLimit.minLandingElevation = 0).",
+            "Each elevation-N region (N >= 2) has >= 1 ramp landing on a bordering level-(N-1) region.",
+            "Access is transitive: chaining one ramp per step makes every region reachable on foot from level 0."
+          ],
+          "minRegionSizeForRamp": {
+            "rule": "An elevated region (elevation N >= 1) must contain at least 40 tiles before a ramp may be placed on it. Smaller regions - narrow seam-covered spines, 1-3 tile platforms, decorative outcrops - intentionally stay unreachable on foot; they are scenery, not destinations.",
+            "minCells": 40,
+            "regionDefinition": "Same-elevation orthogonally connected (4-neighbor) cells, matching accessibilityRules.definitions.region.",
+            "appliesTo": "Both wide platforms (try_left / try_right) and narrow vertical-strip spines (try_narrow_strip_left / try_narrow_strip_right).",
+            "rationale": "Per-region ramping was generating ramps onto tiny 1-2-cell spines, which crowded the map with steep ramps that lead nowhere meaningful. Limiting ramps to substantial plateaus keeps the access network purposeful and reduces visual noise from over-ramping.",
+            "consequence": "Regions smaller than minCells are NOT required to satisfy the accessibilityRules reachability invariant; they are explicitly marked as unreachable terrain."
+          },
+          "rampDensity": {
+            "rule": "One ramp per region is necessary but not sufficient: a single ramp can leave a large region 30+ tiles from the nearest way down, forcing long detours. Place ramps OFTEN - no elevated cell may be farther than maxRunWithoutRamp tiles from a ramp serving its region, so big plateaus get several ramps.",
+            "maxRunWithoutRamp": 30,
+            "minRampSeparation": 8,
+            "guidance": "Within each connectable region, place a ramp at every geometrically valid bottom corner (see stairsRules), keeping placed ramps at least minRampSeparation tiles apart (Chebyshev) so they spread out instead of clustering. The result is roughly one ramp every 8-20 tiles of usable south edge, well under the 30-tile cap.",
+            "rationale": "Mobility: on a sprawling highland a lone ramp makes most of the plateau a dead end. Frequent ramps keep movement fluid, like switchbacks on a real hillside."
+          },
+          "rationale": "An elevated platform with no ramp is visually valid but unreachable on foot. Requiring one ramp per region per step keeps the entire map traversable from the ground up; rampDensity additionally keeps every part of a large region close to a way down.",
+          "incorrect": "An elevation-N region with no ramp down to any adjacent elevation-(N-1) region (an isolated, unreachable plateau)."
+        },
+        "autopadAlgorithm": [
+          "Repeat until stable:",
+          "  For each cell (x, y) with elevation N > 0 (skip if (x, y) is a stair ramp cell):",
+          "    For each non-south neighbor (nx, ny) in [(x, y-1), (x-1, y), (x+1, y)]:",
+          "      Skip if (nx, ny) is a stair ramp cell.",
+          "      Let K = grid[ny][nx] (off-map = -1).",
+          "      If 0 <= K < N: set grid[ny][nx] = N.",
+          "    Let S = grid[y+1][x] (off-map = -1). Skip if (x, y+1) is a stair ramp cell.",
+          "      If 0 <= S < N - 1: set grid[y+1][x] = N - 1.",
+          "Result: every land-to-land south drop is exactly 1; non-south neighbors are same-elevation, higher-elevation, water, or off-map; stair cells keep authored elevation."
+        ]
+      },
+      "pieceAdjacencyRules": {
+        "numbering": "Sheet IDs 1-54, row-major on Tilemap_color1.png (9 columns x 6 rows). Same numbering as Tilemap_color1_grid.",
+        "adjacency": "8-neighbor (king moves, including diagonals).",
+        "validation": "Symmetric on each edge: neighbor token B must appear in allowedNeighbors[A], and when B is land, A must appear in allowedNeighbors[B].",
+        "neighborTokens": {
+          "water": "Map cell with elevation -1; no terrain piece on that cell."
+        },
+        "unusedPieceIds": [5, 14, 23, 32, 38, 39, 41, 47, 48, 50],
+        "allowedNeighborsFile": "piece_adjacency_allowed.json",
+        "sheetIdRegions": {
+          "1-9_13-16": "flatGround grass and strips",
+          "10-12_16": "elevated cliff lips (semantic elevatedGround 10-12, 16)",
+          "17-20": "cliff face on walkable land (sheet 42-45 overlay row)",
+          "21-24": "cliff face on water (sheet 51-54)",
+          "25-32": "stairs / ramps",
+          "33-36": "grass-meets-rock lips",
+          "37-40_46_49": "ramp parts (sheet numbering)",
+          "42-45": "cliff-face overlays on walkable (same tiles as 17-20 region, sheet coords)"
+        },
+        "relationshipToElevationRules": "placementConstraints.elevationGradient and forbiddenPieceAdjacencies govern elevation authoring. pieceAdjacencyRules govern which sheet IDs may touch after render. The default mask autotile pipeline is not yet driven by these lists.",
+        "note": "Full allowedNeighbors table: TinySwords/Terrain/Tileset/piece_adjacency_allowed.json"
+      },
+      "categories": {
+        "flatGround": {
+          "description": "Lowest walkable terrain adjacent to water. Use autotiling-style neighbor rules: pick the piece whose grass edges match adjacent same-elevation land on each side.",
+          "pieces": [
+            { "id": 1, "role": "top-left outer corner", "mask": "0110", "neighbors": { "N": "other", "E": "same", "S": "same", "W": "other" }, "x": 0, "y": 0, "width": 64, "height": 64 },
+            { "id": 2, "role": "top outer edge", "mask": "0111", "neighbors": { "N": "other", "E": "same", "S": "same", "W": "same" }, "x": 64, "y": 0, "width": 64, "height": 64 },
+            { "id": 3, "role": "top-right outer corner", "mask": "0011", "neighbors": { "N": "other", "E": "other", "S": "same", "W": "same" }, "x": 128, "y": 0, "width": 64, "height": 64 },
+            { "id": 4, "role": "left outer edge", "mask": "1110", "neighbors": { "N": "same", "E": "same", "S": "same", "W": "other" }, "x": 0, "y": 64, "width": 64, "height": 64 },
+            { "id": 5, "role": "center (surrounded by land)", "mask": "1111", "neighbors": { "N": "same", "E": "same", "S": "same", "W": "same" }, "x": 64, "y": 64, "width": 64, "height": 64 },
+            { "id": 6, "role": "right outer edge", "mask": "1011", "neighbors": { "N": "same", "E": "other", "S": "same", "W": "same" }, "x": 128, "y": 64, "width": 64, "height": 64 },
+            { "id": 7, "role": "bottom-left outer corner", "mask": "1100", "neighbors": { "N": "same", "E": "same", "S": "other", "W": "other" }, "x": 0, "y": 128, "width": 64, "height": 64 },
+            { "id": 8, "role": "bottom outer edge", "mask": "1101", "neighbors": { "N": "same", "E": "same", "S": "other", "W": "same" }, "x": 64, "y": 128, "width": 64, "height": 64 },
+            { "id": 9, "role": "bottom-right outer corner", "mask": "1001", "neighbors": { "N": "same", "E": "other", "S": "other", "W": "same" }, "x": 128, "y": 128, "width": 64, "height": 64 },
+            { "id": 10, "role": "1-tile-high horizontal strip left end", "mask": "0100", "neighbors": { "N": "other", "E": "same", "S": "other", "W": "other" }, "x": 0, "y": 192, "width": 64, "height": 64 },
+            { "id": 11, "role": "1-tile-high horizontal strip middle", "mask": "0101", "neighbors": { "N": "other", "E": "same", "S": "other", "W": "same" }, "x": 64, "y": 192, "width": 64, "height": 64 },
+            { "id": 12, "role": "1-tile-high horizontal strip right end", "mask": "0001", "neighbors": { "N": "other", "E": "other", "S": "other", "W": "same" }, "x": 128, "y": 192, "width": 64, "height": 64 },
+            { "id": 13, "role": "1-tile-wide vertical strip top end", "mask": "0010", "neighbors": { "N": "other", "E": "other", "S": "same", "W": "other" }, "x": 192, "y": 0, "width": 64, "height": 64 },
+            { "id": 14, "role": "1-tile-wide vertical strip middle", "mask": "1010", "neighbors": { "N": "same", "E": "other", "S": "same", "W": "other" }, "x": 192, "y": 64, "width": 64, "height": 64 },
+            { "id": 15, "role": "1-tile-wide vertical strip bottom end", "mask": "1000", "neighbors": { "N": "same", "E": "other", "S": "other", "W": "other" }, "x": 192, "y": 128, "width": 64, "height": 64 },
+            { "id": 16, "role": "isolated 1x1 island (water on all sides)", "mask": "0000", "neighbors": { "N": "other", "E": "other", "S": "other", "W": "other" }, "x": 192, "y": 192, "width": 64, "height": 64 }
+          ],
+          "rules": [
+            "Flat Ground is the lowest terrain layer next to water.",
+            "For concave inner corners (e.g. around a water hole), reverse the edge direction: a bottom edge of a hole uses the top-edge tile (2), and so on.",
+            "Use strip tiles (10-15) for 1-tile-wide peninsulas; use tile 16 for standalone single-tile islands."
+          ]
+        },
+        "elevatedGround": {
+          "description": "Raised walkable terrain with cliff faces below. The grass top (pieces 1-9, 13-15) works exactly like Flat Ground. Cliff pieces (10-12, 16, 17-24) stack vertically beneath the grass lip.",
+          "pieces": [
+            { "id": 1, "role": "top-left outer corner (grass surface)", "mask": "0110", "neighbors": { "N": "other", "E": "same", "S": "same", "W": "other" }, "x": 320, "y": 0, "width": 64, "height": 64 },
+            { "id": 2, "role": "top outer edge (grass surface)", "mask": "0111", "neighbors": { "N": "other", "E": "same", "S": "same", "W": "same" }, "x": 384, "y": 0, "width": 64, "height": 64 },
+            { "id": 3, "role": "top-right outer corner (grass surface)", "mask": "0011", "neighbors": { "N": "other", "E": "other", "S": "same", "W": "same" }, "x": 448, "y": 0, "width": 64, "height": 64 },
+            { "id": 4, "role": "left outer edge (grass surface)", "mask": "1110", "neighbors": { "N": "same", "E": "same", "S": "same", "W": "other" }, "x": 320, "y": 64, "width": 64, "height": 64 },
+            { "id": 5, "role": "center (grass surface)", "mask": "1111", "neighbors": { "N": "same", "E": "same", "S": "same", "W": "same" }, "x": 384, "y": 64, "width": 64, "height": 64 },
+            { "id": 6, "role": "right outer edge (grass surface)", "mask": "1011", "neighbors": { "N": "same", "E": "other", "S": "same", "W": "same" }, "x": 448, "y": 64, "width": 64, "height": 64 },
+            { "id": 7, "role": "bottom-left outer corner (grass-to-cliff lip)", "mask": "1100", "neighbors": { "N": "same", "E": "same", "S": "other", "W": "other" }, "x": 320, "y": 128, "width": 64, "height": 64 },
+            { "id": 8, "role": "bottom outer edge (grass-to-cliff lip)", "mask": "1101", "neighbors": { "N": "same", "E": "same", "S": "other", "W": "same" }, "x": 384, "y": 128, "width": 64, "height": 64 },
+            { "id": 9, "role": "bottom-right outer corner (grass-to-cliff lip)", "mask": "1001", "neighbors": { "N": "same", "E": "other", "S": "other", "W": "same" }, "x": 448, "y": 128, "width": 64, "height": 64 },
+            { "id": 10, "role": "cliff top edge left (grass meets rock face)", "placementHint": "South cliff lip left; placed when south neighbor is lower elevation or as row-1 of cliff stack", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 320, "y": 192, "width": 64, "height": 64 },
+            { "id": 11, "role": "cliff top edge middle", "placementHint": "South cliff lip middle; placed when south neighbor is lower elevation or as row-1 of cliff stack", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 384, "y": 192, "width": 64, "height": 64 },
+            { "id": 12, "role": "cliff top edge right", "placementHint": "South cliff lip right; placed when south neighbor is lower elevation or as row-1 of cliff stack", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 448, "y": 192, "width": 64, "height": 64 },
+            { "id": 13, "role": "1-tile-wide vertical grass strip top end", "mask": "0010", "neighbors": { "N": "other", "E": "other", "S": "same", "W": "other" }, "x": 512, "y": 0, "width": 64, "height": 64 },
+            { "id": 14, "role": "1-tile-wide vertical grass strip middle", "mask": "1010", "neighbors": { "N": "same", "E": "other", "S": "same", "W": "other" }, "x": 512, "y": 64, "width": 64, "height": 64 },
+            { "id": 15, "role": "1-tile-wide vertical grass strip bottom end", "mask": "1000", "neighbors": { "N": "same", "E": "other", "S": "other", "W": "other" }, "x": 512, "y": 128, "width": 64, "height": 64 },
+            { "id": 16, "role": "1-tile-wide cliff top edge (narrow pillar lip)", "placementHint": "South cliff lip for 1-tile-wide platform; substitute for piece 15 when south drops", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 512, "y": 192, "width": 64, "height": 64 },
+            { "id": 17, "role": "cliff face left terminating on walkable ground below", "placementHint": "Cliff base/middle left on walkable land; bottom row when south is land, or repeated middle rows", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 320, "y": 256, "width": 64, "height": 64 },
+            { "id": 18, "role": "cliff face middle terminating on walkable ground below", "placementHint": "Cliff base/middle center on walkable land", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 384, "y": 256, "width": 64, "height": 64 },
+            { "id": 19, "role": "cliff face right terminating on walkable ground below", "placementHint": "Cliff base/middle right on walkable land", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 448, "y": 256, "width": 64, "height": 64 },
+            { "id": 20, "role": "1-tile-wide cliff face bottom on walkable ground", "placementHint": "Cliff base/middle for 1-tile-wide platform on walkable land", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 512, "y": 256, "width": 64, "height": 64 },
+            { "id": 21, "role": "cliff face left terminating in water", "placementHint": "Cliff base/middle left on water; bottom row when south elevation is -1", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 320, "y": 320, "width": 64, "height": 64 },
+            { "id": 22, "role": "cliff face middle terminating in water", "placementHint": "Cliff base/middle center on water", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 384, "y": 320, "width": 64, "height": 64 },
+            { "id": 23, "role": "cliff face right terminating in water", "placementHint": "Cliff base/middle right on water", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 448, "y": 320, "width": 64, "height": 64 },
+            { "id": 24, "role": "1-tile-wide cliff face bottom in water (with foam)", "placementHint": "Cliff base for 1-tile-wide platform on water", "neighbors": { "N": "any", "E": "any", "S": "any", "W": "any" }, "x": 512, "y": 320, "width": 64, "height": 64 }
+          ],
+          "rules": [
+            "The upper grass surface (pieces 1-9, 13-15) follows the same neighbor-matching rules as Flat Ground.",
+            "Place cliff lip tiles (10-12, 16) directly below the front-facing grass edge of the elevated platform.",
+            "Use cliff-to-walkable pieces (17-20) where the cliff base meets flat ground below.",
+            "Use cliff-to-water pieces (21-24) where the cliff base meets water; these include shoreline foam.",
+            "Stack cliff tiles vertically to build taller elevations; repeat middle cliff rows as needed."
+          ]
+        },
+        "stairs": {
+          "description": "Side ramps connecting lower terrain to an Elevated Ground platform. Each ramp is a 2-tile vertical stack: a grass-slope top and a rocky base bottom.",
+          "numberingNote": "IDs continue after elevatedGround (1-24). Stairs region = cols 0-3, rows 4-5, row-major 25-32. 26/27/30/31 are empty.",
+          "pieces": [
+            { "id": 25, "role": "left ramp - top (grass slope)", "placementHint": "Draw at (sx, sy-1); faces left, ascends right", "x": 0, "y": 256, "width": 64, "height": 64 },
+            { "id": 28, "role": "right ramp - top (grass slope)", "placementHint": "Draw at (sx, sy-1); faces right", "x": 192, "y": 256, "width": 64, "height": 64 },
+            { "id": 29, "role": "left ramp - bottom (rocky base)", "placementHint": "Draw at landing cell (sx, sy)", "x": 0, "y": 320, "width": 64, "height": 64 },
+            { "id": 32, "role": "right ramp - bottom (rocky base)", "placementHint": "Draw at landing cell (sx, sy)", "x": 192, "y": 320, "width": 64, "height": 64 }
+          ],
+          "ramps": {
+            "leftRamp": { "top": 25, "bottom": 29 },
+            "rightRamp": { "top": 28, "bottom": 32 }
+          },
+          "rules": [
+            "Each side ramp is always a 2-tile stack: top grass slope + bottom rocky base.",
+            "Left ramp: top=25 at (sx,sy-1), bottom=29 at (sx,sy). Right ramp: top=28 at (sx,sy-1), bottom=32 at (sx,sy).",
+            "Apply sideRampAdjacency: substitute the diagonal platform corner with piece 5 before drawing the ramp stack.",
+            "Incorrect: drawing only the top slope without the bottom base, or leaving the original edge piece where the ramp connects."
+          ]
+        }
+      }
+    }
+  ],
+  "propSystem": {
+    "implementedIn": "elevation-examples.html (reference implementation; not loaded from this file at runtime)",
+    "note": "Shared prop-layer behaviours for trees, bushes, rocks, water rocks, and sheep. Constants below are illustrative defaults from the example; other projects may tune them.",
+    "categories": ["trees", "bushes", "rocks", "waterrocks", "sheep"],
+    "deterministicScatter": {
+      "prng": "mulberry32",
+      "seed": "0xDEC0FCAE",
+      "rule": "One PRNG stream is walked left-to-right, top-to-bottom over interior map cells so the same terrain seed always produces the same prop layout."
+    },
+    "placementSampling": {
+      "landEligibility": {
+        "rule": "Land props scatter only on interior centre grass: cellRecord layer \"ground\" with semanticId 5 (autotile piece 5, mask 1111), elevation >= 1, with a one-tile map border excluded from sampling."
+      },
+      "densityBands": {
+        "description": "Per eligible land cell, draw r in [0, 1) from the scatter PRNG. First matching band wins.",
+        "bands": [
+          { "category": "trees", "maxR": 0.05, "variantNote": "15% of tree rolls become stumps instead of full trees." },
+          { "category": "bushes", "maxR": 0.10 },
+          { "category": "rocks", "maxR": 0.13 },
+          { "category": "sheep", "maxR": 0.15 },
+          { "category": "empty", "note": "No prop when r >= 0.15." }
+        ]
+      },
+      "waterRocks": {
+        "rule": "Water rocks scatter on fully open water cells only: elevation -1 and all eight neighbours also water.",
+        "probability": 0.003
+      }
+    },
+    "variants": {
+      "rule": "Each category has four visual variants (bush1-4, rock1-4, tree1-4, stump1-4, waterrock1-4). pickVariant selects uniformly at random from the category's id list."
+    },
+    "collision": {
+      "blockedCategories": ["trees", "bushes", "rocks"],
+      "rule": "When a blocked-category prop is placed, its tile coordinates are added to blockedCells. Walking agents (sheep) cannot enter those tiles."
+    },
+    "ySort": {
+      "rule": "Before drawing, visible props are sorted by base Y ascending, then base X ascending, so sprites lower on the map draw on top of sprites farther north."
+    },
+    "animationPhasing": {
+      "rule": "Every animated prop receives a random phaseMs offset in [0, frameCount * frameDurationMs) at spawn so identical animations do not play in lockstep."
+    },
+    "rendering": {
+      "canvas": "#props",
+      "layerOrder": "Above terrain map and below debug overlay.",
+      "viewportCulling": "Only props whose sprite bounds intersect the current viewport are drawn each frame.",
+      "pauseToggle": "A global pause control freezes the animation clock and stops prop motion updates."
+    },
+    "layerToggles": {
+      "rule": "Per-category enable flags (trees, bushes, rocks, waterrocks, sheep) allow staged generation: terrain first, then add decoration categories individually.",
+      "default": "All categories enabled."
+    },
+    "sheepBehaviorGuide": "tinyswords-tileset-guide/Terrain/Resources/Meat/Sheep/guide.json (behaviorRules section)"
+  }
+}

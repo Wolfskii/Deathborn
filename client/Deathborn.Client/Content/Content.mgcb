@@ -175,3 +175,45 @@
 /build:Tiles/water_tileset.png
 
 #end Tiles/water_tileset.png
+
+#begin Tiles/tiny_swords_land_tileset.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Tiles/tiny_swords_land_tileset.png
+
+#end Tiles/tiny_swords_land_tileset.png
+
+#begin Tiles/tiny_swords_water_bg.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Tiles/tiny_swords_water_bg.png
+
+#end Tiles/tiny_swords_water_bg.png
+
+#begin Tiles/tiny_swords_water_foam.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Tiles/tiny_swords_water_foam.png
+
+#end Tiles/tiny_swords_water_foam.png

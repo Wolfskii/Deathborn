@@ -4,7 +4,7 @@ using Deathborn.Client.Gameplay;
 
 namespace Deathborn.Client.Rendering;
 
-/// <summary>Procedural town walls, buildings, and dirt paths between safe havens.</summary>
+/// <summary>Procedural town walls and buildings.</summary>
 public static class TownRenderer
 {
     private static readonly Color WallStone = new(118, 112, 104);
@@ -24,61 +24,8 @@ public static class TownRenderer
         if (WorldZones.Towns.Count == 0)
             WorldZones.Initialize(WorldMap.Realik);
 
-        DrawPaths(sb, camera, screenCenter, zoom);
         foreach (var town in WorldZones.Towns)
             DrawTown(sb, town, camera, screenCenter, zoom);
-    }
-
-    private static void DrawPaths(SpriteBatch sb, Vector2 camera, Vector2 screenCenter, float zoom)
-    {
-        var map = WorldMap.Realik;
-        var tilePx = map.TileSize * zoom;
-        if (tilePx < 0.5f) return;
-
-        foreach (var (aId, bId) in WorldZones.PathLinks)
-        {
-            var a = WorldZones.Get(aId);
-            var b = WorldZones.Get(bId);
-            if (a == null || b == null) continue;
-            DrawPathSegment(sb, a.Center, b.Center, map, camera, screenCenter, zoom);
-        }
-    }
-
-    private static void DrawPathSegment(
-        SpriteBatch sb, Vector2 from, Vector2 to, WorldMap map,
-        Vector2 camera, Vector2 screenCenter, float zoom)
-    {
-        var delta = to - from;
-        var len = delta.Length();
-        if (len < 1f) return;
-
-        var step = map.TileSize * 0.5f;
-        var dir = delta / len;
-        var perp = new Vector2(-dir.Y, dir.X);
-        var count = (int)(len / step);
-        var drawn = new HashSet<(int, int)>();
-
-        for (var i = 0; i <= count; i++)
-        {
-            var along = from + dir * (i * step);
-            for (var lane = -1; lane <= 1; lane++)
-            {
-                var world = along + perp * (lane * map.TileSize * 0.42f);
-                if (!map.IsWalkable(world.X, world.Y, 4f)) continue;
-
-                var tx = (int)(world.X / map.TileSize);
-                var ty = (int)(world.Y / map.TileSize);
-                if (!drawn.Add((tx, ty))) continue;
-
-                var rect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
-                if (!OnScreen(new Vector2(rect.Center.X, rect.Center.Y), screenCenter)) continue;
-
-                if (!DungeonFloorTiles.TryDrawRoad(sb, rect))
-                {
-                    DrawPrimitives.FillRect(sb, rect, new Color(18, 16, 14));
-                }
-            }
-        }
     }
 
     private static void DrawTown(

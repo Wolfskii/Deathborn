@@ -301,6 +301,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _buffTracker.Update(dt);
         UpdateHunterMarks(dt);
         _zoneBanner.Update(dt);
+        WaterTiles.Update(dt);
         UpdateZonePresence(localEntity);
 
         var decorateActive = _housingDecorate.IsActive;
@@ -1787,15 +1788,29 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         });
     }
 
+    private WorldEventState? _lastWorldEvent;
+
     private void ApplyWorldEvent(WorldEventState data)
     {
         WorldZones.WorldBossEventActive = data.Active && data.PvPOff;
+        var prev = _lastWorldEvent;
+        _lastWorldEvent = new WorldEventState
+        {
+            Active = data.Active,
+            PvPOff = data.PvPOff,
+            Name = data.Name,
+            BossCount = data.BossCount,
+        };
+
+        if (prev != null && prev.Active == data.Active && prev.PvPOff == data.PvPOff)
+            return;
+
         if (data.Active)
         {
             _zoneBanner.ShowEnter(data.Name ?? "World Boss Event", "PvP disabled - unite to defeat the threat!");
             _status = "World boss event! PvP is off. Find the boss on your map.";
         }
-        else if (data.PvPOff == false && !data.Active)
+        else if (prev is { Active: true, PvPOff: true })
         {
             _zoneBanner.ShowEnter("Threat Subsided", "PvP rules return to normal");
         }

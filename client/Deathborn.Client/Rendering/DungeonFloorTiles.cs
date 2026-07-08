@@ -21,9 +21,6 @@ public static class DungeonFloorTiles
         new(0, 2), new(1, 2),
     ];
 
-    /// <summary>Nearly-black stone — used for roads between towns.</summary>
-    private static readonly Point RoadTile = new(1, 2);
-
     public static bool IsLoaded => _sheet != null;
 
     public static void Load(ContentManager content) =>
@@ -31,9 +28,6 @@ public static class DungeonFloorTiles
 
     public static bool TryDrawFloor(SpriteBatch sb, int worldTx, int worldTy, Rectangle dest) =>
         TryDraw(sb, FloorVariant(worldTx, worldTy), dest);
-
-    public static bool TryDrawRoad(SpriteBatch sb, Rectangle dest) =>
-        TryDraw(sb, RoadTile, dest);
 
     private static bool TryDraw(SpriteBatch sb, Point gridCell, Rectangle dest)
     {
