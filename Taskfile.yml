@@ -61,6 +61,15 @@ tasks:
     cmds:
       - task: dev:all
 
+  dev:all:*:
+    desc: "Start DB, backend, and N MonoGame clients. Usage: task dev:all:3"
+    vars:
+      CLIENT_COUNT: '{{index .MATCH 0}}'
+    cmds:
+      - task: db
+      - task: dev:wait-db
+      - bash scripts/dev-all.sh {{.CLIENT_COUNT}}
+
   dev:all:
     desc: "Start DB, backend, and N MonoGame clients (default 1). Usage: task dev:all -- 2"
     cmds:
