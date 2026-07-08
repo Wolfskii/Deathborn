@@ -37,6 +37,8 @@ public sealed class DeathbornGame : Game
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
         IsFixedTimeStep = false;
+        TargetElapsedTime = TimeSpan.FromMilliseconds(1);
+        InactiveSleepTime = TimeSpan.Zero;
     }
 
     public SpriteBatch SpriteBatch => _spriteBatch;
@@ -139,6 +141,7 @@ public sealed class DeathbornGame : Game
     private void ToggleFullscreen()
     {
         _graphics.IsFullScreen = !_graphics.IsFullScreen;
+        _graphics.SynchronizeWithVerticalRetrace = false;
 
         if (!_graphics.IsFullScreen)
         {

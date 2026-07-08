@@ -116,18 +116,11 @@ public sealed class WorldNpcEntity
     {
         var r = Radius * zoom;
         var label = SpriteFontSafe.Filter(Name);
-        var size = SpriteFontSafe.MeasureString(font, label) * 0.75f;
+        const float labelScale = 0.95f;
+        var size = SpriteFontSafe.MeasureString(font, label) * labelScale;
         var nameY = screenPos.Y - r - (UsesSprite ? 52f * zoom : 18f * zoom);
-        var nameColor = Disposition switch
-        {
-            NpcDisposition.Friendly => new Color(140, 210, 255),
-            NpcDisposition.Neutral => new Color(220, 210, 140),
-            _ => new Color(255, 160, 140),
-        };
-        if (IsBoss) nameColor = new Color(255, 210, 120);
-        SpriteFontSafe.DrawString(sb, font, label,
-            new Vector2(screenPos.X - size.X / 2f, nameY), nameColor,
-            0f, Vector2.Zero, 0.75f, SpriteEffects.None, 0f);
+        var namePos = new Vector2(screenPos.X - size.X / 2f, nameY);
+        SpriteFontSafe.DrawOutlined(sb, font, label, namePos, Color.White, Color.Black, outlinePx: 1f);
     }
 
     public static void DrawBossIcon(SpriteBatch sb, Vector2 center, float scale)
