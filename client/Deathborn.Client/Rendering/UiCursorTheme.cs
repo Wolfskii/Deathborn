@@ -35,7 +35,15 @@ public static class UiCursorTheme
             _ => _normal,
         };
         if (tex == null) return;
-        sb.Draw(tex, new Vector2(mouse.X, mouse.Y), Color.White);
+
+        // Arrow tip pixel inside each 64×64 sprite — aligns visual with mouse hotspot.
+        var origin = kind switch
+        {
+            UiCursorKind.Hover => new Vector2(23, 17),
+            UiCursorKind.Blocked => new Vector2(28, 13),
+            _ => new Vector2(22, 17),
+        };
+        sb.Draw(tex, new Vector2(mouse.X, mouse.Y), null, Color.White, 0f, origin, 1f, SpriteEffects.None, 0f);
     }
 
     public static void DrawSlotOverlay(SpriteBatch sb, Rectangle slotRect)
