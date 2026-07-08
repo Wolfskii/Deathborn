@@ -67,10 +67,12 @@ func main() {
 		log.Printf("loaded %d world item drops", len(drops))
 	}
 	hub := gnet.NewHub(world, database)
+	hub.ProcessExpiredWorldDrops()
 	go hub.Run(ctx)
 
 	// Simulation loop: advance the world and broadcast a snapshot each tick.
 	go game.RunLoop(ctx, world, tickHz, func(tick uint64, heals []game.HealEvent, dt float64) {
+		hub.ProcessExpiredWorldDrops()
 		hub.ProcessBossEvents(world.TickBosses(dt))
 		hub.ProcessBossEvents(world.DrainPendingBossEvents())
 		for _, h := range heals {

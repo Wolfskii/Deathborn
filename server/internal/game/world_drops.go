@@ -3,9 +3,13 @@ package game
 import (
 	"math"
 	"sync"
+	"time"
 
 	"github.com/deathborn/server/internal/db"
 )
+
+// WorldDropLifetime is how long ground loot remains before despawning.
+const WorldDropLifetime = 15 * time.Minute
 
 // WorldItemDropState is the wire view of ground loot.
 type WorldItemDropState struct {
@@ -18,11 +22,12 @@ type WorldItemDropState struct {
 }
 
 type worldDrop struct {
-	id      int64
-	itemID  string
-	houseID int64
-	count   int
-	x, y    float64
+	id        int64
+	itemID    string
+	houseID   int64
+	count     int
+	x, y      float64
+	droppedAt time.Time
 }
 
 // WorldDropIndex tracks loot piles on the ground.
@@ -42,9 +47,13 @@ func (d *WorldDropIndex) LoadFromDB(rows []db.WorldItemDrop) {
 	d.byID = make(map[int64]*worldDrop)
 	var maxID int64
 	for _, row := range rows {
+		droppedAt := row.DroppedAt
+		if droppedAt.IsZero() {
+			droppedAt = time.Now()
+		}
 		d.byID[row.ID] = &worldDrop{
 			id: row.ID, itemID: row.ItemID, houseID: row.HouseID,
-			count: row.Count, x: row.X, y: row.Y,
+			count: row.Count, x: row.X, y: row.Y, droppedAt: droppedAt,
 		}
 		if row.ID > maxID {
 			maxID = row.ID
@@ -76,6 +85,9 @@ func (d *WorldDropIndex) Add(drop *worldDrop) {
 	if drop.id <= 0 {
 		drop.id = d.nextID
 		d.nextID++
+	}
+	if drop.droppedAt.IsZero() {
+		drop.droppedAt = time.Now()
 	}
 	d.byID[drop.id] = drop
 	if drop.id >= d.nextID {
@@ -128,10 +140,39 @@ func (w *World) RegisterDrop(row db.WorldItemDrop) WorldItemDropState {
 	}
 	drop := &worldDrop{
 		id: row.ID, itemID: row.ItemID, houseID: row.HouseID,
-		count: row.Count, x: row.X, y: row.Y,
+		count: row.Count, x: row.X, y: row.Y, droppedAt: row.DroppedAt,
+	}
+	if drop.droppedAt.IsZero() {
+		drop.droppedAt = time.Now()
 	}
 	w.drops.Add(drop)
 	return drop.state()
+}
+
+// PruneExpiredDrops removes loot older than WorldDropLifetime and returns removed IDs.
+func (w *World) PruneExpiredDrops(now time.Time) []int64 {
+	if w.drops == nil {
+		return nil
+	}
+	var removed []int64
+	for _, id := range w.drops.expiredIDs(now) {
+		if _, ok := w.RemoveDrop(id); ok {
+			removed = append(removed, id)
+		}
+	}
+	return removed
+}
+
+func (d *WorldDropIndex) expiredIDs(now time.Time) []int64 {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	var ids []int64
+	for id, drop := range d.byID {
+		if now.Sub(drop.droppedAt) >= WorldDropLifetime {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 func (w *World) RemoveDrop(id int64) (WorldItemDropState, bool) {

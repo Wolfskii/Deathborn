@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/deathborn/server/internal/db"
 	"github.com/deathborn/server/internal/game"
@@ -151,6 +152,15 @@ func (h *Hub) ProcessBossEvents(events []game.BossEvent) {
 			x, y, _ := h.world.NpcPosition(ev.NpcID)
 			h.Broadcast(BuildBossAction(ev.NpcID, ev.Name, x, y))
 		}
+	}
+}
+
+// ProcessExpiredWorldDrops despawns ground loot past its lifetime.
+func (h *Hub) ProcessExpiredWorldDrops() {
+	ctx := context.Background()
+	for _, dropID := range h.world.PruneExpiredDrops(time.Now()) {
+		_ = h.db.DeleteWorldItemDrop(ctx, dropID)
+		h.Broadcast(BuildWorldItemRemoved(dropID))
 	}
 }
 
