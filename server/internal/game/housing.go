@@ -121,7 +121,7 @@ func (h *HousingIndex) PvPAllowedBetween(ax, ay, tx, ty float64) bool {
 
 func InHouseInterior(x, y float64, centerX, centerY float64) bool {
 	return x >= centerX-InteriorHalfW && x <= centerX+InteriorHalfW &&
-		y >= centerY-InteriorHalfH && y <= centerY+InteriorHalfH-8
+		y >= centerY-InteriorHalfH && y <= centerY+InteriorHalfH-16
 }
 
 // GardenCropOffsets returns local offsets for 6 farm tiles in the garden.
@@ -237,7 +237,7 @@ func (h *HousingIndex) CanPlaceFurniture(characterID int64, item FurnitureItem) 
 		return "Furniture must go inside your house."
 	}
 	for _, f := range p.furniture {
-		if math.Hypot(f.X-item.X, f.Y-item.Y) < 18 {
+		if math.Hypot(f.X-item.X, f.Y-item.Y) < 36 {
 			return "Too close to other furniture."
 		}
 	}
@@ -303,18 +303,18 @@ func NearHouseDoor(x, y, centerX, centerY float64) bool {
 
 func NearInteriorExit(x, y, centerX, centerY float64) bool {
 	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
-	if y < dy-14 {
+	if y < dy-28 {
 		return false
 	}
-	return math.Hypot(x-dx, y-dy) <= 26
+	return math.Hypot(x-dx, y-dy) <= 52
 }
 
 func clampToInterior(x, y, centerX, centerY float64) (float64, float64) {
-	const inset = 16.0
+	const inset = 32.0
 	minX := centerX - InteriorHalfW + inset
 	maxX := centerX + InteriorHalfW - inset
 	minY := centerY - InteriorHalfH + inset
-	maxY := centerY + InteriorHalfH - 8 - inset
+	maxY := centerY + InteriorHalfH - 16 - inset
 	if x < minX {
 		x = minX
 	}

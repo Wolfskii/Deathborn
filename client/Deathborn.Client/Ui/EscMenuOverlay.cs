@@ -9,15 +9,8 @@ namespace Deathborn.Client.Ui;
 /// <summary>Esc menu with music volume, mute, and game info.</summary>
 public sealed class EscMenuOverlay
 {
-    private const int PanelW = 380;
-    private const int BasePanelH = 410;
-
-    private static readonly Color PanelFill = new(28, 24, 18);
-    private static readonly Color PanelBorder = new(210, 170, 80);
-    private static readonly Color GoldDim = new(130, 105, 55);
-    private static readonly Color ButtonFill = new(48, 40, 30);
-    private static readonly Color ButtonHover = new(68, 56, 38);
-    private static readonly Color ButtonDisabled = new(32, 28, 24);
+    private const int PanelW = 400;
+    private const int BasePanelH = 430;
 
     private Rectangle _panel;
     private Rectangle _sliderTrack;
@@ -27,6 +20,7 @@ public sealed class EscMenuOverlay
     private Rectangle _inventoryButton;
     private Rectangle _skillsButton;
     private Rectangle _buildHouseButton;
+    private Rectangle _titleRibbon;
     private bool _draggingVolume;
     private MouseState _prevMouse;
     private IReadOnlyList<string>? _infoLines;
@@ -64,35 +58,11 @@ public sealed class EscMenuOverlay
             if (_muteBox.Contains(mouse.Position))
                 MusicPlayer.SetMuted(!MusicPlayer.IsMuted);
 
-            if (_characterButton.Contains(mouse.Position))
-            {
-                OnOpenCharacter?.Invoke();
-                Close();
-            }
-
-            if (_spellBookButton.Contains(mouse.Position))
-            {
-                OnOpenSpellBook?.Invoke();
-                Close();
-            }
-
-            if (_inventoryButton.Contains(mouse.Position))
-            {
-                OnOpenInventory?.Invoke();
-                Close();
-            }
-
-            if (_skillsButton.Contains(mouse.Position))
-            {
-                OnOpenSkills?.Invoke();
-                Close();
-            }
-
-            if (_buildHouseEnabled && _buildHouseButton.Contains(mouse.Position))
-            {
-                OnBuildHouse?.Invoke();
-                Close();
-            }
+            if (_characterButton.Contains(mouse.Position)) { OnOpenCharacter?.Invoke(); Close(); }
+            if (_spellBookButton.Contains(mouse.Position)) { OnOpenSpellBook?.Invoke(); Close(); }
+            if (_inventoryButton.Contains(mouse.Position)) { OnOpenInventory?.Invoke(); Close(); }
+            if (_skillsButton.Contains(mouse.Position)) { OnOpenSkills?.Invoke(); Close(); }
+            if (_buildHouseEnabled && _buildHouseButton.Contains(mouse.Position)) { OnBuildHouse?.Invoke(); Close(); }
 
             if (_sliderTrack.Contains(mouse.Position))
                 SetVolumeFromMouse(mouse.X);
@@ -119,36 +89,32 @@ public sealed class EscMenuOverlay
         DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height),
             new Color(0, 0, 0, 0.55f));
 
-        DrawPanel(sb, _panel);
+        if (TinySwordsUi.IsLoaded)
+            DrawThemed(sb, font);
+        else
+            DrawLegacy(sb, font);
+    }
 
-        var cx = _panel.X + _panel.Width / 2;
+    private void DrawThemed(SpriteBatch sb, SpriteFont font)
+    {
+        TinySwordsUi.DrawPanel(sb, _panel, TinySwordsUi.PanelKind.Wood);
+        TinySwordsUi.DrawRibbon(sb, _titleRibbon, TinySwordsUi.RibbonKind.Gold, pointed: true);
+
         var title = "Menu";
-        sb.DrawString(font, title, new Vector2(cx - font.MeasureString(title).X / 2f, _panel.Y + 14), PanelBorder);
+        var titleSize = font.MeasureString(title);
+        var titleArea = TinySwordsUi.MeasureRibbonTextArea(_titleRibbon);
+        sb.DrawString(font, title,
+            new Vector2(titleArea.X + (titleArea.Width - titleSize.X) / 2f, titleArea.Y + 3),
+            new Color(255, 245, 210));
 
         var musicLabel = "Music volume";
-        sb.DrawString(font, musicLabel, new Vector2(_panel.X + 24, _panel.Y + 52), Color.White);
+        sb.DrawString(font, musicLabel, new Vector2(_panel.X + 28, _panel.Y + 78), new Color(50, 38, 28));
 
-        var track = _sliderTrack;
-        DrawPrimitives.FillRect(sb, track, new Color(35, 32, 28));
-        DrawBorder(sb, track, GoldDim, 1);
+        TinySwordsUi.DrawBar(sb, _sliderTrack, MusicPlayer.DisplayVolume, big: false, new Color(120, 190, 120));
+        var pct = $"{(int)(MusicPlayer.DisplayVolume * 100)}%";
+        sb.DrawString(font, pct, new Vector2(_sliderTrack.Right + 10, _sliderTrack.Y + 1), new Color(60, 48, 36));
 
-        var displayVol = MusicPlayer.DisplayVolume;
-        var fillW = (int)(track.Width * displayVol);
-        if (fillW > 0)
-            DrawPrimitives.FillRect(sb, new Rectangle(track.X, track.Y, fillW, track.Height), new Color(90, 72, 38));
-
-        var knobX = track.X + fillW;
-        DrawPrimitives.FillRect(sb, new Rectangle(knobX - 2, track.Y - 2, 4, track.Height + 4), PanelBorder);
-
-        var pct = $"{(int)(displayVol * 100)}%";
-        sb.DrawString(font, pct, new Vector2(track.Right + 10, track.Y + 2), new Color(200, 200, 210));
-
-        var mute = new Checkbox
-        {
-            Label = "Mute music",
-            Checked = MusicPlayer.IsMuted,
-            BoxBounds = _muteBox,
-        };
+        var mute = new Checkbox { Label = "Mute music", Checked = MusicPlayer.IsMuted, BoxBounds = _muteBox };
         mute.Draw(sb, font, _muteBox.Contains(Mouse.GetState().Position));
 
         var mousePos = Mouse.GetState().Position;
@@ -158,26 +124,32 @@ public sealed class EscMenuOverlay
         DrawMenuButton(sb, font, _skillsButton, "Skills (L)", _skillsButton.Contains(mousePos));
         DrawMenuButton(sb, font, _buildHouseButton,
             _buildHouseEnabled ? "Build House" : "Build House (already built)",
-            _buildHouseEnabled && _buildHouseButton.Contains(mousePos),
-            !_buildHouseEnabled);
+            _buildHouseEnabled && _buildHouseButton.Contains(mousePos), !_buildHouseEnabled);
 
         if (_infoLines is { Count: > 0 })
         {
             var infoY = _buildHouseButton.Bottom + 18;
-            sb.DrawString(font, "Info", new Vector2(_panel.X + 24, infoY), PanelBorder);
-            infoY += font.LineSpacing + 2;
-
+            sb.DrawString(font, "Info", new Vector2(_panel.X + 28, infoY), new Color(90, 60, 35));
+            infoY += font.LineSpacing + 4;
             foreach (var line in _infoLines)
             {
-                sb.DrawString(font, line, new Vector2(_panel.X + 24, infoY), new Color(200, 200, 210));
+                sb.DrawString(font, line, new Vector2(_panel.X + 28, infoY), new Color(70, 55, 40));
                 infoY += font.LineSpacing;
             }
         }
 
         var hint = "Esc to close  |  F12 toggles HUD";
-        sb.DrawString(font, hint,
-            new Vector2(cx - font.MeasureString(hint).X / 2f, _panel.Bottom - 28),
-            new Color(180, 180, 190));
+        var cx = _panel.X + _panel.Width / 2;
+        sb.DrawString(font, hint, new Vector2(cx - font.MeasureString(hint).X / 2f, _panel.Bottom - 30),
+            new Color(100, 80, 60));
+    }
+
+    private void DrawLegacy(SpriteBatch sb, SpriteFont font)
+    {
+        var cx = _panel.X + _panel.Width / 2;
+        DrawPrimitives.FillRect(sb, _panel, new Color(28, 24, 18));
+        sb.DrawString(font, "Menu", new Vector2(cx - font.MeasureString("Menu").X / 2f, _panel.Y + 14), Color.Gold);
+        sb.DrawString(font, "Esc to close", new Vector2(cx - 40, _panel.Bottom - 28), Color.Gray);
     }
 
     private void Layout(SpriteFont font)
@@ -188,13 +160,14 @@ public sealed class EscMenuOverlay
         var panelH = BasePanelH + (infoCount > 0 ? 36 + infoCount * (int)font.LineSpacing : 0);
 
         _panel = new Rectangle(cx - PanelW / 2, cy - panelH / 2, PanelW, panelH);
-        _sliderTrack = new Rectangle(_panel.X + 24, _panel.Y + 78, PanelW - 110, 18);
-        _muteBox = new Rectangle(_panel.X + 24, _panel.Y + 118, 20, 20);
-        _characterButton = new Rectangle(_panel.X + 24, _panel.Y + 152, PanelW - 48, 32);
-        _spellBookButton = new Rectangle(_panel.X + 24, _panel.Y + 192, PanelW - 48, 32);
-        _inventoryButton = new Rectangle(_panel.X + 24, _panel.Y + 232, PanelW - 48, 32);
-        _skillsButton = new Rectangle(_panel.X + 24, _panel.Y + 272, PanelW - 48, 32);
-        _buildHouseButton = new Rectangle(_panel.X + 24, _panel.Y + 312, PanelW - 48, 32);
+        _titleRibbon = new Rectangle(_panel.X + 20, _panel.Y + 16, _panel.Width - 40, 38);
+        _sliderTrack = new Rectangle(_panel.X + 28, _panel.Y + 104, PanelW - 120, 22);
+        _muteBox = new Rectangle(_panel.X + 28, _panel.Y + 140, 20, 20);
+        _characterButton = new Rectangle(_panel.X + 28, _panel.Y + 176, PanelW - 56, 36);
+        _spellBookButton = new Rectangle(_panel.X + 28, _panel.Y + 220, PanelW - 56, 36);
+        _inventoryButton = new Rectangle(_panel.X + 28, _panel.Y + 264, PanelW - 56, 36);
+        _skillsButton = new Rectangle(_panel.X + 28, _panel.Y + 308, PanelW - 56, 36);
+        _buildHouseButton = new Rectangle(_panel.X + 28, _panel.Y + 352, PanelW - 56, 36);
     }
 
     private void SetVolumeFromMouse(int mouseX)
@@ -205,26 +178,18 @@ public sealed class EscMenuOverlay
 
     private static void DrawMenuButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover, bool disabled = false)
     {
-        DrawPrimitives.FillRect(sb, rect, disabled ? ButtonDisabled : hover ? ButtonHover : ButtonFill);
-        DrawBorder(sb, rect, disabled ? GoldDim * 0.6f : hover ? PanelBorder : GoldDim, 1);
-        var size = font.MeasureString(label);
-        sb.DrawString(font, label,
-            new Vector2(rect.X + (rect.Width - size.X) / 2f, rect.Y + (rect.Height - size.Y) / 2f),
-            disabled ? new Color(120, 115, 110) : Color.White);
-    }
+        if (TinySwordsUi.IsLoaded)
+        {
+            TinySwordsUi.DrawButton(sb, rect, TinySwordsUi.ButtonKind.Blue, pressed: hover && !disabled, disabled ? 0.55f : 1f);
+            var size = font.MeasureString(label);
+            sb.DrawString(font, label,
+                new Vector2(rect.X + (rect.Width - size.X) / 2f, rect.Y + (rect.Height - size.Y) / 2f),
+                disabled ? new Color(120, 115, 110) : new Color(255, 250, 235));
+            return;
+        }
 
-    private static void DrawPanel(SpriteBatch sb, Rectangle panel)
-    {
-        DrawPrimitives.FillRect(sb, panel, PanelFill);
-        DrawBorder(sb, panel, PanelBorder, 2);
-        DrawBorder(sb, new Rectangle(panel.X + 6, panel.Y + 6, panel.Width - 12, panel.Height - 12), GoldDim, 1);
-    }
-
-    private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color, int thickness)
-    {
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - thickness, rect.Width, thickness), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - thickness, rect.Y, thickness, rect.Height), color);
+        DrawPrimitives.FillRect(sb, rect, disabled ? new Color(32, 28, 24) : hover ? new Color(68, 56, 38) : new Color(48, 40, 30));
+        var sz = font.MeasureString(label);
+        sb.DrawString(font, label, new Vector2(rect.X + (rect.Width - sz.X) / 2f, rect.Y + (rect.Height - sz.Y) / 2f), Color.White);
     }
 }

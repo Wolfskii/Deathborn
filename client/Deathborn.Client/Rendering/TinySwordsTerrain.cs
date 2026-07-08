@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 namespace Deathborn.Client.Rendering;
 
 /// <summary>
-/// Tiny Swords multi-elevation terrain (flat ground, cliffs, shadows).
+/// Tiny Swords multi-elevation terrain (flat ground, cliffs, shadows, stairs).
 /// Rules: .tile_debug/tinyswords_guide.json
 /// </summary>
 public static class TinySwordsTerrain
@@ -61,6 +61,8 @@ public static class TinySwordsTerrain
             for (var tx = minTx; tx <= maxTx; tx++)
             {
                 if (map.GetElevation(tx, ty) != elev) continue;
+                if (map.IsRampTop(tx, ty)) continue;
+                if (map.IsRampLanding(tx, ty)) continue;
                 var rect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
                 DrawGroundTop(sb, map, tx, ty, rect, elev);
             }
@@ -71,6 +73,42 @@ public static class TinySwordsTerrain
                 if (map.GetElevation(tx, ty) != elev) continue;
                 DrawCliffBaseBelow(sb, map, tx, ty, elev, camera, screenCenter, zoom);
             }
+        }
+
+        DrawRamps(sb, map, minTx, maxTx, minTy, maxTy, camera, screenCenter, zoom);
+    }
+
+    private static void DrawRamps(
+        SpriteBatch sb, WorldMap map, int minTx, int maxTx, int minTy, int maxTy,
+        Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        for (var ty = minTy; ty <= maxTy; ty++)
+        for (var tx = minTx; tx <= maxTx; tx++)
+        {
+            var ramp = map.GetRamp(tx, ty);
+            if (ramp == 0) continue;
+
+            var landingElev = map.GetElevation(tx, ty);
+            if (landingElev < 0) continue;
+
+            var sheet = _colorSheets[Math.Clamp(landingElev, 0, 4)];
+            if (sheet == null) continue;
+
+            var topTy = ty - 1;
+            if (topTy >= 0)
+            {
+                if (ty >= 2 && map.GetElevation(tx, ty - 2) == landingElev + 1)
+                {
+                    var backdropRect = WorldMap.GetTileScreenRect(tx, topTy, camera, screenCenter, zoom, map.TileSize);
+                    DrawPiece(sb, sheet, 18, elevated: true, backdropRect);
+                }
+
+                var topRect = WorldMap.GetTileScreenRect(tx, topTy, camera, screenCenter, zoom, map.TileSize);
+                DrawPiece(sb, sheet, ramp == 1 ? 25 : 28, elevated: false, topRect);
+            }
+
+            var bottomRect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
+            DrawPiece(sb, sheet, ramp == 1 ? 29 : 32, elevated: false, bottomRect);
         }
     }
 
@@ -110,13 +148,22 @@ public static class TinySwordsTerrain
         var south = map.GetElevation(tx, ty + 1);
         var north = map.GetElevation(tx, ty - 1);
 
-        if (elev > 0 && south < elev)
+        if (IsRampPlatformCorner(map, tx, ty))
+            pieceId = 5;
+        else if (elev > 0 && south < elev)
             pieceId = ResolveCliffLip(pieceId, north);
 
         var elevatedRegion = elev > 0;
-        var cell = PieceCell(pieceId, elevatedRegion);
-        var src = new Rectangle(cell.X * TilePixelSize, cell.Y * TilePixelSize, TilePixelSize, TilePixelSize);
-        sb.Draw(sheet, ScaleDest(dest), src, Color.White);
+        DrawPiece(sb, sheet, pieceId, elevatedRegion, dest);
+    }
+
+    private static bool IsRampPlatformCorner(WorldMap map, int tx, int ty)
+    {
+        if (map.GetRamp(tx - 1, ty + 1) == 1 && map.GetElevation(tx, ty) == map.GetElevation(tx - 1, ty + 1) + 1)
+            return true;
+        if (map.GetRamp(tx + 1, ty + 1) == 2 && map.GetElevation(tx, ty) == map.GetElevation(tx + 1, ty + 1) + 1)
+            return true;
+        return false;
     }
 
     private static void DrawCliffBaseBelow(
@@ -128,6 +175,7 @@ public static class TinySwordsTerrain
 
         var baseTy = ty + 1;
         if (baseTy >= map.TileHeight) return;
+        if (map.IsRampLanding(tx, baseTy) || map.IsRampTop(tx, baseTy)) return;
 
         var onWater = south < 0;
         var westDrop = HasSouthDrop(map, tx - 1, ty);
@@ -143,13 +191,23 @@ public static class TinySwordsTerrain
         else
             pieceId = onWater ? 22 : 18;
 
+        if (map.GetRamp(tx - 1, baseTy) == 1 && pieceId == 17)
+            pieceId = 18;
+        if (map.GetRamp(tx + 1, baseTy) == 2 && pieceId == 19)
+            pieceId = 18;
+
         var sheet = _colorSheets[Math.Clamp(lipElev, 0, 4)];
         if (sheet == null) return;
 
         var rect = WorldMap.GetTileScreenRect(tx, baseTy, camera, screenCenter, zoom, map.TileSize);
-        var cell = PieceCell(pieceId, elevated: true);
+        DrawPiece(sb, sheet, pieceId, elevated: true, rect);
+    }
+
+    private static void DrawPiece(SpriteBatch sb, Texture2D sheet, int pieceId, bool elevated, Rectangle dest)
+    {
+        var cell = PieceCell(pieceId, elevated);
         var src = new Rectangle(cell.X * TilePixelSize, cell.Y * TilePixelSize, TilePixelSize, TilePixelSize);
-        sb.Draw(sheet, ScaleDest(rect), src, Color.White);
+        sb.Draw(sheet, ScaleDest(dest), src, Color.White);
     }
 
     private static bool HasSouthDrop(WorldMap map, int tx, int ty)
@@ -185,6 +243,18 @@ public static class TinySwordsTerrain
 
     private static Point PieceCell(int pieceId, bool elevated)
     {
+        if (pieceId is 25 or 28 or 29 or 32)
+        {
+            return pieceId switch
+            {
+                25 => new Point(0, 4),
+                28 => new Point(3, 4),
+                29 => new Point(0, 5),
+                32 => new Point(3, 5),
+                _ => new Point(0, 4),
+            };
+        }
+
         if (!elevated)
         {
             if (pieceId is >= 13 and <= 16)

@@ -116,18 +116,43 @@ public abstract class UiWindow
     {
         if (!IsOpen) return;
 
+        if (TinySwordsUi.IsLoaded)
+        {
+            TinySwordsUi.DrawPanel(sb, Bounds, TinySwordsUi.PanelKind.Wood);
+            var ribbon = new Rectangle(Bounds.X + 8, Bounds.Y + 6, Bounds.Width - 16, TitleBarHeight + 4);
+            TinySwordsUi.DrawRibbon(sb, ribbon, TinySwordsUi.RibbonKind.Gold, pointed: true);
+            var titlePos = new Vector2(Bounds.X + 16, Bounds.Y + 10);
+            sb.DrawString(font, Title, titlePos, new Color(255, 245, 220));
+
+            var close = CloseButton;
+            var hover = close.Contains(Mouse.GetState().Position);
+            TinySwordsUi.DrawButton(sb, close, TinySwordsUi.ButtonKind.Red, hover, 0.95f);
+            DrawCloseGlyph(sb, close, hover);
+            DrawContent(sb, font, ContentArea);
+            return;
+        }
+
         DrawPrimitives.FillRect(sb, Bounds, PanelFill);
         DrawBorder(sb, Bounds, PanelBorder, Border);
 
         DrawPrimitives.FillRect(sb, TitleBar, TitleFill);
         DrawBorder(sb, TitleBar, GoldDim, 1);
 
-        var titlePos = new Vector2(Bounds.X + 10, Bounds.Y + 6);
-        sb.DrawString(font, Title, titlePos, PanelBorder);
+        var legacyTitlePos = new Vector2(Bounds.X + 10, Bounds.Y + 6);
+        sb.DrawString(font, Title, legacyTitlePos, PanelBorder);
 
         DrawCloseButton(sb, font, CloseButton, CloseButton.Contains(Mouse.GetState().Position));
 
         DrawContent(sb, font, ContentArea);
+    }
+
+    private static void DrawCloseGlyph(SpriteBatch sb, Rectangle rect, bool hover)
+    {
+        var x = rect.X + 4;
+        var y = rect.Y + 4;
+        var col = hover ? Color.White : new Color(255, 230, 220);
+        DrawPrimitives.DrawLine(sb, new Vector2(x, y), new Vector2(rect.Right - 4, rect.Bottom - 4), col, 2f);
+        DrawPrimitives.DrawLine(sb, new Vector2(rect.Right - 4, y), new Vector2(x, rect.Bottom - 4), col, 2f);
     }
 
     private void DrawCloseButton(SpriteBatch sb, SpriteFont font, Rectangle rect, bool hover)
@@ -163,6 +188,12 @@ public abstract class UiWindow
 
         var barY = area.Y + font.LineSpacing + 2;
         var bar = new Rectangle(area.X, (int)barY, area.Width, barHeight);
+        if (TinySwordsUi.IsLoaded)
+        {
+            TinySwordsUi.DrawBar(sb, bar, max > 0f ? current / max : 0f, big: false, fill);
+            return;
+        }
+
         DrawPrimitives.FillRect(sb, bar, new Color(18, 16, 14));
         DrawBorder(sb, bar, GoldDim, 1);
 

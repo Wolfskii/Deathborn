@@ -21,6 +21,7 @@ type Map struct {
 	DefaultSpawnX         float64
 	DefaultSpawnY         float64
 	walkable              []bool
+	elevation             *elevationGrid
 	foliage               *foliageIndex
 }
 
@@ -58,6 +59,11 @@ func parse(data []byte) (*Map, error) {
 	}
 	m.WorldWidth = float64(tw) * tileSize
 	m.WorldHeight = float64(th) * tileSize
+	elev, err := loadElevation(tw, th)
+	if err != nil {
+		return nil, err
+	}
+	m.elevation = elev
 	tx, ty := findStarterCampTile(m)
 	m.DefaultSpawnX, m.DefaultSpawnY = tileCenter(tx, ty, tileSize)
 	m.foliage = m.buildFoliage()
@@ -136,6 +142,32 @@ func (m *Map) walkTile(worldX, worldY float64) bool {
 	return m.walkable[ty*m.TileWidth+tx]
 }
 
+func (m *Map) tileAt(worldX, worldY float64) (int, int) {
+	return int(worldX / m.TileSize), int(worldY / m.TileSize)
+}
+
+func (m *Map) canTraverseTiles(fx, fy, tx, ty int) bool {
+	if m.elevation == nil {
+		return true
+	}
+	return m.elevation.canStep(fx, fy, tx, ty, m.TileWidth, m.TileHeight)
+}
+
+func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
+	fx, fy := m.tileAt(fromX, fromY)
+	tx, ty := m.tileAt(toX, toY)
+	if fx == tx && fy == ty {
+		return true
+	}
+	if !m.canTraverseTiles(fx, fy, tx, fy) {
+		return false
+	}
+	if !m.canTraverseTiles(tx, fy, tx, ty) {
+		return false
+	}
+	return true
+}
+
 // CanWalk reports whether a circle at (x,y) may stand on land.
 func (m *Map) CanWalk(x, y, radius float64) bool {
 	if x < radius || y < radius || x > m.WorldWidth-radius || y > m.WorldHeight-radius {
@@ -154,10 +186,10 @@ func (m *Map) CanWalk(x, y, radius float64) bool {
 // ResolveMove applies axis-separated sliding against land/water tiles and foliage.
 func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
 	nx, ny := x+dx, y+dy
-	if m.CanWalk(nx, y, playerRadius) {
+	if m.CanWalk(nx, y, playerRadius) && m.canTraverseWorld(x, y, nx, y) {
 		x = nx
 	}
-	if m.CanWalk(x, ny, playerRadius) {
+	if m.CanWalk(x, ny, playerRadius) && m.canTraverseWorld(x, y, x, ny) {
 		y = ny
 	}
 	if m.foliage != nil {

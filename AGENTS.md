@@ -6,7 +6,7 @@ Authoritative reference: [`.tile_debug/tinyswords_guide.json`](.tile_debug/tinys
 
 ### Quick facts
 
-- **Tile size:** 64×64 px art on a 64×64 grid (world collision grid uses 16 px cells; renderer scales sprites to fit).
+- **Tile size:** 64×64 px art on a 64×64 grid (world collision grid uses **32 px** cells; renderer scales sprites to fit).
 - **Elevation levels:** `-1` water, `0` sea shoreline (flat ground / foam), `1` base land, `2–4` plateaus (darker green palettes).
 - **Tilemap files:** `Tilemap_color1.png` … `Tilemap_color5.png` — same 9×6 layout, different palette per elevation.
 - **Sheet layout:** columns 0–3 = flat ground + stairs; column 4 = divider; columns 5–8 = elevated grass + cliffs.

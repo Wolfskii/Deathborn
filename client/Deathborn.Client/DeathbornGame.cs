@@ -87,6 +87,8 @@ public sealed class DeathbornGame : Game
         TerrainLandTiles.Load(Content);
         TinySwordsTerrain.Load(Content);
         WorldFoliage.Load(Content);
+        WorldClouds.Load(Content);
+        TinySwordsUi.Load(Content);
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
         SyncViewport();

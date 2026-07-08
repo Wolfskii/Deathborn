@@ -13,18 +13,13 @@ public enum PlayerContextAction
 
 public sealed class PlayerContextMenuOverlay
 {
-    private const int ItemHeight = 28;
-    private const int MinWidth = 148;
-    private const int Pad = 6;
-
-    private static readonly Color PanelFill = new(28, 24, 18);
-    private static readonly Color PanelBorder = new(210, 170, 80);
-    private static readonly Color ItemHover = new(55, 48, 36);
-    private static readonly Color ItemText = new(235, 225, 200);
-    private static readonly Color ItemDisabled = new(110, 105, 95);
+    private const int ItemHeight = 32;
+    private const int MinWidth = 168;
+    private const int Pad = 8;
 
     private readonly List<(PlayerContextAction Action, string Label, bool Enabled)> _items = [];
     private Rectangle _bounds;
+    private readonly List<Rectangle> _itemRects = [];
 
     public bool IsOpen { get; private set; }
     public long TargetCharacterId { get; private set; }
@@ -43,7 +38,7 @@ public sealed class PlayerContextMenuOverlay
             _items.Add((PlayerContextAction.AddFriend, "Add Friend", false));
         _items.Add((PlayerContextAction.Whisper, "Whisper", canWhisper));
 
-        var height = Pad * 2 + _items.Count * ItemHeight;
+        var height = Pad * 2 + 30 + _items.Count * ItemHeight;
         var x = Math.Clamp(screenPos.X, 0, Math.Max(0, GameViewport.Width - MinWidth));
         var y = Math.Clamp(screenPos.Y, 0, Math.Max(0, GameViewport.Height - height));
         _bounds = new Rectangle(x, y, MinWidth, height);
@@ -77,16 +72,15 @@ public sealed class PlayerContextMenuOverlay
                 return false;
             }
 
-            var localY = mouse.Y - _bounds.Y - Pad;
-            var index = localY / ItemHeight;
-            if (index >= 0 && index < _items.Count)
+            for (var i = 0; i < _itemRects.Count; i++)
             {
-                var item = _items[index];
+                if (!_itemRects[i].Contains(mouse.Position)) continue;
+                var item = _items[i];
                 if (item.Enabled)
                     ItemChosen?.Invoke(item.Action, TargetCharacterId, TargetName);
                 Close();
+                return true;
             }
-            return true;
         }
 
         return _bounds.Contains(mouse.Position);
@@ -96,28 +90,41 @@ public sealed class PlayerContextMenuOverlay
     {
         if (!IsOpen) return;
 
-        DrawPrimitives.FillRect(sb, _bounds, PanelFill);
-        DrawBorder(sb, _bounds, PanelBorder, 2);
-
+        _itemRects.Clear();
         var mouse = Mouse.GetState().Position;
-        var y = _bounds.Y + Pad;
+
+        if (TinySwordsUi.IsLoaded)
+        {
+            TinySwordsUi.DrawPanel(sb, _bounds, TinySwordsUi.PanelKind.Paper);
+            var titleRibbon = new Rectangle(_bounds.X + 6, _bounds.Y + 6, _bounds.Width - 12, 28);
+            TinySwordsUi.DrawRibbon(sb, titleRibbon, TinySwordsUi.RibbonKind.Steel, pointed: false);
+            var name = TargetName.Length > 16 ? TargetName[..13] + "..." : TargetName;
+            sb.DrawString(font, SpriteFontSafe.Filter(name), new Vector2(titleRibbon.X + 10, titleRibbon.Y + 5),
+                new Color(240, 235, 220), 0f, Vector2.Zero, 0.85f, SpriteEffects.None, 0f);
+
+            var y = _bounds.Y + Pad + 30;
+            foreach (var item in _items)
+            {
+                var rect = new Rectangle(_bounds.X + 6, y, _bounds.Width - 12, ItemHeight - 2);
+                _itemRects.Add(rect);
+                var hover = item.Enabled && rect.Contains(mouse);
+                if (hover)
+                    TinySwordsUi.DrawRibbon(sb, rect, TinySwordsUi.RibbonKind.Gold, pointed: false, 0.85f);
+                sb.DrawString(font, item.Label, new Vector2(rect.X + 10, rect.Y + 7),
+                    item.Enabled ? (hover ? Color.White : new Color(55, 42, 30)) : new Color(130, 120, 110));
+                y += ItemHeight;
+            }
+            return;
+        }
+
+        DrawPrimitives.FillRect(sb, _bounds, new Color(28, 24, 18));
+        var ly = _bounds.Y + Pad;
         foreach (var item in _items)
         {
-            var rect = new Rectangle(_bounds.X + 2, y, _bounds.Width - 4, ItemHeight);
-            var hover = item.Enabled && rect.Contains(mouse);
-            if (hover)
-                DrawPrimitives.FillRect(sb, rect, ItemHover);
-            sb.DrawString(font, item.Label, new Vector2(rect.X + 8, rect.Y + 5),
-                item.Enabled ? (hover ? Color.White : ItemText) : ItemDisabled);
-            y += ItemHeight;
+            var rect = new Rectangle(_bounds.X + 2, ly, _bounds.Width - 4, ItemHeight);
+            _itemRects.Add(rect);
+            sb.DrawString(font, item.Label, new Vector2(rect.X + 8, rect.Y + 5), Color.White);
+            ly += ItemHeight;
         }
-    }
-
-    private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color, int thickness)
-    {
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - thickness, rect.Width, thickness), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - thickness, rect.Y, thickness, rect.Height), color);
     }
 }

@@ -22,6 +22,7 @@ public sealed class WorldMap
 
     private bool[] _walkable = [];
     private sbyte[] _elevation = [];
+    private byte[] _ramps = [];
     private int _maxElevation;
     private Texture2D? _landOverlayTexture;
     private DateTime _collisionWriteTime;
@@ -40,6 +41,45 @@ public sealed class WorldMap
         if (!HasElevation)
             return IsLand(tx, ty) ? 0 : -1;
         return _elevation[ty * TileWidth + tx];
+    }
+
+    /// <summary>0 = none, 1 = left ramp landing, 2 = right ramp landing (bottom cell).</summary>
+    public int GetRamp(int tx, int ty)
+    {
+        if (_ramps.Length == 0 || (uint)tx >= (uint)TileWidth || (uint)ty >= (uint)TileHeight)
+            return 0;
+        return _ramps[ty * TileWidth + tx];
+    }
+
+    public bool IsRampLanding(int tx, int ty) => GetRamp(tx, ty) != 0;
+
+    public bool IsRampTop(int tx, int ty) =>
+        (uint)ty + 1 < (uint)TileHeight && GetRamp(tx, ty + 1) != 0;
+
+    /// <summary>Whether an orthogonal step between two land tiles is allowed by elevation.</summary>
+    public bool CanStepElevation(int fx, int fy, int tx, int ty)
+    {
+        if (!HasElevation) return true;
+
+        var fe = GetElevation(fx, fy);
+        var te = GetElevation(tx, ty);
+        if (fe < 0 || te < 0) return false;
+        if (fe == te) return true;
+        if (Math.Abs(fe - te) != 1) return false;
+
+        var dx = tx - fx;
+        var dy = ty - fy;
+
+        if (dx == 1 && dy == 0 && te == fe + 1 && GetRamp(fx, fy + 1) == 1)
+            return true;
+        if (dx == -1 && dy == 0 && fe == te + 1 && GetRamp(tx, ty + 1) == 1)
+            return true;
+        if (dx == -1 && dy == 0 && te == fe + 1 && GetRamp(fx, fy + 1) == 2)
+            return true;
+        if (dx == 1 && dy == 0 && fe == te + 1 && GetRamp(tx, ty + 1) == 2)
+            return true;
+
+        return false;
     }
 
     private static string CollisionPath =>
@@ -87,7 +127,7 @@ public sealed class WorldMap
 
         var spawn = FindSpawnTile(walkable, tw, th, tileSize);
         var writeTime = File.GetLastWriteTimeUtc(path);
-        var (elevation, maxElev) = TryLoadElevation(tw, th);
+        var (elevation, ramps, maxElev) = TryLoadElevation(tw, th);
         return new WorldMap
         {
             TileWidth = tw,
@@ -95,29 +135,32 @@ public sealed class WorldMap
             TileSize = tileSize,
             _walkable = walkable,
             _elevation = elevation,
+            _ramps = ramps,
             _maxElevation = maxElev,
             DefaultSpawn = spawn,
             _collisionWriteTime = writeTime,
         };
     }
 
-    private static (sbyte[] elevation, int maxElev) TryLoadElevation(int tw, int th)
+    private static (sbyte[] elevation, byte[] ramps, int maxElev) TryLoadElevation(int tw, int th)
     {
         var path = ElevationPath;
         if (!File.Exists(path))
-            return ([], 0);
+            return ([], [], 0);
 
         var bytes = File.ReadAllBytes(path);
-        var expected = 9 + tw * th;
-        if (bytes.Length < 7 || bytes[0] != (byte)'E' || bytes[1] != (byte)'L' || bytes[2] != (byte)'E' || bytes[3] != (byte)'V')
-            return ([], 0);
-        if (bytes[4] != 1)
-            return ([], 0);
+        if (bytes.Length < 9 || bytes[0] != (byte)'E' || bytes[1] != (byte)'L' || bytes[2] != (byte)'E' || bytes[3] != (byte)'V')
+            return ([], [], 0);
+
+        var version = bytes[4];
+        if (version is not (1 or 2))
+            return ([], [], 0);
 
         var etw = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(5, 2));
         var eth = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(7, 2));
+        var expected = version == 2 ? 9 + tw * th * 2 : 9 + tw * th;
         if (etw != tw || eth != th || bytes.Length < expected)
-            return ([], 0);
+            return ([], [], 0);
 
         var elev = new sbyte[tw * th];
         var max = 0;
@@ -126,7 +169,16 @@ public sealed class WorldMap
             elev[i] = (sbyte)bytes[9 + i];
             if (elev[i] > max) max = elev[i];
         }
-        return (elev, max);
+
+        var ramps = new byte[tw * th];
+        if (version == 2)
+        {
+            var rampOff = 9 + tw * th;
+            for (var i = 0; i < ramps.Length; i++)
+                ramps[i] = bytes[rampOff + i];
+        }
+
+        return (elev, ramps, max);
     }
 
     private static Vector2 FindSpawnTile(bool[] grid, int tw, int th, float tileSize)

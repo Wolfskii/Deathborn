@@ -38,7 +38,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private bool _ghostMode;
     private bool _ghostModePending;
     private bool _interactablesSeeded;
+    private readonly HashSet<long> _knownFriendRequests = [];
     private readonly ZoneBannerOverlay _zoneBanner = new();
+    private readonly GameNotificationOverlay _notifications = new();
     private readonly WorldFeedbackOverlay _feedback = new();
     private readonly BossTrackerOverlay _bossTracker = new();
     private readonly BossHealthBarOverlay _bossHealthBar = new();
@@ -132,6 +134,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         WorldZones.Initialize(WorldMap.Realik);
         WorldFoliage.Initialize(WorldMap.Realik);
+        WorldClouds.Initialize(WorldMap.Realik);
         SeedWorldTownInteractables();
         SeedHotbar();
         TextField.ReleaseFocus();
@@ -307,8 +310,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _inventory.Update(dt);
         UpdateHunterMarks(dt);
         _zoneBanner.Update(dt);
+        _notifications.Update(dt);
         WaterTiles.Update(dt);
         WorldFoliage.Update(dt);
+        WorldClouds.Update(dt, WorldMap.Realik);
         UpdateZonePresence(localEntity);
 
         var decorateActive = _housingDecorate.IsActive;
@@ -512,6 +517,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _dragDrop.DrawGhost(sb, font, Mouse.GetState().Position);
 
         _feedback.DrawScreen(sb, font);
+        _notifications.Draw(sb, font);
 
         if (interiorHouse != null && _interiorFade < 1f)
         {
@@ -552,6 +558,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             corpse.Draw(sb, WorldToScreen(corpse.Position), zoom);
 
         DrawExteriorFoliageAndPlayers(sb, font, zoom);
+
+        var exteriorPlayers = _players.Values.Where(p => p.InsideHouseId <= 0).Select(p => p.Position).ToArray();
+        WorldClouds.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom, exteriorPlayers);
 
         foreach (var b in _bosses.Values.OrderBy(b => b.Position.Y))
             b.Draw(sb, font, WorldToScreen(b.Position), zoom);
@@ -1166,6 +1175,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             case PlayerContextAction.AddFriend:
                 _screens.Net.SendFriendAdd(characterId);
                 _status = $"Friend request sent to {name}.";
+                _notifications.Push("Friend Request Sent", name, NotificationKind.Info);
                 break;
             case PlayerContextAction.Whisper:
                 _windows.Friends.OpenWhisper(characterId, name);
@@ -1173,7 +1183,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
-    private void OnFriendsUpdated(FriendsData data) => _friends.Apply(data);
+    private void OnFriendsUpdated(FriendsData data)
+    {
+        foreach (var entry in data.Friends)
+        {
+            if (entry.PendingIn && _knownFriendRequests.Add(entry.CharacterId))
+                _notifications.Push("Friend Request", $"{entry.Name} wants to be friends.", NotificationKind.Info);
+            if (!entry.PendingIn)
+                _knownFriendRequests.Remove(entry.CharacterId);
+        }
+        _friends.Apply(data);
+    }
 
     private void OnPrivateMessage(PmData data)
     {
@@ -1181,6 +1201,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!data.Outgoing)
         {
             _status = $"Whisper from {data.FromName}: {data.Text}";
+            _notifications.Push($"Whisper from {data.FromName}", data.Text, NotificationKind.Quest, duration: 6f);
             if (!_windows.Friends.IsOpen)
                 _windows.Friends.OpenWhisper(data.FromCharacterId, data.FromName);
         }
@@ -1715,7 +1736,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
         else if (wasSafe)
         {
-            _zoneBanner.ShowEnter("The Wilderness", "PvP enabled - watch your back");
+            _zoneBanner.ShowEnter("The Wilderness", "PvP enabled - watch your back", wilderness: true);
+            _notifications.Push("The Wilderness", "PvP enabled — watch your back.", NotificationKind.Warning);
             _status = "Left safe zone. PvP is enabled.";
         }
     }
@@ -1737,7 +1759,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _feedback.SpawnSkillXp(data.PlayerId, name, data.Amount, data.LeveledUp, data.Level, xpPos);
         if (data.LeveledUp && isLocal)
+        {
             _feedback.SpawnLocalLevelUpBanner(name, data.Level);
+            _notifications.Push("Level Up!", $"{name} is now level {data.Level}.", NotificationKind.Success, duration: 5f);
+        }
 
         if (isLocal)
             _status = data.LeveledUp
@@ -1919,12 +1944,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (data.Active)
         {
-            _zoneBanner.ShowEnter(data.Name ?? "World Boss Event", "PvP disabled - unite to defeat the threat!");
+            _zoneBanner.ShowEnter(data.Name ?? "World Boss Event", "PvP disabled - unite to defeat the threat!", boss: true);
+            _notifications.Push(data.Name ?? "World Boss Event", "PvP off — unite to defeat the threat!", NotificationKind.Quest);
             _status = "World boss event! PvP is off. Find the boss on your map.";
         }
         else if (prev is { Active: true, PvPOff: true })
         {
             _zoneBanner.ShowEnter("Threat Subsided", "PvP rules return to normal");
+            _notifications.Push("Threat Subsided", "PvP rules return to normal.", NotificationKind.Info);
         }
     }
 
@@ -1939,14 +1966,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         boss.DefId = data.DefId;
         boss.Name = data.Name;
         boss.SetTarget(pos);
-        _zoneBanner.ShowEnter(data.Name, "World boss spawned - check your map!");
+        _zoneBanner.ShowEnter(data.Name, "World boss spawned - check your map!", boss: true);
+        _notifications.Push(data.Name, "Spawned in the wilderness!", NotificationKind.Danger);
         _status = $"{data.Name} has spawned in the wilderness!";
     }
 
     private void OnBossDeath(BossDeathData data)
     {
         _bosses.Remove(data.NpcId);
-        _zoneBanner.ShowEnter($"{data.Name} defeated!", "The world boss event may end soon.");
+        _zoneBanner.ShowEnter($"{data.Name} defeated!", "The world boss event may end soon.", boss: true);
+        _notifications.Push($"{data.Name} Defeated!", "The threat may end soon.", NotificationKind.Success);
         _status = $"{data.Name} has been defeated!";
     }
 
@@ -1960,12 +1989,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void OnHouseBuilt(HouseBuiltData data)
     {
         UpsertHouse(data.House);
-        _zoneBanner.ShowEnter(data.House.OwnerId == _screens.Net.LocalCharacterId
+        var title = data.House.OwnerId == _screens.Net.LocalCharacterId
             ? "Your Homestead"
-            : $"{data.House.OwnerName}'s Homestead",
-            "Safe haven established — PvP off, garden ready.");
+            : $"{data.House.OwnerName}'s Homestead";
+        _zoneBanner.ShowEnter(title, "Safe haven established — PvP off, garden ready.");
         if (data.House.OwnerId == _screens.Net.LocalCharacterId)
+        {
+            _notifications.Push("Homestead Built", "Your safe haven is ready. Press H inside to decorate.", NotificationKind.Success);
             _status = "Homestead built! You received a Homestead Key. Tend your garden and press H inside to decorate.";
+        }
     }
 
     private void OnHouseRemoved(HouseRemovedData data)
@@ -2570,6 +2602,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (_interactablesSeeded) return;
         _interactablesSeeded = true;
+        var ws = WorldMap.Realik.TileSize / Config.LegacyTileSize;
 
         void AddAt(string townId, string id, string name, Vector2 offset, InteractableKind kind, Color tint, float pick = 20f)
         {
@@ -2577,8 +2610,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (town == null) return;
             _interactables.Add(new InteractableEntity
             {
-                Id = id, DisplayName = name, Position = town.Center + offset,
-                Kind = kind, Tint = tint, PickRadius = pick,
+                Id = id, DisplayName = name, Position = town.Center + offset * ws,
+                Kind = kind, Tint = tint, PickRadius = pick * ws,
             });
         }
 

@@ -211,22 +211,66 @@ public sealed class WorldFeedbackOverlay
             var alpha = fadeIn * fadeOut;
             var pulse = 1f + MathF.Sin(b.Age * 6f) * 0.03f;
 
-            var titleSize = SpriteFontSafe.MeasureString(font, b.Title) * (1.05f * pulse);
-            var subSize = string.IsNullOrEmpty(b.Subtitle)
+            if (TinySwordsUi.IsLoaded)
+            {
+                var titleSize = SpriteFontSafe.MeasureString(font, b.Title) * (1.05f * pulse);
+                var subSize = string.IsNullOrEmpty(b.Subtitle)
+                    ? Vector2.Zero
+                    : SpriteFontSafe.MeasureString(font, b.Subtitle) * 0.92f;
+                var bodyW = (int)MathF.Max(titleSize.X, subSize.X) + 56;
+                var bodyH = (int)(titleSize.Y + (subSize.Y > 0 ? subSize.Y + 8 : 0) + 36);
+                var ribbonH = 40;
+                var totalW = Math.Clamp(bodyW, 280, 520);
+                var totalH = ribbonH + bodyH;
+                var panel = new Rectangle((int)(cx - totalW / 2f), (int)(y - 8), totalW, totalH);
+
+                TinySwordsUi.DrawPanel(sb, panel, TinySwordsUi.PanelKind.Banner, alpha * 0.96f);
+                var ribbon = new Rectangle(panel.X + 12, panel.Y + 10, panel.Width - 24, ribbonH);
+                var ribbonKind = b.Color.R > b.Color.G + 40 ? TinySwordsUi.RibbonKind.Red
+                    : b.Color.G > b.Color.R ? TinySwordsUi.RibbonKind.Teal
+                    : TinySwordsUi.RibbonKind.Gold;
+                TinySwordsUi.DrawBigRibbon(sb, ribbon, ribbonKind, pointed: true, alpha);
+
+                var textArea = TinySwordsUi.MeasureRibbonTextArea(ribbon, 12);
+                DrawFloatingText(sb, font, b.Title, new Vector2(textArea.X, textArea.Y + 4), b.Color * alpha, 1.05f * pulse, bold: true);
+
+                if (!string.IsNullOrEmpty(b.Subtitle))
+                {
+                    var subPos = new Vector2(cx - subSize.X / 2f, panel.Y + ribbonH + 14);
+                    DrawFloatingText(sb, font, b.Subtitle, subPos, new Color(230, 225, 210) * alpha, 0.92f, bold: false);
+                }
+
+                if (b.SparkleRing && b.Sparkles != null)
+                {
+                    var center = new Vector2(cx, y + 18);
+                    foreach (var s in b.Sparkles)
+                    {
+                        var p = center + s.Offset;
+                        var a = alpha * (1f - s.Age / s.Life);
+                        DrawStar(sb, p, s.Size * pulse, s.Color * a);
+                    }
+                }
+
+                y += totalH + 16;
+                continue;
+            }
+
+            var legacyTitleSize = SpriteFontSafe.MeasureString(font, b.Title) * (1.05f * pulse);
+            var legacySubSize = string.IsNullOrEmpty(b.Subtitle)
                 ? Vector2.Zero
                 : SpriteFontSafe.MeasureString(font, b.Subtitle) * 0.92f;
-            var panelW = (int)MathF.Max(titleSize.X, subSize.X) + 48;
-            var panelH = (int)(titleSize.Y + (subSize.Y > 0 ? subSize.Y + 10 : 0) + 24);
-            var panel = new Rectangle((int)(cx - panelW / 2f), (int)(y - 8), panelW, panelH);
-            DrawPrimitives.FillRect(sb, panel, new Color(18, 14, 10, (int)(190 * alpha)));
-            DrawBorder(sb, panel, b.Color * (alpha * 0.85f));
+            var panelW = (int)MathF.Max(legacyTitleSize.X, legacySubSize.X) + 48;
+            var panelH = (int)(legacyTitleSize.Y + (legacySubSize.Y > 0 ? legacySubSize.Y + 10 : 0) + 24);
+            var legacyPanel = new Rectangle((int)(cx - panelW / 2f), (int)(y - 8), panelW, panelH);
+            DrawPrimitives.FillRect(sb, legacyPanel, new Color(18, 14, 10, (int)(190 * alpha)));
+            DrawBorder(sb, legacyPanel, b.Color * (alpha * 0.85f));
 
-            var titlePos = new Vector2(cx - titleSize.X / 2f, y);
+            var titlePos = new Vector2(cx - legacyTitleSize.X / 2f, y);
             DrawFloatingText(sb, font, b.Title, titlePos, b.Color * alpha, 1.05f * pulse, bold: true);
 
             if (!string.IsNullOrEmpty(b.Subtitle))
             {
-                var subPos = new Vector2(cx - subSize.X / 2f, y + titleSize.Y + 4);
+                var subPos = new Vector2(cx - legacySubSize.X / 2f, y + legacyTitleSize.Y + 4);
                 DrawFloatingText(sb, font, b.Subtitle, subPos, new Color(230, 225, 210) * alpha, 0.92f, bold: false);
             }
 
