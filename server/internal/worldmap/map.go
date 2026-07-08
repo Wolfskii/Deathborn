@@ -11,7 +11,7 @@ import (
 var collisionData []byte
 
 const playerRadius = 12.0
-const playerCollisionYOffset = -6.0
+const playerCollisionYOffset = 2.0
 
 func playerCollisionY(y float64) float64 { return y + playerCollisionYOffset }
 

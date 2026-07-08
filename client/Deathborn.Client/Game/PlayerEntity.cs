@@ -9,8 +9,8 @@ public sealed class PlayerEntity
 {
     public const float Radius = 12f;
     public const float SpriteDrawScale = 1.5f;
-    /// <summary>Collision circle sits slightly north of the feet anchor (top-down body mass).</summary>
-    public const float CollisionCenterYOffset = -6f;
+    /// <summary>Collision circle sits slightly below the feet anchor to tighten edge blocking.</summary>
+    public const float CollisionCenterYOffset = 2f;
     private const float SpriteScale = SpriteDrawScale;
 
     /// <summary>World Y for Y-sorting — feet on the ground.</summary>
