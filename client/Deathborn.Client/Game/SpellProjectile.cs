@@ -4,7 +4,7 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
-public enum ProjectileStyle { Fire, Ice }
+public enum ProjectileStyle { Fire, Ice, Arrow, Blood }
 
 public enum SpellProjectilePhase { Flying, Bursting }
 
@@ -54,7 +54,7 @@ public sealed class SpellProjectile : IWorldEffect
     public void Update(
         float dt,
         IReadOnlyDictionary<long, PlayerEntity> players,
-        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyDictionary<long, WorldNpcEntity> npcs,
         IReadOnlyList<InteractableEntity> interactables,
         bool reportHits,
         Action<long, int>? onPlayerHit,
@@ -93,10 +93,11 @@ public sealed class SpellProjectile : IWorldEffect
 
         if (_ignoreOwnerTimer <= 0)
         {
-            foreach (var (id, boss) in bosses)
+            foreach (var (id, npc) in npcs)
             {
-                var hit = Definition.Radius + boss.Radius;
-                if (Vector2.DistanceSquared(Position, boss.Position) <= hit * hit)
+                if (!npc.IsAttackable) continue;
+                var hit = Definition.Radius + npc.Radius;
+                if (Vector2.DistanceSquared(Position, npc.Position) <= hit * hit)
                 {
                     if (reportHits && Definition.Damage > 0)
                         onNpcHit?.Invoke(id, Definition.Damage);
@@ -150,10 +151,41 @@ public sealed class SpellProjectile : IWorldEffect
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, float zoom)
     {
+        if (ProjectileSprites.IsLoaded && Style is ProjectileStyle.Ice or ProjectileStyle.Arrow or ProjectileStyle.Blood)
+        {
+            DrawArrow(sb, screenPos, zoom);
+            return;
+        }
+
         if (Style == ProjectileStyle.Ice)
             DrawIce(sb, screenPos, zoom);
         else
             DrawFire(sb, screenPos, zoom);
+    }
+
+    private void DrawArrow(SpriteBatch sb, Vector2 screenPos, float zoom)
+    {
+        var tex = ProjectileSprites.ForStyle(Style);
+        if (tex == null)
+        {
+            if (Style == ProjectileStyle.Ice) DrawIce(sb, screenPos, zoom);
+            else DrawFire(sb, screenPos, zoom);
+            return;
+        }
+
+        if (Phase == SpellProjectilePhase.Bursting)
+        {
+            var t = _burstTimer / Definition.BurstDuration;
+            var alpha = 1f - t;
+            DrawPrimitives.FillCircle(sb, screenPos, Definition.Radius * zoom * (1f + t * 2f),
+                (Style == ProjectileStyle.Blood ? new Color(180, 40, 60) : new Color(200, 220, 240)) * (0.35f * alpha));
+            return;
+        }
+
+        var angle = MathF.Atan2(Direction.Y, Direction.X);
+        var size = Math.Max(8f, Definition.Radius * 2.2f * zoom);
+        var origin = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
+        sb.Draw(tex, screenPos, null, Color.White, angle, origin, size / tex.Width, SpriteEffects.None, 0f);
     }
 
     private void DrawFire(SpriteBatch sb, Vector2 screenPos, float zoom)

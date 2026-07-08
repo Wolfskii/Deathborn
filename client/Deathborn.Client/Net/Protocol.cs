@@ -221,6 +221,15 @@ public sealed class NpcState
     [JsonPropertyName("hpMax")]
     public double HpMax { get; set; }
 
+    [JsonPropertyName("category")]
+    public string? Category { get; set; }
+
+    [JsonPropertyName("disposition")]
+    public string? Disposition { get; set; }
+
+    [JsonPropertyName("spriteId")]
+    public string? SpriteId { get; set; }
+
     [JsonPropertyName("isBoss")]
     public bool IsBoss { get; set; }
 

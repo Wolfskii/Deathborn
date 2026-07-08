@@ -24,6 +24,7 @@ type World struct {
 	terrain  *worldmap.Map
 	zones    *ZoneIndex
 	bossMgr  *bossManager
+	mobMgr   *mobManager
 	housing  *HousingIndex
 	drops    *WorldDropIndex
 }
@@ -36,6 +37,7 @@ func NewWorld(terrain *worldmap.Map) *World {
 		terrain:  terrain,
 		zones:    NewZoneIndex(terrain),
 		bossMgr:  newBossManager(),
+		mobMgr:   newMobManager(),
 		housing:  NewHousingIndex(),
 	}
 }

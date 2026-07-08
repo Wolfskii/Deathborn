@@ -16,7 +16,7 @@ public interface IWorldEffect
     void Update(
         float dt,
         IReadOnlyDictionary<long, PlayerEntity> players,
-        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyDictionary<long, WorldNpcEntity> npcs,
         IReadOnlyList<InteractableEntity> interactables,
         bool reportHits,
         Action<long, int>? onPlayerHit,

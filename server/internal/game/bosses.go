@@ -15,17 +15,20 @@ const (
 
 // NpcState is the wire view of an NPC/boss included in snapshots.
 type NpcState struct {
-	ID     int64   `json:"id"`
-	DefID  string  `json:"defId"`
-	Name   string  `json:"name"`
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Hp     float64 `json:"hp"`
-	HpMax  float64 `json:"hpMax"`
-	IsBoss bool    `json:"isBoss"`
-	Action string  `json:"action,omitempty"`
-	DirX   float64 `json:"dirX,omitempty"`
-	DirY   float64 `json:"dirY,omitempty"`
+	ID          int64   `json:"id"`
+	DefID       string  `json:"defId"`
+	Name        string  `json:"name"`
+	Category    string  `json:"category,omitempty"`
+	Disposition string  `json:"disposition,omitempty"`
+	SpriteID    string  `json:"spriteId,omitempty"`
+	X           float64 `json:"x"`
+	Y           float64 `json:"y"`
+	Hp          float64 `json:"hp"`
+	HpMax       float64 `json:"hpMax"`
+	IsBoss      bool    `json:"isBoss"`
+	Action      string  `json:"action,omitempty"`
+	DirX        float64 `json:"dirX,omitempty"`
+	DirY        float64 `json:"dirY,omitempty"`
 }
 
 // WorldEventState describes an active world boss event.
@@ -426,17 +429,31 @@ func (w *World) applyPlayerDamageLocked(targetID int64, damage int) (hp, hpMax f
 func (w *World) NpcSnapshot() []NpcState {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	if w.bossMgr == nil || len(w.bossMgr.bosses) == 0 {
-		return nil
+	var out []NpcState
+	capN := 0
+	if w.bossMgr != nil {
+		capN += len(w.bossMgr.bosses)
 	}
-	out := make([]NpcState, 0, len(w.bossMgr.bosses))
-	for _, b := range w.bossMgr.bosses {
-		out = append(out, NpcState{
-			ID: b.id, DefID: b.defID, Name: b.name,
-			X: b.x, Y: b.y, Hp: b.hp, HpMax: b.hpMax,
-			IsBoss: true, Action: b.action,
-			DirX: b.dirX, DirY: b.dirY,
-		})
+	if w.mobMgr != nil {
+		capN += len(w.mobMgr.mobs)
+	}
+	if capN > 0 {
+		out = make([]NpcState, 0, capN)
+	}
+	if w.bossMgr != nil && len(w.bossMgr.bosses) > 0 {
+		for _, b := range w.bossMgr.bosses {
+			out = append(out, NpcState{
+				ID: b.id, DefID: b.defID, Name: b.name,
+				Category: string(NpcCategoryBoss), Disposition: string(NpcHostile),
+				X: b.x, Y: b.y, Hp: b.hp, HpMax: b.hpMax,
+				IsBoss: true, Action: b.action,
+				DirX: b.dirX, DirY: b.dirY,
+			})
+		}
+	}
+	out = w.appendMobSnapshotsLocked(out)
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -460,13 +477,22 @@ func (w *World) WorldBossEventActive() bool {
 }
 
 func (w *World) ValidateNpcHit(attackerID, npcID int64, ability string) bool {
-	maxR := MaxHitRange(ability)
-	if maxR <= 0 {
+	if npcID >= 0 {
 		return false
 	}
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	if w.bossMgr == nil {
+	if w.bossMgr != nil {
+		if w.validateBossHitLocked(attackerID, npcID, ability) {
+			return true
+		}
+	}
+	return w.validateMobHitLocked(attackerID, npcID, ability)
+}
+
+func (w *World) validateBossHitLocked(attackerID, npcID int64, ability string) bool {
+	maxR := MaxHitRange(ability)
+	if maxR <= 0 {
 		return false
 	}
 	a, okA := w.players[attackerID]
@@ -485,13 +511,15 @@ func (w *World) ApplyDamageToNpc(npcID int64, damage int) (hp, hpMax float64, ju
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.bossMgr == nil {
-		return 0, 0, false, false
+	if w.bossMgr != nil {
+		if b, okB := w.bossMgr.bosses[npcID]; okB {
+			return w.applyBossDamageLocked(b, npcID, damage)
+		}
 	}
-	b, ok := w.bossMgr.bosses[npcID]
-	if !ok {
-		return 0, 0, false, false
-	}
+	return w.applyMobDamageLocked(npcID, damage)
+}
+
+func (w *World) applyBossDamageLocked(b *boss, npcID int64, damage int) (hp, hpMax float64, justDied bool, ok bool) {
 	b.hp -= float64(damage)
 	hp, hpMax = b.hp, b.hpMax
 	if b.hp <= 0 {
@@ -516,14 +544,12 @@ func (w *World) ApplyDamageToNpc(npcID int64, damage int) (hp, hpMax float64, ju
 func (w *World) NpcPosition(npcID int64) (x, y float64, ok bool) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
-	if w.bossMgr == nil {
-		return 0, 0, false
+	if w.bossMgr != nil {
+		if b, okB := w.bossMgr.bosses[npcID]; okB {
+			return b.x, b.y, true
+		}
 	}
-	b, ok := w.bossMgr.bosses[npcID]
-	if !ok {
-		return 0, 0, false
-	}
-	return b.x, b.y, true
+	return w.mobPositionLocked(npcID)
 }
 
 // DrainPendingBossEvents returns queued spawn/death/world_event messages.
