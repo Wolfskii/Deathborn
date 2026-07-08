@@ -21,7 +21,7 @@ MIN_PLATEAU_CELLS = 40
 PLATEAU_COUNT = 5
 PLATEAU_RADIUS = (22, 38)
 MIN_RAMP_SEPARATION = 8
-MIN_CLIFF_GAP_ROWS = 3
+MIN_CLIFF_GAP_ROWS = 4
 
 RAMP_NONE = 0
 RAMP_LEFT = 1
@@ -120,6 +120,39 @@ def has_south_drop(elev: list[list[int]], walkable: list[list[bool]], tx: int, t
     return s >= 0 and e > s
 
 
+def is_south_lip(elev: list[list[int]], tx: int, ty: int, th: int) -> bool:
+    if elev[ty][tx] <= 0:
+        return False
+    if ty + 1 >= th:
+        return True
+    return elev[ty][tx] > elev[ty + 1][tx]
+
+
+def collapse_cliff_base_ledges(
+    elev: list[list[int]], walkable: list[list[bool]], tw: int, th: int
+) -> None:
+    """Remove 1-cell ledges that are both a cliff base (north higher) and a lip (south lower)."""
+    changed = True
+    while changed:
+        changed = False
+        for ty in range(1, th):
+            for tx in range(tw):
+                if not walkable[ty][tx]:
+                    continue
+                e = elev[ty][tx]
+                if e <= 0:
+                    continue
+                north = elev[ty - 1][tx]
+                south = elev[ty + 1][tx] if ty + 1 < th else -1
+                if north <= e:
+                    continue
+                if south < 0 or south < e:
+                    target = 0 if south < 0 else south
+                    if e != target:
+                        elev[ty][tx] = target
+                        changed = True
+
+
 def enforce_cliff_column_spacing(elev: list[list[int]], tw: int, th: int, min_gap: int) -> None:
     """Keep south-facing cliff lips in the same column at least min_gap rows apart."""
     changed = True
@@ -128,13 +161,14 @@ def enforce_cliff_column_spacing(elev: list[list[int]], tw: int, th: int, min_ga
         for tx in range(tw):
             lips: list[int] = []
             for ty in range(th):
-                if elev[ty][tx] < 0:
-                    continue
-                if ty + 1 < th and elev[ty + 1][tx] >= 0 and elev[ty][tx] > elev[ty + 1][tx]:
+                if is_south_lip(elev, tx, ty, th):
                     lips.append(ty)
             for i in range(len(lips) - 1):
                 if lips[i + 1] - lips[i] < min_gap:
-                    target = elev[lips[i + 1] + 1][tx] if lips[i + 1] + 1 < th else 0
+                    south_ty = lips[i + 1] + 1
+                    target = elev[south_ty][tx] if south_ty < th else -1
+                    if target < 0:
+                        target = 0
                     for ty in range(lips[i] + 1, lips[i + 1] + 1):
                         if elev[ty][tx] > target:
                             elev[ty][tx] = target
@@ -338,6 +372,7 @@ def main() -> None:
     rng = random.Random(SEED)
     plateaus = place_plateaus(elev, walkable, sea, tw, th, rng)
     autopad(elev, ramps, tw, th)
+    collapse_cliff_base_ledges(elev, walkable, tw, th)
     enforce_cliff_column_spacing(elev, tw, th, MIN_CLIFF_GAP_ROWS)
     ramps = place_ramps(elev, walkable, tw, th)
 

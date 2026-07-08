@@ -20,7 +20,7 @@ import (
 	"github.com/deathborn/server/migrations"
 )
 
-const tickHz = 20
+const tickHz = 60
 
 // version is set at build time via -ldflags "-X main.version=...". It defaults
 // to "dev" for local `go run`.

@@ -10,9 +10,9 @@ public sealed class BossHealthBarOverlay
 {
     private const float ShowRange = 420f;
 
-    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 cameraWorld, IEnumerable<BossEntity> bosses)
+    public void Draw(SpriteBatch sb, SpriteFont font, Vector2 cameraWorld, IEnumerable<WorldNpcEntity> bosses)
     {
-        BossEntity? closest = null;
+        WorldNpcEntity? closest = null;
         var bestDist = ShowRange * ShowRange;
         foreach (var b in bosses)
         {
@@ -37,7 +37,7 @@ public sealed class BossHealthBarOverlay
 
         var name = SpriteFontSafe.Filter(closest.Name);
         SpriteFontSafe.DrawString(sb, font, name, new Vector2(panel.X + 12, panel.Y + 6), new Color(255, 220, 150));
-        BossEntity.DrawBossIcon(sb, new Vector2(panel.Right - 22, panel.Y + 18), 0.85f);
+        WorldNpcEntity.DrawBossIcon(sb, new Vector2(panel.Right - 22, panel.Y + 18), 0.85f);
 
         var bar = new Rectangle(panel.X + 12, panel.Y + 26, panel.Width - 24, 12);
         DrawPrimitives.FillRect(sb, bar, new Color(30, 22, 18));

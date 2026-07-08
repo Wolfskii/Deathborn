@@ -34,7 +34,7 @@ public sealed class WorldMapOverlay
         SpriteBatch sb,
         SpriteFont font,
         Vector2 playerWorldPos,
-        IEnumerable<BossEntity>? bosses = null,
+        IEnumerable<WorldNpcEntity>? npcs = null,
         HousePlotZone? homestead = null)
     {
         if (!IsOpen) return;
@@ -51,7 +51,7 @@ public sealed class WorldMapOverlay
         WorldMap.Realik.DrawOverlay(sb, _mapBounds, playerWorldPos);
         DrawTownMarkers(sb, font);
         DrawHouseMarkers(sb, font, homestead);
-        DrawBossMarkers(sb, bosses);
+        DrawNpcMarkers(sb, npcs);
 
         var title = "World Map";
         var titleSize = font.MeasureString(title);
@@ -81,16 +81,24 @@ public sealed class WorldMapOverlay
             0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
     }
 
-    private void DrawBossMarkers(SpriteBatch sb, IEnumerable<BossEntity>? bosses)
+    private void DrawNpcMarkers(SpriteBatch sb, IEnumerable<WorldNpcEntity>? npcs)
     {
-        if (bosses == null) return;
+        if (npcs == null) return;
         var map = WorldMap.Realik;
-        foreach (var boss in bosses)
+        foreach (var npc in npcs)
         {
-            var pos = WorldToMap(boss.Position, _mapBounds, map);
-            DrawPrimitives.FillCircle(sb, pos, 6f, new Color(0.9f, 0.32f, 0.28f, 0.95f));
-            DrawPrimitives.DrawCircleOutline(sb, pos, 6f, new Color(0.45f, 0.1f, 0.1f, 0.95f), 14, 2f);
-            BossEntity.DrawBossIcon(sb, pos, 0.7f);
+            if (!npc.IsBoss && !npc.IsAttackable) continue;
+            var pos = WorldToMap(npc.Position, _mapBounds, map);
+            if (npc.IsBoss)
+            {
+                DrawPrimitives.FillCircle(sb, pos, 6f, new Color(0.9f, 0.32f, 0.28f, 0.95f));
+                DrawPrimitives.DrawCircleOutline(sb, pos, 6f, new Color(0.45f, 0.1f, 0.1f, 0.95f), 14, 2f);
+                WorldNpcEntity.DrawBossIcon(sb, pos, 0.7f);
+            }
+            else
+            {
+                DrawPrimitives.FillCircle(sb, pos, 4f, new Color(0.9f, 0.55f, 0.28f, 0.9f));
+            }
         }
     }
 

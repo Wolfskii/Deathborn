@@ -150,7 +150,7 @@ public static class TinySwordsTerrain
 
         if (IsRampPlatformCorner(map, tx, ty))
             pieceId = 5;
-        else if (elev > 0 && south < elev)
+        else if (elev > 0 && south < elev && !IsCliffBaseRow(map, tx, ty, elev))
             pieceId = ResolveCliffLip(pieceId, north);
 
         var elevatedRegion = elev > 0;
@@ -170,6 +170,9 @@ public static class TinySwordsTerrain
         SpriteBatch sb, WorldMap map, int tx, int ty, int lipElev,
         Vector2 camera, Vector2 screenCenter, float zoom)
     {
+        if (IsCliffBaseRow(map, tx, ty, lipElev))
+            return;
+
         var south = map.GetElevation(tx, ty + 1);
         if (south >= lipElev) return;
 
@@ -216,6 +219,13 @@ public static class TinySwordsTerrain
             return false;
         var e = map.GetElevation(tx, ty);
         return e > 0 && map.GetElevation(tx, ty + 1) < e;
+    }
+
+    /// <summary>Row immediately below a higher plateau lip — already the cliff-face row.</summary>
+    private static bool IsCliffBaseRow(WorldMap map, int tx, int ty, int elev)
+    {
+        if (ty <= 0) return false;
+        return map.GetElevation(tx, ty - 1) > elev;
     }
 
     private static int ResolveCliffLip(int pieceId, int northElev)

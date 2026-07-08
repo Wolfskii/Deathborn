@@ -14,12 +14,14 @@ public sealed class DeathbornGame : Game
     public static DeathbornGame Instance { get; private set; } = null!;
 
     private readonly GraphicsDeviceManager _graphics;
+    private readonly FpsCounter _fps = new();
     private SpriteBatch _spriteBatch = null!;
     private ScreenManager _screens = null!;
     private KeyboardState _prevKb;
     private bool _wasActive = true;
 
     public SpriteFont Font { get; private set; } = null!;
+    public int Fps => _fps.Fps;
     public GameClient Client { get; } = new();
 
     public DeathbornGame()
@@ -30,9 +32,11 @@ public sealed class DeathbornGame : Game
             PreferredBackBufferWidth = Config.DefaultWidth,
             PreferredBackBufferHeight = Config.DefaultHeight,
             HardwareModeSwitch = false,
+            SynchronizeWithVerticalRetrace = false,
         };
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+        IsFixedTimeStep = false;
     }
 
     public SpriteBatch SpriteBatch => _spriteBatch;
@@ -88,6 +92,8 @@ public sealed class DeathbornGame : Game
         TinySwordsTerrain.Load(Content);
         WorldFoliage.Load(Content);
         WorldClouds.Load(Content);
+        TinyRpgCharacterSprites.Load(Content);
+        ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
@@ -112,6 +118,8 @@ public sealed class DeathbornGame : Game
             Exit();
 
         _screens.Update(gameTime);
+
+        _fps.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
         var textInputActive = TextField.Active != null;
         if (!textInputActive

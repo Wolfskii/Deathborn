@@ -38,9 +38,11 @@ public static class WorldClouds
         new() { SourceRect = new(238, 109, 88, 55), CanopyTopInset = 48, CanopyBottomInset = 10, CanopyHalfWidth = 40 },
     ];
 
-    // px/s at world scale; several variants are still.
+    private const float MinDriftSpeed = 0.4f;
+
+    // px/s at world scale; every variant drifts (slowest ~0.4).
     private static readonly float[] VariantDrift =
-        [0f, -3.5f, 2.2f, -1.2f, 0.6f, -2f, 1.4f, 0f];
+        [-0.9f, -3.5f, 2.2f, -1.2f, 0.65f, -2f, 1.4f, 0.75f];
 
     private static readonly List<CloudInstance> Instances = [];
     private static Texture2D?[] _textures = new Texture2D[8];
@@ -72,7 +74,6 @@ public static class WorldClouds
 
         foreach (var c in Instances)
         {
-            if (MathF.Abs(c.DriftSpeed) < 0.001f) continue;
             c.Position.X += c.DriftSpeed * dt;
             if (c.Position.X < minX)
                 c.Position.X = maxX - (minX - c.Position.X);
@@ -132,16 +133,11 @@ public static class WorldClouds
         var tex = _textures[c.Variant];
         if (tex == null) return;
 
-        var drawW = c.SourceRect.Width * c.Scale * zoom;
-        var drawH = c.SourceRect.Height * c.Scale * zoom;
+        var drawScale = c.Scale * zoom;
         var screenPos = new Vector2(
             (c.Position.X - camera.X) * zoom + screenCenter.X,
             (c.Position.Y - camera.Y) * zoom + screenCenter.Y);
-        var dest = new Rectangle(
-            (int)MathF.Floor(screenPos.X - drawW * 0.5f),
-            (int)MathF.Floor(screenPos.Y - drawH),
-            Math.Max(1, (int)MathF.Ceiling(drawW)),
-            Math.Max(1, (int)MathF.Ceiling(drawH)));
+        var origin = new Vector2(c.SourceRect.Width * 0.5f, c.SourceRect.Height);
 
         var alpha = 1f;
         for (var i = 0; i < entityPositions.Length; i++)
@@ -151,7 +147,7 @@ public static class WorldClouds
             break;
         }
 
-        sb.Draw(tex, dest, c.SourceRect, Color.White * alpha);
+        sb.Draw(tex, screenPos, c.SourceRect, Color.White * alpha, 0f, origin, drawScale, SpriteEffects.None, 0f);
     }
 
     public static void Draw(
@@ -189,15 +185,18 @@ public static class WorldClouds
                 var variant = (int)(Hash(tx, ty, 2) % 8);
                 var template = VariantTemplate[variant];
                 var scaleJitter = (Hash(tx, ty, 3) % 1000) / 1000f;
-                var scale = 0.34f + variant * 0.02f + scaleJitter * 0.14f;
+                var tilesWide = 5.2f + variant * 0.22f + scaleJitter * 2.1f;
+                if (variant >= 5)
+                    tilesWide *= 1f + (variant - 4) * 0.2f;
+                var targetWorldW = map.TileSize * tilesWide;
+                var scale = targetWorldW / template.SourceRect.Width;
                 var drift = VariantDrift[variant];
-                if (MathF.Abs(drift) > 0.01f)
-                {
-                    var driftJitter = (Hash(tx, ty, 4) % 1000) / 1000f * 0.5f + 0.75f;
-                    drift *= driftJitter;
-                    if ((Hash(tx, ty, 5) & 1) == 0)
-                        drift = -drift;
-                }
+                var driftJitter = (Hash(tx, ty, 4) % 1000) / 1000f * 0.5f + 0.75f;
+                drift *= driftJitter;
+                if ((Hash(tx, ty, 5) & 1) == 0)
+                    drift = -drift;
+                if (MathF.Abs(drift) < MinDriftSpeed)
+                    drift = drift >= 0f ? MinDriftSpeed : -MinDriftSpeed;
 
                 Instances.Add(new CloudInstance
                 {

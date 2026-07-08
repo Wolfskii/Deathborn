@@ -13,7 +13,7 @@ public sealed class BossTrackerOverlay
 
     public void Draw(
         SpriteBatch sb, SpriteFont font,
-        Vector2 cameraWorld, IEnumerable<BossEntity> bosses)
+        Vector2 cameraWorld, IEnumerable<WorldNpcEntity> bosses)
     {
         var center = GameViewport.Center;
         var halfW = GameViewport.Width / 2f - EdgePad;
@@ -28,7 +28,7 @@ public sealed class BossTrackerOverlay
             var dir = Vector2.Normalize(delta);
             var edge = ClampToScreenEdge(center, dir, halfW, halfH);
             DrawArrow(sb, edge, dir, boss.DefId);
-            BossEntity.DrawBossIcon(sb, edge + dir * 14f, 0.75f);
+            WorldNpcEntity.DrawBossIcon(sb, edge + dir * 14f, 0.75f);
         }
     }
 

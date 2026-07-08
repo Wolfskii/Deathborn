@@ -1,3 +1,4 @@
+using Deathborn.Client.Gameplay;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -14,9 +15,15 @@ public static class ProjectileSprites
 
     public static void Load(ContentManager content)
     {
-        _arrow01 = content.Load<Texture2D>("Characters/Rpg/Projectiles/arrow_01");
-        _arrow02 = content.Load<Texture2D>("Characters/Rpg/Projectiles/arrow_02");
-        _arrow03 = content.Load<Texture2D>("Characters/Rpg/Projectiles/arrow_03");
+        _arrow01 = TryLoad(content, "Characters/Rpg/Projectiles/arrow_01");
+        _arrow02 = TryLoad(content, "Characters/Rpg/Projectiles/arrow_02");
+        _arrow03 = TryLoad(content, "Characters/Rpg/Projectiles/arrow_03");
+    }
+
+    private static Texture2D? TryLoad(ContentManager content, string path)
+    {
+        try { return content.Load<Texture2D>(path); }
+        catch { return null; }
     }
 
     public static Texture2D? ForStyle(ProjectileStyle style) => style switch

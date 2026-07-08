@@ -88,7 +88,7 @@ func (w *World) spawnInitialMobsLocked() {
 		if w.terrain != nil && !w.terrain.CanWalk(x, y, 0) {
 			continue
 		}
-		if def.blocksTowns() {
+		if def.category.blocksTowns() {
 			if w.zones != nil && w.zones.InMonsterExclusion(x, y) {
 				continue
 			}

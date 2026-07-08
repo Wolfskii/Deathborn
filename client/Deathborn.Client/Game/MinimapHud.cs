@@ -23,7 +23,7 @@ public sealed class MinimapHud
         Vector2 cameraWorld,
         long localId,
         IEnumerable<PlayerEntity> players,
-        IEnumerable<BossEntity>? bosses = null,
+        IEnumerable<WorldNpcEntity>? npcs = null,
         HousePlotZone? ownHouse = null)
     {
         var center = Center;
@@ -67,14 +67,22 @@ public sealed class MinimapHud
             DrawPrimitives.FillCircle(sb, mapPos, dotR, color);
         }
 
-        if (bosses != null)
+        if (npcs != null)
         {
-            foreach (var boss in bosses)
+            foreach (var npc in npcs)
             {
-                if (!InLocalRange(boss.Position, cameraWorld, worldRadius)) continue;
-                var mapPos = WorldToMinimap(boss.Position, cameraWorld, worldRadius, center, r);
-                DrawPrimitives.FillCircle(sb, mapPos, 4.5f, new Color(0.92f, 0.35f, 0.32f, 0.9f));
-                DrawPrimitives.DrawCircleOutline(sb, mapPos, 4.5f, new Color(0.55f, 0.12f, 0.12f, 0.95f), 12, 1.5f);
+                if (!npc.IsBoss && !npc.IsAttackable) continue;
+                if (!InLocalRange(npc.Position, cameraWorld, worldRadius)) continue;
+                var mapPos = WorldToMinimap(npc.Position, cameraWorld, worldRadius, center, r);
+                if (npc.IsBoss)
+                {
+                    DrawPrimitives.FillCircle(sb, mapPos, 4.5f, new Color(0.92f, 0.35f, 0.32f, 0.9f));
+                    DrawPrimitives.DrawCircleOutline(sb, mapPos, 4.5f, new Color(0.55f, 0.12f, 0.12f, 0.95f), 12, 1.5f);
+                }
+                else
+                {
+                    DrawPrimitives.FillCircle(sb, mapPos, 3f, new Color(0.9f, 0.55f, 0.28f, 0.85f));
+                }
             }
         }
 

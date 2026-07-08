@@ -15,7 +15,9 @@ public static class Config
     public const float WorldZoomMin = 1.0f;
     public const float WorldZoomMax = 2.6f;
     public const float InputSendInterval = 0.05f;
-    public const float PlayerLerpSpeed = 12f;
+    public const float PlayerLerpSpeed = 16f;
+    public const float LocalReconcileSpeed = 14f;
+    public const float LocalSnapDistance = 72f;
 
     /// <summary>Legacy design tile size; world bins may use a larger value.</summary>
     public const float LegacyTileSize = 16f;

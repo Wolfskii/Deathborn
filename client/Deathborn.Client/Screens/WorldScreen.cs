@@ -14,7 +14,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly ScreenManager _screens;
     private readonly WorldBackgroundRenderer _bg = new();
     private readonly Dictionary<long, PlayerEntity> _players = new();
-    private readonly Dictionary<long, BossEntity> _bosses = new();
+    private readonly Dictionary<long, WorldNpcEntity> _npcs = new();
     private readonly List<InteractableEntity> _interactables = [];
     private readonly List<IWorldEffect> _effects = [];
     private readonly Hotbar _hotbar = new();
@@ -219,7 +219,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _ghostModePending = false;
         _interactables.Clear();
         _interactablesSeeded = false;
-        _bosses.Clear();
+        _npcs.Clear();
         _feedback.Clear();
         _lastInteractWorldPos = null;
         _lastWorldEvent = null;
@@ -375,27 +375,27 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         foreach (var p in _players.Values) p.Update(dt);
-        foreach (var b in _bosses.Values) b.Update(dt);
+        foreach (var b in _npcs.Values) b.Update(dt);
         ProcessDeathWatch();
 
         if (localEntity is { IsDead: false })
         {
             localEntity.CheckLocalMeleeHits(_players, (targetId, damage, ability) =>
                 ReportAbilityHit(localEntity.Id, targetId, damage, ability));
-            localEntity.CheckLocalBossMeleeHits(_bosses, (targetId, damage, ability) =>
+            localEntity.CheckLocalBossMeleeHits(_npcs, (targetId, damage, ability) =>
                 ReportAbilityHitNpc(localEntity.Id, targetId, damage, ability));
             localEntity.CheckWhirlwindHits(_players, (targetId, damage, ability) =>
                 ReportAbilityHit(localEntity.Id, targetId, damage, ability));
-            localEntity.CheckWhirlwindBossHits(_bosses, (targetId, damage, ability) =>
+            localEntity.CheckWhirlwindBossHits(_npcs, (targetId, damage, ability) =>
                 ReportAbilityHitNpc(localEntity.Id, targetId, damage, ability));
             localEntity.CheckDashHits(_players, (targetId, damage, ability) =>
                 ReportAbilityHit(localEntity.Id, targetId, damage, ability));
-            localEntity.CheckDashBossHits(_bosses, (targetId, damage, ability) =>
+            localEntity.CheckDashBossHits(_npcs, (targetId, damage, ability) =>
                 ReportAbilityHitNpc(localEntity.Id, targetId, damage, ability));
         }
 
         UpdateProjectiles(dt);
-        _feedback.Update(dt, _players, _bosses);
+        _feedback.Update(dt, _players, _npcs);
         _hotbar.Update(dt, kb, _prevKb, acceptInput: !blockGameplay && !_dragDrop.IsDragging);
 
         if (_ghostMode && _ghost != null)
@@ -441,6 +441,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _debugLines =
         [
+            $"FPS: {DeathbornGame.Instance.Fps}",
             _status,
             $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
             $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
@@ -475,7 +476,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             var y = 12f;
             foreach (var line in _debugLines)
             {
-                sb.DrawString(font, line, new Vector2(12, y), y == 12 ? Color.White : new Color(200, 200, 210));
+                SpriteFontSafe.DrawOutlined(sb, font, line, new Vector2(12, y), Color.Yellow, Color.Black);
                 y += font.LineSpacing;
             }
         }
@@ -496,7 +497,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             if (!IsLocalDyingOrDead() && interiorHouse == null)
             {
                 _buffBar.Draw(sb, font, _buffTracker);
-                _minimap.Draw(sb, font, _camera, _screens.Net.LocalCharacterId, _players.Values, _bosses.Values,
+                _minimap.Draw(sb, font, _camera, _screens.Net.LocalCharacterId, _players.Values, _npcs.Values,
                     LocalHomestead());
             }
             else if (!IsLocalDyingOrDead())
@@ -562,21 +563,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var exteriorPlayers = _players.Values.Where(p => p.InsideHouseId <= 0).Select(p => p.Position).ToArray();
         WorldClouds.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom, exteriorPlayers);
 
-        foreach (var b in _bosses.Values.OrderBy(b => b.Position.Y))
-            b.Draw(sb, font, WorldToScreen(b.Position), zoom);
-
         if (_ghostMode && _ghost != null)
             _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
 
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
-        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _bosses);
+        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _npcs);
 
         if (!_ghostMode && !IsLocalDyingOrDead())
         {
-            _bossTracker.Draw(sb, font, _camera, _bosses.Values);
-            _bossHealthBar.Draw(sb, font, _camera, _bosses.Values);
+            _bossTracker.Draw(sb, font, _camera, _npcs.Values.Where(n => n.IsBoss));
+            _bossHealthBar.Draw(sb, font, _camera, _npcs.Values.Where(n => n.IsBoss));
         }
     }
 
@@ -595,13 +593,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
-        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _bosses);
+        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _npcs);
     }
 
     private void DrawExteriorFoliageAndPlayers(SpriteBatch sb, SpriteFont font, float zoom)
     {
         var players = _players.Values.Where(p => p.InsideHouseId <= 0).ToList();
-        var entityPositions = players.Select(p => p.Position).ToArray();
+        var npcs = _npcs.Values.ToList();
+        var entityPositions = players.Select(p => p.Position)
+            .Concat(npcs.Select(n => n.Position))
+            .ToArray();
         var drawables = new List<(float SortY, Action Draw)>();
 
         foreach (var f in WorldFoliage.GetVisible(WorldMap.Realik, _camera, ScreenCenter, zoom))
@@ -623,6 +624,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 if (_hunterMarks.ContainsKey(player.Id))
                     PlayerEntity.DrawHunterMark(sb, screenPos, zoom);
             }));
+        }
+
+        foreach (var n in npcs)
+        {
+            var npc = n;
+            drawables.Add((npc.Position.Y, () =>
+                npc.Draw(sb, font, WorldToScreen(npc.Position), zoom)));
         }
 
         drawables.Sort((a, b) => a.SortY.CompareTo(b.SortY));
@@ -999,7 +1007,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
 
         sb.Begin(samplerState: SamplerState.PointClamp);
-        _worldMap.Draw(sb, font, local.Position, _bosses.Values, LocalHomestead());
+        _worldMap.Draw(sb, font, local.Position, _npcs.Values, LocalHomestead());
         sb.End();
     }
 
@@ -1359,8 +1367,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var target = FindArcBoltTarget(local.Position, dir, local.Id);
         if (target != null)
         {
-            _effects.Add(new ArcBoltEffect(local.Position, target.Position, local.Id));
-            ReportAbilityHit(local.Id, target.Id, Config.ArcBoltDamage, "arc_bolt");
+            _effects.Add(new ArcBoltEffect(local.Position, target.Value.Position, local.Id));
+            ReportAbilityHit(local.Id, target.Value.Id, Config.ArcBoltDamage, "arc_bolt");
         }
         else
         {
@@ -1386,8 +1394,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var target = FindArcBoltTarget(local.Position, dir, local.Id);
         if (target != null)
         {
-            _effects.Add(new ArcBoltEffect(local.Position, target.Position, local.Id, "blood_bolt"));
-            ReportAbilityHit(local.Id, target.Id, Config.BloodBoltDamage, "blood_bolt");
+            _effects.Add(new ArcBoltEffect(local.Position, target.Value.Position, local.Id, "blood_bolt"));
+            ReportAbilityHit(local.Id, target.Value.Id, Config.BloodBoltDamage, "blood_bolt");
         }
         else
         {
@@ -1530,20 +1538,33 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _status = $"{name}: {desc}";
     }
 
-    private PlayerEntity? FindArcBoltTarget(Vector2 origin, Vector2 facing, long selfId)
+    private (long Id, Vector2 Position)? FindArcBoltTarget(Vector2 origin, Vector2 facing, long selfId)
     {
-        PlayerEntity? best = null;
+        (long Id, Vector2 Position)? best = null;
         var bestDist = Config.ArcBoltRange * Config.ArcBoltRange;
+
+        void Consider(long id, Vector2 pos)
+        {
+            var to = pos - origin;
+            var distSq = to.LengthSquared();
+            if (distSq > bestDist || distSq < 1f) return;
+            if (Vector2.Dot(Vector2.Normalize(to), facing) < 0.35f) return;
+            bestDist = distSq;
+            best = (id, pos);
+        }
+
         foreach (var (id, player) in _players)
         {
             if (id == selfId || player.IsDead) continue;
-            var to = player.Position - origin;
-            var distSq = to.LengthSquared();
-            if (distSq > bestDist || distSq < 1f) continue;
-            if (Vector2.Dot(Vector2.Normalize(to), facing) < 0.35f) continue;
-            bestDist = distSq;
-            best = player;
+            Consider(id, player.Position);
         }
+
+        foreach (var (id, npc) in _npcs)
+        {
+            if (!npc.IsAttackable) continue;
+            Consider(id, npc.Position);
+        }
+
         return best;
     }
 
@@ -1642,7 +1663,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var effect in _effects)
         {
             var ownerId = effect.OwnerId;
-            effect.Update(dt, _players, _bosses, _interactables, ownerId == localId,
+            effect.Update(dt, _players, _npcs, _interactables, ownerId == localId,
                 (targetId, damage) => ReportAbilityHit(ownerId, targetId, damage, effect.AbilityId),
                 (npcId, damage) => ReportAbilityHitNpc(ownerId, npcId, damage, effect.AbilityId));
         }
@@ -1654,7 +1675,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void ReportAbilityHitNpc(long attackerId, long targetNpcId, int damage, string ability)
     {
         if (damage <= 0 || targetNpcId >= 0) return;
-        if (!_bosses.ContainsKey(targetNpcId)) return;
+        if (!_npcs.ContainsKey(targetNpcId)) return;
         if (attackerId == _screens.Net.LocalCharacterId)
             _screens.Net.SendAbilityHitNpc(targetNpcId, damage, ability);
     }
@@ -1894,22 +1915,22 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         {
             seen.Add(s.Id);
             var pos = new Vector2((float)s.X, (float)s.Y);
-            if (!_bosses.TryGetValue(s.Id, out var b))
+            if (!_npcs.TryGetValue(s.Id, out var b))
             {
-                b = new BossEntity { Id = s.Id, Position = pos };
-                _bosses[s.Id] = b;
+                b = new WorldNpcEntity { Id = s.Id, Position = pos };
+                _npcs[s.Id] = b;
             }
             b.Sync(s);
             b.SetTarget(pos);
         }
 
-        foreach (var id in _bosses.Keys.Where(id => !seen.Contains(id)).ToList())
-            _bosses.Remove(id);
+        foreach (var id in _npcs.Keys.Where(id => !seen.Contains(id)).ToList())
+            _npcs.Remove(id);
     }
 
     private void OnNpcHit(NpcHitData data)
     {
-        if (!_bosses.TryGetValue(data.TargetNpcId, out var boss)) return;
+        if (!_npcs.TryGetValue(data.TargetNpcId, out var boss)) return;
         boss.Hp = (float)data.Hp;
         boss.HpMax = (float)data.HpMax;
         _feedback.SpawnBossDamage(data.TargetNpcId, data.Damage);
@@ -1958,10 +1979,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void OnBossSpawn(BossSpawnData data)
     {
         var pos = new Vector2((float)data.X, (float)data.Y);
-        if (!_bosses.TryGetValue(data.NpcId, out var boss))
+        if (!_npcs.TryGetValue(data.NpcId, out var boss))
         {
-            boss = new BossEntity { Id = data.NpcId, Position = pos };
-            _bosses[data.NpcId] = boss;
+            boss = new WorldNpcEntity { Id = data.NpcId, Position = pos };
+            _npcs[data.NpcId] = boss;
         }
         boss.DefId = data.DefId;
         boss.Name = data.Name;
@@ -1973,7 +1994,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void OnBossDeath(BossDeathData data)
     {
-        _bosses.Remove(data.NpcId);
+        _npcs.Remove(data.NpcId);
         _zoneBanner.ShowEnter($"{data.Name} defeated!", "The world boss event may end soon.", boss: true);
         _notifications.Push($"{data.Name} Defeated!", "The threat may end soon.", NotificationKind.Success);
         _status = $"{data.Name} has been defeated!";
@@ -1981,7 +2002,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void OnBossAction(BossActionData data)
     {
-        if (!_bosses.TryGetValue(data.NpcId, out var boss)) return;
+        if (!_npcs.TryGetValue(data.NpcId, out var boss)) return;
         boss.Action = data.Action;
         boss.AbilityFlash = 0.5f;
     }

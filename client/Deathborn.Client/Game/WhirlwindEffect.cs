@@ -29,7 +29,7 @@ public sealed class WhirlwindEffect : IWorldEffect
     public void CancelByClash() { }
 
     public void Update(float dt, IReadOnlyDictionary<long, PlayerEntity> players,
-        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyDictionary<long, WorldNpcEntity> bosses,
         IReadOnlyList<InteractableEntity> interactables, bool reportHits,
         Action<long, int>? onPlayerHit, Action<long, int>? onNpcHit)
     {

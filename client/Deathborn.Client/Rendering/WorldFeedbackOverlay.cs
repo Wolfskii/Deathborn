@@ -138,7 +138,7 @@ public sealed class WorldFeedbackOverlay
         AddEntity(entityId, "Miss", new Color(170, 170, 185), duration: 0.9f, floatSpeed: 24f, scale: 0.85f, bold: false);
     }
 
-    public void Update(float dt, IReadOnlyDictionary<long, PlayerEntity> players, IReadOnlyDictionary<long, BossEntity>? bosses = null)
+    public void Update(float dt, IReadOnlyDictionary<long, PlayerEntity> players, IReadOnlyDictionary<long, WorldNpcEntity>? bosses = null)
     {
         for (var i = _entries.Count - 1; i >= 0; i--)
         {
@@ -174,7 +174,7 @@ public sealed class WorldFeedbackOverlay
         SpriteBatch sb, SpriteFont font,
         Func<Vector2, Vector2> worldToScreen, float zoom,
         IReadOnlyDictionary<long, PlayerEntity> players,
-        IReadOnlyDictionary<long, BossEntity>? bosses = null)
+        IReadOnlyDictionary<long, WorldNpcEntity>? bosses = null)
     {
         foreach (var e in _entries)
         {
@@ -292,7 +292,7 @@ public sealed class WorldFeedbackOverlay
     private static Vector2 ResolveWorldPos(
         Entry e,
         IReadOnlyDictionary<long, PlayerEntity> players,
-        IReadOnlyDictionary<long, BossEntity>? bosses)
+        IReadOnlyDictionary<long, WorldNpcEntity>? bosses)
     {
         if (e.FixedWorld is { } fixedPos)
             return fixedPos;

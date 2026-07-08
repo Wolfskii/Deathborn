@@ -32,4 +32,23 @@ public static class SpriteFontSafe
         SpriteBatch sb, SpriteFont font, string? text, Vector2 position, Color color,
         float rotation, Vector2 origin, float scale, SpriteEffects effects, float layerDepth) =>
         sb.DrawString(font, Filter(text), position, color, rotation, origin, scale, effects, layerDepth);
+
+    /// <summary>Draw text with a dark outline for readability on busy backgrounds.</summary>
+    public static void DrawOutlined(
+        SpriteBatch sb, SpriteFont font, string? text, Vector2 position, Color fill, Color outline, float outlinePx = 1f)
+    {
+        var safe = Filter(text);
+        if (safe.Length == 0) return;
+
+        var o = MathF.Max(1f, outlinePx);
+        sb.DrawString(font, safe, position + new Vector2(-o, 0), outline);
+        sb.DrawString(font, safe, position + new Vector2(o, 0), outline);
+        sb.DrawString(font, safe, position + new Vector2(0, -o), outline);
+        sb.DrawString(font, safe, position + new Vector2(0, o), outline);
+        sb.DrawString(font, safe, position + new Vector2(-o, -o), outline);
+        sb.DrawString(font, safe, position + new Vector2(o, -o), outline);
+        sb.DrawString(font, safe, position + new Vector2(-o, o), outline);
+        sb.DrawString(font, safe, position + new Vector2(o, o), outline);
+        sb.DrawString(font, safe, position, fill);
+    }
 }

@@ -24,7 +24,7 @@ public sealed class WorldNpcEntity
     public float AbilityFlash;
     public bool IsBoss;
 
-  public float Radius => NpcCatalog.Get(DefId).Radius;
+    public float Radius => NpcCatalog.Get(DefId).Radius;
     public float DisplayScale => NpcCatalog.Get(DefId).DisplayScale;
     public bool IsAttackable => NpcCategoryRules.IsAttackable(Disposition);
     public bool UsesSprite => !IsBoss && !string.IsNullOrEmpty(SpriteId) && TinyRpgCharacterSprites.Get(SpriteId) != null;

@@ -223,54 +223,57 @@ public sealed class PlayerEntity
         }
     }
     public void CheckLocalBossMeleeHits(
-        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyDictionary<long, WorldNpcEntity> npcs,
         Action<long, int, string> reportHit)
     {
-        if (!IsLocal || IsDead || !IsAttacking || bosses.Count == 0) return;
+        if (!IsLocal || IsDead || !IsAttacking || npcs.Count == 0) return;
 
         var def = _activeMeleeDef ?? MeleeAbilityDefinitions.Slash;
         var frame = AttackAnim.Frame;
         if (frame < def.HitFrameStart || frame > def.HitFrameEnd) return;
 
         var facing = CardinalFacing(FacingDir);
-        foreach (var (id, boss) in bosses)
+        foreach (var (id, npc) in npcs)
         {
+            if (!npc.IsAttackable) continue;
             if (_meleeHitThisSwing.Contains(id)) continue;
-            if (!IsInMeleeArc(Position, facing, boss.Position, def.Range, def.HalfWidth + boss.Radius * 0.4f)) continue;
+            if (!IsInMeleeArc(Position, facing, npc.Position, def.Range, def.HalfWidth + npc.Radius * 0.4f)) continue;
             _meleeHitThisSwing.Add(id);
             reportHit(id, def.Damage, def.Id);
         }
     }
 
     public void CheckWhirlwindBossHits(
-        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyDictionary<long, WorldNpcEntity> npcs,
         Action<long, int, string> reportHit)
     {
-        if (!IsLocal || !IsWhirlwinding || !_whirlwindHitPulse || bosses.Count == 0) return;
-        var radius = Config.WhirlwindRadius + BossEntity.DefaultRadius;
-        var radiusSq = radius * radius;
-        foreach (var (id, boss) in bosses)
+        if (!IsLocal || !IsWhirlwinding || !_whirlwindHitPulse || npcs.Count == 0) return;
+        foreach (var (id, npc) in npcs)
         {
+            if (!npc.IsAttackable) continue;
+            var radius = Config.WhirlwindRadius + npc.Radius;
+            var radiusSq = radius * radius;
             if (_whirlwindHit.Contains(id)) continue;
-            if (Vector2.DistanceSquared(Position, boss.Position) > radiusSq) continue;
+            if (Vector2.DistanceSquared(Position, npc.Position) > radiusSq) continue;
             _whirlwindHit.Add(id);
             reportHit(id, Config.WhirlwindDamage, "whirlwind");
         }
     }
 
     public void CheckDashBossHits(
-        IReadOnlyDictionary<long, BossEntity> bosses,
+        IReadOnlyDictionary<long, WorldNpcEntity> npcs,
         Action<long, int, string> reportHit)
     {
-        if (!IsLocal || !_isDashing || bosses.Count == 0) return;
+        if (!IsLocal || !_isDashing || npcs.Count == 0) return;
         var t = 1f - MathF.Max(0f, _dashTimer) / MathF.Max(0.001f, _dashDuration);
         if (t < 0.35f || t > 0.85f) return;
 
-        var radiusSq = (PlayerEntity.Radius + BossEntity.DefaultRadius) * (PlayerEntity.Radius + BossEntity.DefaultRadius);
-        foreach (var (id, boss) in bosses)
+        foreach (var (id, npc) in npcs)
         {
+            if (!npc.IsAttackable) continue;
+            var radiusSq = (PlayerEntity.Radius + npc.Radius) * (PlayerEntity.Radius + npc.Radius);
             if (_dashHit.Contains(id)) continue;
-            if (Vector2.DistanceSquared(Position, boss.Position) > radiusSq) continue;
+            if (Vector2.DistanceSquared(Position, npc.Position) > radiusSq) continue;
             _dashHit.Add(id);
             reportHit(id, Config.WarriorDashDamage, "warrior_dash");
         }
@@ -390,9 +393,29 @@ public sealed class PlayerEntity
             if (_dashTimer <= 0f)
                 _isDashing = false;
         }
+        else if (IsLocal && InputDir.LengthSquared() > 0.01f && !IsBusy)
+        {
+            var dir = Vector2.Normalize(InputDir);
+            var speed = IsRunning ? Config.RunSpeed : Config.WalkSpeed;
+            var predicted = Position + dir * speed * dt;
+            predicted = WorldFoliage.ResolvePosition(predicted, Radius);
+
+            var err = Target - predicted;
+            var errLenSq = err.LengthSquared();
+            if (errLenSq > Config.LocalSnapDistance * Config.LocalSnapDistance)
+                Position = WorldFoliage.ResolvePosition(Target, Radius);
+            else if (errLenSq > 2f)
+            {
+                predicted += err * MathHelper.Clamp(dt * Config.LocalReconcileSpeed, 0f, 0.35f);
+                Position = WorldFoliage.ResolvePosition(predicted, Radius);
+            }
+            else
+                Position = predicted;
+        }
         else
         {
-            var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
+            var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
+            var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
             Position = WorldFoliage.ResolvePosition(lerped, Radius);
         }
 

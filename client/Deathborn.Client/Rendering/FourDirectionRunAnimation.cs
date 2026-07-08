@@ -61,9 +61,15 @@ public sealed class FourDirectionRunAnimation
         SpriteOutlineDraw.Draw(sb, _texture, screenPos, src, SwordsmanSpriteSheet.BodyAnchor, outline, scale, thickness);
     }
 
+    /// <summary>
+    /// Picks the 4-way sprite row. Diagonal up/down uses left/right unless vertical
+    /// input clearly dominates (e.g. joystick pushed more up than sideways).
+    /// </summary>
     public static FacingDirection ResolveDirection(Vector2 dir)
     {
-        if (Math.Abs(dir.X) > Math.Abs(dir.Y))
+        var ax = MathF.Abs(dir.X);
+        var ay = MathF.Abs(dir.Y);
+        if (ax >= ay)
             return dir.X >= 0 ? FacingDirection.Right : FacingDirection.Left;
         return dir.Y >= 0 ? FacingDirection.Down : FacingDirection.Up;
     }
