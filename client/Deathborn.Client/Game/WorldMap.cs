@@ -182,9 +182,9 @@ public sealed class WorldMap
             var walk = _walkable[ty * TileWidth + tx];
             if (walk)
             {
-                WaterTiles.TryDrawFoam(sb, this, tx, ty, rect);
                 if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
                     DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
+                WaterTiles.TryDrawShoreFoam(sb, this, tx, ty, rect, camera, screenCenter, zoom);
             }
             else if (!WaterTiles.TryDraw(sb, tx, ty, rect))
                 DrawPrimitives.FillRect(sb, rect, WaterColor(tx, ty));

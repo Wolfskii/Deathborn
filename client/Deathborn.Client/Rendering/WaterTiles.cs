@@ -7,7 +7,7 @@ namespace Deathborn.Client.Rendering;
 
 /// <summary>
 /// Tiny Swords water fill (Water Background color) plus animated shoreline foam.
-/// Foam frames are 192×192 (3×3 tile footprint) placed under flat land tiles.
+/// Foam frames are 192×192 (3×3 footprint); only the portions over water cells are drawn.
 /// </summary>
 public static class WaterTiles
 {
@@ -39,27 +39,47 @@ public static class WaterTiles
         return true;
     }
 
-    /// <summary>Animated foam under land tiles that border water (drawn before land).</summary>
-    public static bool TryDrawFoam(SpriteBatch sb, WorldMap map, int tx, int ty, Rectangle dest)
+    /// <summary>
+    /// Shoreline foam centered on a land tile, clipped to cardinal-adjacent water cells only
+    /// so the 3×3 sprite does not bleed onto interior land.
+    /// </summary>
+    public static void TryDrawShoreFoam(
+        SpriteBatch sb, WorldMap map, int tx, int ty, Rectangle landRect,
+        Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        if (_foamSheet == null || !map.IsLand(tx, ty) || !BordersWater(map, tx, ty))
-            return false;
+        if (_foamSheet == null || !map.IsLand(tx, ty) || !CardinallyBordersWater(map, tx, ty))
+            return;
 
+        var foamDest = ExpandDest(landRect, 3f);
         var frame = FoamFrame(tx, ty);
         var src = new Rectangle(frame * FoamFrameSize, 0, FoamFrameSize, FoamFrameSize);
-        sb.Draw(_foamSheet, ExpandDest(dest, 3f), src, Color.White);
-        return true;
+        var tileSize = map.TileSize;
+
+        if (!map.IsLand(tx, ty - 1))
+            TryClipDraw(sb, foamDest, WorldMap.GetTileScreenRect(tx, ty - 1, camera, screenCenter, zoom, tileSize), src);
+        if (!map.IsLand(tx + 1, ty))
+            TryClipDraw(sb, foamDest, WorldMap.GetTileScreenRect(tx + 1, ty, camera, screenCenter, zoom, tileSize), src);
+        if (!map.IsLand(tx, ty + 1))
+            TryClipDraw(sb, foamDest, WorldMap.GetTileScreenRect(tx, ty + 1, camera, screenCenter, zoom, tileSize), src);
+        if (!map.IsLand(tx - 1, ty))
+            TryClipDraw(sb, foamDest, WorldMap.GetTileScreenRect(tx - 1, ty, camera, screenCenter, zoom, tileSize), src);
     }
 
-    private static bool BordersWater(WorldMap map, int tx, int ty)
+    private static bool CardinallyBordersWater(WorldMap map, int tx, int ty) =>
+        !map.IsLand(tx, ty - 1) || !map.IsLand(tx + 1, ty)
+        || !map.IsLand(tx, ty + 1) || !map.IsLand(tx - 1, ty);
+
+    private static void TryClipDraw(SpriteBatch sb, Rectangle dest, Rectangle clip, Rectangle src)
     {
-        for (var dy = -1; dy <= 1; dy++)
-        for (var dx = -1; dx <= 1; dx++)
-        {
-            if (dx == 0 && dy == 0) continue;
-            if (!map.IsLand(tx + dx, ty + dy)) return true;
-        }
-        return false;
+        var intersect = Rectangle.Intersect(dest, clip);
+        if (intersect.Width <= 0 || intersect.Height <= 0 || _foamSheet == null)
+            return;
+
+        var srcX = src.X + (intersect.X - dest.X) * src.Width / dest.Width;
+        var srcY = src.Y + (intersect.Y - dest.Y) * src.Height / dest.Height;
+        var srcW = intersect.Width * src.Width / dest.Width;
+        var srcH = intersect.Height * src.Height / dest.Height;
+        sb.Draw(_foamSheet, intersect, new Rectangle(srcX, srcY, srcW, srcH), Color.White);
     }
 
     private static int FoamFrame(int tx, int ty)

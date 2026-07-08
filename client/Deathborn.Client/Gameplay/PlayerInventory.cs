@@ -5,7 +5,10 @@ public sealed class InventorySlot
     public string? ItemId;
     public int Count;
     public long HouseId;
+    public float CooldownRemaining;
+    public float CooldownTotal;
     public bool IsEmpty => string.IsNullOrEmpty(ItemId) || Count <= 0;
+    public bool IsOnCooldown => CooldownRemaining > 0.001f;
 }
 
 public sealed class PlayerInventory
@@ -30,6 +33,8 @@ public sealed class PlayerInventory
             slot.ItemId = null;
             slot.Count = 0;
             slot.HouseId = 0;
+            slot.CooldownRemaining = 0f;
+            slot.CooldownTotal = 0f;
         }
         if (items == null) return;
 
@@ -136,6 +141,22 @@ public sealed class PlayerInventory
     }
 
     public bool HasItem(string itemId, int count = 1) => CountOf(itemId) >= count;
+
+    public void Update(float dt)
+    {
+        foreach (var slot in Slots)
+        {
+            if (slot.CooldownRemaining > 0f)
+                slot.CooldownRemaining = MathF.Max(0f, slot.CooldownRemaining - dt);
+        }
+    }
+
+    public void StartCooldownAt(int slotIndex, float seconds)
+    {
+        if (slotIndex < 0 || slotIndex >= SlotCount || seconds <= 0f) return;
+        Slots[slotIndex].CooldownRemaining = seconds;
+        Slots[slotIndex].CooldownTotal = seconds;
+    }
 
     public bool HasHouseKey() => CountOf("house_key") > 0;
 

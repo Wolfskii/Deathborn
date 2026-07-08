@@ -299,6 +299,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var inputBlocked = chatOpen || menuOpen || abilityBusy || IsLocalDyingOrDead();
 
         _buffTracker.Update(dt);
+        _inventory.Update(dt);
         UpdateHunterMarks(dt);
         _zoneBanner.Update(dt);
         WaterTiles.Update(dt);
@@ -2182,6 +2183,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_ghostMode || IsLocalDyingOrDead()) return;
         var slot = _inventory.Slots[slotIndex];
         if (slot.IsEmpty || slot.ItemId == null) return;
+        if (slot.IsOnCooldown)
+        {
+            var name = ItemCatalog.Get(slot.ItemId)?.Name ?? slot.ItemId;
+            _status = $"{name} is on cooldown ({MathF.Ceiling(slot.CooldownRemaining):0}s).";
+            return;
+        }
         if (slot.ItemId == "house_key")
         {
             _status = "The homestead key is not a consumable.";
@@ -2287,6 +2294,19 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             var cdSlot = hotbarIndex ?? FindHotbarSlotForAbility(id!, entry);
             if (cdSlot >= 0)
                 _hotbar.StartCooldown(cdSlot, cooldown);
+
+            if (entry.GetValueOrDefault("fromInventory") is true
+                && entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+            {
+                var slotIndex = slotObj switch
+                {
+                    int i => i,
+                    long l => (int)l,
+                    _ => -1,
+                };
+                if (slotIndex >= 0)
+                    _inventory.StartCooldownAt(slotIndex, cooldown);
+            }
         }
     }
 

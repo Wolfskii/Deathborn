@@ -97,6 +97,9 @@ public sealed class InventoryWindow : UiWindow
                 : new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2);
             HotbarIconDraw.Draw(sb, slot.ItemId, icon);
 
+            if (slot.IsOnCooldown && slot.CooldownTotal > 0f)
+                DrawCooldownOverlay(sb, font, rect, slot.CooldownRemaining, slot.CooldownTotal);
+
             if (slot.Count > 1)
             {
                 var label = slot.Count.ToString();
@@ -165,4 +168,36 @@ public sealed class InventoryWindow : UiWindow
         DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, 1, rect.Height), color);
         DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - 1, rect.Y, 1, rect.Height), color);
     }
+
+    private static void DrawCooldownOverlay(
+        SpriteBatch sb, SpriteFont font, Rectangle bounds, float remaining, float total)
+    {
+        var progress = 1f - remaining / total;
+        progress = MathHelper.Clamp(progress, 0f, 1f);
+
+        var lineY = bounds.Bottom - progress * bounds.Height;
+        var coverHeight = (int)MathF.Ceiling(lineY - bounds.Y);
+        if (coverHeight > 0)
+        {
+            var cover = new Rectangle(bounds.X + 1, bounds.Y + 1, bounds.Width - 2, coverHeight);
+            DrawPrimitives.FillRect(sb, cover, new Color(0, 0, 0, 0.42f));
+        }
+
+        var line = new Rectangle(bounds.X + 2, (int)lineY - 1, bounds.Width - 4, 2);
+        DrawPrimitives.FillRect(sb, line, new Color(210, 185, 95, 0.85f));
+
+        var label = FormatCooldownLabel(remaining);
+        var size = font.MeasureString(label) * 0.65f;
+        var textPos = new Vector2(bounds.Center.X - size.X / 2f, bounds.Center.Y - size.Y / 2f + 3f);
+        DrawPrimitives.FillRect(sb,
+            new Rectangle((int)textPos.X - 3, (int)textPos.Y - 1, (int)size.X + 6, (int)size.Y + 2),
+            new Color(0, 0, 0, 0.5f));
+        sb.DrawString(font, label, textPos, new Color(245, 240, 220),
+            0f, Vector2.Zero, 0.65f, SpriteEffects.None, 0f);
+    }
+
+    private static string FormatCooldownLabel(float remaining) =>
+        remaining >= 3f ? MathF.Ceiling(remaining).ToString("0")
+        : remaining >= 0.05f ? remaining.ToString("0.0")
+        : "0";
 }
