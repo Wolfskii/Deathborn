@@ -171,13 +171,13 @@ public static class WorldFoliage
         return MathF.Abs(pos.X - f.Position.X) <= halfW;
     }
 
-    public static List<FoliageInstance> GetVisible(WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    public static void GetVisible(
+        WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom, List<FoliageInstance> visible)
     {
-        var visible = new List<FoliageInstance>();
-        if (!IsLoaded || Instances.Count == 0) return visible;
+        visible.Clear();
+        if (!IsLoaded || Instances.Count == 0) return;
 
-        var tileSize = map.TileSize;
-        var margin = tileSize * 4f;
+        var margin = map.TileSize * 4f;
         var halfViewW = screenCenter.X / zoom + margin;
         var halfViewH = screenCenter.Y / zoom + margin;
         var minX = camera.X - halfViewW;
@@ -191,7 +191,6 @@ public static class WorldFoliage
                 continue;
             visible.Add(f);
         }
-        return visible;
     }
 
     public static void DrawInstance(
@@ -209,6 +208,8 @@ public static class WorldFoliage
         var (frameW, frameH, frameCount, fps) = FrameSpec(f.Kind);
         var frame = AnimFrame(f, frameCount, fps);
         var src = new Rectangle(frame * frameW, 0, frameW, frameH);
+        if (src.Right > tex.Width) src.Width = Math.Max(1, tex.Width - src.X);
+        if (src.Bottom > tex.Height) src.Height = Math.Max(1, tex.Height - src.Y);
 
         var drawW = frameW * f.Scale * zoom;
         var drawH = frameH * f.Scale * zoom;
@@ -233,12 +234,14 @@ public static class WorldFoliage
         sb.Draw(tex, dest, src, color);
     }
 
+    private static readonly List<FoliageInstance> VisibleScratch = [];
+
     public static void Draw(SpriteBatch sb, WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        var visible = GetVisible(map, camera, screenCenter, zoom);
-        visible.Sort((a, b) => a.Position.Y.CompareTo(b.Position.Y));
+        GetVisible(map, camera, screenCenter, zoom, VisibleScratch);
+        VisibleScratch.Sort(static (a, b) => a.Position.Y.CompareTo(b.Position.Y));
         Span<Vector2> empty = [];
-        foreach (var f in visible)
+        foreach (var f in VisibleScratch)
             DrawInstance(sb, f, camera, screenCenter, zoom, empty);
     }
 
@@ -300,7 +303,7 @@ public static class WorldFoliage
     {
         var mod = floatFrame % frameCount;
         if (mod < 0f) mod += frameCount;
-        return (int)mod;
+        return Math.Clamp((int)mod, 0, frameCount - 1);
     }
 
     private static void Generate(WorldMap map)

@@ -263,26 +263,24 @@ public sealed class WorldMap
         return _walkable[ty * TileWidth + tx];
     }
 
-    public void Draw(SpriteBatch sb, Vector2 camera, Vector2 screenCenter, float zoom)
+    public void Draw(SpriteBatch sb, VisibleTileRegion region)
     {
-        var tilePx = TileSize * zoom;
+        var tilePx = TileSize * region.Zoom;
         if (tilePx < 1f) return;
 
-        var halfViewW = screenCenter.X / zoom + TileSize * 2;
-        var halfViewH = screenCenter.Y / zoom + TileSize * 2;
+        var minTx = region.MinTx;
+        var maxTx = region.MaxTx;
+        var minTy = region.MinTy;
+        var maxTy = region.MaxTy;
+        var camera = region.Camera;
+        var screenCenter = region.ScreenCenter;
+        var zoom = region.Zoom;
 
-        var minTx = Math.Clamp((int)((camera.X - halfViewW) / TileSize), 0, TileWidth - 1);
-        var maxTx = Math.Clamp((int)((camera.X + halfViewW) / TileSize), 0, TileWidth - 1);
-        var minTy = Math.Clamp((int)((camera.Y - halfViewH) / TileSize), 0, TileHeight - 1);
-        var maxTy = Math.Clamp((int)((camera.Y + halfViewH) / TileSize), 0, TileHeight - 1);
-
-        // Draw in layers so land overhangs and shoreline foam are never clipped by
-        // neighboring water tiles that happen to be rendered later in scan order.
         for (var ty = minTy; ty <= maxTy; ty++)
         for (var tx = minTx; tx <= maxTx; tx++)
         {
             if (_walkable[ty * TileWidth + tx]) continue;
-            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
+            var rect = region.Rect(tx, ty);
             if (!WaterTiles.TryDraw(sb, tx, ty, rect))
                 DrawPrimitives.FillRect(sb, rect, WaterColor(tx, ty));
         }
@@ -291,21 +289,20 @@ public sealed class WorldMap
         for (var tx = minTx; tx <= maxTx; tx++)
         {
             if (!_walkable[ty * TileWidth + tx]) continue;
-            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
+            if (HasElevation && GetElevation(tx, ty) != 0) continue;
+            var rect = region.Rect(tx, ty);
             WaterTiles.TryDrawShoreFoam(sb, this, tx, ty, rect, camera, screenCenter, zoom);
         }
 
         if (HasElevation && TinySwordsTerrain.IsLoaded)
-        {
-            TinySwordsTerrain.Draw(sb, this, camera, screenCenter, zoom);
-        }
+            TinySwordsTerrain.Draw(sb, this, region);
         else
         {
             for (var ty = minTy; ty <= maxTy; ty++)
             for (var tx = minTx; tx <= maxTx; tx++)
             {
                 if (!_walkable[ty * TileWidth + tx]) continue;
-                var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
+                var rect = region.Rect(tx, ty);
                 if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
                     DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
             }

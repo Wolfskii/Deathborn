@@ -94,10 +94,11 @@ public static class WorldClouds
         return MathF.Abs(pos.X - c.Position.X) <= halfW;
     }
 
-    public static List<CloudInstance> GetVisible(WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    public static void GetVisible(
+        WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom, List<CloudInstance> visible)
     {
-        var visible = new List<CloudInstance>();
-        if (!IsLoaded || Instances.Count == 0) return visible;
+        visible.Clear();
+        if (!IsLoaded || Instances.Count == 0) return;
 
         var margin = map.TileSize * 14f;
         var halfViewW = screenCenter.X / zoom + margin;
@@ -117,8 +118,6 @@ public static class WorldClouds
                 continue;
             visible.Add(c);
         }
-
-        return visible;
     }
 
     public static void DrawInstance(
@@ -150,6 +149,8 @@ public static class WorldClouds
         sb.Draw(tex, screenPos, c.SourceRect, Color.White * alpha, 0f, origin, drawScale, SpriteEffects.None, 0f);
     }
 
+    private static readonly List<CloudInstance> VisibleScratch = [];
+
     public static void Draw(
         SpriteBatch sb,
         WorldMap map,
@@ -158,7 +159,8 @@ public static class WorldClouds
         float zoom,
         ReadOnlySpan<Vector2> entityPositions)
     {
-        foreach (var c in GetVisible(map, camera, screenCenter, zoom))
+        GetVisible(map, camera, screenCenter, zoom, VisibleScratch);
+        foreach (var c in VisibleScratch)
             DrawInstance(sb, c, camera, screenCenter, zoom, entityPositions);
     }
 

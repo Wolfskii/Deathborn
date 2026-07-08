@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -72,6 +73,22 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private HousePlotZone? _cachedInteriorHouse;
 
     private string[] _debugLines = [];
+
+    private readonly List<PlayerEntity> _exteriorPlayers = [];
+    private readonly List<WorldNpcEntity> _exteriorNpcs = [];
+    private readonly List<FoliageInstance> _visibleFoliage = [];
+    private readonly List<Vector2> _entityPositionScratch = [];
+
+    private enum ExteriorDrawableKind : byte { Foliage, Player, Npc }
+
+    private struct ExteriorDrawable
+    {
+        public float SortY;
+        public ExteriorDrawableKind Kind;
+        public int Index;
+    }
+
+    private readonly List<ExteriorDrawable> _exteriorDrawOrder = [];
 
     public WorldScreen(ScreenManager screens)
     {
@@ -560,8 +577,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         DrawExteriorFoliageAndPlayers(sb, font, zoom);
 
-        var exteriorPlayers = _players.Values.Where(p => p.InsideHouseId <= 0).Select(p => p.Position).ToArray();
-        WorldClouds.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom, exteriorPlayers);
+        WorldClouds.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom,
+            CollectionsMarshal.AsSpan(_entityPositionScratch));
 
         if (_ghostMode && _ghost != null)
             _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
@@ -596,46 +613,94 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _npcs);
     }
 
+    private void CollectExteriorEntities()
+    {
+        _exteriorPlayers.Clear();
+        _exteriorNpcs.Clear();
+        foreach (var p in _players.Values)
+        {
+            if (p.InsideHouseId <= 0)
+                _exteriorPlayers.Add(p);
+        }
+
+        foreach (var n in _npcs.Values)
+            _exteriorNpcs.Add(n);
+
+        _entityPositionScratch.Clear();
+        foreach (var p in _exteriorPlayers)
+            _entityPositionScratch.Add(p.Position);
+        foreach (var n in _exteriorNpcs)
+            _entityPositionScratch.Add(n.Position);
+    }
+
     private void DrawExteriorFoliageAndPlayers(SpriteBatch sb, SpriteFont font, float zoom)
     {
-        var players = _players.Values.Where(p => p.InsideHouseId <= 0).ToList();
-        var npcs = _npcs.Values.ToList();
-        var entityPositions = players.Select(p => p.Position)
-            .Concat(npcs.Select(n => n.Position))
-            .ToArray();
-        var drawables = new List<(float SortY, Action Draw)>();
+        CollectExteriorEntities();
+        var entityPositions = CollectionsMarshal.AsSpan(_entityPositionScratch);
+        _exteriorDrawOrder.Clear();
 
-        foreach (var f in WorldFoliage.GetVisible(WorldMap.Realik, _camera, ScreenCenter, zoom))
+        WorldFoliage.GetVisible(WorldMap.Realik, _camera, ScreenCenter, zoom, _visibleFoliage);
+        for (var i = 0; i < _visibleFoliage.Count; i++)
         {
-            var foliage = f;
-            drawables.Add((WorldFoliage.SortY(foliage), () =>
-                WorldFoliage.DrawInstance(sb, foliage, _camera, ScreenCenter, zoom, entityPositions)));
-        }
-
-        foreach (var p in players)
-        {
-            var player = p;
-            drawables.Add((player.SortY, () =>
+            var foliage = _visibleFoliage[i];
+            _exteriorDrawOrder.Add(new ExteriorDrawable
             {
-                var screenPos = WorldToScreen(player.Position);
-                if (player == _hoveredPlayer)
-                    player.DrawHoverHighlight(sb, screenPos, zoom);
-                player.Draw(sb, font, screenPos, zoom);
-                if (_hunterMarks.ContainsKey(player.Id))
-                    PlayerEntity.DrawHunterMark(sb, screenPos, zoom);
-            }));
+                SortY = WorldFoliage.SortY(foliage),
+                Kind = ExteriorDrawableKind.Foliage,
+                Index = i,
+            });
         }
 
-        foreach (var n in npcs)
+        for (var i = 0; i < _exteriorPlayers.Count; i++)
         {
-            var npc = n;
-            drawables.Add((npc.SortY, () =>
-                npc.Draw(sb, font, WorldToScreen(npc.Position), zoom)));
+            var player = _exteriorPlayers[i];
+            _exteriorDrawOrder.Add(new ExteriorDrawable
+            {
+                SortY = player.SortY,
+                Kind = ExteriorDrawableKind.Player,
+                Index = i,
+            });
         }
 
-        drawables.Sort((a, b) => a.SortY.CompareTo(b.SortY));
-        foreach (var (_, draw) in drawables)
-            draw();
+        for (var i = 0; i < _exteriorNpcs.Count; i++)
+        {
+            var npc = _exteriorNpcs[i];
+            _exteriorDrawOrder.Add(new ExteriorDrawable
+            {
+                SortY = npc.SortY,
+                Kind = ExteriorDrawableKind.Npc,
+                Index = i,
+            });
+        }
+
+        _exteriorDrawOrder.Sort(static (a, b) => a.SortY.CompareTo(b.SortY));
+
+        foreach (var entry in _exteriorDrawOrder)
+        {
+            switch (entry.Kind)
+            {
+                case ExteriorDrawableKind.Foliage:
+                    WorldFoliage.DrawInstance(sb, _visibleFoliage[entry.Index], _camera, ScreenCenter, zoom, entityPositions);
+                    break;
+                case ExteriorDrawableKind.Player:
+                {
+                    var player = _exteriorPlayers[entry.Index];
+                    var screenPos = WorldToScreen(player.Position);
+                    if (player == _hoveredPlayer)
+                        player.DrawHoverHighlight(sb, screenPos, zoom);
+                    player.Draw(sb, font, screenPos, zoom);
+                    if (_hunterMarks.ContainsKey(player.Id))
+                        PlayerEntity.DrawHunterMark(sb, screenPos, zoom);
+                    break;
+                }
+                case ExteriorDrawableKind.Npc:
+                {
+                    var npc = _exteriorNpcs[entry.Index];
+                    npc.Draw(sb, font, WorldToScreen(npc.Position), zoom);
+                    break;
+                }
+            }
+        }
     }
 
     private void DrawPlayers(SpriteBatch sb, SpriteFont font, float drawZoom, long? houseId)

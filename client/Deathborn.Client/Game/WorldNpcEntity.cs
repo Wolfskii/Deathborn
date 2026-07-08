@@ -31,6 +31,7 @@ public sealed class WorldNpcEntity
     public bool UsesSprite => !IsBoss && !string.IsNullOrEmpty(SpriteId) && TinyRpgCharacterSprites.Get(SpriteId) != null;
 
     private TinyRpgStripAnimation? _anim;
+    private string _animSpriteId = "";
     private bool _moving;
 
     public void SetTarget(Vector2 pos) => Target = pos;
@@ -49,7 +50,11 @@ public sealed class WorldNpcEntity
         Action = s.Action ?? "";
         if (MathF.Abs((float)s.DirX) > 0.01f || MathF.Abs((float)s.DirY) > 0.01f)
             Facing = Vector2.Normalize(new Vector2((float)s.DirX, (float)s.DirY));
-        _anim ??= TinyRpgCharacterSprites.Get(SpriteId);
+        if (!string.Equals(_animSpriteId, SpriteId, StringComparison.OrdinalIgnoreCase))
+        {
+            _animSpriteId = SpriteId;
+            _anim = TinyRpgCharacterSprites.Get(SpriteId)?.Clone();
+        }
     }
 
     public void Update(float dt)

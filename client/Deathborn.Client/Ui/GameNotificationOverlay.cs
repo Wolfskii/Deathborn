@@ -33,10 +33,12 @@ public sealed class GameNotificationOverlay
     public void Push(string title, string? subtitle = null, NotificationKind kind = NotificationKind.Info, float duration = 4.5f)
     {
         if (string.IsNullOrWhiteSpace(title)) return;
+        var safeTitle = SpriteFontSafe.Filter(title.Trim());
+        if (safeTitle.Length == 0) return;
         _toasts.Insert(0, new Toast
         {
-            Title = title.Trim(),
-            Subtitle = subtitle?.Trim() ?? "",
+            Title = safeTitle,
+            Subtitle = SpriteFontSafe.Filter(subtitle?.Trim()),
             Kind = kind,
             Duration = duration,
         });
@@ -67,8 +69,8 @@ public sealed class GameNotificationOverlay
             if (alpha <= 0.01f) continue;
 
             var (ribbonKind, pointed) = StyleFor(toast.Kind);
-            var titleSize = font.MeasureString(toast.Title);
-            var subSize = string.IsNullOrEmpty(toast.Subtitle) ? Vector2.Zero : font.MeasureString(toast.Subtitle);
+            var titleSize = SpriteFontSafe.MeasureString(font, toast.Title);
+            var subSize = string.IsNullOrEmpty(toast.Subtitle) ? Vector2.Zero : SpriteFontSafe.MeasureString(font, toast.Subtitle);
             var bodyW = (int)MathF.Max(titleSize.X, subSize.X) + 36;
             var bodyH = (int)(titleSize.Y + (subSize.Y > 0 ? subSize.Y + 6 : 0) + 28);
             var ribbonH = 34;
@@ -82,13 +84,13 @@ public sealed class GameNotificationOverlay
 
             var titleColor = TitleColor(toast.Kind) * alpha;
             var textArea = TinySwordsUi.MeasureRibbonTextArea(ribbon, 10);
-            sb.DrawString(font, SpriteFontSafe.Filter(toast.Title),
+            SpriteFontSafe.DrawString(sb, font, toast.Title,
                 new Vector2(textArea.X, textArea.Y + 2), titleColor, 0f, Vector2.Zero, 0.92f, SpriteEffects.None, 0f);
 
             if (!string.IsNullOrEmpty(toast.Subtitle))
             {
                 var subY = panel.Y + ribbonH + 8;
-                sb.DrawString(font, SpriteFontSafe.Filter(toast.Subtitle),
+                SpriteFontSafe.DrawString(sb, font, toast.Subtitle,
                     new Vector2(panel.X + 18, subY), new Color(235, 228, 210) * alpha, 0f, Vector2.Zero, 0.82f,
                     SpriteEffects.None, 0f);
             }

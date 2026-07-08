@@ -37,53 +37,51 @@ public static class TinySwordsTerrain
         _shadowSheet = content.Load<Texture2D>("Tiles/tiny_swords_shadow");
     }
 
-    public static void Draw(SpriteBatch sb, WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    public static void Draw(SpriteBatch sb, WorldMap map, VisibleTileRegion region)
     {
         if (!IsLoaded || !map.HasElevation) return;
 
-        var tilePx = map.TileSize * zoom;
+        var tilePx = map.TileSize * region.Zoom;
         if (tilePx < 0.5f) return;
 
-        var halfViewW = screenCenter.X / zoom + map.TileSize * 3;
-        var halfViewH = screenCenter.Y / zoom + map.TileSize * 3;
-        var minTx = Math.Clamp((int)((camera.X - halfViewW) / map.TileSize), 0, map.TileWidth - 1);
-        var maxTx = Math.Clamp((int)((camera.X + halfViewW) / map.TileSize), 0, map.TileWidth - 1);
-        var minTy = Math.Clamp((int)((camera.Y - halfViewH) / map.TileSize), 0, map.TileHeight - 1);
-        var maxTy = Math.Clamp((int)((camera.Y + halfViewH) / map.TileSize), 0, map.TileHeight - 1);
+        TerrainTileBuckets.Clear();
+        region.ForEachTile((tx, ty) =>
+        {
+            var elev = map.GetElevation(tx, ty);
+            if (elev < 0 || elev > map.MaxElevation) return;
+            TerrainTileBuckets.Add(elev, tx, ty);
+        });
 
         var maxElev = map.MaxElevation;
         for (var elev = 0; elev <= maxElev; elev++)
         {
-            if (elev > 0)
-                DrawShadowPass(sb, map, minTx, maxTx, minTy, maxTy, elev, camera, screenCenter, zoom);
+            var tiles = TerrainTileBuckets.ForElevation(elev);
+            if (tiles.Count == 0) continue;
 
-            for (var ty = minTy; ty <= maxTy; ty++)
-            for (var tx = minTx; tx <= maxTx; tx++)
+            if (elev > 0)
+                DrawShadowPass(sb, map, region, elev, tiles);
+
+            for (var i = 0; i < tiles.Count; i++)
             {
-                if (map.GetElevation(tx, ty) != elev) continue;
-                if (map.IsRampTop(tx, ty)) continue;
-                if (map.IsRampLanding(tx, ty)) continue;
-                var rect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
-                DrawGroundTop(sb, map, tx, ty, rect, elev);
+                TerrainTileBuckets.Unpack(tiles[i], out var tx, out var ty);
+                if (map.IsRampTop(tx, ty) || map.IsRampLanding(tx, ty)) continue;
+                DrawGroundTop(sb, map, tx, ty, region.Rect(tx, ty), elev);
             }
 
-            for (var ty = minTy; ty <= maxTy; ty++)
-            for (var tx = minTx; tx <= maxTx; tx++)
+            for (var i = 0; i < tiles.Count; i++)
             {
-                if (map.GetElevation(tx, ty) != elev) continue;
-                DrawCliffBaseBelow(sb, map, tx, ty, elev, camera, screenCenter, zoom);
+                TerrainTileBuckets.Unpack(tiles[i], out var tx, out var ty);
+                DrawCliffBaseBelow(sb, map, tx, ty, elev, region);
             }
         }
 
-        DrawRamps(sb, map, minTx, maxTx, minTy, maxTy, camera, screenCenter, zoom);
+        DrawRamps(sb, map, region);
     }
 
-    private static void DrawRamps(
-        SpriteBatch sb, WorldMap map, int minTx, int maxTx, int minTy, int maxTy,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+    private static void DrawRamps(SpriteBatch sb, WorldMap map, VisibleTileRegion region)
     {
-        for (var ty = minTy; ty <= maxTy; ty++)
-        for (var tx = minTx; tx <= maxTx; tx++)
+        for (var ty = region.MinTy; ty <= region.MaxTy; ty++)
+        for (var tx = region.MinTx; tx <= region.MaxTx; tx++)
         {
             var ramp = map.GetRamp(tx, ty);
             if (ramp == 0) continue;
@@ -97,13 +95,13 @@ public static class TinySwordsTerrain
             var topTy = ty - 1;
             if (topTy >= 0)
             {
-                DrawRampTopBackdrop(sb, map, tx, topTy, landingElev, sheet, camera, screenCenter, zoom);
-                var topRect = WorldMap.GetTileScreenRect(tx, topTy, camera, screenCenter, zoom, map.TileSize);
+                DrawRampTopBackdrop(sb, map, tx, topTy, landingElev, sheet, region);
+                var topRect = region.Rect(tx, topTy);
                 DrawPiece(sb, sheet, ramp == 1 ? 25 : 28, elevated: false, topRect);
             }
 
-            DrawRampCellGround(sb, map, tx, ty, landingElev, camera, screenCenter, zoom);
-            var bottomRect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
+            DrawRampCellGround(sb, map, tx, ty, landingElev, region);
+            var bottomRect = region.Rect(tx, ty);
             DrawPiece(sb, sheet, ramp == 1 ? 29 : 32, elevated: false, bottomRect);
         }
     }
@@ -114,9 +112,9 @@ public static class TinySwordsTerrain
     /// </summary>
     private static void DrawRampTopBackdrop(
         SpriteBatch sb, WorldMap map, int tx, int topTy, int landingElev, Texture2D sheet,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+        VisibleTileRegion region)
     {
-        var rect = WorldMap.GetTileScreenRect(tx, topTy, camera, screenCenter, zoom, map.TileSize);
+        var rect = region.Rect(tx, topTy);
         var northTy = topTy - 1;
         if (northTy >= 0 && map.GetElevation(tx, northTy) == landingElev + 1)
         {
@@ -130,28 +128,24 @@ public static class TinySwordsTerrain
             return;
         }
 
-        DrawRampCellGround(sb, map, tx, topTy, landingElev, camera, screenCenter, zoom);
+        DrawRampCellGround(sb, map, tx, topTy, landingElev, region);
     }
 
     private static void DrawRampCellGround(
-        SpriteBatch sb, WorldMap map, int tx, int ty, int elev,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+        SpriteBatch sb, WorldMap map, int tx, int ty, int elev, VisibleTileRegion region)
     {
         if (elev < 0) return;
-        var rect = WorldMap.GetTileScreenRect(tx, ty, camera, screenCenter, zoom, map.TileSize);
-        DrawGroundTop(sb, map, tx, ty, rect, elev);
+        DrawGroundTop(sb, map, tx, ty, region.Rect(tx, ty), elev);
     }
 
     private static void DrawShadowPass(
-        SpriteBatch sb, WorldMap map, int minTx, int maxTx, int minTy, int maxTy, int elev,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+        SpriteBatch sb, WorldMap map, VisibleTileRegion region, int elev, List<int> tiles)
     {
         if (_shadowSheet == null) return;
 
-        for (var ty = minTy; ty <= maxTy; ty++)
-        for (var tx = minTx; tx <= maxTx; tx++)
+        for (var i = 0; i < tiles.Count; i++)
         {
-            if (map.GetElevation(tx, ty) != elev) continue;
+            TerrainTileBuckets.Unpack(tiles[i], out var tx, out var ty);
 
             var south = map.GetElevation(tx, ty + 1);
             var south2 = map.GetElevation(tx, ty + 2);
@@ -161,8 +155,7 @@ public static class TinySwordsTerrain
             var shadowTy = ty + 1;
             if (shadowTy >= map.TileHeight) continue;
 
-            var landRect = WorldMap.GetTileScreenRect(tx, shadowTy, camera, screenCenter, zoom, map.TileSize);
-            var dest = ExpandDest(landRect, 2f);
+            var dest = ExpandDest(region.Rect(tx, shadowTy), 2f);
             var src = new Rectangle(32, 32, 128, 128);
             sb.Draw(_shadowSheet, dest, src, Color.White * 0.85f);
         }
@@ -197,8 +190,7 @@ public static class TinySwordsTerrain
     }
 
     private static void DrawCliffBaseBelow(
-        SpriteBatch sb, WorldMap map, int tx, int ty, int lipElev,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+        SpriteBatch sb, WorldMap map, int tx, int ty, int lipElev, VisibleTileRegion region)
     {
         if (IsCliffBaseRow(map, tx, ty, lipElev))
             return;
@@ -232,8 +224,7 @@ public static class TinySwordsTerrain
         var sheet = _colorSheets[Math.Clamp(lipElev, 0, 4)];
         if (sheet == null) return;
 
-        var rect = WorldMap.GetTileScreenRect(tx, baseTy, camera, screenCenter, zoom, map.TileSize);
-        DrawPiece(sb, sheet, pieceId, elevated: true, rect);
+        DrawPiece(sb, sheet, pieceId, elevated: true, region.Rect(tx, baseTy));
     }
 
     private static void DrawPiece(SpriteBatch sb, Texture2D sheet, int pieceId, bool elevated, Rectangle dest)

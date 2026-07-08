@@ -79,13 +79,16 @@ public static class WaterTiles
     private static void TryClipDraw(SpriteBatch sb, Rectangle dest, Rectangle clip, Rectangle src)
     {
         var intersect = Rectangle.Intersect(dest, clip);
-        if (intersect.Width <= 0 || intersect.Height <= 0 || _foamSheet == null)
+        if (intersect.Width <= 0 || intersect.Height <= 0 || _foamSheet == null
+            || dest.Width <= 0 || dest.Height <= 0)
             return;
 
         var srcX = src.X + (intersect.X - dest.X) * src.Width / dest.Width;
         var srcY = src.Y + (intersect.Y - dest.Y) * src.Height / dest.Height;
-        var srcW = intersect.Width * src.Width / dest.Width;
-        var srcH = intersect.Height * src.Height / dest.Height;
+        var srcW = Math.Max(1, intersect.Width * src.Width / dest.Width);
+        var srcH = Math.Max(1, intersect.Height * src.Height / dest.Height);
+        if (srcX + srcW > _foamSheet.Width) srcW = Math.Max(1, _foamSheet.Width - srcX);
+        if (srcY + srcH > _foamSheet.Height) srcH = Math.Max(1, _foamSheet.Height - srcY);
         sb.Draw(_foamSheet, intersect, new Rectangle(srcX, srcY, srcW, srcH), Color.White);
     }
 

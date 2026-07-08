@@ -63,9 +63,16 @@ public sealed class TinyRpgStripAnimation
             }
         }
 
+        frame = Math.Clamp(frame, 0, frames - 1);
         var src = new Rectangle(frame * FrameSize, 0, FrameSize, FrameSize);
+        if (src.Right > tex.Width)
+            src.Width = Math.Max(1, tex.Width - src.X);
+        if (src.Bottom > tex.Height)
+            src.Height = Math.Max(1, tex.Height - src.Y);
         sb.Draw(tex, screenPos, src, tint, 0f, FootAnchor, scale, effects, 0f);
     }
+
+    public TinyRpgStripAnimation Clone() => new(_walk, _idle);
 }
 
 public static class TinyRpgCharacterSprites
