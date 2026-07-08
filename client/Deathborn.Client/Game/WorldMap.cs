@@ -144,13 +144,14 @@ public sealed class WorldMap
             return false;
 
         if (radius <= 0f)
-            return IsWalkableTile(worldX, worldY);
+            return IsWalkableTile(worldX, worldY) && !WorldFoliage.BlocksCircle(new Vector2(worldX, worldY), 0f);
 
         return IsWalkableTile(worldX, worldY)
             && IsWalkableTile(worldX + radius, worldY)
             && IsWalkableTile(worldX - radius, worldY)
             && IsWalkableTile(worldX, worldY + radius)
-            && IsWalkableTile(worldX, worldY - radius);
+            && IsWalkableTile(worldX, worldY - radius)
+            && !WorldFoliage.BlocksCircle(new Vector2(worldX, worldY), radius);
     }
 
     private bool IsWalkableTile(float worldX, float worldY)

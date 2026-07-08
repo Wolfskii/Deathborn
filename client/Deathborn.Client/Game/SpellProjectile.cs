@@ -128,6 +128,12 @@ public sealed class SpellProjectile : IWorldEffect
                 return;
             }
         }
+
+        if (WorldFoliage.BlocksCircle(Position, Definition.Radius))
+        {
+            StartBurst();
+            return;
+        }
     }
 
     public void CancelByClash()

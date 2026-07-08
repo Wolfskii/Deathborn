@@ -44,7 +44,8 @@ public sealed class BossEntity
 
     public void Update(float dt)
     {
-        Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0f, 1f));
+        var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0f, 1f));
+        Position = WorldFoliage.ResolvePosition(lerped, Radius);
         if (AbilityFlash > 0) AbilityFlash -= dt;
         if (!string.IsNullOrEmpty(Action))
             AbilityFlash = MathF.Max(AbilityFlash, 0.35f);

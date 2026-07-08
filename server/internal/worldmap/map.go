@@ -21,6 +21,7 @@ type Map struct {
 	DefaultSpawnX         float64
 	DefaultSpawnY         float64
 	walkable              []bool
+	foliage               *foliageIndex
 }
 
 // LoadEmbedded parses the baked collision file shipped with the server.
@@ -59,6 +60,7 @@ func parse(data []byte) (*Map, error) {
 	m.WorldHeight = float64(th) * tileSize
 	tx, ty := findStarterCampTile(m)
 	m.DefaultSpawnX, m.DefaultSpawnY = tileCenter(tx, ty, tileSize)
+	m.foliage = m.buildFoliage()
 	return m, nil
 }
 
@@ -149,7 +151,7 @@ func (m *Map) CanWalk(x, y, radius float64) bool {
 		m.walkTile(x, y-radius)
 }
 
-// ResolveMove applies axis-separated sliding against land/water tiles.
+// ResolveMove applies axis-separated sliding against land/water tiles and foliage.
 func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
 	nx, ny := x+dx, y+dy
 	if m.CanWalk(nx, y, playerRadius) {
@@ -157,6 +159,9 @@ func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
 	}
 	if m.CanWalk(x, ny, playerRadius) {
 		y = ny
+	}
+	if m.foliage != nil {
+		x, y = m.foliage.resolvePosition(x, y, playerRadius)
 	}
 	return x, y
 }

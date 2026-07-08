@@ -131,6 +131,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         DeathbornGame.Instance.IsMouseVisible = false;
 
         WorldZones.Initialize(WorldMap.Realik);
+        WorldFoliage.Initialize(WorldMap.Realik);
         SeedWorldTownInteractables();
         SeedHotbar();
         TextField.ReleaseFocus();
@@ -307,6 +308,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         UpdateHunterMarks(dt);
         _zoneBanner.Update(dt);
         WaterTiles.Update(dt);
+        WorldFoliage.Update(dt);
         UpdateZonePresence(localEntity);
 
         var decorateActive = _housingDecorate.IsActive;
@@ -536,6 +538,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, float zoom)
     {
         _bg.Draw(sb, _camera, ScreenCenter, zoom);
+        WorldFoliage.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom);
         TownRenderer.Draw(sb, _camera, ScreenCenter, zoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
         HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);

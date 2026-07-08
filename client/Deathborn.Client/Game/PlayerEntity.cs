@@ -177,7 +177,7 @@ public sealed class PlayerEntity
         var facing = CardinalFacing(dir);
         MoveDir = facing;
         _dashStart = Position;
-        _dashEnd = Position + facing * distance;
+        _dashEnd = WorldFoliage.ClipSegment(Position, Position + facing * distance, Radius);
         _dashDuration = duration;
         _dashTimer = duration;
         _dashHit.Clear();
@@ -384,14 +384,16 @@ public sealed class PlayerEntity
         {
             _dashTimer = MathF.Max(0f, _dashTimer - dt);
             var t = 1f - _dashTimer / MathF.Max(0.001f, _dashDuration);
-            Position = Vector2.Lerp(_dashStart, _dashEnd, t);
+            var next = Vector2.Lerp(_dashStart, _dashEnd, t);
+            Position = WorldFoliage.ResolvePosition(next, Radius);
             Target = _dashEnd;
             if (_dashTimer <= 0f)
                 _isDashing = false;
         }
         else
         {
-            Position = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
+            var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0, 1));
+            Position = WorldFoliage.ResolvePosition(lerped, Radius);
         }
 
         UpdateBandageVisual(dt);
