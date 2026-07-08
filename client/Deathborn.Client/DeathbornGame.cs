@@ -81,6 +81,7 @@ public sealed class DeathbornGame : Game
         CharacterSprites.Load(Content);
         AbilityIconAtlas.Load(Content);
         CosmeticIconAtlas.Load(Content);
+        UiCursorTheme.Load(Content);
         DungeonFloorTiles.Load(Content);
         WaterTiles.Load(Content);
         TerrainLandTiles.Load(Content);

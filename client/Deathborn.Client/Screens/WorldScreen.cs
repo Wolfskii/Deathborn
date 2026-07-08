@@ -49,6 +49,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private Vector2? _lastInteractWorldPos;
     private string? _currentZoneId;
     private bool _zonePresenceInitialized;
+    private WorldEventState? _lastWorldEvent;
 
     private Vector2 _camera;
     private Vector2 _moveDir;
@@ -127,6 +128,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _skills.ApplySnapshot(net.SpawnSkills, net.SpawnTotalXp);
         _inventory.ApplyFromServer(net.SpawnInventory);
         SyncLocalStatsFromSkills();
+        DeathbornGame.Instance.IsMouseVisible = false;
 
         WorldZones.Initialize(WorldMap.Realik);
         SeedWorldTownInteractables();
@@ -216,6 +218,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _bosses.Clear();
         _feedback.Clear();
         _lastInteractWorldPos = null;
+        _lastWorldEvent = null;
+        DeathbornGame.Instance.IsMouseVisible = true;
     }
 
     public IReadOnlyList<string> DebugInfoLines => _debugLines;
@@ -525,6 +529,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _deathOverlay.Draw(sb, font);
             sb.End();
         }
+
+        DrawCustomCursor(sb);
     }
 
     private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, float zoom)
@@ -858,6 +864,79 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         AbilityTooltipDraw.DrawHotbarEntry(sb, font, entry, Hotbar.GetSlotBounds(idx),
             new Point(GameViewport.Width, GameViewport.Height));
+    }
+
+    private void DrawCustomCursor(SpriteBatch sb)
+    {
+        var mouse = Mouse.GetState().Position;
+        var cursorKind = UiCursorKind.Normal;
+        Rectangle? hoverSlotRect = null;
+
+        if (Hotbar.TryGetSlotIndexAt(mouse, out var hotbarIdx))
+        {
+            hoverSlotRect = Hotbar.GetSlotBounds(hotbarIdx);
+            var entry = _hotbar.Slots[hotbarIdx].Entry;
+            if (entry != null)
+                cursorKind = IsEntryBlocked(entry, hotbarIdx, null) ? UiCursorKind.Blocked : UiCursorKind.Hover;
+        }
+        else if (_windows.Inventory.IsOpen && _windows.Inventory.TryGetSlotAt(mouse, out var invIdx, out var invRect))
+        {
+            hoverSlotRect = invRect;
+            var slot = _inventory.Slots[invIdx];
+            if (!slot.IsEmpty && slot.ItemId != null)
+            {
+                var entry = ItemCatalog.ToHotbarEntry(slot.ItemId, invIdx);
+                cursorKind = IsEntryBlocked(entry, null, invIdx) ? UiCursorKind.Blocked : UiCursorKind.Hover;
+            }
+        }
+        else if (_hovered != null || _hoveredDoorHouse != null)
+        {
+            cursorKind = UiCursorKind.Hover;
+        }
+
+        sb.Begin(samplerState: SamplerState.PointClamp);
+        if (hoverSlotRect is { } rect)
+            UiCursorTheme.DrawSlotOverlay(sb, rect);
+        UiCursorTheme.DrawCursor(sb, mouse, cursorKind);
+        sb.End();
+    }
+
+    private bool IsEntryBlocked(Dictionary<string, object> entry, int? hotbarIndex, int? inventoryIndex)
+    {
+        if (hotbarIndex is int hi && _hotbar.Slots[hi].IsOnCooldown)
+            return true;
+        if (inventoryIndex is int ii && _inventory.Slots[ii].IsOnCooldown)
+            return true;
+
+        if (entry.GetValueOrDefault("fromInventory") is true && !HasLinkedInventoryItem(entry))
+            return true;
+
+        var id = entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        var info = id != null ? AbilityCatalog.Get(id) : null;
+        var local = FindLocalPlayer();
+        if (info != null && local != null && !AbilityResourceCosts.CanAfford(local.Stats, info))
+            return true;
+
+        return false;
+    }
+
+    private bool HasLinkedInventoryItem(Dictionary<string, object> entry)
+    {
+        if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+        {
+            var slot = slotObj switch
+            {
+                int i => i,
+                long l => (int)l,
+                _ => -1,
+            };
+            if (slot >= 0)
+                return _inventory.CountAt(slot) > 0;
+        }
+
+        var itemId = entry.GetValueOrDefault("itemId") as string
+            ?? entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        return itemId != null && _inventory.CountOf(itemId) > 0;
     }
 
     private static bool IsOverHotbar(Point p)
@@ -1788,8 +1867,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             BossCount = data.BossCount,
         });
     }
-
-    private WorldEventState? _lastWorldEvent;
 
     private void ApplyWorldEvent(WorldEventState data)
     {

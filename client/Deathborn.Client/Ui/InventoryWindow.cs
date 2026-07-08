@@ -136,6 +136,21 @@ public sealed class InventoryWindow : UiWindow
         return false;
     }
 
+    public bool TryGetSlotAt(Point p, out int index, out Rectangle rect)
+    {
+        LayoutCells();
+        for (var i = 0; i < _cellRects.Count; i++)
+        {
+            if (!_cellRects[i].Contains(p)) continue;
+            index = i;
+            rect = _cellRects[i];
+            return true;
+        }
+        index = -1;
+        rect = Rectangle.Empty;
+        return false;
+    }
+
     private void LayoutCells()
     {
         _cellRects.Clear();
