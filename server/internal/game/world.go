@@ -29,14 +29,10 @@ type World struct {
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
-	scale := 1.0
-	if terrain != nil {
-		scale = terrain.TileSize / 16.0
-	}
 	return &World{
 		players:  make(map[int64]*player),
-		speed:    defaultSpeed * scale,
-		runSpeed: runSpeed * scale,
+		speed:    defaultSpeed,
+		runSpeed: runSpeed,
 		terrain:  terrain,
 		zones:    NewZoneIndex(terrain),
 		bossMgr:  newBossManager(),

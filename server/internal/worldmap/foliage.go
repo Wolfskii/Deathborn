@@ -82,9 +82,12 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	scale := 0.78 + float64(foliageHash(tx, ty, 10)%1000)/1000.0*0.38
 	variant := foliageVariant(kind, tx, ty)
 	footInset, radius := foliageCollider(kind, variant, scale)
+	// Lift the circle by its radius so its bottom edge sits at the visual foot
+	// (matches client WorldFoliage.ColliderCenter); otherwise the collider
+	// extends below the sprite image.
 	idx.circles = append(idx.circles, foliageCircle{
 		x:      x,
-		y:      y - footInset*scale,
+		y:      y - footInset*scale - radius,
 		radius: radius,
 	})
 }

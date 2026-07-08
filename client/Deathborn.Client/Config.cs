@@ -26,8 +26,8 @@ public static class Config
     public const float InteractRange = 72f * Ws;
 
     /// <summary>Walk speed in px/s — matches server default movement speed.</summary>
-    public const float WalkSpeed = 120f * Ws;
-    public const float RunSpeed = 195f * Ws;
+    public const float WalkSpeed = 120f;
+    public const float RunSpeed = 195f;
     public const float MinStaminaToRun = 4f;
     public const float RunStaminaDrainPerSecond = 16f;
 

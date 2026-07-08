@@ -79,8 +79,10 @@ public static class WorldFoliage
 
     public static void Update(float dt) => _animTime += dt;
 
+    // Lift the circle by its radius so its bottom edge sits at the visual foot;
+    // otherwise half the collider sticks out below the sprite.
     public static Vector2 ColliderCenter(FoliageInstance f) =>
-        new(f.Position.X, f.Position.Y - f.FootInset * f.Scale);
+        new(f.Position.X, f.Position.Y - f.FootInset * f.Scale - f.CollisionRadius);
 
     public static bool BlocksCircle(Vector2 pos, float radius)
     {
@@ -144,6 +146,11 @@ public static class WorldFoliage
     public static bool EntityUnderFoliage(FoliageInstance f, Vector2 pos, float entityRadius)
     {
         if (f.Kind is FoliageKind.Rock or FoliageKind.WaterRock) return false;
+
+        // Only fade when the entity sorts BEHIND the foliage (its feet are above the
+        // foliage anchor). If the entity is south of the anchor it Y-sorts in front,
+        // draws on top, and needs no transparency.
+        if (pos.Y >= f.Position.Y) return false;
 
         var scale = f.Scale;
         var topY = f.Position.Y - f.CanopyTopInset * scale;
