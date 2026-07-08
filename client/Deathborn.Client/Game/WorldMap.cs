@@ -175,19 +175,32 @@ public sealed class WorldMap
         var minTy = Math.Clamp((int)((camera.Y - halfViewH) / TileSize), 0, TileHeight - 1);
         var maxTy = Math.Clamp((int)((camera.Y + halfViewH) / TileSize), 0, TileHeight - 1);
 
+        // Draw in layers so land overhangs and shoreline foam are never clipped by
+        // neighboring water tiles that happen to be rendered later in scan order.
         for (var ty = minTy; ty <= maxTy; ty++)
         for (var tx = minTx; tx <= maxTx; tx++)
         {
+            if (_walkable[ty * TileWidth + tx]) continue;
             var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
-            var walk = _walkable[ty * TileWidth + tx];
-            if (walk)
-            {
-                if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
-                    DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
-                WaterTiles.TryDrawShoreFoam(sb, this, tx, ty, rect, camera, screenCenter, zoom);
-            }
-            else if (!WaterTiles.TryDraw(sb, tx, ty, rect))
+            if (!WaterTiles.TryDraw(sb, tx, ty, rect))
                 DrawPrimitives.FillRect(sb, rect, WaterColor(tx, ty));
+        }
+
+        for (var ty = minTy; ty <= maxTy; ty++)
+        for (var tx = minTx; tx <= maxTx; tx++)
+        {
+            if (!_walkable[ty * TileWidth + tx]) continue;
+            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
+            if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
+                DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
+        }
+
+        for (var ty = minTy; ty <= maxTy; ty++)
+        for (var tx = minTx; tx <= maxTx; tx++)
+        {
+            if (!_walkable[ty * TileWidth + tx]) continue;
+            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
+            WaterTiles.TryDrawShoreFoam(sb, this, tx, ty, rect, camera, screenCenter, zoom);
         }
     }
 
