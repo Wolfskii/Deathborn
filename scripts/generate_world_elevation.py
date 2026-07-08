@@ -16,7 +16,7 @@ COLLISION = ROOT / "shared" / "world" / "realik_collision.bin"
 OUT = ROOT / "shared" / "world" / "realik_elevation.bin"
 SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "realik_elevation.bin"
 
-SEED = 0xREAL1C
+SEED = 0x0EA11C
 MIN_PLATEAU_CELLS = 40
 PLATEAU_COUNT = 5
 PLATEAU_RADIUS = (22, 38)  # ~6-10 tiles at 64px; map cells are 16px
@@ -82,6 +82,7 @@ def mark_sea_shoreline(
 
 
 def autopad(elev: list[list[int]], tw: int, th: int) -> None:
+    """Ensure land-to-land south drops are at most one elevation step (south demotion only)."""
     changed = True
     while changed:
         changed = False
@@ -90,12 +91,6 @@ def autopad(elev: list[list[int]], tw: int, th: int) -> None:
                 e = elev[ty][tx]
                 if e <= 0:
                     continue
-                for nx, ny in ((tx, ty - 1), (tx - 1, ty), (tx + 1, ty)):
-                    if 0 <= nx < tw and 0 <= ny < th:
-                        k = elev[ny][nx]
-                        if 0 <= k < e:
-                            elev[ny][nx] = e
-                            changed = True
                 if ty + 1 < th:
                     s = elev[ty + 1][tx]
                     if 0 <= s < e - 1:
