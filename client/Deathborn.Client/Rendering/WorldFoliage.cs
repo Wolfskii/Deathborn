@@ -15,6 +15,15 @@ public sealed class FoliageInstance
     public float Scale;
     public float CollisionRadius;
     public int AnimPhase;
+    /// <summary>Unscaled pixels from sprite bottom to the visual foot (opaque base).</summary>
+    public float FootInset;
+    /// <summary>Unscaled pixels from sprite bottom to canopy/foliage top row.</summary>
+    public float CanopyTopInset;
+    /// <summary>Unscaled pixels from sprite bottom to where canopy ends (trunk begins on trees).</summary>
+    public float CanopyBottomInset;
+    /// <summary>Unscaled half-width of the overlap / transparency region.</summary>
+    public float CanopyHalfWidth;
+    public bool BlocksMovement;
 }
 
 /// <summary>
@@ -26,8 +35,11 @@ public static class WorldFoliage
     private const uint Seed = 0xB00B5;
     private const int LandStride = 2;
     private const int WaterStride = 3;
-    private const float TownPad = 56f;
-    private const float SpawnClearRadius = 160f;
+    private const float BaseTownPad = 56f;
+    private const float BaseSpawnClearRadius = 160f;
+    private static float _townPad = BaseTownPad;
+    private static float _spawnClearRadius = BaseSpawnClearRadius;
+    private const float UnderFoliageAlpha = 0.42f;
 
     private static readonly List<FoliageInstance> Instances = [];
     private static Texture2D?[] _textures = new Texture2D[13];
@@ -57,6 +69,9 @@ public static class WorldFoliage
     public static void Initialize(WorldMap map)
     {
         if (_initialized) return;
+        var scale = map.TileSize / 16f;
+        _townPad = BaseTownPad * scale;
+        _spawnClearRadius = BaseSpawnClearRadius * scale;
         _initialized = true;
         Instances.Clear();
         Generate(map);
@@ -64,12 +79,17 @@ public static class WorldFoliage
 
     public static void Update(float dt) => _animTime += dt;
 
+    public static Vector2 ColliderCenter(FoliageInstance f) =>
+        new(f.Position.X, f.Position.Y - f.FootInset * f.Scale);
+
     public static bool BlocksCircle(Vector2 pos, float radius)
     {
         foreach (var f in Instances)
         {
+            if (!f.BlocksMovement) continue;
+            var center = ColliderCenter(f);
             var hit = f.CollisionRadius + radius;
-            if (Vector2.DistanceSquared(pos, f.Position) <= hit * hit)
+            if (Vector2.DistanceSquared(pos, center) <= hit * hit)
                 return true;
         }
         return false;
@@ -82,8 +102,10 @@ public static class WorldFoliage
             var pushed = false;
             foreach (var f in Instances)
             {
-                var dx = pos.X - f.Position.X;
-                var dy = pos.Y - f.Position.Y;
+                if (!f.BlocksMovement) continue;
+                var center = ColliderCenter(f);
+                var dx = pos.X - center.X;
+                var dy = pos.Y - center.Y;
                 var minDist = f.CollisionRadius + entityRadius;
                 var distSq = dx * dx + dy * dy;
                 if (distSq >= minDist * minDist || distSq < 0.0001f) continue;
@@ -119,9 +141,23 @@ public static class WorldFoliage
         return pos;
     }
 
-    public static void Draw(SpriteBatch sb, WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    public static bool EntityUnderFoliage(FoliageInstance f, Vector2 pos, float entityRadius)
     {
-        if (!IsLoaded || Instances.Count == 0) return;
+        if (f.Kind is FoliageKind.Rock or FoliageKind.WaterRock) return false;
+
+        var scale = f.Scale;
+        var topY = f.Position.Y - f.CanopyTopInset * scale;
+        var bottomY = f.Position.Y - f.CanopyBottomInset * scale;
+        if (pos.Y + entityRadius < topY || pos.Y - entityRadius > bottomY) return false;
+
+        var halfW = f.CanopyHalfWidth * scale + entityRadius;
+        return MathF.Abs(pos.X - f.Position.X) <= halfW;
+    }
+
+    public static List<FoliageInstance> GetVisible(WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var visible = new List<FoliageInstance>();
+        if (!IsLoaded || Instances.Count == 0) return visible;
 
         var tileSize = map.TileSize;
         var margin = tileSize * 4f;
@@ -132,20 +168,23 @@ public static class WorldFoliage
         var minY = camera.Y - halfViewH;
         var maxY = camera.Y + halfViewH;
 
-        var visible = new List<FoliageInstance>();
         foreach (var f in Instances)
         {
             if (f.Position.X < minX || f.Position.X > maxX || f.Position.Y < minY || f.Position.Y > maxY)
                 continue;
             visible.Add(f);
         }
-        visible.Sort((a, b) => a.Position.Y.CompareTo(b.Position.Y));
-
-        foreach (var f in visible)
-            DrawInstance(sb, f, camera, screenCenter, zoom);
+        return visible;
     }
 
-    private static void DrawInstance(SpriteBatch sb, FoliageInstance f, Vector2 camera, Vector2 screenCenter, float zoom)
+    public static void DrawInstance(
+        SpriteBatch sb,
+        FoliageInstance f,
+        Vector2 camera,
+        Vector2 screenCenter,
+        float zoom,
+        ReadOnlySpan<Vector2> entityPositions,
+        float entityRadius = PlayerEntity.Radius)
     {
         var tex = TextureFor(f);
         if (tex == null) return;
@@ -165,7 +204,25 @@ public static class WorldFoliage
             Math.Max(1, (int)MathF.Ceiling(drawW)),
             Math.Max(1, (int)MathF.Ceiling(drawH)));
 
-        sb.Draw(tex, dest, src, Color.White);
+        var alpha = 1f;
+        for (var i = 0; i < entityPositions.Length; i++)
+        {
+            if (!EntityUnderFoliage(f, entityPositions[i], entityRadius)) continue;
+            alpha = UnderFoliageAlpha;
+            break;
+        }
+
+        var color = Color.White * alpha;
+        sb.Draw(tex, dest, src, color);
+    }
+
+    public static void Draw(SpriteBatch sb, WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var visible = GetVisible(map, camera, screenCenter, zoom);
+        visible.Sort((a, b) => a.Position.Y.CompareTo(b.Position.Y));
+        Span<Vector2> empty = [];
+        foreach (var f in visible)
+            DrawInstance(sb, f, camera, screenCenter, zoom, empty);
     }
 
     private static Texture2D? TextureFor(FoliageInstance f) => f.Kind switch
@@ -190,7 +247,6 @@ public static class WorldFoliage
     {
         var tw = map.TileWidth;
         var th = map.TileHeight;
-        var ts = map.TileSize;
 
         for (var ty = 0; ty < th; ty += LandStride)
         {
@@ -234,24 +290,103 @@ public static class WorldFoliage
     {
         var scale = 0.78f + (Hash(tx, ty, 10) % 1000) / 1000f * 0.38f;
         var variant = VariantFor(kind, tx, ty);
-        var radius = kind switch
-        {
-            FoliageKind.Tree => 20f * scale,
-            FoliageKind.Rock => 15f * scale,
-            FoliageKind.Bush => 12f * scale,
-            FoliageKind.WaterRock => 12f * scale,
-            _ => 12f,
-        };
-
-        Instances.Add(new FoliageInstance
+        var instance = new FoliageInstance
         {
             Kind = kind,
             Position = pos,
             Variant = variant,
             Scale = scale,
-            CollisionRadius = radius,
             AnimPhase = (int)(Hash(tx, ty, 11) % 100),
-        });
+        };
+        ConfigureMetrics(instance);
+        Instances.Add(instance);
+    }
+
+    private static void ConfigureMetrics(FoliageInstance f)
+    {
+        switch (f.Kind)
+        {
+            case FoliageKind.Tree when f.Variant == 0:
+                f.FootInset = 23f;
+                f.CanopyTopInset = 168f;
+                f.CanopyBottomInset = 49f;
+                f.CanopyHalfWidth = 45f;
+                f.CollisionRadius = 8f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+            case FoliageKind.Tree:
+                f.FootInset = 25f;
+                f.CanopyTopInset = 146f;
+                f.CanopyBottomInset = 51f;
+                f.CanopyHalfWidth = 40f;
+                f.CollisionRadius = 8f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+            case FoliageKind.Bush when f.Variant == 0:
+                f.FootInset = 50f;
+                f.CanopyTopInset = 95f;
+                f.CanopyBottomInset = 50f;
+                f.CanopyHalfWidth = 34f;
+                f.CollisionRadius = 0f;
+                f.BlocksMovement = false;
+                break;
+            case FoliageKind.Bush when f.Variant == 1:
+                f.FootInset = 53f;
+                f.CanopyTopInset = 86f;
+                f.CanopyBottomInset = 53f;
+                f.CanopyHalfWidth = 23f;
+                f.CollisionRadius = 0f;
+                f.BlocksMovement = false;
+                break;
+            case FoliageKind.Bush:
+                f.FootInset = 50f;
+                f.CanopyTopInset = 91f;
+                f.CanopyBottomInset = 50f;
+                f.CanopyHalfWidth = 23f;
+                f.CollisionRadius = 0f;
+                f.BlocksMovement = false;
+                break;
+            case FoliageKind.Rock when f.Variant == 0:
+                f.FootInset = 14f;
+                f.CanopyTopInset = 0f;
+                f.CanopyBottomInset = 0f;
+                f.CanopyHalfWidth = 0f;
+                f.CollisionRadius = 15f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+            case FoliageKind.Rock when f.Variant == 1:
+                f.FootInset = 12f;
+                f.CanopyTopInset = 0f;
+                f.CanopyBottomInset = 0f;
+                f.CanopyHalfWidth = 0f;
+                f.CollisionRadius = 16f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+            case FoliageKind.Rock when f.Variant == 2:
+                f.FootInset = 13f;
+                f.CanopyTopInset = 0f;
+                f.CanopyBottomInset = 0f;
+                f.CanopyHalfWidth = 0f;
+                f.CollisionRadius = 14f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+            case FoliageKind.Rock:
+                f.FootInset = 9f;
+                f.CanopyTopInset = 0f;
+                f.CanopyBottomInset = 0f;
+                f.CanopyHalfWidth = 0f;
+                f.CollisionRadius = 15f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+            case FoliageKind.WaterRock:
+                f.FootInset = 17f;
+                f.CanopyTopInset = 0f;
+                f.CanopyBottomInset = 0f;
+                f.CanopyHalfWidth = 0f;
+                f.CollisionRadius = 12f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+        }
     }
 
     private static int VariantFor(FoliageKind kind, int tx, int ty)
@@ -280,16 +415,16 @@ public static class WorldFoliage
         && map.IsLand(tx, ty + 1) && map.IsLand(tx - 1, ty);
 
     private static bool NearSpawn(WorldMap map, Vector2 pos) =>
-        Vector2.DistanceSquared(pos, map.DefaultSpawn) < SpawnClearRadius * SpawnClearRadius;
+        Vector2.DistanceSquared(pos, map.DefaultSpawn) < _spawnClearRadius * _spawnClearRadius;
 
     private static bool InTown(Vector2 world)
     {
         foreach (var zone in WorldZones.Towns)
         {
-            if (world.X >= zone.Center.X - zone.HalfWidth - TownPad
-                && world.X <= zone.Center.X + zone.HalfWidth + TownPad
-                && world.Y >= zone.Center.Y - zone.HalfHeight - TownPad
-                && world.Y <= zone.Center.Y + zone.HalfHeight + TownPad)
+            if (world.X >= zone.Center.X - zone.HalfWidth - _townPad
+                && world.X <= zone.Center.X + zone.HalfWidth + _townPad
+                && world.Y >= zone.Center.Y - zone.HalfHeight - _townPad
+                && world.Y <= zone.Center.Y + zone.HalfHeight + _townPad)
                 return true;
         }
         return false;

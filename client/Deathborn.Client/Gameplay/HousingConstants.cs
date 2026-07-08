@@ -5,19 +5,21 @@ namespace Deathborn.Client.Gameplay;
 /// <summary>Player housing layout — mirrors server game/housing.go constants.</summary>
 public static class HousingConstants
 {
-    public const float PlotHalfW = 100f;
-    public const float PlotHalfH = 88f;
-    public const float HouseHalfW = 52f;
-    public const float HouseHalfH = 44f;
+    private const float Hs = Config.WorldTileSize / Config.LegacyTileSize;
+
+    public const float PlotHalfW = 100f * Hs;
+    public const float PlotHalfH = 88f * Hs;
+    public const float HouseHalfW = 52f * Hs;
+    public const float HouseHalfH = 44f * Hs;
 
     /// <summary>Instanced interior room (larger than exterior shell).</summary>
-    public const float InteriorHalfW = 140f;
-    public const float InteriorHalfH = 105f;
+    public const float InteriorHalfW = 140f * Hs;
+    public const float InteriorHalfH = 105f * Hs;
 
     public static readonly Vector2[] GardenCropOffsets =
     [
-        new(-48, 52), new(0, 58), new(48, 52),
-        new(-48, 78), new(0, 84), new(48, 78),
+        new(-48 * Hs, 52 * Hs), new(0, 58 * Hs), new(48 * Hs, 52 * Hs),
+        new(-48 * Hs, 78 * Hs), new(0, 84 * Hs), new(48 * Hs, 78 * Hs),
     ];
 
     public static string CropTargetId(long houseId, int index) =>
@@ -29,20 +31,20 @@ public static class HousingConstants
 
     public static bool InHouseInterior(Vector2 world, Vector2 center) =>
         world.X >= center.X - InteriorHalfW && world.X <= center.X + InteriorHalfW
-        && world.Y >= center.Y - InteriorHalfH && world.Y <= center.Y + InteriorHalfH - 8;
+        && world.Y >= center.Y - InteriorHalfH && world.Y <= center.Y + InteriorHalfH - 8 * Hs;
 
     /// <summary>Exterior door on the homestead building.</summary>
     public static Vector2 DoorWorldPosition(Vector2 center) =>
-        new(center.X, center.Y + HouseHalfH - 34);
+        new(center.X, center.Y + HouseHalfH - 34 * Hs);
 
     /// <summary>Exit door inside the instanced room.</summary>
     public static Vector2 InteriorDoorWorldPosition(Vector2 center) =>
-        new(center.X, center.Y + InteriorHalfH - 20);
+        new(center.X, center.Y + InteriorHalfH - 20 * Hs);
 
     public static Vector2 InteriorLocalMin => new(-InteriorHalfW, -InteriorHalfH);
-    public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8);
+    public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8 * Hs);
 
-    public const float DoorInteractRadius = 38f;
+    public const float DoorInteractRadius = 38f * Hs;
 
     public static bool IsNearDoor(Vector2 world, Vector2 center) =>
         Vector2.Distance(world, DoorWorldPosition(center)) <= DoorInteractRadius;
@@ -50,8 +52,8 @@ public static class HousingConstants
     public static bool IsNearInteriorExit(Vector2 world, Vector2 center)
     {
         var door = InteriorDoorWorldPosition(center);
-        if (world.Y < door.Y - 14) return false;
-        return Vector2.Distance(world, door) <= 26f;
+        if (world.Y < door.Y - 14 * Hs) return false;
+        return Vector2.Distance(world, door) <= 26f * Hs;
     }
 
     public static HousePlotZone? FindDoorAt(IEnumerable<HousePlotZone> houses, Vector2 world)

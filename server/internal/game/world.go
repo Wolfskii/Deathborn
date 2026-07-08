@@ -29,15 +29,26 @@ type World struct {
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
+	scale := 1.0
+	if terrain != nil {
+		scale = terrain.TileSize / 16.0
+	}
 	return &World{
 		players:  make(map[int64]*player),
-		speed:    defaultSpeed,
-		runSpeed: runSpeed,
+		speed:    defaultSpeed * scale,
+		runSpeed: runSpeed * scale,
 		terrain:  terrain,
 		zones:    NewZoneIndex(terrain),
 		bossMgr:  newBossManager(),
 		housing:  NewHousingIndex(),
 	}
+}
+
+func (w *World) worldScale() float64 {
+	if w.terrain == nil {
+		return 1
+	}
+	return w.terrain.TileSize / 16.0
 }
 
 // AddPlayer inserts a player at a position (e.g. on connect/spawn).

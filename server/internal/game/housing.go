@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	PlotHalfW        = 100.0
-	PlotHalfH        = 88.0
-	HouseHalfW       = 52.0
-	HouseHalfH       = 44.0
-	InteriorHalfW    = 140.0
-	InteriorHalfH    = 105.0
-	HouseMinSeparation = 220.0
-	MaxFurniture     = 24
+	PlotHalfW          = 200.0
+	PlotHalfH          = 176.0
+	HouseHalfW         = 104.0
+	HouseHalfH         = 88.0
+	InteriorHalfW      = 280.0
+	InteriorHalfH      = 210.0
+	HouseMinSeparation = 440.0
+	MaxFurniture       = 24
 )
 
 // FurnitureItem is a placed interior object (world-relative coords).
@@ -127,8 +127,8 @@ func InHouseInterior(x, y float64, centerX, centerY float64) bool {
 // GardenCropOffsets returns local offsets for 6 farm tiles in the garden.
 func GardenCropOffsets() [][2]float64 {
 	return [][2]float64{
-		{-48, 52}, {0, 58}, {48, 52},
-		{-48, 78}, {0, 84}, {48, 78},
+		{-96, 104}, {0, 116}, {96, 104},
+		{-96, 156}, {0, 168}, {96, 156},
 	}
 }
 
@@ -264,20 +264,20 @@ func CropTargetID(houseID int64, index int) string {
 
 // Door and interior layout (matches client HouseRenderer).
 func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY + HouseHalfH - 34
+	return centerX, centerY + HouseHalfH - 68
 }
 
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY - 12
+	return centerX, centerY - 24
 }
 
 func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY + InteriorHalfH - 20
+	return centerX, centerY + InteriorHalfH - 40
 }
 
 func HouseExteriorSpawn(centerX, centerY float64) (float64, float64) {
 	dx, dy := HouseDoorPosition(centerX, centerY)
-	return dx, dy + 32
+	return dx, dy + 64
 }
 
 const houseTransitionCooldownSec = 1.1
@@ -298,7 +298,7 @@ func canAutoHouseTransition(p *player) bool {
 
 func NearHouseDoor(x, y, centerX, centerY float64) bool {
 	dx, dy := HouseDoorPosition(centerX, centerY)
-	return math.Hypot(x-dx, y-dy) <= 38
+	return math.Hypot(x-dx, y-dy) <= 76
 }
 
 func NearInteriorExit(x, y, centerX, centerY float64) bool {

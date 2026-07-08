@@ -15,7 +15,7 @@ PREVIEW = ROOT / "shared" / "world" / "realik_preview.png"
 SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "realik_collision.bin"
 
 STEP = 2
-TILE_SIZE = 16.0
+TILE_SIZE = 32.0
 SMALL_WATER_MAX = 9  # fill water pockets with <= this many tiles
 
 

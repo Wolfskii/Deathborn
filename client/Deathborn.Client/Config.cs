@@ -16,11 +16,18 @@ public static class Config
     public const float WorldZoomMax = 2.6f;
     public const float InputSendInterval = 0.05f;
     public const float PlayerLerpSpeed = 12f;
-    public const float InteractRange = 72f;
+
+    /// <summary>Legacy design tile size; world bins may use a larger value.</summary>
+    public const float LegacyTileSize = 16f;
+    /// <summary>Must match <c>realik_collision.bin</c> tile size.</summary>
+    public const float WorldTileSize = 32f;
+    private const float Ws = WorldTileSize / LegacyTileSize;
+
+    public const float InteractRange = 72f * Ws;
 
     /// <summary>Walk speed in px/s — matches server default movement speed.</summary>
-    public const float WalkSpeed = 120f;
-    public const float RunSpeed = 195f;
+    public const float WalkSpeed = 120f * Ws;
+    public const float RunSpeed = 195f * Ws;
     public const float MinStaminaToRun = 4f;
     public const float RunStaminaDrainPerSecond = 16f;
 
@@ -33,22 +40,21 @@ public static class Config
     public const float WalkAnimSpeed = 0.72f;
     public const float RunAnimSpeed = 1.35f;
 
-    public const float WorldTileSize = 16f;
-    public const float FireballSpeed = 340f;
-    public const float FireballMaxRange = 520f;
-    public const float FireballRadius = 10f;
+    public const float FireballSpeed = 340f * Ws;
+    public const float FireballMaxRange = 520f * Ws;
+    public const float FireballRadius = 10f * Ws;
     public const float FireballBurstDuration = 0.35f;
     public const float FireballCooldown = 3f;
     public const float FireballCastLockDuration = 0.35f;
 
-    public const float IceShardSpeed = 420f;
-    public const float IceShardMaxRange = 480f;
-    public const float IceShardRadius = 8f;
+    public const float IceShardSpeed = 420f * Ws;
+    public const float IceShardMaxRange = 480f * Ws;
+    public const float IceShardRadius = 8f * Ws;
     public const float IceShardBurstDuration = 0.3f;
     public const float IceShardCooldown = 2.5f;
     public const float IceShardCastLockDuration = 0.28f;
 
-    public const float ArcBoltRange = 120f;
+    public const float ArcBoltRange = 120f * Ws;
     public const float ArcBoltCooldown = 2f;
     public const float ArcBoltCastLockDuration = 0.25f;
 
@@ -75,14 +81,14 @@ public static class Config
 
     public const float ShieldBashCooldown = 4f;
     public const float ShieldBashCastLock = 0.35f;
-    public const float ShieldBashRange = 56f;
+    public const float ShieldBashRange = 56f * Ws;
 
     public const float WhirlwindCooldown = 6f;
     public const float WhirlwindDuration = 0.55f;
-    public const float WhirlwindRadius = 52f;
+    public const float WhirlwindRadius = 52f * Ws;
 
     public const float WarriorDashCooldown = 5f;
-    public const float WarriorDashDistance = 100f;
+    public const float WarriorDashDistance = 100f * Ws;
     public const float WarriorDashDuration = 0.22f;
 
     public const float BattleShoutCooldown = 12f;
@@ -93,7 +99,7 @@ public static class Config
 
     public const float HunterMarkCooldown = 8f;
     public const float HunterMarkDuration = 900f;
-    public const float HunterMarkRange = 200f;
+    public const float HunterMarkRange = 200f * Ws;
 
     public const float SecondWindCooldown = 15f;
 
@@ -103,10 +109,10 @@ public static class Config
     public const float ChatBubbleDuration = 10f;
     public const int ChatMaxLength = 120;
     /// <summary>World Y offset from feet to torso for projectile spawn.</summary>
-    public const float CastTorsoOffsetY = -11f;
-    public const float CastSpawnDistance = 8f;
+    public const float CastTorsoOffsetY = -11f * Ws;
+    public const float CastSpawnDistance = 8f * Ws;
 
-    public const float MinimapWorldRadius = 400f;
+    public const float MinimapWorldRadius = 400f * Ws;
     public const float MinimapScreenRadius = 58f;
     public const int MinimapMargin = 14;
 }

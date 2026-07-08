@@ -538,7 +538,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, float zoom)
     {
         _bg.Draw(sb, _camera, ScreenCenter, zoom);
-        WorldFoliage.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom);
         TownRenderer.Draw(sb, _camera, ScreenCenter, zoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
         HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);
@@ -552,7 +551,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var corpse in _corpses)
             corpse.Draw(sb, WorldToScreen(corpse.Position), zoom);
 
-        DrawPlayers(sb, font, zoom, houseId: null);
+        DrawExteriorFoliageAndPlayers(sb, font, zoom);
 
         foreach (var b in _bosses.Values.OrderBy(b => b.Position.Y))
             b.Draw(sb, font, WorldToScreen(b.Position), zoom);
@@ -588,6 +587,38 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
         _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _bosses);
+    }
+
+    private void DrawExteriorFoliageAndPlayers(SpriteBatch sb, SpriteFont font, float zoom)
+    {
+        var players = _players.Values.Where(p => p.InsideHouseId <= 0).ToList();
+        var entityPositions = players.Select(p => p.Position).ToArray();
+        var drawables = new List<(float SortY, Action Draw)>();
+
+        foreach (var f in WorldFoliage.GetVisible(WorldMap.Realik, _camera, ScreenCenter, zoom))
+        {
+            var foliage = f;
+            drawables.Add((foliage.Position.Y, () =>
+                WorldFoliage.DrawInstance(sb, foliage, _camera, ScreenCenter, zoom, entityPositions)));
+        }
+
+        foreach (var p in players)
+        {
+            var player = p;
+            drawables.Add((player.Position.Y, () =>
+            {
+                var screenPos = WorldToScreen(player.Position);
+                if (player == _hoveredPlayer)
+                    player.DrawHoverHighlight(sb, screenPos, zoom);
+                player.Draw(sb, font, screenPos, zoom);
+                if (_hunterMarks.ContainsKey(player.Id))
+                    PlayerEntity.DrawHunterMark(sb, screenPos, zoom);
+            }));
+        }
+
+        drawables.Sort((a, b) => a.SortY.CompareTo(b.SortY));
+        foreach (var (_, draw) in drawables)
+            draw();
     }
 
     private void DrawPlayers(SpriteBatch sb, SpriteFont font, float drawZoom, long? houseId)

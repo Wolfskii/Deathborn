@@ -15,11 +15,13 @@ type zoneDef struct {
 
 // ZoneIndex maps world positions to named regions.
 type ZoneIndex struct {
-	zones []zoneDef
+	zones        []zoneDef
+	exclusionPad float64
 }
 
 func NewZoneIndex(terrain *worldmap.Map) *ZoneIndex {
 	ts := terrain.TileSize
+	scale := ts / 16.0
 	tileCenter := func(tx, ty int) (float64, float64) {
 		return (float64(tx)+0.5)*ts, (float64(ty)+0.5)*ts
 	}
@@ -29,13 +31,14 @@ func NewZoneIndex(terrain *worldmap.Map) *ZoneIndex {
 	sx, sy := tileCenter(112, 281)
 
 	return &ZoneIndex{
+		exclusionPad: safeExclusionPad * scale,
 		zones: []zoneDef{
 			{id: "starter_town", name: "Starter Town", safe: true,
-				centerX: terrain.DefaultSpawnX, centerY: terrain.DefaultSpawnY, halfW: 148, halfH: 128},
-			{id: "northhaven", name: "Northhaven", safe: true, centerX: nx, centerY: ny, halfW: 136, halfH: 118},
-			{id: "westmere", name: "Westmere", safe: true, centerX: wx, centerY: wy, halfW: 128, halfH: 112},
-			{id: "eastwatch", name: "Eastwatch", safe: true, centerX: ex, centerY: ey, halfW: 132, halfH: 116},
-			{id: "southport", name: "Southport", safe: true, centerX: sx, centerY: sy, halfW: 140, halfH: 120},
+				centerX: terrain.DefaultSpawnX, centerY: terrain.DefaultSpawnY, halfW: 148 * scale, halfH: 128 * scale},
+			{id: "northhaven", name: "Northhaven", safe: true, centerX: nx, centerY: ny, halfW: 136 * scale, halfH: 118 * scale},
+			{id: "westmere", name: "Westmere", safe: true, centerX: wx, centerY: wy, halfW: 128 * scale, halfH: 112 * scale},
+			{id: "eastwatch", name: "Eastwatch", safe: true, centerX: ex, centerY: ey, halfW: 132 * scale, halfH: 116 * scale},
+			{id: "southport", name: "Southport", safe: true, centerX: sx, centerY: sy, halfW: 140 * scale, halfH: 120 * scale},
 		},
 	}
 }
@@ -75,8 +78,8 @@ func (z *ZoneIndex) InMonsterExclusion(x, y float64) bool {
 		if !zd.safe {
 			continue
 		}
-		if x >= zd.centerX-zd.halfW-safeExclusionPad && x <= zd.centerX+zd.halfW+safeExclusionPad &&
-			y >= zd.centerY-zd.halfH-safeExclusionPad && y <= zd.centerY+zd.halfH+safeExclusionPad {
+		if x >= zd.centerX-zd.halfW-z.exclusionPad && x <= zd.centerX+zd.halfW+z.exclusionPad &&
+			y >= zd.centerY-zd.halfH-z.exclusionPad && y <= zd.centerY+zd.halfH+z.exclusionPad {
 			return true
 		}
 	}
@@ -95,15 +98,15 @@ func (z *ZoneIndex) PushOutOfMonsterExclusion(x, y float64) (float64, float64) {
 		if !zd.safe {
 			continue
 		}
-		minX := zd.centerX - zd.halfW - safeExclusionPad
-		maxX := zd.centerX + zd.halfW + safeExclusionPad
-		minY := zd.centerY - zd.halfH - safeExclusionPad
-		maxY := zd.centerY + zd.halfH + safeExclusionPad
+		minX := zd.centerX - zd.halfW - z.exclusionPad
+		maxX := zd.centerX + zd.halfW + z.exclusionPad
+		minY := zd.centerY - zd.halfH - z.exclusionPad
+		maxY := zd.centerY + zd.halfH + z.exclusionPad
 		candidates := [][2]float64{
-			{minX - 8, y},
-			{maxX + 8, y},
-			{x, minY - 8},
-			{x, maxY + 8},
+			{minX - 8 * (z.exclusionPad / safeExclusionPad), y},
+			{maxX + 8 * (z.exclusionPad / safeExclusionPad), y},
+			{x, minY - 8 * (z.exclusionPad / safeExclusionPad)},
+			{x, maxY + 8 * (z.exclusionPad / safeExclusionPad)},
 		}
 		for _, c := range candidates {
 			if z.InMonsterExclusion(c[0], c[1]) {

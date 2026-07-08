@@ -185,16 +185,17 @@ func (w *World) trySpawnBossLocked() bool {
 }
 
 func (w *World) spawnBossLocked(def bossDef, x, y float64) {
+	scale := w.worldScale()
 	id := w.bossMgr.nextID
 	w.bossMgr.nextID--
 	b := &boss{
 		id: id, defID: def.id, name: def.name,
 		x: x, y: y, spawnX: x, spawnY: y,
 		hp: def.hpMax, hpMax: def.hpMax,
-		speed: def.speed, radius: def.radius,
-		aggro: def.aggro, leash: def.leash,
+		speed: def.speed * scale, radius: def.radius * scale,
+		aggro: def.aggro * scale, leash: def.leash * scale,
 		ability: def.ability, abilityCD: def.abilityCD,
-		abilityDmg: def.abilityDmg, abilityRange: def.abilityRange,
+		abilityDmg: def.abilityDmg, abilityRange: def.abilityRange * scale,
 		dirY: 1,
 	}
 	w.bossMgr.bosses[id] = b
@@ -241,7 +242,7 @@ func (w *World) tickBossLocked(b *boss, dt float64) []BossEvent {
 		return events
 	}
 
-	if dist <= bossMeleeReach+b.radius+12 {
+	if dist <= bossMeleeReach*w.worldScale()+b.radius+12*w.worldScale() {
 		if b.attackT <= 0 {
 			b.action = "melee"
 			b.actionT = 0.45

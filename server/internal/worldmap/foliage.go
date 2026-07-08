@@ -3,11 +3,11 @@ package worldmap
 import "math"
 
 const (
-	foliageSeed          = 0xB00B5
-	foliageLandStride    = 2
-	foliageWaterStride   = 3
-	foliageTownPad       = 56.0
-	foliageSpawnClear    = 160.0
+	foliageSeed        = 0xB00B5
+	foliageLandStride  = 2
+	foliageWaterStride = 3
+	foliageTownPad     = 56.0
+	foliageSpawnClear  = 160.0
 )
 
 type foliageKind int
@@ -30,6 +30,9 @@ type foliageIndex struct {
 func (m *Map) buildFoliage() *foliageIndex {
 	idx := &foliageIndex{}
 	towns := m.townExclusions()
+	scale := m.TileSize / 16.0
+	townPad := foliageTownPad * scale
+	spawnClear := foliageSpawnClear * scale
 
 	for ty := 0; ty < m.TileHeight; ty += foliageLandStride {
 		for tx := 0; tx < m.TileWidth; tx += foliageLandStride {
@@ -37,7 +40,7 @@ func (m *Map) buildFoliage() *foliageIndex {
 				continue
 			}
 			posX, posY := m.jitteredPosition(tx, ty)
-			if m.inTown(towns, posX, posY) || m.nearSpawn(posX, posY) {
+			if m.inTown(towns, townPad, posX, posY) || m.nearSpawn(spawnClear, posX, posY) {
 				continue
 			}
 
@@ -51,7 +54,7 @@ func (m *Map) buildFoliage() *foliageIndex {
 			case rockRoll < 12:
 				idx.add(foliageRock, posX, posY, tx, ty)
 			case bushRoll < 28:
-				idx.add(foliageBush, posX, posY, tx, ty)
+				// Bushes are pass-through on the client; no server collider.
 			}
 		}
 	}
@@ -62,7 +65,7 @@ func (m *Map) buildFoliage() *foliageIndex {
 				continue
 			}
 			posX, posY := m.jitteredPosition(tx, ty)
-			if m.inTown(towns, posX, posY) {
+			if m.inTown(towns, townPad, posX, posY) {
 				continue
 			}
 			if foliageHash(tx, ty, 4)%1000 >= 22 {
@@ -77,20 +80,54 @@ func (m *Map) buildFoliage() *foliageIndex {
 
 func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	scale := 0.78 + float64(foliageHash(tx, ty, 10)%1000)/1000.0*0.38
-	var base float64
+	variant := foliageVariant(kind, tx, ty)
+	footInset, radius := foliageCollider(kind, variant, scale)
+	idx.circles = append(idx.circles, foliageCircle{
+		x:      x,
+		y:      y - footInset*scale,
+		radius: radius,
+	})
+}
+
+func foliageVariant(kind foliageKind, tx, ty int) int {
+	roll := foliageHash(tx, ty, 12)
+	switch kind {
+	case foliageBush:
+		return int(roll % 3)
+	case foliageTree:
+		return int(roll % 2)
+	case foliageRock, foliageWaterRock:
+		return int(roll % 4)
+	default:
+		return 0
+	}
+}
+
+func foliageCollider(kind foliageKind, variant int, scale float64) (footInset, radius float64) {
 	switch kind {
 	case foliageTree:
-		base = 20
+		if variant == 0 {
+			footInset = 23
+		} else {
+			footInset = 25
+		}
+		return footInset, 8 * scale
 	case foliageRock:
-		base = 15
-	case foliageBush:
-		base = 12
+		switch variant {
+		case 0:
+			return 14, 15 * scale
+		case 1:
+			return 12, 16 * scale
+		case 2:
+			return 13, 14 * scale
+		default:
+			return 9, 15 * scale
+		}
 	case foliageWaterRock:
-		base = 12
+		return 17, 12 * scale
+	default:
+		return 0, 0
 	}
-	idx.circles = append(idx.circles, foliageCircle{
-		x: x, y: y, radius: base * scale,
-	})
 }
 
 func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, float64) {
@@ -126,6 +163,7 @@ type townRect struct {
 }
 
 func (m *Map) townExclusions() []townRect {
+	scale := m.TileSize / 16.0
 	ts := m.TileSize
 	tileCenter := func(tx, ty int) (float64, float64) {
 		return (float64(tx)+0.5)*ts, (float64(ty)+0.5)*ts
@@ -135,29 +173,29 @@ func (m *Map) townExclusions() []townRect {
 	ex, ey := tileCenter(229, 128)
 	sx, sy := tileCenter(112, 281)
 	return []townRect{
-		{m.DefaultSpawnX, m.DefaultSpawnY, 148, 128},
-		{nx, ny, 136, 118},
-		{wx, wy, 128, 112},
-		{ex, ey, 132, 116},
-		{sx, sy, 140, 120},
+		{m.DefaultSpawnX, m.DefaultSpawnY, 148 * scale, 128 * scale},
+		{nx, ny, 136 * scale, 118 * scale},
+		{wx, wy, 128 * scale, 112 * scale},
+		{ex, ey, 132 * scale, 116 * scale},
+		{sx, sy, 140 * scale, 120 * scale},
 	}
 }
 
-func (m *Map) inTown(towns []townRect, x, y float64) bool {
+func (m *Map) inTown(towns []townRect, pad, x, y float64) bool {
 	for i := range towns {
 		t := &towns[i]
-		if x >= t.cx-t.halfW-foliageTownPad && x <= t.cx+t.halfW+foliageTownPad &&
-			y >= t.cy-t.halfH-foliageTownPad && y <= t.cy+t.halfH+foliageTownPad {
+		if x >= t.cx-t.halfW-pad && x <= t.cx+t.halfW+pad &&
+			y >= t.cy-t.halfH-pad && y <= t.cy+t.halfH+pad {
 			return true
 		}
 	}
 	return false
 }
 
-func (m *Map) nearSpawn(x, y float64) bool {
+func (m *Map) nearSpawn(clearRadius, x, y float64) bool {
 	dx := x - m.DefaultSpawnX
 	dy := y - m.DefaultSpawnY
-	return dx*dx+dy*dy < foliageSpawnClear*foliageSpawnClear
+	return dx*dx+dy*dy < clearRadius*clearRadius
 }
 
 func (m *Map) jitteredPosition(tx, ty int) (float64, float64) {
