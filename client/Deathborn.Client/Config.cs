@@ -2,7 +2,7 @@ namespace Deathborn.Client;
 
 public static class Config
 {
-    /// <summary>1 or 2 when spawned by <c>task dev:all</c>; 0 for a single client.</summary>
+    /// <summary>1+ when spawned by <c>task dev:all</c>; 0 for a single client.</summary>
     public static int DevInstance { get; } =
         int.TryParse(Environment.GetEnvironmentVariable("DEATHBORN_INSTANCE"), out var n) && n > 0 ? n : 0;
 

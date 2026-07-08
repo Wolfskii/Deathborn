@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# Start Go server in background, then two MonoGame clients for local multiplayer testing.
-# Used by: task dev / task dev:all
+# Start Go server in background, then N MonoGame clients for local multiplayer testing.
+# Used by: task dev / task dev:all [-- CLIENT_COUNT]
 set -e
+
+CLIENT_COUNT="${1:-1}"
+if ! [[ "$CLIENT_COUNT" =~ ^[0-9]+$ ]] || [ "$CLIENT_COUNT" -lt 1 ]; then
+  echo "Usage: task dev:all [-- CLIENT_COUNT]  (CLIENT_COUNT must be a positive integer, default 1)"
+  exit 1
+fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER_DIR="${ROOT}/server"
@@ -26,8 +32,7 @@ case "$(uname -s)" in
 esac
 
 SERVER_PID=""
-CLIENT1_PID=""
-CLIENT2_PID=""
+CLIENT_PIDS=()
 WATCH_PID=""
 
 file_mtime() {
@@ -37,21 +42,34 @@ file_mtime() {
 }
 
 stop_clients() {
-  for pid in "$CLIENT1_PID" "$CLIENT2_PID"; do
+  for pid in "${CLIENT_PIDS[@]}"; do
     if [ -n "$pid" ]; then
       kill "$pid" 2>/dev/null || true
       wait "$pid" 2>/dev/null || true
     fi
   done
-  CLIENT1_PID=""
-  CLIENT2_PID=""
+  CLIENT_PIDS=()
 }
 
 start_clients() {
-  DEATHBORN_INSTANCE=1 "$CLIENT_EXE" &
-  CLIENT1_PID=$!
-  DEATHBORN_INSTANCE=2 "$CLIENT_EXE" &
-  CLIENT2_PID=$!
+  local i
+  for ((i = 1; i <= CLIENT_COUNT; i++)); do
+    DEATHBORN_INSTANCE="$i" "$CLIENT_EXE" &
+    CLIENT_PIDS+=("$!")
+  done
+}
+
+all_clients_closed() {
+  local pid
+  if [ "${#CLIENT_PIDS[@]}" -eq 0 ]; then
+    return 0
+  fi
+  for pid in "${CLIENT_PIDS[@]}"; do
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      return 1
+    fi
+  done
+  return 0
 }
 
 cleanup() {
@@ -103,25 +121,28 @@ dotnet tool restore
 echo "Building MonoGame client..."
 dotnet build "$CLIENT_PROJECT" --configuration Debug
 
-echo "Starting two MonoGame clients..."
+if [ "$CLIENT_COUNT" -eq 1 ]; then
+  echo "Starting 1 MonoGame client..."
+else
+  echo "Starting ${CLIENT_COUNT} MonoGame clients..."
+fi
 start_clients
 
-echo "Watching for client changes (rebuild restarts both game windows)..."
+echo "Watching for client changes (rebuild restarts all game windows)..."
 dotnet watch build --project "$CLIENT_PROJECT" --configuration Debug &
 WATCH_PID=$!
 
 last_mtime="$(file_mtime "$CLIENT_DLL")"
 while kill -0 "$WATCH_PID" 2>/dev/null; do
-  if [ -n "$CLIENT1_PID" ] && ! kill -0 "$CLIENT1_PID" 2>/dev/null \
-     && [ -n "$CLIENT2_PID" ] && ! kill -0 "$CLIENT2_PID" 2>/dev/null; then
-    echo "Both clients closed."
+  if all_clients_closed; then
+    echo "All clients closed."
     break
   fi
 
   sleep 1
   current_mtime="$(file_mtime "$CLIENT_DLL")"
   if [ -n "$current_mtime" ] && [ "$current_mtime" != "$last_mtime" ]; then
-    echo "Client rebuilt — restarting both game windows..."
+    echo "Client rebuilt — restarting all game windows..."
     stop_clients
     start_clients
     last_mtime="$current_mtime"
