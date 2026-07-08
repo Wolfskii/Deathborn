@@ -1,0 +1,20 @@
+---
+description: Tiny Swords terrain tileset — elevation, cliffs, foam, shadows, autotiling
+globs: client/Deathborn.Client/Rendering/*Terrain*.cs,client/Deathborn.Client/Rendering/WaterTiles.cs,client/Deathborn.Client/Game/WorldMap.cs,scripts/generate_world_elevation.py,.tile_debug/tinyswords_guide.json
+alwaysApply: false
+---
+
+# Tiny Swords terrain
+
+Read [`.tile_debug/tinyswords_guide.json`](../../.tile_debug/tinyswords_guide.json) before changing terrain rendering or elevation generation.
+
+## Rules
+
+- Draw order: water → foam (el 0 only) → elevation layers 0..N (shadow → grass → cliff bases).
+- Autotile mask uses 4 neighbours; **same** = elevation ≥ cell elevation.
+- Cliffs face **south only**; one cliff-base row per drop. Pieces 17–20 (land) or 21–24 (water).
+- Shadow sprite is 128×128, placed one tile below elevated walkable cells.
+- `Tilemap_color{N}.png` palette matches elevation `N-1` (color1 = el 0, color2 = el 1, …).
+- Regenerate data: `python scripts/generate_world_elevation.py` after collision changes.
+
+See [AGENTS.md](../../AGENTS.md) for file map and generator notes.

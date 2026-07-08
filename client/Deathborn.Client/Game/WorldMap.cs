@@ -21,6 +21,8 @@ public sealed class WorldMap
     public Vector2 DefaultSpawn { get; private init; }
 
     private bool[] _walkable = [];
+    private sbyte[] _elevation = [];
+    private int _maxElevation;
     private Texture2D? _landOverlayTexture;
     private DateTime _collisionWriteTime;
     private DateTime _overlaySourceWriteTime;
@@ -28,8 +30,23 @@ public sealed class WorldMap
     public bool IsLand(int tx, int ty) =>
         (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight && _walkable[ty * TileWidth + tx];
 
+    public bool HasElevation => _elevation.Length > 0;
+    public int MaxElevation => _maxElevation;
+
+    public int GetElevation(int tx, int ty)
+    {
+        if ((uint)tx >= (uint)TileWidth || (uint)ty >= (uint)TileHeight)
+            return -1;
+        if (!HasElevation)
+            return IsLand(tx, ty) ? 0 : -1;
+        return _elevation[ty * TileWidth + tx];
+    }
+
     private static string CollisionPath =>
         Path.Combine(AppContext.BaseDirectory, "Content", "World", "realik_collision.bin");
+
+    private static string ElevationPath =>
+        Path.Combine(AppContext.BaseDirectory, "Content", "World", "realik_elevation.bin");
 
     private static WorldMap GetOrLoad()
     {
@@ -70,15 +87,46 @@ public sealed class WorldMap
 
         var spawn = FindSpawnTile(walkable, tw, th, tileSize);
         var writeTime = File.GetLastWriteTimeUtc(path);
+        var (elevation, maxElev) = TryLoadElevation(tw, th);
         return new WorldMap
         {
             TileWidth = tw,
             TileHeight = th,
             TileSize = tileSize,
             _walkable = walkable,
+            _elevation = elevation,
+            _maxElevation = maxElev,
             DefaultSpawn = spawn,
             _collisionWriteTime = writeTime,
         };
+    }
+
+    private static (sbyte[] elevation, int maxElev) TryLoadElevation(int tw, int th)
+    {
+        var path = ElevationPath;
+        if (!File.Exists(path))
+            return ([], 0);
+
+        var bytes = File.ReadAllBytes(path);
+        var expected = 9 + tw * th;
+        if (bytes.Length < 7 || bytes[0] != (byte)'E' || bytes[1] != (byte)'L' || bytes[2] != (byte)'E' || bytes[3] != (byte)'V')
+            return ([], 0);
+        if (bytes[4] != 1)
+            return ([], 0);
+
+        var etw = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(5, 2));
+        var eth = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(7, 2));
+        if (etw != tw || eth != th || bytes.Length < expected)
+            return ([], 0);
+
+        var elev = new sbyte[tw * th];
+        var max = 0;
+        for (var i = 0; i < elev.Length; i++)
+        {
+            elev[i] = (sbyte)bytes[9 + i];
+            if (elev[i] > max) max = elev[i];
+        }
+        return (elev, max);
     }
 
     private static Vector2 FindSpawnTile(bool[] grid, int tw, int th, float tileSize)
@@ -192,16 +240,23 @@ public sealed class WorldMap
         {
             if (!_walkable[ty * TileWidth + tx]) continue;
             var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
-            if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
-                DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
+            WaterTiles.TryDrawShoreFoam(sb, this, tx, ty, rect, camera, screenCenter, zoom);
         }
 
-        for (var ty = minTy; ty <= maxTy; ty++)
-        for (var tx = minTx; tx <= maxTx; tx++)
+        if (HasElevation && TinySwordsTerrain.IsLoaded)
         {
-            if (!_walkable[ty * TileWidth + tx]) continue;
-            var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
-            WaterTiles.TryDrawShoreFoam(sb, this, tx, ty, rect, camera, screenCenter, zoom);
+            TinySwordsTerrain.Draw(sb, this, camera, screenCenter, zoom);
+        }
+        else
+        {
+            for (var ty = minTy; ty <= maxTy; ty++)
+            for (var tx = minTx; tx <= maxTx; tx++)
+            {
+                if (!_walkable[ty * TileWidth + tx]) continue;
+                var rect = TileScreenRect(tx, ty, camera, screenCenter, zoom, TileSize);
+                if (!TerrainLandTiles.TryDrawLand(sb, this, tx, ty, rect))
+                    DrawPrimitives.FillRect(sb, rect, LandColor(tx, ty));
+            }
         }
     }
 

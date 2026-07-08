@@ -197,6 +197,7 @@ public static class WorldFoliage
             for (var tx = 0; tx < tw; tx += LandStride)
             {
                 if (!map.IsLand(tx, ty)) continue;
+                if (map.HasElevation && map.GetElevation(tx, ty) < 1) continue;
 
                 var pos = JitteredPosition(map, tx, ty);
                 if (InTown(pos) || NearSpawn(map, pos)) continue;

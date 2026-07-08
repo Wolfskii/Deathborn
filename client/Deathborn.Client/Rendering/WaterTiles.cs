@@ -47,7 +47,8 @@ public static class WaterTiles
         SpriteBatch sb, WorldMap map, int tx, int ty, Rectangle landRect,
         Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        if (_foamSheet == null || !map.IsLand(tx, ty) || !CardinallyBordersWater(map, tx, ty))
+        if (_foamSheet == null || !map.IsLand(tx, ty) || map.GetElevation(tx, ty) != 0
+            || !CardinallyBordersWater(map, tx, ty))
             return;
 
         var foamDest = ExpandDest(landRect, 3f);

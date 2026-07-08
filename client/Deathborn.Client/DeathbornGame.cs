@@ -85,6 +85,7 @@ public sealed class DeathbornGame : Game
         DungeonFloorTiles.Load(Content);
         WaterTiles.Load(Content);
         TerrainLandTiles.Load(Content);
+        TinySwordsTerrain.Load(Content);
         WorldFoliage.Load(Content);
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));

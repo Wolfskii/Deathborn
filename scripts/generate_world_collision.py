@@ -205,6 +205,12 @@ def main() -> None:
         f"water_filled={water_filled} -> {OUT}"
     )
 
+    import subprocess
+    import sys
+    elev_script = ROOT / "scripts" / "generate_world_elevation.py"
+    if elev_script.exists():
+        subprocess.run([sys.executable, str(elev_script)], check=False)
+
 
 if __name__ == "__main__":
     main()
