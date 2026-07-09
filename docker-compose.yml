@@ -25,7 +25,8 @@ services:
     # Dokploy writes UI env vars to `.env` next to this file; load them into the container.
     # See https://docs.dokploy.com/docs/core/docker-compose#environment
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-deathborn}:${POSTGRES_PASSWORD:-deathborn}@db:5432/${POSTGRES_DB:-deathborn}?sslmode=disable}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
