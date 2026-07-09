@@ -1,0 +1,36 @@
+{
+  "ability": {
+    "label": "Ability / item hotbar icons",
+    "columns": 5,
+    "rows": 4,
+    "install_path": "client/Deathborn.Client/Content/Icons/ability_sheet.png",
+    "atlas_class": "client/Deathborn.Client/Rendering/AbilityIconAtlas.cs",
+    "targets": {
+      "game": { "width": 1024, "height": 819 },
+      "canonical": { "width": 320, "height": 256, "cell": 64 }
+    },
+    "cells": [
+      ["slash", "shield_bash", "whirlwind", "warrior_dash", null],
+      ["fireball", "ice_shard", "arc_bolt", "blood_bolt", "poison_cloud"],
+      ["battle_shout", "iron_skin", "hunter_mark", "bandage", "second_wind"],
+      ["health_potion", "mana_potion", "stamina_potion", "antidote", "house_key"]
+    ]
+  },
+  "cosmetic": {
+    "label": "Cosmetic headwear icons",
+    "columns": 5,
+    "rows": 4,
+    "install_path": "client/Deathborn.Client/Content/Icons/cosmetic_sheet.png",
+    "atlas_class": "client/Deathborn.Client/Rendering/CosmeticIconAtlas.cs",
+    "targets": {
+      "game": { "width": 1024, "height": 819 },
+      "canonical": { "width": 320, "height": 256, "cell": 64 }
+    },
+    "cells": [
+      ["santa_hat", "party_hat", "jester_cap", "bucket_helmet", "pirate_hat"],
+      ["propeller_hat", "bunny_ears", "top_hat", "traffic_cone", "beer_helm"],
+      ["wizard_hat_torn", "crown_of_bones", "rubber_chicken_hat", "grim_hood", "gold_helm_rusty"],
+      ["fedora_of_shame", "clown_nose_glasses", "severed_elf_hat", null, null]
+    ]
+  }
+}

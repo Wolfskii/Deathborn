@@ -1,0 +1,202 @@
+{
+  "atlas": "ability",
+  "source": "C:\\Users\\dawid\\Projects\\Deathborn\\client\\Deathborn.Client\\Content\\Icons\\ability_sheet.png",
+  "standardized_sheet": "C:\\Users\\dawid\\Projects\\Deathborn\\.tile_debug\\sheets\\ability_sheet_standardized.png",
+  "target": "game",
+  "sheet_size": [
+    1024,
+    819
+  ],
+  "cells": [
+    {
+      "name": "slash",
+      "row": 0,
+      "col": 0,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/slash.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "shield_bash",
+      "row": 0,
+      "col": 1,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/shield_bash.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "whirlwind",
+      "row": 0,
+      "col": 2,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/whirlwind.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "warrior_dash",
+      "row": 0,
+      "col": 3,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/warrior_dash.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "fireball",
+      "row": 1,
+      "col": 0,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/fireball.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "ice_shard",
+      "row": 1,
+      "col": 1,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/ice_shard.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "arc_bolt",
+      "row": 1,
+      "col": 2,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/arc_bolt.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "blood_bolt",
+      "row": 1,
+      "col": 3,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/blood_bolt.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "poison_cloud",
+      "row": 1,
+      "col": 4,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/poison_cloud.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "battle_shout",
+      "row": 2,
+      "col": 0,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/battle_shout.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "iron_skin",
+      "row": 2,
+      "col": 1,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/iron_skin.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "hunter_mark",
+      "row": 2,
+      "col": 2,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/hunter_mark.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "bandage",
+      "row": 2,
+      "col": 3,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/bandage.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "second_wind",
+      "row": 2,
+      "col": 4,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/second_wind.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "health_potion",
+      "row": 3,
+      "col": 0,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/health_potion.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "mana_potion",
+      "row": 3,
+      "col": 1,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/mana_potion.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "stamina_potion",
+      "row": 3,
+      "col": 2,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/stamina_potion.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "antidote",
+      "row": 3,
+      "col": 3,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/antidote.png",
+      "size": [
+        204,
+        204
+      ]
+    },
+    {
+      "name": "house_key",
+      "row": 3,
+      "col": 4,
+      "file": ".tile_debug/sheets/ability_ability_sheet_cells/house_key.png",
+      "size": [
+        204,
+        204
+      ]
+    }
+  ]
+}
