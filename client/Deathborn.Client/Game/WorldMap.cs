@@ -10,6 +10,7 @@ public sealed class WorldMap
 {
     private static WorldMap? _realik;
     private static DateTime _sourceWriteTime;
+    private static DateTime _elevationSourceWriteTime;
 
     public static WorldMap Realik => GetOrLoad();
 
@@ -94,12 +95,14 @@ public sealed class WorldMap
     {
         var path = CollisionPath;
         var writeTime = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
-        if (_realik != null && writeTime == _sourceWriteTime)
+        var elevWriteTime = File.Exists(ElevationPath) ? File.GetLastWriteTimeUtc(ElevationPath) : DateTime.MinValue;
+        if (_realik != null && writeTime == _sourceWriteTime && elevWriteTime == _elevationSourceWriteTime)
             return _realik;
 
         _realik?._mapColorTexture?.Dispose();
         _realik = Load(path);
         _sourceWriteTime = writeTime;
+        _elevationSourceWriteTime = elevWriteTime;
         return _realik;
     }
 
@@ -372,7 +375,7 @@ public sealed class WorldMap
         _mapColorSourceWriteTime = sourceTime;
     }
 
-    /// <summary>Local area land fill for the circular minimap (centered on worldCenter).</summary>
+    /// <summary>Local terrain fill for the circular minimap (elevation + water colors).</summary>
     public void DrawLocalMinimap(
         SpriteBatch sb,
         Vector2 minimapCenter,
@@ -381,6 +384,8 @@ public sealed class WorldMap
         float worldRadius)
     {
         if (worldRadius <= 0f || minimapRadius <= 0f) return;
+
+        EnsureMapColorTexture(sb.GraphicsDevice);
 
         var scale = minimapRadius / worldRadius;
 
@@ -394,8 +399,6 @@ public sealed class WorldMap
         for (var ty = minTy; ty <= maxTy; ty++)
         for (var tx = minTx; tx <= maxTx; tx++)
         {
-            if (!_walkable[ty * TileWidth + tx]) continue;
-
             var left = minimapCenter.X + (tx * TileSize - worldCenter.X) * scale;
             var top = minimapCenter.Y + (ty * TileSize - worldCenter.Y) * scale;
             var right = minimapCenter.X + ((tx + 1) * TileSize - worldCenter.X) * scale;
@@ -413,22 +416,15 @@ public sealed class WorldMap
                 Math.Max(1, (int)MathF.Ceiling(right) - (int)MathF.Floor(left)),
                 Math.Max(1, (int)MathF.Ceiling(bottom) - (int)MathF.Floor(top)));
 
-            DrawPrimitives.FillRect(sb, rect, MinimapLandFill);
+            DrawPrimitives.FillRect(sb, rect, _mapTileColors[ty * TileWidth + tx]);
         }
     }
 
-    /// <summary>Scaled land silhouette for the circular minimap background.</summary>
-    public void DrawMinimapLand(SpriteBatch sb, Rectangle bounds)
-    {
-        EnsureOverlayTexture(sb.GraphicsDevice);
-        sb.Draw(_landOverlayTexture!, bounds, MinimapLandFill);
-    }
-
-    /// <summary>Land-only continent silhouette for the world map overlay.</summary>
+    /// <summary>Elevation-colored continent for the world map overlay (M).</summary>
     public void DrawOverlay(SpriteBatch sb, Rectangle bounds, Vector2 playerWorldPos)
     {
-        EnsureOverlayTexture(sb.GraphicsDevice);
-        sb.Draw(_landOverlayTexture!, bounds, Color.White);
+        EnsureMapColorTexture(sb.GraphicsDevice);
+        sb.Draw(_mapColorTexture!, bounds, Color.White);
 
         var px = bounds.X + playerWorldPos.X / WorldWidth * bounds.Width;
         var py = bounds.Y + playerWorldPos.Y / WorldHeight * bounds.Height;

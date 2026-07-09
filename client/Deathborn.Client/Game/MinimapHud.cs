@@ -8,7 +8,7 @@ namespace Deathborn.Client.Gameplay;
 /// <summary>Circular minimap in the top-right showing local terrain and nearby entities.</summary>
 public sealed class MinimapHud
 {
-    private static readonly Color WaterFill = new(0.06f, 0.12f, 0.24f, 0.95f);
+    private static readonly Color WaterFill = new(0.04f, 0.18f, 0.22f, 0.95f);
     private static readonly Color FrameFill = new(0.08f, 0.08f, 0.1f, 0.92f);
     private static readonly Color CompassColor = new(0.75f, 0.62f, 0.38f, 0.92f);
 
