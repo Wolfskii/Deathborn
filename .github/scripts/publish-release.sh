@@ -47,7 +47,7 @@ else
   echo "Creating tag ${TAG} at ${SHA}"
   if ! gh api --method POST "/repos/${REPO}/git/refs" \
     -f ref="refs/tags/${TAG}" \
-    -f sha="${SHA}" 2>post_err.txt; then
+    -f sha="${SHA}" >/dev/null 2>post_err.txt; then
     if grep -q 'Reference already exists' post_err.txt || resolve_tag_commit "$TAG" >/dev/null; then
       tag_sha="$(resolve_tag_commit "$TAG")"
       echo "Tag ${TAG} already exists on GitHub at ${tag_sha}"
@@ -79,12 +79,26 @@ jq -n --rawfile body release-notes.md \
   --arg tag "$TAG" \
   | gh api --method PATCH "/repos/${REPO}/releases/${release_id}" --input - >/dev/null
 
-is_latest="$(gh release view "$TAG" --json isLatest -q '.isLatest')"
 is_draft="$(gh release view "$TAG" --json isDraft -q '.isDraft')"
+is_latest="$(gh release list --limit 50 --json tagName,isLatest \
+  -q ".[] | select(.tagName==\"${TAG}\") | .isLatest")"
 echo "Release ${TAG}: draft=${is_draft} latest=${is_latest}"
 
-if [ "$is_draft" != "false" ] || [ "$is_latest" != "true" ]; then
-  echo "Release publish verification failed." >&2
+if [ "$is_draft" != "false" ]; then
+  echo "Release is still a draft." >&2
+  exit 1
+fi
+
+if [ "$is_latest" != "true" ]; then
+  echo "Release is not marked Latest; retrying make_latest"
+  gh api --method PATCH "/repos/${REPO}/releases/${release_id}" \
+    -f make_latest=true >/dev/null
+  is_latest="$(gh release list --limit 50 --json tagName,isLatest \
+    -q ".[] | select(.tagName==\"${TAG}\") | .isLatest")"
+fi
+
+if [ "$is_latest" != "true" ]; then
+  echo "Release publish verification failed (not Latest)." >&2
   exit 1
 fi
 

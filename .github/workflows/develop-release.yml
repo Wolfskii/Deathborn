@@ -45,8 +45,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          latest="$(gh release list --limit 100 --json tagName,isDraft,prerelease \
-            -q '.[] | select(.isDraft==false and .prerelease==false) | .tagName' \
+          latest="$(gh release list --limit 100 --json tagName,isDraft,isPrerelease \
+            -q '.[] | select(.isDraft==false and .isPrerelease==false) | .tagName' \
             | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)"
           if [ -z "$latest" ]; then
             latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"

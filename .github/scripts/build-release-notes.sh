@@ -6,8 +6,8 @@ TAG="${1:?release tag}"
 SHA="${2:?target commit sha}"
 REPO="${GITHUB_REPOSITORY:?}"
 
-prev="$(gh release list --limit 100 --json tagName,isDraft,prerelease \
-  -q '.[] | select(.isDraft==false and .prerelease==false) | .tagName' \
+prev="$(gh release list --limit 100 --json tagName,isDraft,isPrerelease \
+  -q '.[] | select(.isDraft==false and .isPrerelease==false) | .tagName' \
   | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vFx "$TAG" | sort -V | tail -1 || true)"
 if [ -z "$prev" ]; then
   prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vFx "$TAG" | head -1 || true)"
@@ -39,25 +39,12 @@ asset_link() {
   echo ""
   echo "## Downloads"
   echo ""
-
-  if [ "${#assets[@]}" -eq 0 ]; then
-    echo "_No release files were uploaded._"
-  else
-    echo "### All files"
-    echo ""
-    for name in "${assets[@]}"; do
-      echo "- [${name}](${BASE}/${name})"
-    done
-    echo ""
-    echo "### Quick picks"
-    echo ""
-    echo "| Platform | Portable | Installer |"
-    echo "| --- | --- | --- |"
-    echo "| Windows x64 | $(asset_link 'Deathborn-.*-win-x64\.zip$') | $(asset_link 'Deathborn-.*-win-x64-Setup\.exe$') |"
-    echo "| Linux x64 | $(asset_link 'Deathborn-.*-linux-x64\.zip$') | $(asset_link 'Deathborn-.*-linux-x64\.tar\.gz$') (run \`install.sh\`) |"
-    echo "| macOS Intel | $(asset_link 'Deathborn-.*-osx-x64\.zip$') | $(asset_link 'Deathborn-.*-osx-x64\.dmg$') |"
-    echo "| macOS Apple Silicon | $(asset_link 'Deathborn-.*-osx-arm64\.zip$') | $(asset_link 'Deathborn-.*-osx-arm64\.dmg$') |"
-  fi
+  echo "| Platform | Portable | Installer |"
+  echo "| --- | --- | --- |"
+  echo "| Windows x64 | $(asset_link 'Deathborn-.*-win-x64\.zip$') | $(asset_link 'Deathborn-.*-win-x64-Setup\.exe$') |"
+  echo "| Linux x64 | $(asset_link 'Deathborn-.*-linux-x64\.zip$') | $(asset_link 'Deathborn-.*-linux-x64\.tar\.gz$') (run \`install.sh\`) |"
+  echo "| macOS Intel | $(asset_link 'Deathborn-.*-osx-x64\.zip$') | $(asset_link 'Deathborn-.*-osx-x64\.dmg$') |"
+  echo "| macOS Apple Silicon | $(asset_link 'Deathborn-.*-osx-arm64\.zip$') | $(asset_link 'Deathborn-.*-osx-arm64\.dmg$') |"
 
   echo ""
   if [ -n "$prev" ]; then
