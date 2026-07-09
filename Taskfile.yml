@@ -134,14 +134,16 @@ tasks:
       - task: dev:client
 
   client:build:
-    desc: Build the MonoGame client (Release)
+    desc: Build the MonoGame client (Release) and reveal the .exe in Explorer/Finder
     dir: "{{.CLIENT_DIR}}"
     cmds:
       - dotnet tool restore
       - dotnet build Deathborn.Client/Deathborn.Client.csproj -c Release
+      - bash ../scripts/reveal-artifact.sh Deathborn.Client/bin/Release/net8.0/Deathborn.Client
 
-  client:publish:
-    desc: Publish a self-contained client zip in dist/ (send the zip to friends)
+  client:publish:run:
+    internal: true
+    desc: Publish self-contained client (no Explorer reveal)
     dir: "{{.CLIENT_DIR}}"
     vars:
       VERSION_STRIP:
@@ -163,11 +165,17 @@ tasks:
           (cd publish && zip -r "$out" .)
         fi
         echo "Published: $out"
-        echo "Run: publish/Deathborn.Client.exe (keep the whole publish/ folder together)"
+
+  client:publish:
+    desc: Publish a self-contained client zip in dist/ and reveal the .exe
+    cmds:
+      - task: client:publish:run
+      - cmd: bash ../scripts/reveal-artifact.sh publish/Deathborn.Client
+        dir: "{{.CLIENT_DIR}}"
 
   client:installer:
-    desc: Build Windows setup wizard in dist/ (requires Inno Setup 6)
-    deps: [client:publish]
+    desc: Build Windows setup wizard in dist/ and reveal the Setup.exe
+    deps: [client:publish:run]
     vars:
       VERSION_STRIP:
         sh: echo "{{.VERSION}}" | sed 's/^v//'

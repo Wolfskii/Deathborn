@@ -45,4 +45,6 @@ cd "$ROOT/installer"
 # Use -D not /D: Git Bash mangles /D* into a Windows path and ISCC sees two "scripts".
 "$ISCC_BIN" "-DMyAppVersion=$VERSION" "Deathborn.iss"
 
-echo "Installer: $ROOT/dist/Deathborn-${VERSION}-win-x64-Setup.exe"
+SETUP_EXE="$ROOT/dist/Deathborn-${VERSION}-win-x64-Setup.exe"
+echo "Installer: $SETUP_EXE"
+bash "$ROOT/scripts/reveal-artifact.sh" "$SETUP_EXE"
