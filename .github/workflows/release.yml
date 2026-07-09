@@ -90,7 +90,7 @@ jobs:
             --draft \
             --title "Deathborn ${RELEASE_TAG}" \
             --notes "Client builds in progress. Download links will appear when the release is published."
-          if gh api "/repos/${GITHUB_REPOSITORY}/git/refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+          if gh api "/repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
             echo "Draft ${RELEASE_TAG} created; git tag present on GitHub"
           else
             echo "Draft ${RELEASE_TAG} created; tag will be ensured at publish time"

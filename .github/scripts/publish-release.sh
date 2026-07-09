@@ -20,14 +20,16 @@ if [ "${asset_count}" -eq 0 ]; then
   exit 1
 fi
 
+# GET /git/ref/tags/{tag} (singular "ref") — not /git/refs/tags/...
 resolve_tag_commit() {
   local tag="$1"
-  if ! gh api "/repos/${REPO}/git/refs/tags/${tag}" >/dev/null 2>&1; then
+  local ref_api="/repos/${REPO}/git/ref/tags/${tag}"
+  if ! gh api "$ref_api" >/dev/null 2>&1; then
     return 1
   fi
   local type obj_sha
-  type="$(gh api "/repos/${REPO}/git/refs/tags/${tag}" -q '.object.type')"
-  obj_sha="$(gh api "/repos/${REPO}/git/refs/tags/${tag}" -q '.object.sha')"
+  type="$(gh api "$ref_api" -q '.object.type')"
+  obj_sha="$(gh api "$ref_api" -q '.object.sha')"
   if [ "$type" = "tag" ]; then
     obj_sha="$(gh api "/repos/${REPO}/git/tags/${obj_sha}" -q '.object.sha')"
   fi
@@ -42,25 +44,25 @@ if tag_sha="$(resolve_tag_commit "$TAG")"; then
     gh api --method PATCH "/repos/${REPO}/git/refs/tags/${TAG}" \
       -f sha="${SHA}" \
       -F force=true >/dev/null
+    tag_sha="$SHA"
   fi
 else
-  echo "Creating tag ${TAG} at ${SHA}"
-  if ! gh api --method POST "/repos/${REPO}/git/refs" \
+  echo "Tag ${TAG} not found via git API; creating at ${SHA}"
+  if gh api --method POST "/repos/${REPO}/git/refs" \
     -f ref="refs/tags/${TAG}" \
     -f sha="${SHA}" >/dev/null 2>post_err.txt; then
-    if grep -q 'Reference already exists' post_err.txt || resolve_tag_commit "$TAG" >/dev/null; then
-      tag_sha="$(resolve_tag_commit "$TAG")"
-      echo "Tag ${TAG} already exists on GitHub at ${tag_sha}"
-    else
-      cat post_err.txt >&2
-      exit 1
-    fi
+    tag_sha="$(resolve_tag_commit "$TAG" || true)"
+  elif grep -q 'Reference already exists' post_err.txt 2>/dev/null || resolve_tag_commit "$TAG" >/dev/null 2>&1; then
+    tag_sha="$(resolve_tag_commit "$TAG" || printf '%s' "$SHA")"
+    echo "Tag ${TAG} already exists on GitHub at ${tag_sha}"
   else
-    tag_sha="$(resolve_tag_commit "$TAG")"
+    cat post_err.txt >&2
+    echo "Warning: could not verify tag ${TAG}; continuing publish (release already owns this tag)." >&2
+    tag_sha="$SHA"
   fi
 fi
 
-echo "Tag ${TAG} -> ${tag_sha:-<missing>}"
+echo "Tag ${TAG} -> ${tag_sha:-$SHA}"
 
 bash "$(dirname "$0")/build-release-notes.sh" "$TAG" "$SHA" > release-notes.md
 

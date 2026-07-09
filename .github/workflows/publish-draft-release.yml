@@ -29,11 +29,7 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          type="$(gh api "/repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" -q '.object.type')"
-          sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" -q '.object.sha')"
-          if [ "$type" = "tag" ]; then
-            sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/tags/${sha}" -q '.object.sha')"
-          fi
+          sha="$(gh api "/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" -q '.target_commitish')"
           echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
