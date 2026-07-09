@@ -139,6 +139,7 @@ jobs:
       - name: Install MGCB native dependencies (macOS)
         if: runner.os == 'macOS'
         shell: bash
+        working-directory: client
         run: |
           set -euo pipefail
           brew install freeimage freetype
