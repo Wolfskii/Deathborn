@@ -151,7 +151,7 @@ public sealed class SpellProjectile : IWorldEffect
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, float zoom)
     {
-        if (ProjectileSprites.IsLoaded && Style is ProjectileStyle.Ice or ProjectileStyle.Arrow or ProjectileStyle.Blood)
+        if (ProjectileSprites.IsLoaded && Style is ProjectileStyle.Arrow or ProjectileStyle.Blood)
         {
             DrawArrow(sb, screenPos, zoom);
             return;
