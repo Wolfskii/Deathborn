@@ -64,10 +64,10 @@ public static class TinySwordsUi
         };
         if (tex == null) return;
 
-        if (kind is PanelKind.Paper or PanelKind.PaperSpecial or PanelKind.Wood && tex.Width >= 300)
-            DrawNineSliceGrid(sb, tex, dest, grid: 3, gutter: 12, alpha: alpha);
+        if (kind is PanelKind.Paper or PanelKind.PaperSpecial)
+            DrawShowcase320NineSlice(sb, tex, dest, PaperSlices, alpha);
         else
-            DrawNineSliceGrid(sb, tex, dest, grid: 3, gutter: 0, alpha: alpha);
+            DrawGridNineSlice(sb, tex, dest, grid: 3, cell: SlotCell, alpha);
     }
 
     public static void DrawRibbon(
@@ -75,7 +75,8 @@ public static class TinySwordsUi
     {
         if (_ribbonSmall == null) return;
         var row = RibbonRowIndex(kind, pointed);
-        DrawHorizontalThreeSlice(sb, _ribbonSmall, dest, row, alpha);
+        var caps = pointed ? SmallRibbonPointedCaps : SmallRibbonAsymmetricCaps;
+        DrawRibbonThreeSlice(sb, _ribbonSmall, dest, row, caps, alpha);
     }
 
     public static void DrawBigRibbon(
@@ -83,7 +84,8 @@ public static class TinySwordsUi
     {
         if (_ribbonBig == null) return;
         var row = RibbonRowIndex(kind, pointed);
-        DrawHorizontalThreeSlice(sb, _ribbonBig, dest, row, alpha);
+        var caps = pointed ? BigRibbonPointedCaps : BigRibbonAsymmetricCaps;
+        DrawRibbonThreeSlice(sb, _ribbonBig, dest, row, caps, alpha);
     }
 
     public static void DrawButton(
@@ -95,7 +97,7 @@ public static class TinySwordsUi
             _ => pressed ? _btnBluePressed : _btnBlue,
         };
         if (tex == null) return;
-        DrawNineSliceGrid(sb, tex, dest, grid: 3, gutter: 12, alpha: alpha);
+        DrawShowcase320NineSlice(sb, tex, dest, ButtonSlices, alpha);
     }
 
     public static void DrawBar(
@@ -105,7 +107,7 @@ public static class TinySwordsUi
         var fillTex = big ? _barBigFill : _barSmallFill;
         if (baseTex == null || fillTex == null) return;
 
-        DrawHorizontalThreeSlice(sb, baseTex, dest, row: 0, alpha);
+        DrawHorizontalBarSlice(sb, baseTex, dest, row: 0, alpha);
         var inset = 6;
         var inner = new Rectangle(dest.X + inset, dest.Y + inset, dest.Width - inset * 2, dest.Height - inset * 2);
         if (inner.Width <= 0 || inner.Height <= 0) return;
@@ -123,7 +125,157 @@ public static class TinySwordsUi
     private static int RibbonRowIndex(RibbonKind kind, bool pointed) =>
         (int)kind * 2 + (pointed ? 0 : 1);
 
-    private static void DrawHorizontalThreeSlice(
+    /// <summary>Pre-baked 9-slice rects for 320×320 showcase sheets (buttons / parchment).</summary>
+    private static readonly NineSliceSpec ButtonSlices = new(
+        topLeft: new(19, 17, 45, 47),
+        top: new(128, 17, 64, 47),
+        topRight: new(256, 17, 45, 47),
+        left: new(19, 128, 45, 64),
+        center: new(128, 128, 64, 64),
+        right: new(256, 128, 45, 64),
+        bottomLeft: new(19, 256, 45, 47),
+        bottom: new(128, 256, 64, 47),
+        bottomRight: new(256, 256, 45, 47));
+
+    private static readonly NineSliceSpec PaperSlices = new(
+        topLeft: new(12, 20, 52, 44),
+        top: new(128, 20, 64, 44),
+        topRight: new(256, 20, 52, 44),
+        left: new(12, 128, 52, 64),
+        center: new(128, 128, 64, 64),
+        right: new(256, 128, 52, 64),
+        bottomLeft: new(12, 256, 52, 45),
+        bottom: new(128, 256, 64, 43),
+        bottomRight: new(256, 256, 52, 45));
+
+    /// <summary>Left / middle / right cap source rects (y is relative to row; added at draw time).</summary>
+    private readonly struct RibbonCapSpec(Rectangle left, Rectangle mid, Rectangle right)
+    {
+        public Rectangle Left { get; } = left;
+        public Rectangle Mid { get; } = mid;
+        public Rectangle Right { get; } = right;
+    }
+
+    // ui_ribbon_small.png — caps sit in columns 0, 2, 4 (not 0, 1, 2).
+    private static readonly RibbonCapSpec SmallRibbonAsymmetricCaps = new(
+        left: new(2, 5, 62, 59),
+        mid: new(128, 4, 64, 55),
+        right: new(256, 5, 62, 59));
+
+    private static readonly RibbonCapSpec SmallRibbonPointedCaps = new(
+        left: new(3, 4, 61, 54),
+        mid: new(128, 4, 64, 54),
+        right: new(256, 4, 61, 54));
+
+    // ui_ribbon_big.png — wide showcase caps per row style.
+    private static readonly RibbonCapSpec BigRibbonAsymmetricCaps = new(
+        left: new(41, 20, 87, 44),
+        mid: new(192, 22, 64, 42),
+        right: new(320, 20, 87, 44));
+
+    private static readonly RibbonCapSpec BigRibbonPointedCaps = new(
+        left: new(30, 0, 98, 59),
+        mid: new(192, 0, 64, 47),
+        right: new(320, 0, 97, 57));
+
+    private readonly struct NineSliceSpec(
+        Rectangle topLeft, Rectangle top, Rectangle topRight,
+        Rectangle left, Rectangle center, Rectangle right,
+        Rectangle bottomLeft, Rectangle bottom, Rectangle bottomRight)
+    {
+        public int BorderLeft => topLeft.Width;
+        public int BorderTop => topLeft.Height;
+        public int BorderRight => topRight.Width;
+        public int BorderBottom => bottomLeft.Height;
+
+        public Rectangle TopLeft { get; } = topLeft;
+        public Rectangle Top { get; } = top;
+        public Rectangle TopRight { get; } = topRight;
+        public Rectangle Left { get; } = left;
+        public Rectangle Center { get; } = center;
+        public Rectangle Right { get; } = right;
+        public Rectangle BottomLeft { get; } = bottomLeft;
+        public Rectangle Bottom { get; } = bottom;
+        public Rectangle BottomRight { get; } = bottomRight;
+    }
+
+    private static void DrawShowcase320NineSlice(
+        SpriteBatch sb, Texture2D tex, Rectangle dest, NineSliceSpec spec, float alpha) =>
+        DrawNineSlice(sb, tex, dest, spec, alpha);
+
+    private static void DrawGridNineSlice(
+        SpriteBatch sb, Texture2D tex, Rectangle dest, int grid, int cell, float alpha)
+    {
+        int SrcX(int col) => col * cell;
+        int SrcY(int row) => row * cell;
+
+        var spec = new NineSliceSpec(
+            topLeft: new(SrcX(0), SrcY(0), cell, cell),
+            top: new(SrcX(1), SrcY(0), cell, cell),
+            topRight: new(SrcX(2), SrcY(0), cell, cell),
+            left: new(SrcX(0), SrcY(1), cell, cell),
+            center: new(SrcX(1), SrcY(1), cell, cell),
+            right: new(SrcX(2), SrcY(1), cell, cell),
+            bottomLeft: new(SrcX(0), SrcY(2), cell, cell),
+            bottom: new(SrcX(1), SrcY(2), cell, cell),
+            bottomRight: new(SrcX(2), SrcY(2), cell, cell));
+
+        DrawNineSlice(sb, tex, dest, spec, alpha);
+    }
+
+    private static void DrawNineSlice(
+        SpriteBatch sb, Texture2D tex, Rectangle dest, NineSliceSpec spec, float alpha)
+    {
+        var left = spec.BorderLeft;
+        var right = spec.BorderRight;
+        var top = spec.BorderTop;
+        var bottom = spec.BorderBottom;
+        var centerW = Math.Max(0, dest.Width - left - right);
+        var centerH = Math.Max(0, dest.Height - top - bottom);
+        var color = Color.White * alpha;
+
+        sb.Draw(tex, new Rectangle(dest.X, dest.Y, left, top), spec.TopLeft, color);
+        if (centerW > 0)
+            sb.Draw(tex, new Rectangle(dest.X + left, dest.Y, centerW, top), spec.Top, color);
+        sb.Draw(tex, new Rectangle(dest.Right - right, dest.Y, right, top), spec.TopRight, color);
+
+        if (centerH > 0)
+        {
+            sb.Draw(tex, new Rectangle(dest.X, dest.Y + top, left, centerH), spec.Left, color);
+            if (centerW > 0)
+                sb.Draw(tex, new Rectangle(dest.X + left, dest.Y + top, centerW, centerH), spec.Center, color);
+            sb.Draw(tex, new Rectangle(dest.Right - right, dest.Y + top, right, centerH), spec.Right, color);
+        }
+
+        sb.Draw(tex, new Rectangle(dest.X, dest.Bottom - bottom, left, bottom), spec.BottomLeft, color);
+        if (centerW > 0)
+            sb.Draw(tex, new Rectangle(dest.X + left, dest.Bottom - bottom, centerW, bottom), spec.Bottom, color);
+        sb.Draw(tex, new Rectangle(dest.Right - right, dest.Bottom - bottom, right, bottom), spec.BottomRight, color);
+    }
+
+    private static void DrawRibbonThreeSlice(
+        SpriteBatch sb, Texture2D tex, Rectangle dest, int row, RibbonCapSpec caps, float alpha)
+    {
+        var srcY = row * RibbonRow;
+        var leftSrc = OffsetY(caps.Left, srcY);
+        var midSrc = OffsetY(caps.Mid, srcY);
+        var rightSrc = OffsetY(caps.Right, srcY);
+
+        var scale = dest.Height / (float)Math.Max(leftSrc.Height, 1);
+        var leftW = Math.Max(1, (int)MathF.Round(leftSrc.Width * scale));
+        var rightW = Math.Max(1, (int)MathF.Round(rightSrc.Width * scale));
+        var capH = dest.Height;
+        var midW = Math.Max(0, dest.Width - leftW - rightW);
+        var y = dest.Y + (dest.Height - capH) / 2;
+        var color = Color.White * alpha;
+
+        sb.Draw(tex, new Rectangle(dest.X, y, leftW, capH), leftSrc, color);
+        if (midW > 0)
+            sb.Draw(tex, new Rectangle(dest.X + leftW, y, midW, capH), midSrc, color);
+        sb.Draw(tex, new Rectangle(dest.X + leftW + midW, y, rightW, capH), rightSrc, color);
+    }
+
+    private static void DrawHorizontalBarSlice(
         SpriteBatch sb, Texture2D tex, Rectangle dest, int row, float alpha)
     {
         var cell = RibbonCol;
@@ -142,55 +294,5 @@ public static class TinySwordsUi
             new Rectangle(cell * 2, srcY, cell, cell), color);
     }
 
-    private static void DrawNineSliceGrid(
-        SpriteBatch sb, Texture2D tex, Rectangle dest, int grid, int gutter, float alpha)
-    {
-        var totalGutter = gutter * (grid - 1);
-        var cellW = (tex.Width - totalGutter) / grid;
-        var cellH = (tex.Height - totalGutter) / grid;
-
-        int SrcX(int col) => col * (cellW + gutter);
-        int SrcY(int row) => row * (cellH + gutter);
-
-        var left = cellW;
-        var right = cellW;
-        var top = cellH;
-        var bottom = cellH;
-        var centerW = Math.Max(0, dest.Width - left - right);
-        var centerH = Math.Max(0, dest.Height - top - bottom);
-        var color = Color.White * alpha;
-
-        // corners
-        sb.Draw(tex, new Rectangle(dest.X, dest.Y, left, top),
-            new Rectangle(SrcX(0), SrcY(0), cellW, cellH), color);
-        sb.Draw(tex, new Rectangle(dest.Right - right, dest.Y, right, top),
-            new Rectangle(SrcX(2), SrcY(0), cellW, cellH), color);
-        sb.Draw(tex, new Rectangle(dest.X, dest.Bottom - bottom, left, bottom),
-            new Rectangle(SrcX(0), SrcY(2), cellW, cellH), color);
-        sb.Draw(tex, new Rectangle(dest.Right - right, dest.Bottom - bottom, right, bottom),
-            new Rectangle(SrcX(2), SrcY(2), cellW, cellH), color);
-
-        // edges
-        if (centerW > 0)
-        {
-            sb.Draw(tex, new Rectangle(dest.X + left, dest.Y, centerW, top),
-                new Rectangle(SrcX(1), SrcY(0), cellW, cellH), color);
-            sb.Draw(tex, new Rectangle(dest.X + left, dest.Bottom - bottom, centerW, bottom),
-                new Rectangle(SrcX(1), SrcY(2), cellW, cellH), color);
-        }
-
-        if (centerH > 0)
-        {
-            sb.Draw(tex, new Rectangle(dest.X, dest.Y + top, left, centerH),
-                new Rectangle(SrcX(0), SrcY(1), cellW, cellH), color);
-            sb.Draw(tex, new Rectangle(dest.Right - right, dest.Y + top, right, centerH),
-                new Rectangle(SrcX(2), SrcY(1), cellW, cellH), color);
-        }
-
-        if (centerW > 0 && centerH > 0)
-        {
-            sb.Draw(tex, new Rectangle(dest.X + left, dest.Y + top, centerW, centerH),
-                new Rectangle(SrcX(1), SrcY(1), cellW, cellH), color);
-        }
-    }
+    private static Rectangle OffsetY(Rectangle src, int y) => new(src.X, src.Y + y, src.Width, src.Height);
 }
