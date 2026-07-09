@@ -5,6 +5,8 @@
 #   2. Copy .env.example → .env and set DATABASE_URL + JWT_SECRET.
 #   3. Deploy this compose file (server service only — no bundled db).
 #      docker compose up -d --build
+#   Server joins `dokploy-network` so it can resolve Dokploy-managed Postgres hostnames.
+#   Local `task up`: run once — docker network create dokploy-network
 #
 # Local full stack (bundled Postgres 18):
 #   docker compose --profile local up --build -d
@@ -47,6 +49,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    networks:
+      - default
+      - dokploy-network
     # Uncomment when using a pre-built GHCR image instead of building on Dokploy:
     # image: ghcr.io/<owner>/deathborn:latest
 
@@ -75,3 +80,7 @@ services:
 
 volumes:
   dbdata:
+
+networks:
+  dokploy-network:
+    external: true
