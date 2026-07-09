@@ -6,7 +6,7 @@ Deathborn UI icons use **cozy dark fantasy** pixel art:
 
 - Dark fantasy lore, but bright nostalgic SNES/GBA readability
 - Charming, handcrafted, slightly cute — not grim horror realism
-- Colorful but controlled palette; readable on dark UI backgrounds
+- Colorful but controlled palette
 - Crisp pixels, soft ramps, subtle outlines, gentle highlights
 
 **Inspirations:** Eastward, CrossCode, Moonlighter, Sea of Stars (palette), Hero Siege, Secrets of Grindea
@@ -17,12 +17,27 @@ Deathborn UI icons use **cozy dark fantasy** pixel art:
 
 | Preset | Canvas | Grid | Cell |
 |--------|--------|------|------|
-| `game` (MonoGame) | 1024×819 | 5×4 | ~204×204 (integer division) |
+| `game` (MonoGame) | 1024×819 | 5×4 | distributed (204/205px) |
 | `canonical` (prompts) | 320×256 | 5×4 | 64×64 |
 
-Background: soft dark purple-gray (`#1A1624`), not pure black.
+### Background & borders (important)
 
-Optional border: subtle tarnished bronze / worn iron.
+**Do NOT draw per-icon UI frames or borders in generated sheets.**
+
+The game draws slot borders/backgrounds in UI code so every hotbar/inventory slot looks identical.
+
+Generated sheets should use a **flat chroma-key background** for easy transparency:
+
+- Default key color: **pure green `#00FF00`**
+- Alternative for green-heavy icons: **magenta `#FF00FF`**
+- Fill the entire cell with the key color — no gradients, no vignettes, no texture
+- Empty cells: solid key color only
+
+Post-process with:
+
+```bash
+python scripts/slice_sprite_sheet.py sheet.png --atlas ability --chroma-key --install
+```
 
 ## Ability sheet (`ability`)
 
@@ -145,7 +160,8 @@ One primary object per cell, ~70–80% of tile, strong silhouette, minimal clutt
 CONSISTENCY
 ========================================================
 
-Same pixel density, shading, lighting, border style, and saturation across all cells.
+Same pixel density, shading, lighting, and saturation across all cells.
+No per-cell decorative frames or borders.
 
 ========================================================
 COMPOSITION
@@ -161,16 +177,34 @@ Lighting:
 - avoid harsh black shadows
 
 ========================================================
-TECHNICAL REQUIREMENTS
+TECHNICAL REQUIREMENTS (CRITICAL)
 ========================================================
 
 Grid: 5 columns × 4 rows (20 cells)
 Each cell: 64×64 pixels
 Canvas: 320×256 pixels
 No spacing between cells
-Background: soft dark purple-gray (#1A1624)
-Optional subtle tarnished bronze border
-No text, letters, numbers, or logos
+
+Background for every cell:
+- flat solid chroma-key green (#00FF00)
+- uniform color, no gradients, no texture, no noise
+- fills the entire cell edge-to-edge
+
+DO NOT include:
+- decorative borders or frames around icons
+- ornate metal corners
+- dark UI panel backgrounds
+- vignettes or inner shadows on the cell
+- text, letters, numbers, or logos
+
+Empty cells:
+- solid #00FF00 only
+
+The game adds slot borders and dark UI backgrounds at runtime.
+Icons are exported with transparent backgrounds via chroma-key processing.
+
+Avoid using pure #00FF00 anywhere inside the icon artwork itself.
+If an icon needs bright green, use a different green (e.g. #2ECC40).
 
 ========================================================
 ICON LIST
@@ -184,14 +218,19 @@ FINAL QUALITY GOAL
 
 Production-ready indie pixel RPG sprite sheet.
 Cozy dark fantasy — cute, crisp, colorful, highly readable, consistent.
-Ready for immediate slicing into 64×64 game assets.
+Icons on flat green-screen cells, no baked UI frames.
+Ready for chroma-key removal and slicing into 64×64 transparent game assets.
 ```
 
 ## Installing a pasted sheet (no AI)
 
 ```bash
-python scripts/slice_sprite_sheet.py path/to/new_sheet.png --atlas ability --install
-python scripts/slice_sprite_sheet.py path/to/new_sheet.png --atlas cosmetic --install
+# New workflow (green-screen sheets)
+python scripts/slice_sprite_sheet.py path/to/new_sheet.png --atlas ability --chroma-key --install
+python scripts/slice_sprite_sheet.py path/to/new_sheet.png --atlas cosmetic --chroma-key --install
+
+# Magenta key for green-heavy art
+python scripts/slice_sprite_sheet.py sheet.png --atlas cosmetic --chroma-key "#FF00FF" --install
 ```
 
 Optional flags:
@@ -199,6 +238,8 @@ Optional flags:
 - `--target canonical` — keep 320×256 instead of game size
 - `--cells-out .tile_debug/ability_cells` — custom output folder
 - `--skip-empty` — skip unnamed cells
-- `--sheet-out /tmp/ability_standardized.png` — custom standardized sheet path
+- `--tolerance 24` — loosen/tighten chroma-key removal
+- `--inset 2` — trim cell edges after slicing
+- `--sheet-out /tmp/ability_processed.png` — custom processed sheet path
 
 Cell names and layout: `scripts/sprite_sheet_atlases.json`

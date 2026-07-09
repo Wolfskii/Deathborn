@@ -9,6 +9,7 @@
       "game": { "width": 1024, "height": 819 },
       "canonical": { "width": 320, "height": 256, "cell": 64 }
     },
+    "chroma_key": "#00FF00",
     "cells": [
       ["slash", "shield_bash", "whirlwind", "warrior_dash", null],
       ["fireball", "ice_shard", "arc_bolt", "blood_bolt", "poison_cloud"],
@@ -26,6 +27,7 @@
       "game": { "width": 1024, "height": 819 },
       "canonical": { "width": 320, "height": 256, "cell": 64 }
     },
+    "chroma_key": "#00FF00",
     "cells": [
       ["santa_hat", "party_hat", "jester_cap", "bucket_helmet", "pirate_hat"],
       ["propeller_hat", "bunny_ears", "top_hat", "traffic_cone", "beer_helm"],

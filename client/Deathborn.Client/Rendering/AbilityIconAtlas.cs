@@ -11,8 +11,6 @@ public static class AbilityIconAtlas
     public const int Rows = 4;
 
     private static Texture2D? _sheet;
-    private static int _cellWidth;
-    private static int _cellHeight;
 
     private static readonly Dictionary<string, Point> Cells = new()
     {
@@ -42,19 +40,26 @@ public static class AbilityIconAtlas
     public static void Load(ContentManager content)
     {
         _sheet = content.Load<Texture2D>("Icons/ability_sheet");
-        _cellWidth = _sheet.Width / Columns;
-        _cellHeight = _sheet.Height / Rows;
     }
 
     public static bool HasIcon(string? id) =>
         !string.IsNullOrEmpty(id) && Cells.ContainsKey(id);
+
+    private static Rectangle CellSourceRect(Point cell)
+    {
+        var x0 = _sheet!.Width * cell.X / Columns;
+        var x1 = _sheet.Width * (cell.X + 1) / Columns;
+        var y0 = _sheet.Height * cell.Y / Rows;
+        var y1 = _sheet.Height * (cell.Y + 1) / Rows;
+        return new Rectangle(x0, y0, x1 - x0, y1 - y0);
+    }
 
     public static bool TryDraw(SpriteBatch sb, string? id, Rectangle dest)
     {
         if (_sheet == null || string.IsNullOrEmpty(id) || !Cells.TryGetValue(id, out var cell))
             return false;
 
-        var src = new Rectangle(cell.X * _cellWidth, cell.Y * _cellHeight, _cellWidth, _cellHeight);
+        var src = CellSourceRect(cell);
         sb.Draw(_sheet, dest, src, Color.White);
         return true;
     }

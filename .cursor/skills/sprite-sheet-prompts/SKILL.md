@@ -4,7 +4,8 @@ description: >-
   Generate Deathborn cozy-dark-fantasy pixel-art sprite sheet prompts and
   process pasted icon sheets without AI. Use when creating or updating
   ability_sheet.png, cosmetic_sheet.png, hotbar icons, inventory icons,
-  icon atlas prompts, or when the user pastes a new sprite sheet to install.
+  icon atlas prompts, green-screen chroma key sheets, or when the user pastes
+  a new sprite sheet to install.
 ---
 
 # Deathborn sprite sheet prompts
@@ -22,6 +23,8 @@ Deathborn icon art = **dark fantasy lore + bright nostalgic pixel execution**.
 - Cozy, charming, readable SNES/GBA indie RPG icons
 - Colorful but controlled; not grim Diablo horror realism
 - Crisp handcrafted pixels, soft ramps, subtle outlines
+- **No baked UI borders** — game draws slot frames in UI
+- **Flat chroma-key background** (`#00FF00`) for transparency in post
 - See [reference.md](reference.md) for palette, inspirations, and cell layouts
 
 ## Workflow A — generate a prompt
@@ -32,8 +35,13 @@ Deathborn icon art = **dark fantasy lore + bright nostalgic pixel execution**.
    - sheet title (e.g. "ability/item hotbar", "cosmetic headwear")
    - full icon list in row order (5 columns × 4 rows)
    - any sheet-specific notes (whimsical cosmetics, spell themes, empty cells)
-4. Output the finished prompt inside a single fenced code block for easy copy/paste.
-5. Mention technical targets: prompt canvas `320×256` (64px cells); game install size `1024×819`.
+4. **Always include** the chroma-key technical block:
+   - flat `#00FF00` cell background
+   - no decorative borders/frames
+   - empty cells = solid green only
+   - avoid `#00FF00` inside icon art
+5. Output the finished prompt inside a single fenced code block for easy copy/paste.
+6. Mention: prompt canvas `320×256`; process with `--chroma-key`; game install via `--install`.
 
 Do **not** generate images unless the user explicitly asks. Default deliverable is the text prompt.
 
@@ -42,22 +50,24 @@ Do **not** generate images unless the user explicitly asks. Default deliverable 
 When the user provides a new PNG sheet, install it with the slicer (no AI):
 
 ```bash
-python scripts/slice_sprite_sheet.py "<path-to-sheet>" --atlas ability --install
-python scripts/slice_sprite_sheet.py "<path-to-sheet>" --atlas cosmetic --install
+python scripts/slice_sprite_sheet.py "<path-to-sheet>" --atlas ability --chroma-key --install
+python scripts/slice_sprite_sheet.py "<path-to-sheet>" --atlas cosmetic --chroma-key --install
 ```
 
 Steps:
 
 1. Identify atlas type from context or ask if unclear (`ability` vs `cosmetic`).
 2. Save the attached image to a temp or content path if needed.
-3. Run `scripts/slice_sprite_sheet.py` with `--install`.
-4. Report: input size, standardized size, install path, number of sliced cells.
-5. Remind user to rebuild client content / restart game to see changes.
+3. Run `scripts/slice_sprite_sheet.py` with `--chroma-key` and `--install`.
+4. If the sheet has no green-screen bg (legacy art), omit `--chroma-key`.
+5. If icons contain lots of green, use `--chroma-key "#FF00FF"`.
+6. Report: input size, processed size, chroma settings, install path, sliced cell count.
+7. Remind user to rebuild client content / restart game to see changes.
 
 Optional inspection:
 
 ```bash
-python scripts/slice_sprite_sheet.py sheet.png --atlas ability --cells-out .tile_debug/ability_cells --skip-empty
+python scripts/slice_sprite_sheet.py sheet.png --atlas ability --chroma-key --cells-out .tile_debug/ability_cells --skip-empty
 ```
 
 ## Adding a new atlas type
@@ -72,5 +82,5 @@ python scripts/slice_sprite_sheet.py sheet.png --atlas ability --cells-out .tile
 | File | Purpose |
 |------|---------|
 | [reference.md](reference.md) | Style guide, cell maps, prompt template |
-| `scripts/slice_sprite_sheet.py` | Standardize + slice + install sheets |
-| `scripts/sprite_sheet_atlases.json` | Atlas layouts and install paths |
+| `scripts/slice_sprite_sheet.py` | Standardize, chroma-key, slice, install |
+| `scripts/sprite_sheet_atlases.json` | Atlas layouts, install paths, default key color |
