@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="client/Deathborn.Client/Content/Images/Logos/logo_no_text.png" alt="Deathborn logo" width="300">
+</p>
+
 # DEATHBORN
 
 > You are born to die. Only skill decides when.
@@ -8,6 +12,12 @@ The server is fully authoritative; the client only sends input and renders state
 This repository currently contains the **Walking Skeleton (M0)** — the thinnest
 end-to-end vertical slice. See [docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md) for the
 full phased plan toward the MVP.
+
+<p align="center">
+  <img src="docs/assets/readme-swordsman-run.gif" alt="Swordsman running sideways" width="128">
+</p>
+
+<p align="center"><em>“Run like you’ve got another life — you don’t.”</em></p>
 
 ## What works today (M0)
 
