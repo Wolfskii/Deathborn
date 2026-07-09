@@ -95,9 +95,85 @@ For Docker-only server (no local client): `task up`
 
 Check **Remember email and password** on the login screen to pre-fill credentials on the next launch.
 
-Server URL defaults to `127.0.0.1:8080` — edit [client/Deathborn.Client/Config.cs](client/Deathborn.Client/Config.cs).
+Server URL: local `127.0.0.1:8080` when a dev server is running, otherwise production — see [Server URL](#server-url) below and [client/README.md](client/README.md).
 
 See [client/README.md](client/README.md) for client-specific details.
+
+## Shipping the client (Windows)
+
+Build a self-contained release and package it for friends. **You only need the .NET SDK on your machine** — friends do not need .NET installed.
+
+### Prerequisites (your machine)
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- [Task](https://taskfile.dev)
+- **Installer only:** [Inno Setup 6](https://jrsoftware.org/isdl.php)
+
+```bash
+winget install JRSoftware.InnoSetup
+```
+
+### Option A — Windows installer (recommended)
+
+One file to send; adds Start Menu entry, desktop shortcut, and uninstaller.
+
+```bash
+task client:installer
+```
+
+Output: `dist/Deathborn-<version>-win-x64-Setup.exe`
+
+Send friends **only that Setup.exe**. They run it, click through the wizard, and launch from the desktop or Start Menu.
+
+The installer bundles the full game (runtime, assets, world data). It is **not** just the `.exe` from `client/publish/`.
+
+### Option B — Zip (no installer)
+
+Portable folder — unzip and run `Deathborn.Client.exe` inside.
+
+```bash
+task client:publish
+```
+
+Output: `dist/Deathborn-<version>-win-x64.zip`
+
+Send the **whole zip**. Friends must extract everything and keep the files together; copying only the `.exe` will not work.
+
+### What friends need
+
+| Item | Installer | Zip |
+| --- | --- | --- |
+| Windows x64 | Yes | Yes |
+| .NET installed | No | No |
+| Your live server | Yes* | Yes* |
+| Extract / keep folder together | No (installer handles it) | Yes |
+
+\*By default the client uses `https://api.deathborn.wolfskii.dev` when no local server is running. Ensure production is up, or tell friends to set `DEATHBORN_SERVER_URL` (see [client/README.md](client/README.md)).
+
+### Server URL
+
+The client picks a server automatically ([`ServerEndpoints.cs`](client/Deathborn.Client/Net/ServerEndpoints.cs)):
+
+1. `DEATHBORN_SERVER_URL` environment variable, if set
+2. `http://127.0.0.1:8080` if `/health` responds (local dev)
+3. `https://api.deathborn.wolfskii.dev` (production)
+
+To point a installed build at another host without rebuilding:
+
+```bat
+set DEATHBORN_SERVER_URL=https://your-api.example.com
+"C:\Program Files\Deathborn\Deathborn.Client.exe"
+```
+
+### Installer internals
+
+Scripts live under [`installer/`](installer/):
+
+- `Deathborn.iss` — Inno Setup wizard (logo, swordsman run animation, flavor text)
+- `prepare_assets.py` — generates wizard bitmaps from game art
+- `build-installer.sh` — called by `task client:installer`
+
+Re-run `task client:installer` after any client or content change you want friends to receive.
 
 ## Common tasks
 
@@ -109,8 +185,9 @@ This repo uses [Task](https://taskfile.dev) (`Taskfile.yml`). Run `task` to list
 | `task dev:server` | Backend only — Go server on host |
 | `task dev:client` | Frontend only — MonoGame client (server must be running) |
 | `task up` / `task stop` | Full stack in Docker only (no local client) |
+| `task client:build` | Release compile only (CI / quick check) |
 | `task client:publish` | Self-contained client zip in `dist/` |
-| `task client:installer` | Windows setup wizard in `dist/` (needs [Inno Setup 6](https://jrsoftware.org/isdl.php)) |
+| `task client:installer` | Windows setup wizard in `dist/` (needs Inno Setup 6) |
 | `task check` | Server fmt + vet + test + client build |
 | `task release -- v0.1.0` | Tag release (triggers GitHub Actions) |
 

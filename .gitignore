@@ -16,6 +16,7 @@ installer/assets/
 # .NET / MonoGame client
 client/**/bin/
 client/**/obj/
+client/publish/
 client/**/.vs/
 
 # OS / editor
