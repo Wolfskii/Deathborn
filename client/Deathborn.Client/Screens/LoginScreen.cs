@@ -49,6 +49,7 @@ public sealed class LoginScreen : IScreen
     private int _viewportW;
     private int _viewportH;
     private readonly ReapersCallLyrics _lyrics = new();
+    private readonly ClientUpdateOverlay _clientUpdate = new();
 
     public LoginScreen(ScreenManager screens) => _screens = screens;
 
@@ -84,6 +85,8 @@ public sealed class LoginScreen : IScreen
         net.Welcome += OnWelcome;
         net.NeedCharacter += OnNeedCharacter;
         net.Disconnected += OnDisconnected;
+
+        _ = _clientUpdate.CheckOnLoginAsync();
     }
 
     public void OnExit()
@@ -112,6 +115,16 @@ public sealed class LoginScreen : IScreen
         var kb = Keyboard.GetState();
         var mouse = Mouse.GetState();
         _mouse = mouse.Position;
+
+        if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released)
+            _clientUpdate.Update(_mouse, clicked: true);
+
+        if (_clientUpdate.BlocksInput)
+        {
+            _prevKb = kb;
+            _prevMouse = mouse;
+            return;
+        }
 
         if (_busy && !_waitingWorld)
         {
@@ -197,6 +210,8 @@ public sealed class LoginScreen : IScreen
         sb.DrawString(font, versionLine,
             new Vector2(cx - versionSize.X / 2f, GameViewport.Height - versionSize.Y - 10),
             new Color(120, 110, 100), 0f, Vector2.Zero, 0.72f, SpriteEffects.None, 0f);
+
+        _clientUpdate.Draw(sb, font);
 
         sb.End();
     }

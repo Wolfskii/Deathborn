@@ -35,15 +35,17 @@ jobs:
             rid: osx-x64
           - runner: macos-latest
             rid: osx-arm64
-    defaults:
-      run:
-        working-directory: client
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
+
+      - uses: actions/setup-python@v6
+        if: runner.os == 'Windows'
+        with:
+          python-version: "3.12"
 
       - name: Install MGCB native dependencies (macOS)
         if: runner.os == 'macOS'
@@ -61,10 +63,11 @@ jobs:
       - name: Publish Deathborn client
         shell: bash
         env:
-          VERSION: ${{ env.RELEASE_TAG }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
           set -euo pipefail
-          version="${VERSION#v}"
+          version="${RELEASE_TAG#v}"
+          cd client
           dotnet tool restore
           dotnet restore Deathborn.Client.sln
           dotnet publish Deathborn.Client/Deathborn.Client.csproj \
@@ -72,34 +75,63 @@ jobs:
             -r "${{ matrix.rid }}" \
             --self-contained true \
             -p:Version="$version" \
-            -o publish
+            -o "publish/${{ matrix.rid }}"
 
-      - name: Pack (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        working-directory: client
-        env:
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
-        run: |
-          $version = $env:RELEASE_TAG.Substring(1)
-          New-Item -ItemType Directory -Force -Path ../dist | Out-Null
-          Compress-Archive -Path "publish/*" -DestinationPath "../dist/Deathborn-$version-${{ matrix.rid }}.zip"
-
-      - name: Pack (Unix)
-        if: runner.os != 'Windows'
+      - name: Portable zip
         shell: bash
         env:
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
-          mkdir -p ../dist
-          (cd publish && zip -r "../../dist/Deathborn-${version}-${{ matrix.rid }}.zip" .)
+          mkdir -p dist
+          (cd "client/publish/${{ matrix.rid }}" && zip -r "../../../dist/Deathborn-${version}-${{ matrix.rid }}.zip" .)
+
+      - name: Install Inno Setup (Windows)
+        if: runner.os == 'Windows'
+        run: choco install innosetup -y --no-progress
+
+      - name: Windows installer (Setup.exe)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          $version = $env:RELEASE_TAG.Substring(1)
+          pip install pillow
+          python installer/prepare_assets.py
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC not found at $iscc" }
+          & $iscc "-DMyAppVersion=$version" "installer\Deathborn.iss"
+
+      - name: Linux package (tar.gz + install.sh)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          bash installer/package-linux.sh "$version" "${{ matrix.rid }}"
+
+      - name: macOS package (.dmg)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          bash installer/package-macos.sh "$version" "${{ matrix.rid }}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: client-${{ matrix.rid }}
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.dmg
+            dist/*-Setup.exe
           if-no-files-found: error
 
   docker:
@@ -156,14 +188,19 @@ jobs:
         run: |
           shopt -s nullglob
           mkdir -p release
-          find dist -name '*.zip' -exec cp {} release/ \;
+          find dist -type f \( \
+            -name '*.zip' -o \
+            -name '*.tar.gz' -o \
+            -name '*.dmg' -o \
+            -name '*-Setup.exe' \
+          \) -exec cp {} release/ \;
           ls -la release/
-          test "$(ls -1 release/*.zip 2>/dev/null | wc -l)" -gt 0
+          test "$(find release -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' | wc -l)" -gt 0
 
       - name: Generate checksums
         run: |
           cd release
-          sha256sum *.zip > SHA256SUMS.txt
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
       - name: Generate changelog
         env:
@@ -181,6 +218,15 @@ jobs:
             fi
             echo ""
             echo ""
+            echo "## Client downloads"
+            echo ""
+            echo "| Platform | Portable | Installer |"
+            echo "| --- | --- | --- |"
+            echo "| Windows x64 | \`Deathborn-*-win-x64.zip\` | \`Deathborn-*-win-x64-Setup.exe\` |"
+            echo "| Linux x64 | \`Deathborn-*-linux-x64.zip\` | \`Deathborn-*-linux-x64.tar.gz\` (run \`install.sh\`) |"
+            echo "| macOS Intel | \`Deathborn-*-osx-x64.zip\` | \`Deathborn-*-osx-x64.dmg\` |"
+            echo "| macOS Apple Silicon | \`Deathborn-*-osx-arm64.zip\` | \`Deathborn-*-osx-arm64.dmg\` |"
+            echo ""
             if [ -n "$prev" ]; then
               echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${prev}...${RELEASE_TAG}"
             fi
@@ -195,5 +241,5 @@ jobs:
           name: Deathborn ${{ env.RELEASE_TAG }}
           body_path: release-notes.md
           files: |
-            release/*.zip
-            release/SHA256SUMS.txt
+            release/*
+            !release/release-notes.md

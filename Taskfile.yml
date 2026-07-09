@@ -235,26 +235,32 @@ tasks:
     vars:
       VERSION_STRIP:
         sh: echo "{{.VERSION}}" | sed 's/^v//'
+      MAC_RID:
+        sh: |
+          case "$(uname -m)" in
+            arm64) echo osx-arm64 ;;
+            *) echo osx-x64 ;;
+          esac
     cmds:
       - task: client:publish:run
-      - bash installer/package-macos.sh {{.VERSION_STRIP}} {{.CLIENT_RID}}
-      - bash scripts/reveal-artifact.sh dist/Deathborn-{{.VERSION_STRIP}}-{{.CLIENT_RID}}.dmg
+        vars: { RID: "{{.MAC_RID}}" }
+      - bash installer/package-macos.sh {{.VERSION_STRIP}} {{.MAC_RID}}
+      - bash scripts/reveal-artifact.sh dist/Deathborn-{{.VERSION_STRIP}}-{{.MAC_RID}}.dmg
+
+  client:package:win:
+    desc: Windows Setup.exe (alias for client:installer)
+    cmds:
+      - task: client:installer
 
   client:package:
     desc: Build the native installer/package for this OS
     cmds:
-      - |
-        case "$(uname -s)" in
-          MINGW*|MSYS*|CYGWIN*|Windows*)
-            task client:installer
-            ;;
-          Darwin)
-            task client:package:mac
-            ;;
-          *)
-            task client:package:linux
-            ;;
-        esac
+      - task: client:package:win
+        platforms: [windows]
+      - task: client:package:mac
+        platforms: [darwin]
+      - task: client:package:linux
+        platforms: [linux]
 
   client:installer:
     desc: Build Windows setup wizard in dist/ and reveal the Setup.exe

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/deathborn/server/internal/auth"
+	"github.com/deathborn/server/internal/clientupdate"
 	"github.com/deathborn/server/internal/config"
 	"github.com/deathborn/server/internal/db"
 	"github.com/deathborn/server/internal/game"
@@ -87,6 +88,7 @@ func main() {
 	})
 
 	authH := auth.NewHandler(database, cfg.JWTSecret)
+	updateH := clientupdate.NewHandler()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/register", authH.Register)
@@ -99,6 +101,7 @@ func main() {
 	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		protocol.WriteInfo(w, protocol.InfoForRelease(version))
 	})
+	mux.Handle("/client/update", updateH)
 
 	srv := &http.Server{
 		Addr:    cfg.HTTPAddr(),
