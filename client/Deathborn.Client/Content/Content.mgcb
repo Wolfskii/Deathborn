@@ -764,6 +764,20 @@
 
 #end Ui/ui_btn_red_pressed.png
 
+#begin Ui/ui_btn_red_tiny.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Ui/ui_btn_red_tiny.png
+
+#end Ui/ui_btn_red_tiny.png
+
 #begin Ui/ui_paper_regular.png
 /importer:TextureImporter
 /processor:TextureProcessor

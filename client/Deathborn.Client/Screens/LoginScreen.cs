@@ -48,6 +48,7 @@ public sealed class LoginScreen : IScreen
     private int _brazierBottomY;
     private int _viewportW;
     private int _viewportH;
+    private readonly ReapersCallLyrics _lyrics = new();
 
     public LoginScreen(ScreenManager screens) => _screens = screens;
 
@@ -57,6 +58,7 @@ public sealed class LoginScreen : IScreen
         _logo ??= game.Content.Load<Texture2D>("Images/Logos/logo_no_text");
         _theme ??= game.Content.Load<Song>("Audio/Songs/The Reaper\u2019s Call");
         MusicPlayer.Play(_theme);
+        _lyrics.Reset(_theme);
 
         Layout();
         _status = "";
@@ -105,6 +107,7 @@ public sealed class LoginScreen : IScreen
 
         _leftBrazier.Update(gameTime);
         _rightBrazier.Update(gameTime);
+        _lyrics.Update();
 
         var kb = Keyboard.GetState();
         var mouse = Mouse.GetState();
@@ -166,6 +169,8 @@ public sealed class LoginScreen : IScreen
 
         _leftBrazier.Draw(sb, _leftBrazierX, _brazierBottomY);
         _rightBrazier.Draw(sb, _rightBrazierX, _brazierBottomY);
+
+        _lyrics.Draw(sb, font, GameViewport.Width, GameViewport.Height);
 
         DrawPanel(sb, _panel);
 

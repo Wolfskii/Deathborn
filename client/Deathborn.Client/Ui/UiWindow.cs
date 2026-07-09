@@ -14,7 +14,7 @@ public abstract class UiWindow
     protected static readonly Color GoldDim = new(130, 105, 55);
 
     private const int TitleBarHeight = 28;
-    private const int CloseSize = 20;
+    private const int CloseSize = 22;
     private const int Border = 2;
 
     private bool _dragging;
@@ -28,7 +28,11 @@ public abstract class UiWindow
     public Action? OnBringToFront;
 
     private Rectangle TitleBar => new(Bounds.X, Bounds.Y, Bounds.Width, TitleBarHeight);
-    private Rectangle CloseButton => new(Bounds.Right - CloseSize - 4, Bounds.Y + 4, CloseSize, CloseSize);
+    private Rectangle CloseButton => new(
+        Bounds.Right - CloseSize - 6,
+        Bounds.Y + (TitleBarHeight - CloseSize) / 2,
+        CloseSize,
+        CloseSize);
     private Rectangle ContentArea => new(
         Bounds.X + Border,
         Bounds.Y + TitleBarHeight + Border,
@@ -119,14 +123,15 @@ public abstract class UiWindow
         if (TinySwordsUi.IsLoaded)
         {
             TinySwordsUi.DrawPanel(sb, Bounds, TinySwordsUi.PanelKind.Wood);
-            var ribbon = new Rectangle(Bounds.X + 8, Bounds.Y + 6, Bounds.Width - 16, TitleBarHeight + 4);
+            var close = CloseButton;
+            var ribbonW = Math.Max(120, Bounds.Width - 16 - (Bounds.Right - close.X) - 4);
+            var ribbon = new Rectangle(Bounds.X + 8, Bounds.Y + 6, ribbonW, TitleBarHeight + 4);
             TinySwordsUi.DrawRibbon(sb, ribbon, TinySwordsUi.RibbonKind.Gold, pointed: true);
             var titlePos = new Vector2(Bounds.X + 16, Bounds.Y + 10);
             sb.DrawString(font, Title, titlePos, new Color(255, 245, 220));
 
-            var close = CloseButton;
             var hover = close.Contains(Mouse.GetState().Position);
-            TinySwordsUi.DrawButton(sb, close, TinySwordsUi.ButtonKind.Red, hover, 0.95f);
+            TinySwordsUi.DrawCloseButton(sb, close, hover, 0.95f);
             DrawCloseGlyph(sb, close, hover);
             DrawContent(sb, font, ContentArea);
             return;
@@ -148,11 +153,13 @@ public abstract class UiWindow
 
     private static void DrawCloseGlyph(SpriteBatch sb, Rectangle rect, bool hover)
     {
-        var x = rect.X + 4;
-        var y = rect.Y + 4;
+        var pad = Math.Max(5, rect.Width / 5);
+        var x = rect.X + pad;
+        var y = rect.Y + pad;
         var col = hover ? Color.White : new Color(255, 230, 220);
-        DrawPrimitives.DrawLine(sb, new Vector2(x, y), new Vector2(rect.Right - 4, rect.Bottom - 4), col, 2f);
-        DrawPrimitives.DrawLine(sb, new Vector2(rect.Right - 4, y), new Vector2(x, rect.Bottom - 4), col, 2f);
+        var thick = Math.Max(1.5f, rect.Width / 14f);
+        DrawPrimitives.DrawLine(sb, new Vector2(x, y), new Vector2(rect.Right - pad, rect.Bottom - pad), col, thick);
+        DrawPrimitives.DrawLine(sb, new Vector2(rect.Right - pad, y), new Vector2(x, rect.Bottom - pad), col, thick);
     }
 
     private void DrawCloseButton(SpriteBatch sb, SpriteFont font, Rectangle rect, bool hover)

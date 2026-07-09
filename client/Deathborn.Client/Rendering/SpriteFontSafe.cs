@@ -37,18 +37,35 @@ public static class SpriteFontSafe
     public static void DrawOutlined(
         SpriteBatch sb, SpriteFont font, string? text, Vector2 position, Color fill, Color outline, float outlinePx = 1f)
     {
+        DrawOutlined(sb, font, text, position, fill, outline, scale: 1f, outlinePx);
+    }
+
+    public static void DrawOutlined(
+        SpriteBatch sb, SpriteFont font, string? text, Vector2 position, Color fill, Color outline,
+        float scale, float outlinePx = 1f, float alpha = 1f)
+    {
         var safe = Filter(text);
         if (safe.Length == 0) return;
 
+        fill *= alpha;
+        outline *= alpha;
         var o = MathF.Max(1f, outlinePx);
-        sb.DrawString(font, safe, position + new Vector2(-o, 0), outline);
-        sb.DrawString(font, safe, position + new Vector2(o, 0), outline);
-        sb.DrawString(font, safe, position + new Vector2(0, -o), outline);
-        sb.DrawString(font, safe, position + new Vector2(0, o), outline);
-        sb.DrawString(font, safe, position + new Vector2(-o, -o), outline);
-        sb.DrawString(font, safe, position + new Vector2(o, -o), outline);
-        sb.DrawString(font, safe, position + new Vector2(-o, o), outline);
-        sb.DrawString(font, safe, position + new Vector2(o, o), outline);
-        sb.DrawString(font, safe, position, fill);
+        DrawOutlinePass(sb, font, safe, position, outline, scale, o);
+        sb.DrawString(font, safe, position, fill, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        if (scale > 1.02f)
+            sb.DrawString(font, safe, position + new Vector2(0.5f, 0f), fill * 0.55f, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+    }
+
+    private static void DrawOutlinePass(
+        SpriteBatch sb, SpriteFont font, string safe, Vector2 position, Color outline, float scale, float o)
+    {
+        sb.DrawString(font, safe, position + new Vector2(-o, 0), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.DrawString(font, safe, position + new Vector2(o, 0), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.DrawString(font, safe, position + new Vector2(0, -o), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.DrawString(font, safe, position + new Vector2(0, o), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.DrawString(font, safe, position + new Vector2(-o, -o), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.DrawString(font, safe, position + new Vector2(o, -o), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.DrawString(font, safe, position + new Vector2(-o, o), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.DrawString(font, safe, position + new Vector2(o, o), outline, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 }

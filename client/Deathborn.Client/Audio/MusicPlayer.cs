@@ -19,6 +19,9 @@ public static class MusicPlayer
     public static float Volume => _volume;
     /// <summary>Volume shown on the slider; 0 while muted.</summary>
     public static float DisplayVolume => IsMuted ? 0f : _volume;
+    public static bool IsPlaying => _trackPlaying && MediaPlayer.State == MediaState.Playing;
+    public static TimeSpan PlayPosition => MediaPlayer.PlayPosition;
+    public static TimeSpan? CurrentDuration => _current?.Duration;
 
     public static void ApplySavedSettings()
     {

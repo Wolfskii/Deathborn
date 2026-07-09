@@ -8,6 +8,7 @@ namespace Deathborn.Client.Rendering;
 public static class TinySwordsUi
 {
     public const int SlotCell = 64;
+    public const int GridPanelBorder = 22;
     public const int RibbonRow = 64;
     public const int RibbonCol = 64;
 
@@ -21,6 +22,7 @@ public static class TinySwordsUi
     private static Texture2D? _btnBluePressed;
     private static Texture2D? _btnRed;
     private static Texture2D? _btnRedPressed;
+    private static Texture2D? _btnRedTiny;
     private static Texture2D? _barBigBase;
     private static Texture2D? _barBigFill;
     private static Texture2D? _barSmallBase;
@@ -40,6 +42,7 @@ public static class TinySwordsUi
         _btnBluePressed = content.Load<Texture2D>("Ui/ui_btn_blue_pressed");
         _btnRed = content.Load<Texture2D>("Ui/ui_btn_red");
         _btnRedPressed = content.Load<Texture2D>("Ui/ui_btn_red_pressed");
+        _btnRedTiny = content.Load<Texture2D>("Ui/ui_btn_red_tiny");
         _barBigBase = content.Load<Texture2D>("Ui/ui_bar_big_base");
         _barBigFill = content.Load<Texture2D>("Ui/ui_bar_big_fill");
         _barSmallBase = content.Load<Texture2D>("Ui/ui_bar_small_base");
@@ -97,7 +100,29 @@ public static class TinySwordsUi
             _ => pressed ? _btnBluePressed : _btnBlue,
         };
         if (tex == null) return;
-        DrawShowcase320NineSlice(sb, tex, dest, ButtonSlices, alpha);
+
+        var spec = ButtonSlices;
+        if (dest.Width < spec.BorderLeft + spec.BorderRight - 8
+            || dest.Height < spec.BorderTop + spec.BorderBottom - 8)
+        {
+            DrawSprite(sb, tex, dest, spec.Center, alpha);
+            return;
+        }
+
+        DrawShowcase320NineSlice(sb, tex, dest, spec, alpha);
+    }
+
+    /// <summary>Small round red close/icon button (title bars, compact UI).</summary>
+    public static void DrawCloseButton(SpriteBatch sb, Rectangle dest, bool pressed, float alpha = 1f)
+    {
+        if (_btnRedTiny == null)
+        {
+            DrawButton(sb, dest, ButtonKind.Red, pressed, alpha);
+            return;
+        }
+
+        var tint = (pressed ? new Color(210, 210, 210) : Color.White) * alpha;
+        sb.Draw(_btnRedTiny, dest, tint);
     }
 
     public static void DrawBar(
@@ -206,19 +231,20 @@ public static class TinySwordsUi
     private static void DrawGridNineSlice(
         SpriteBatch sb, Texture2D tex, Rectangle dest, int grid, int cell, float alpha)
     {
-        int SrcX(int col) => col * cell;
-        int SrcY(int row) => row * cell;
+        var b = GridPanelBorder;
+        int Cx(int col) => col * cell;
+        int Cy(int row) => row * cell;
 
         var spec = new NineSliceSpec(
-            topLeft: new(SrcX(0), SrcY(0), cell, cell),
-            top: new(SrcX(1), SrcY(0), cell, cell),
-            topRight: new(SrcX(2), SrcY(0), cell, cell),
-            left: new(SrcX(0), SrcY(1), cell, cell),
-            center: new(SrcX(1), SrcY(1), cell, cell),
-            right: new(SrcX(2), SrcY(1), cell, cell),
-            bottomLeft: new(SrcX(0), SrcY(2), cell, cell),
-            bottom: new(SrcX(1), SrcY(2), cell, cell),
-            bottomRight: new(SrcX(2), SrcY(2), cell, cell));
+            topLeft: new(Cx(0), Cy(0), b, b),
+            top: new(Cx(1), Cy(0), cell, b),
+            topRight: new(Cx(2) + cell - b, Cy(0), b, b),
+            left: new(Cx(0), Cy(1), b, cell),
+            center: new(Cx(1), Cy(1), cell, cell),
+            right: new(Cx(2) + cell - b, Cy(1), b, cell),
+            bottomLeft: new(Cx(0), Cy(2) + cell - b, b, b),
+            bottom: new(Cx(1), Cy(2) + cell - b, cell, b),
+            bottomRight: new(Cx(2) + cell - b, Cy(2) + cell - b, b, b));
 
         DrawNineSlice(sb, tex, dest, spec, alpha);
     }
@@ -226,10 +252,10 @@ public static class TinySwordsUi
     private static void DrawNineSlice(
         SpriteBatch sb, Texture2D tex, Rectangle dest, NineSliceSpec spec, float alpha)
     {
-        var left = spec.BorderLeft;
-        var right = spec.BorderRight;
-        var top = spec.BorderTop;
-        var bottom = spec.BorderBottom;
+        var left = Math.Min(spec.BorderLeft, Math.Max(1, dest.Width / 2));
+        var right = Math.Min(spec.BorderRight, Math.Max(1, dest.Width - left));
+        var top = Math.Min(spec.BorderTop, Math.Max(1, dest.Height / 2));
+        var bottom = Math.Min(spec.BorderBottom, Math.Max(1, dest.Height - top));
         var centerW = Math.Max(0, dest.Width - left - right);
         var centerH = Math.Max(0, dest.Height - top - bottom);
         var color = Color.White * alpha;
@@ -295,4 +321,8 @@ public static class TinySwordsUi
     }
 
     private static Rectangle OffsetY(Rectangle src, int y) => new(src.X, src.Y + y, src.Width, src.Height);
+
+    private static void DrawSprite(
+        SpriteBatch sb, Texture2D tex, Rectangle dest, Rectangle src, float alpha) =>
+        sb.Draw(tex, dest, src, Color.White * alpha);
 }

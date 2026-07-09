@@ -59,10 +59,10 @@ public sealed class CharacterWindow : UiWindow
         var lvl = _skillsProvider?.Invoke() is { } skills
             ? $"Total level {skills.TotalLevel}"
             : $"Lvl {stats.Level}";
-        sb.DrawString(font, lvl, new Vector2(inner.X, y), PanelBorder);
+        sb.DrawString(font, lvl, new Vector2(inner.X, y), new Color(210, 185, 130));
         y += font.LineSpacing + 2;
         if (_skillsProvider?.Invoke() is { } sk)
-            sb.DrawString(font, $"Total XP: {sk.TotalXp:N0}", new Vector2(inner.X, y), GoldDim);
+            sb.DrawString(font, $"Total XP: {sk.TotalXp:N0}", new Vector2(inner.X, y), new Color(225, 205, 150));
         y += font.LineSpacing + SectionGap;
 
         var rowH = font.LineSpacing + BarHeight;
