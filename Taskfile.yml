@@ -102,6 +102,8 @@ tasks:
   dev:client:
     desc: Run only the MonoGame client with auto-restart on file changes
     dir: "{{.CLIENT_DIR}}"
+    env:
+      DEATHBORN_SKIP_UPDATE: "1"
     cmds:
       - dotnet tool restore
       - dotnet watch run --project Deathborn.Client --configuration Debug --no-hot-reload

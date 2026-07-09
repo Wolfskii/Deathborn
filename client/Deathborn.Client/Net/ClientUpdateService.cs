@@ -10,6 +10,9 @@ public sealed class ClientUpdateService
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(10) };
 
     public static bool IsDisabled =>
+#if DEBUG
+        true ||
+#endif
         string.Equals(Environment.GetEnvironmentVariable("DEATHBORN_SKIP_UPDATE"), "1", StringComparison.Ordinal)
         || string.Equals(Environment.GetEnvironmentVariable("DEATHBORN_SKIP_UPDATE"), "true", StringComparison.OrdinalIgnoreCase);
 

@@ -4,19 +4,19 @@
   "notes": "Bug fixes and sharper swords.",
   "platforms": {
     "win-x64": {
-      "url": "https://api.deathborn.wolfskii.dev/downloads/Deathborn-0.1.22-win-x64-Setup.exe",
+      "url": "https://github.com/Wolfskii/Deathborn/releases/download/v0.1.22/Deathborn-0.1.22-win-x64-Setup.exe",
       "kind": "installer"
     },
     "linux-x64": {
-      "url": "https://api.deathborn.wolfskii.dev/downloads/Deathborn-0.1.22-linux-x64.tar.gz",
+      "url": "https://github.com/Wolfskii/Deathborn/releases/download/v0.1.22/Deathborn-0.1.22-linux-x64.tar.gz",
       "kind": "archive"
     },
     "osx-arm64": {
-      "url": "https://api.deathborn.wolfskii.dev/downloads/Deathborn-0.1.22-osx-arm64.dmg",
+      "url": "https://github.com/Wolfskii/Deathborn/releases/download/v0.1.22/Deathborn-0.1.22-osx-arm64.dmg",
       "kind": "dmg"
     },
     "osx-x64": {
-      "url": "https://api.deathborn.wolfskii.dev/downloads/Deathborn-0.1.22-osx-x64.dmg",
+      "url": "https://github.com/Wolfskii/Deathborn/releases/download/v0.1.22/Deathborn-0.1.22-osx-x64.dmg",
       "kind": "dmg"
     }
   }

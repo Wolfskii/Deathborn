@@ -25,6 +25,7 @@ export DATABASE_URL="${DATABASE_URL:-postgres://deathborn:deathborn@localhost:54
 export JWT_SECRET="${JWT_SECRET:-dev-secret-change-me}"
 export PORT="${DEV_PORT}"
 export LISTEN_HOST="${LISTEN_HOST:-127.0.0.1}"
+export DEATHBORN_SKIP_UPDATE="${DEATHBORN_SKIP_UPDATE:-1}"
 
 SERVER_BIN="${ROOT}/bin/deathborn"
 case "$(uname -s)" in
@@ -54,7 +55,7 @@ stop_clients() {
 start_clients() {
   local i
   for ((i = 1; i <= CLIENT_COUNT; i++)); do
-    DEATHBORN_INSTANCE="$i" "$CLIENT_EXE" &
+    DEATHBORN_INSTANCE="$i" DEATHBORN_SKIP_UPDATE="${DEATHBORN_SKIP_UPDATE:-1}" "$CLIENT_EXE" &
     CLIENT_PIDS+=("$!")
   done
 }

@@ -1,6 +1,6 @@
-// Package clientupdate serves optional client auto-update metadata for GET /client/update.
-// Configure with CLIENT_UPDATE_MANIFEST (JSON). Works with private repos — host installers on
-// your API/CDN and point URLs in the manifest (not GitHub Releases).
+// Package clientupdate serves client auto-update metadata for GET /client/update.
+// By default it reads the latest published release from the public GitHub repo (see defaultGitHubRepo).
+// Optional env overrides: CLIENT_UPDATE_MANIFEST (static JSON), CLIENT_UPDATE_GITHUB_REPO, GITHUB_TOKEN.
 package clientupdate
 
 import (
@@ -8,7 +8,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
+
+const defaultGitHubRepo = "Wolfskii/Deathborn"
 
 // Manifest describes the newest client build per platform.
 type Manifest struct {
@@ -27,24 +31,43 @@ type PlatformArtifact struct {
 
 // Handler returns update metadata or 204 when updates are disabled/unconfigured.
 type Handler struct {
-	manifest Manifest
-	active   bool
+	staticManifest Manifest
+	staticActive   bool
+
+	githubRepo    string
+	githubToken   string
+	githubAPIBase string
+	httpClient    *http.Client
+
+	mu          sync.Mutex
+	cached      Manifest
+	cacheActive bool
+	cacheAt     time.Time
 }
 
-// NewHandler loads CLIENT_UPDATE_MANIFEST JSON from the environment.
+// NewHandler loads update settings from the environment.
 func NewHandler() *Handler {
-	raw := strings.TrimSpace(os.Getenv("CLIENT_UPDATE_MANIFEST"))
-	if raw == "" {
-		return &Handler{}
+	h := &Handler{
+		httpClient: &http.Client{Timeout: 15 * time.Second},
 	}
-	var m Manifest
-	if err := json.Unmarshal([]byte(raw), &m); err != nil {
-		return &Handler{}
+
+	if raw := strings.TrimSpace(os.Getenv("CLIENT_UPDATE_MANIFEST")); raw != "" {
+		var m Manifest
+		if err := json.Unmarshal([]byte(raw), &m); err == nil {
+			h.staticManifest = m
+			if m.Enabled && strings.TrimSpace(m.Latest) != "" && len(m.Platforms) > 0 {
+				h.staticActive = true
+			}
+		}
 	}
-	if !m.Enabled || strings.TrimSpace(m.Latest) == "" || len(m.Platforms) == 0 {
-		return &Handler{manifest: m}
+
+	h.githubRepo = defaultGitHubRepo
+	if v := strings.TrimSpace(os.Getenv("CLIENT_UPDATE_GITHUB_REPO")); v != "" {
+		h.githubRepo = v
 	}
-	return &Handler{manifest: m, active: true}
+	h.githubToken = strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
+
+	return h
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -52,10 +75,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if !h.active {
+
+	if h.staticActive {
+		writeManifest(w, h.staticManifest)
+		return
+	}
+
+	manifest, ok, err := h.githubManifest(time.Now())
+	if err != nil || !ok {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+
+	writeManifest(w, manifest)
+}
+
+func writeManifest(w http.ResponseWriter, manifest Manifest) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(h.manifest)
+	_ = json.NewEncoder(w).Encode(manifest)
 }
