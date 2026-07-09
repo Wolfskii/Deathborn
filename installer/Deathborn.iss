@@ -82,12 +82,15 @@ var
   RunAnimFrame: Integer;
   RunAnimStatus: TNewStaticText;
   RunStatusIndex: Integer;
-  LastAnimTick: Cardinal;
-  LastMessageTick: Cardinal;
+  LastAnimTick: DWORD;
+  LastMessageTick: DWORD;
 
 const
   RunAnimIntervalMs = 175;
   RunMessageIntervalMs = 7000;
+
+function GetTickCount: DWORD;
+  external 'GetTickCount@kernel32.dll stdcall';
 
 function GetRunStatusLine(Index: Integer): string;
 begin
@@ -140,7 +143,7 @@ end;
 
 procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
 var
-  Now: Cardinal;
+  Now: DWORD;
 begin
   if not RunAnimImage.Visible then
     Exit;
