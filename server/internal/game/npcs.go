@@ -194,7 +194,7 @@ func (w *World) appendMobSnapshotsLocked(out []NpcState) []NpcState {
 			ID: m.id, DefID: m.defID, Name: m.name,
 			Category: string(m.category), Disposition: string(m.disposition),
 			SpriteID: m.spriteID,
-			X: m.x, Y: m.y, Hp: m.hp, HpMax: m.hpMax,
+			X:        m.x, Y: m.y, Hp: m.hp, HpMax: m.hpMax,
 			IsBoss: false, DirX: m.dirX, DirY: m.dirY,
 		})
 	}

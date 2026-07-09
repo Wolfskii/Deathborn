@@ -1,18 +1,18 @@
 package game
 
 const (
-	DefaultHpMax   = 100
-	SlashDamage    = 5
-	FireballDamage = 25
-	IceShardDamage = 18
+	DefaultHpMax      = 100
+	SlashDamage       = 5
+	FireballDamage    = 25
+	IceShardDamage    = 18
 	ArcBoltDamage     = 14
 	BloodBoltDamage   = 22
 	PoisonCloudDamage = 6
 
-	ShieldBashDamage   = 12
-	WhirlwindDamage    = 8
-	WarriorDashDamage  = 10
-	SecondWindHeal     = 15
+	ShieldBashDamage  = 12
+	WhirlwindDamage   = 8
+	WarriorDashDamage = 10
+	SecondWindHeal    = 15
 
 	ShieldBashRange    = 56
 	WhirlwindRadius    = 52

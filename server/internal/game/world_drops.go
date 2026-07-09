@@ -32,8 +32,8 @@ type worldDrop struct {
 
 // WorldDropIndex tracks loot piles on the ground.
 type WorldDropIndex struct {
-	mu    sync.RWMutex
-	byID  map[int64]*worldDrop
+	mu     sync.RWMutex
+	byID   map[int64]*worldDrop
 	nextID int64
 }
 

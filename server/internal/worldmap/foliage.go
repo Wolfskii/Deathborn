@@ -170,7 +170,7 @@ func (m *Map) townExclusions() []townRect {
 	scale := m.TileSize / 16.0
 	ts := m.TileSize
 	tileCenter := func(tx, ty int) (float64, float64) {
-		return (float64(tx)+0.5)*ts, (float64(ty)+0.5)*ts
+		return (float64(tx) + 0.5) * ts, (float64(ty) + 0.5) * ts
 	}
 	nx, ny := tileCenter(234, 45)
 	wx, wy := tileCenter(39, 189)

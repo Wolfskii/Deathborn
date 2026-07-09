@@ -172,20 +172,20 @@ type WorldEventData struct {
 
 // BossActionData is broadcast when a boss uses a visible ability.
 type BossActionData struct {
-	NpcID  int64  `json:"npcId"`
-	Action string `json:"action"`
+	NpcID  int64   `json:"npcId"`
+	Action string  `json:"action"`
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
 }
 
 // PlayerDeathData is broadcast when a player dies.
 type PlayerDeathData struct {
-	PlayerID   int64   `json:"playerId"`
-	KillerID   int64   `json:"killerId,omitempty"`
-	X          float64 `json:"x"`
-	Y          float64 `json:"y"`
-	DirX       float64 `json:"dirX"`
-	DirY       float64 `json:"dirY"`
+	PlayerID int64   `json:"playerId"`
+	KillerID int64   `json:"killerId,omitempty"`
+	X        float64 `json:"x"`
+	Y        float64 `json:"y"`
+	DirX     float64 `json:"dirX"`
+	DirY     float64 `json:"dirY"`
 }
 
 // YouDiedData tells the victim their character is dead and they may create a new one.
@@ -217,12 +217,12 @@ type PlayerBuffData struct {
 
 // WelcomeData tells the client which entity id is theirs and the spawn point.
 type WelcomeData struct {
-	CharacterID int64              `json:"characterId"`
-	X           float64            `json:"x"`
-	Y           float64            `json:"y"`
-	Name        string             `json:"name"`
-	Skills      map[string]int64   `json:"skills,omitempty"`
-	TotalXp     int64              `json:"totalXp,omitempty"`
+	CharacterID int64                `json:"characterId"`
+	X           float64              `json:"x"`
+	Y           float64              `json:"y"`
+	Name        string               `json:"name"`
+	Skills      map[string]int64     `json:"skills,omitempty"`
+	TotalXp     int64                `json:"totalXp,omitempty"`
 	Inventory   []game.InventoryItem `json:"inventory,omitempty"`
 }
 
@@ -261,13 +261,13 @@ type WorldItemRemovedData struct {
 
 // SkillXpGainData is sent when a player gains skill XP.
 type SkillXpGainData struct {
-	PlayerID  int64  `json:"playerId"`
-	SkillID   string `json:"skillId"`
-	Amount    int64  `json:"amount"`
-	Xp        int64  `json:"xp"`
-	Level     int    `json:"level"`
-	LeveledUp bool   `json:"leveledUp"`
-	TotalXp   int64  `json:"totalXp"`
+	PlayerID  int64   `json:"playerId"`
+	SkillID   string  `json:"skillId"`
+	Amount    int64   `json:"amount"`
+	Xp        int64   `json:"xp"`
+	Level     int     `json:"level"`
+	LeveledUp bool    `json:"leveledUp"`
+	TotalXp   int64   `json:"totalXp"`
 	Hp        float64 `json:"hp,omitempty"`
 	HpMax     float64 `json:"hpMax,omitempty"`
 }
@@ -300,8 +300,8 @@ type HouseBuiltData struct {
 
 // HouseRemovedData is broadcast when a house is removed.
 type HouseRemovedData struct {
-	HouseID   int64 `json:"houseId"`
-	OwnerID   int64 `json:"ownerId"`
+	HouseID int64 `json:"houseId"`
+	OwnerID int64 `json:"ownerId"`
 }
 
 // HouseUpdatedData is broadcast when furniture changes.

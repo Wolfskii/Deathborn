@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	PickupRange      = 48.0
+	PickupRange        = 48.0
 	InventorySlotCount = 20
 )
 

@@ -23,7 +23,7 @@ func NewZoneIndex(terrain *worldmap.Map) *ZoneIndex {
 	ts := terrain.TileSize
 	scale := ts / 16.0
 	tileCenter := func(tx, ty int) (float64, float64) {
-		return (float64(tx)+0.5)*ts, (float64(ty)+0.5)*ts
+		return (float64(tx) + 0.5) * ts, (float64(ty) + 0.5) * ts
 	}
 	nx, ny := tileCenter(234, 45)
 	wx, wy := tileCenter(39, 189)
@@ -103,10 +103,10 @@ func (z *ZoneIndex) PushOutOfMonsterExclusion(x, y float64) (float64, float64) {
 		minY := zd.centerY - zd.halfH - z.exclusionPad
 		maxY := zd.centerY + zd.halfH + z.exclusionPad
 		candidates := [][2]float64{
-			{minX - 8 * (z.exclusionPad / safeExclusionPad), y},
-			{maxX + 8 * (z.exclusionPad / safeExclusionPad), y},
-			{x, minY - 8 * (z.exclusionPad / safeExclusionPad)},
-			{x, maxY + 8 * (z.exclusionPad / safeExclusionPad)},
+			{minX - 8*(z.exclusionPad/safeExclusionPad), y},
+			{maxX + 8*(z.exclusionPad/safeExclusionPad), y},
+			{x, minY - 8*(z.exclusionPad/safeExclusionPad)},
+			{x, maxY + 8*(z.exclusionPad/safeExclusionPad)},
 		}
 		for _, c := range candidates {
 			if z.InMonsterExclusion(c[0], c[1]) {

@@ -8,9 +8,9 @@ import (
 const (
 	maxWorldBosses    = 2
 	bossSpawnInterval = 180.0 // seconds between spawn attempts
-	bossLeashRadius    = 520.0
-	bossAggroRadius    = 340.0
-	bossMeleeReach     = 64.0
+	bossLeashRadius   = 520.0
+	bossAggroRadius   = 340.0
+	bossMeleeReach    = 64.0
 )
 
 // NpcState is the wire view of an NPC/boss included in snapshots.
@@ -40,50 +40,50 @@ type WorldEventState struct {
 }
 
 type bossDef struct {
-	id       string
-	name     string
-	hpMax    float64
-	speed    float64
-	radius   float64
-	aggro    float64
-	leash    float64
-	ability  string
-	abilityCD float64
-	abilityDmg int
+	id           string
+	name         string
+	hpMax        float64
+	speed        float64
+	radius       float64
+	aggro        float64
+	leash        float64
+	ability      string
+	abilityCD    float64
+	abilityDmg   int
 	abilityRange float64
 }
 
 type boss struct {
-	id       int64
-	defID    string
-	name     string
-	x, y     float64
-	spawnX   float64
-	spawnY   float64
-	hp       float64
-	hpMax    float64
-	speed    float64
-	radius   float64
-	aggro    float64
-	leash    float64
-	dirX     float64
-	dirY     float64
-	action   string
-	actionT  float64
-	ability  string
-	abilityCD float64
-	abilityDmg int
+	id           int64
+	defID        string
+	name         string
+	x, y         float64
+	spawnX       float64
+	spawnY       float64
+	hp           float64
+	hpMax        float64
+	speed        float64
+	radius       float64
+	aggro        float64
+	leash        float64
+	dirX         float64
+	dirY         float64
+	action       string
+	actionT      float64
+	ability      string
+	abilityCD    float64
+	abilityDmg   int
 	abilityRange float64
-	cdTimer  float64
-	attackT  float64
-	targetID int64
+	cdTimer      float64
+	attackT      float64
+	targetID     int64
 }
 
 type bossManager struct {
-	nextID       int64
-	bosses       map[int64]*boss
-	spawnTimer   float64
-	eventActive  bool
+	nextID        int64
+	bosses        map[int64]*boss
+	spawnTimer    float64
+	eventActive   bool
 	pendingEvents []BossEvent
 }
 
@@ -352,7 +352,7 @@ func (w *World) bossMeleeHitLocked(b *boss, target *player) *BossEvent {
 	ev := &BossEvent{
 		Type: "player_hit", NpcID: b.id, PlayerID: target.id, Damage: damage,
 		Name: "boss_melee",
-		Hp: hp, HpMax: hpMax, JustDied: justDied,
+		Hp:   hp, HpMax: hpMax, JustDied: justDied,
 	}
 	return ev
 }
@@ -370,7 +370,7 @@ func (w *World) bossAbilityLocked(b *boss) []BossEvent {
 					events = append(events, BossEvent{
 						Type: "player_hit", NpcID: b.id, PlayerID: p.id, Damage: b.abilityDmg,
 						Name: b.ability,
-						Hp: hp, HpMax: hpMax, JustDied: justDied,
+						Hp:   hp, HpMax: hpMax, JustDied: justDied,
 					})
 				}
 			}
@@ -382,7 +382,7 @@ func (w *World) bossAbilityLocked(b *boss) []BossEvent {
 				events = append(events, BossEvent{
 					Type: "player_hit", NpcID: b.id, PlayerID: target.id, Damage: b.abilityDmg,
 					Name: b.ability,
-					Hp: hp, HpMax: hpMax, JustDied: justDied,
+					Hp:   hp, HpMax: hpMax, JustDied: justDied,
 				})
 			}
 			events = append(events, BossEvent{Type: "boss_action", NpcID: b.id, Name: "lightning_bolt"})
@@ -397,7 +397,7 @@ func (w *World) bossAbilityLocked(b *boss) []BossEvent {
 					events = append(events, BossEvent{
 						Type: "player_hit", NpcID: b.id, PlayerID: p.id, Damage: b.abilityDmg,
 						Name: b.ability,
-						Hp: hp, HpMax: hpMax, JustDied: justDied,
+						Hp:   hp, HpMax: hpMax, JustDied: justDied,
 					})
 				}
 			}

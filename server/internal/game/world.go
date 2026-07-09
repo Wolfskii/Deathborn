@@ -62,7 +62,7 @@ func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Se
 		id: id, name: name, x: x, y: y,
 		hp: hpMax, hpMax: hpMax,
 		skills: skillXP, totalXp: totalXp,
-		inventory: append([]InventoryItem(nil), inventory...),
+		inventory:    append([]InventoryItem(nil), inventory...),
 		headCosmetic: headCosmetic,
 	}
 	syncPlayerCosmeticInventory(p)

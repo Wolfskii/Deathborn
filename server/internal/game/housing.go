@@ -162,10 +162,10 @@ func (h *HousingIndex) overlapsExisting(x, y float64) bool {
 
 func plotWalkable(w *World, cx, cy float64) bool {
 	corners := [][2]float64{
-		{cx - PlotHalfW * 0.85, cy - PlotHalfH * 0.85},
-		{cx + PlotHalfW * 0.85, cy - PlotHalfH * 0.85},
-		{cx - PlotHalfW * 0.85, cy + PlotHalfH * 0.85},
-		{cx + PlotHalfW * 0.85, cy + PlotHalfH * 0.85},
+		{cx - PlotHalfW*0.85, cy - PlotHalfH*0.85},
+		{cx + PlotHalfW*0.85, cy - PlotHalfH*0.85},
+		{cx - PlotHalfW*0.85, cy + PlotHalfH*0.85},
+		{cx + PlotHalfW*0.85, cy + PlotHalfH*0.85},
 		{cx, cy},
 	}
 	for _, c := range corners {
