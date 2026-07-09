@@ -44,7 +44,7 @@ jobs:
             if (( i >= KEEP )); then
               tag="${tags[$i]}"
               echo "Pruning GitHub Release $tag (keeping newest $KEEP)"
-              gh release delete "$tag" --yes --cleanup-tag=false 2>/dev/null || true
+              gh release delete "$tag" --yes 2>/dev/null || true
             fi
           done
 
@@ -69,7 +69,7 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release delete "$RELEASE_TAG" --yes --cleanup-tag=true
+            gh release delete "$RELEASE_TAG" --yes --cleanup-tag
           fi
           gh release create "$RELEASE_TAG" \
             --target "${{ github.sha }}" \
@@ -136,7 +136,20 @@ jobs:
             -p:Version="$version" \
             -o "publish/${{ matrix.rid }}"
 
-      - name: Portable zip
+      - name: Portable zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          $version = $env:RELEASE_TAG.Substring(1)
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $zip = "dist/Deathborn-$version-${{ matrix.rid }}.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "client/publish/${{ matrix.rid }}/*" -DestinationPath $zip
+
+      - name: Portable zip (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         env:
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
@@ -235,7 +248,8 @@ jobs:
       - name: Prune old GHCR package versions
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash .github/scripts/prune-ghcr-versions.sh "${{ env.RELEASE_RETENTION_COUNT }}"
+          PRUNE_KEEP: ${{ env.RELEASE_RETENTION_COUNT }}
+        run: bash .github/scripts/prune-ghcr-versions.sh
 
   finalize-release:
     name: Publish GitHub Release

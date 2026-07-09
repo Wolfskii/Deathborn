@@ -74,7 +74,7 @@ jobs:
           tag="${{ steps.version.outputs.tag }}"
           if [ "${FORCE}" = "true" ]; then
             echo "Force release requested for $tag"
-            gh release delete "$tag" --yes --cleanup-tag=true 2>/dev/null || true
+            gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
             echo "skip=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -83,7 +83,7 @@ jobs:
             asset_count="$(gh release view "$tag" --json assets -q '.assets | length')"
             if [ "$is_draft" = "true" ] || [ "$asset_count" -eq 0 ]; then
               echo "Retrying incomplete release $tag"
-              gh release delete "$tag" --yes --cleanup-tag=true
+              gh release delete "$tag" --yes --cleanup-tag
               echo "skip=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi

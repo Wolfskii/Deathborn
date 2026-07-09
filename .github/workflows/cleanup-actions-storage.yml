@@ -37,14 +37,15 @@ jobs:
             if (( i >= KEEP )); then
               tag="${tags[$i]}"
               echo "Deleting GitHub Release $tag"
-              gh release delete "$tag" --yes --cleanup-tag=false 2>/dev/null || true
+              gh release delete "$tag" --yes 2>/dev/null || true
             fi
           done
 
       - name: Prune old GHCR package versions
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash .github/scripts/prune-ghcr-versions.sh "${{ github.event.inputs.keep_releases }}"
+          PRUNE_KEEP: ${{ github.event.inputs.keep_releases }}
+        run: bash .github/scripts/prune-ghcr-versions.sh
 
       - name: Delete all workflow artifacts
         env:

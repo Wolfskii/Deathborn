@@ -2,12 +2,12 @@
 # Keep the newest N GHCR container package versions; delete older ones.
 set -euo pipefail
 
-KEEP="${1:-5}"
+KEEP="${PRUNE_KEEP:-${1:-5}}"
 REPO="${GITHUB_REPOSITORY:?}"
 OWNER="${REPO%%/*}"
 PKG="$(echo "${REPO##*/}" | tr '[:upper:]' '[:lower:]')"
 
-owner_type="$(gh api "/repos/${REPO}" --jq -r '.owner.type')"
+owner_type="$(gh api "/repos/${REPO}" -q '.owner.type')"
 if [ "$owner_type" = "Organization" ]; then
   base="/orgs/${OWNER}/packages/container/${PKG}/versions"
 else
@@ -20,8 +20,8 @@ if ! gh api "${base}?per_page=1&state=active" >/dev/null 2>&1; then
 fi
 
 mapfile -t stale_ids < <(
-  gh api "${base}?per_page=100&state=active" --paginate \
-    | jq -s --argjson keep "$KEEP" 'add | sort_by(.created_at) | reverse | .[$keep:] | .[].id'
+  gh api "${base}?per_page=100&state=active" \
+    --jq "sort_by(.created_at) | reverse | .[${KEEP}:] | .[].id"
 )
 
 if [ "${#stale_ids[@]}" -eq 0 ]; then
