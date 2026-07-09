@@ -37,6 +37,7 @@
   <ItemGroup>
     <Content Include="..\..\shared\world\realik_collision.bin" Link="Content\World\realik_collision.bin" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\shared\world\realik_elevation.bin" Link="Content\World\realik_elevation.bin" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="..\..\shared\protocol.json" Link="Protocol\protocol.json" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" />

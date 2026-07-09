@@ -5,9 +5,11 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/deathborn/server/internal/db"
+	"github.com/deathborn/server/internal/protocol"
 )
 
 // Handler serves the register/login HTTP endpoints.
@@ -39,6 +41,9 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !checkClientProtocol(w, r) {
+		return
+	}
 
 	hash, err := HashPassword(creds.Password)
 	if err != nil {
@@ -68,6 +73,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	creds, ok := decodeCredentials(w, r)
 	if !ok {
+		return
+	}
+	if !checkClientProtocol(w, r) {
 		return
 	}
 
@@ -120,4 +128,19 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+func checkClientProtocol(w http.ResponseWriter, r *http.Request) bool {
+	clientProto, err := strconv.Atoi(strings.TrimSpace(r.Header.Get(protocol.HeaderName)))
+	if err != nil || clientProto <= 0 {
+		ok, mismatch := protocol.CheckClient(0)
+		_ = ok
+		protocol.WriteMismatch(w, mismatch)
+		return false
+	}
+	if ok, mismatch := protocol.CheckClient(clientProto); !ok {
+		protocol.WriteMismatch(w, mismatch)
+		return false
+	}
+	return true
 }

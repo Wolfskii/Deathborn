@@ -15,6 +15,7 @@ import (
 	"github.com/deathborn/server/internal/auth"
 	"github.com/deathborn/server/internal/db"
 	"github.com/deathborn/server/internal/game"
+	"github.com/deathborn/server/internal/protocol"
 	"github.com/deathborn/server/internal/skills"
 	"github.com/gorilla/websocket"
 )
@@ -83,6 +84,22 @@ func (c *Client) close() {
 // one.
 func ServeWS(hub *Hub, database *db.DB, secret string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		clientProto, err := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("protocol")))
+		if err != nil || clientProto <= 0 {
+			if h := strings.TrimSpace(r.Header.Get(protocol.HeaderName)); h != "" {
+				clientProto, err = strconv.Atoi(h)
+			}
+		}
+		if err != nil || clientProto <= 0 {
+			_, mismatch := protocol.CheckClient(0)
+			protocol.WriteMismatch(w, mismatch)
+			return
+		}
+		if ok, mismatch := protocol.CheckClient(clientProto); !ok {
+			protocol.WriteMismatch(w, mismatch)
+			return
+		}
+
 		accountID, err := auth.ParseToken(secret, r.URL.Query().Get("token"))
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)

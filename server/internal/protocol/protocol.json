@@ -1,0 +1,6 @@
+{
+  "protocol": 1,
+  "minClientProtocol": 1,
+  "maxClientProtocol": 1,
+  "description": "Bump protocol only for breaking API or WebSocket message changes. Client-only updates (art, UI, fixes) can ship without changing protocol."
+}

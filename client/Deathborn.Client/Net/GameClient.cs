@@ -17,7 +17,7 @@ public sealed class GameClient : IDisposable
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private readonly HttpClient _http = new();
+    private readonly HttpClient _http = CreateHttpClient();
     private ClientWebSocket? _ws;
     private CancellationTokenSource? _wsCts;
     private readonly ConcurrentQueue<string> _incoming = new();
@@ -66,6 +66,47 @@ public sealed class GameClient : IDisposable
     public event Action<FriendsData>? FriendsUpdated;
     public event Action<PmData>? PrivateMessage;
 
+    private static HttpClient CreateHttpClient()
+    {
+        var http = new HttpClient();
+        http.DefaultRequestHeaders.Add(ProtocolCompat.HttpHeader, ProtocolCompat.Protocol.ToString());
+        return http;
+    }
+
+    public async Task<ServerVersionInfo?> FetchServerVersionAsync()
+    {
+        try
+        {
+            var resp = await _http.GetAsync(Config.HttpBase + "/version");
+            if (!resp.IsSuccessStatusCode)
+                return null;
+            return await resp.Content.ReadFromJsonAsync<ServerVersionInfo>(JsonOpts);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> EnsureCompatibleAsync()
+    {
+        var server = await FetchServerVersionAsync();
+        if (server == null)
+        {
+            AuthFailed?.Invoke("Could not reach server version endpoint.");
+            return false;
+        }
+
+        var (ok, message) = ProtocolCompat.CheckAgainstServer(server);
+        if (!ok)
+        {
+            AuthFailed?.Invoke(message);
+            return false;
+        }
+
+        return true;
+    }
+
     public async Task RegisterAsync(string email, string password)
     {
         await AuthRequestAsync("/register", email, password);
@@ -80,10 +121,22 @@ public sealed class GameClient : IDisposable
     {
         try
         {
+            if (!await EnsureCompatibleAsync())
+                return;
+
             var resp = await _http.PostAsJsonAsync(
                 Config.HttpBase + path,
                 new { email = email.Trim().ToLowerInvariant(), password },
                 JsonOpts);
+
+            if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                var mismatch = await resp.Content.ReadFromJsonAsync<VersionMismatchResponse>(JsonOpts);
+                AuthFailed?.Invoke(mismatch != null
+                    ? ProtocolCompat.FormatMismatch(mismatch)
+                    : "Incompatible client or server version.");
+                return;
+            }
 
             var body = await resp.Content.ReadFromJsonAsync<TokenResponse>(JsonOpts);
             if (resp.IsSuccessStatusCode && body?.Token is { Length: > 0 } token)
@@ -110,13 +163,29 @@ public sealed class GameClient : IDisposable
             return;
         }
 
+        if (!await EnsureCompatibleAsync())
+            return;
+
         await DisconnectWorldAsync();
         LocalCharacterId = -1;
 
         _ws = new ClientWebSocket();
+        _ws.Options.SetRequestHeader(ProtocolCompat.HttpHeader, ProtocolCompat.Protocol.ToString());
         _wsCts = new CancellationTokenSource();
-        var url = $"{Config.WsBase}?token={Uri.EscapeDataString(_token)}";
-        await _ws.ConnectAsync(new Uri(url), _wsCts.Token);
+        var url =
+            $"{Config.WsBase}?token={Uri.EscapeDataString(_token)}&protocol={ProtocolCompat.Protocol}";
+        try
+        {
+            await _ws.ConnectAsync(new Uri(url), _wsCts.Token);
+        }
+        catch (Exception ex)
+        {
+            AuthFailed?.Invoke($"Could not connect to world server: {ex.Message}");
+            await DisconnectWorldAsync();
+            Disconnected?.Invoke();
+            return;
+        }
+
         _ = Task.Run(() => ReceiveLoopAsync(_ws, _wsCts.Token));
     }
 

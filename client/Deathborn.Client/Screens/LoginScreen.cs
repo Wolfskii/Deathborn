@@ -18,6 +18,7 @@ public sealed class LoginScreen : IScreen
     private static readonly Color GoldDim = new(130, 105, 55);
     private static readonly Color Tagline = new(200, 185, 140);
     private static readonly Color Status = new(220, 180, 120);
+    private static readonly Color StatusError = new(255, 120, 100);
     private const string TaglineText = "You are born to die. Only skill decides when.";
     private const int TaglineGapBelowLogo = 12;
     private const int PanelGapBelowTagline = 48;
@@ -180,7 +181,17 @@ public sealed class LoginScreen : IScreen
         _registerBtn.Draw(sb, font, _registerBtn.Contains(_mouse));
 
         if (!string.IsNullOrEmpty(_status))
-            sb.DrawString(font, _status, new Vector2(cx - 220, _panel.Bottom + 16), Status);
+        {
+            var statusColor = _status.StartsWith("Error:", StringComparison.Ordinal) ? StatusError : Status;
+            sb.DrawString(font, _status, new Vector2(cx - 220, _panel.Bottom + 16), statusColor);
+        }
+
+        var versionLine =
+            $"Client {ProtocolCompat.ClientRelease} (protocol {ProtocolCompat.Protocol})";
+        var versionSize = font.MeasureString(versionLine) * 0.72f;
+        sb.DrawString(font, versionLine,
+            new Vector2(cx - versionSize.X / 2f, GameViewport.Height - versionSize.Y - 10),
+            new Color(120, 110, 100), 0f, Vector2.Zero, 0.72f, SpriteEffects.None, 0f);
 
         sb.End();
     }
@@ -259,7 +270,11 @@ public sealed class LoginScreen : IScreen
 
     private void OnAuthFail(string msg)
     {
-        _status = "Error: " + msg;
+        _status = msg.StartsWith("Outdated", StringComparison.OrdinalIgnoreCase)
+            || msg.StartsWith("Incompatible", StringComparison.OrdinalIgnoreCase)
+            || msg.StartsWith("Could not", StringComparison.OrdinalIgnoreCase)
+            ? msg
+            : "Error: " + msg;
         _busy = false;
         _waitingWorld = false;
     }
