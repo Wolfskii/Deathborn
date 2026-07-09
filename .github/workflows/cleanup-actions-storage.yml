@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       keep_releases:
-        description: Number of newest semver GitHub Releases to keep
+        description: Number of newest semver GitHub Releases and GHCR versions to keep
         required: true
         default: "5"
         type: string
@@ -14,10 +14,11 @@ on:
 permissions:
   contents: write
   actions: write
+  packages: write
 
 jobs:
   cleanup:
-    name: Prune releases and artifacts
+    name: Prune releases, packages, and artifacts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -39,6 +40,11 @@ jobs:
               gh release delete "$tag" --yes --cleanup-tag=false 2>/dev/null || true
             fi
           done
+
+      - name: Prune old GHCR package versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/prune-ghcr-versions.sh "${{ github.event.inputs.keep_releases }}"
 
       - name: Delete all workflow artifacts
         env:

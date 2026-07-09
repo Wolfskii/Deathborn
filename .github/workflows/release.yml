@@ -19,7 +19,7 @@ permissions:
 
 env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-  # Keep this many semver GitHub Releases (older release assets are deleted).
+  # Keep this many GitHub Releases and GHCR package versions.
   RELEASE_RETENTION_COUNT: 5
 
 jobs:
@@ -261,6 +261,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VERSION=${{ env.RELEASE_TAG }}
+
+      - name: Prune old GHCR package versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/prune-ghcr-versions.sh "${{ env.RELEASE_RETENTION_COUNT }}"
 
   finalize-release:
     name: Publish GitHub Release
