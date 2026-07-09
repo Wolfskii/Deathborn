@@ -8,6 +8,7 @@
 # Build artifacts
 /bin/
 /dist/
+installer/assets/
 
 # Environment
 .env

@@ -109,7 +109,8 @@ This repo uses [Task](https://taskfile.dev) (`Taskfile.yml`). Run `task` to list
 | `task dev:server` | Backend only — Go server on host |
 | `task dev:client` | Frontend only — MonoGame client (server must be running) |
 | `task up` / `task stop` | Full stack in Docker only (no local client) |
-| `task client:build` | Build the client (Release) |
+| `task client:publish` | Self-contained client zip in `dist/` |
+| `task client:installer` | Windows setup wizard in `dist/` (needs [Inno Setup 6](https://jrsoftware.org/isdl.php)) |
 | `task check` | Server fmt + vet + test + client build |
 | `task release -- v0.1.0` | Tag release (triggers GitHub Actions) |
 

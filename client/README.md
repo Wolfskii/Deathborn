@@ -25,6 +25,16 @@ Or from repo root:
 task client
 ```
 
+## Ship to friends (Windows)
+
+```bash
+task client:installer
+```
+
+Produces `dist/Deathborn-<version>-win-x64-Setup.exe` — a proper installer with the Deathborn logo, running swordsman during file copy, and unforgivable puns. Requires [Inno Setup 6](https://jrsoftware.org/isdl.php) (`winget install JRSoftware.InnoSetup`).
+
+Friends only need the **Setup.exe** (not the raw zip). The game connects to production automatically unless they run a local server.
+
 ## Project layout
 
 ```

@@ -6,6 +6,15 @@ vars:
   SERVER_DIR: server
   CLIENT_DIR: client
   CLIENT_PROJECT: client/Deathborn.Client/Deathborn.Client.csproj
+  CLIENT_PUBLISH_DIR: client/publish
+  CLIENT_RID:
+    sh: |
+      case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*|Windows*) echo win-x64 ;;
+        Darwin)
+          case "$(uname -m)" in arm64) echo osx-arm64 ;; *) echo osx-x64 ;; esac ;;
+        *) echo linux-x64 ;;
+      esac
   BINARY: deathborn
   IMAGE: deathborn-server
   DEV_DATABASE_URL: postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable
@@ -130,6 +139,40 @@ tasks:
     cmds:
       - dotnet tool restore
       - dotnet build Deathborn.Client/Deathborn.Client.csproj -c Release
+
+  client:publish:
+    desc: Publish a self-contained client zip in dist/ (send the zip to friends)
+    dir: "{{.CLIENT_DIR}}"
+    vars:
+      VERSION_STRIP:
+        sh: echo "{{.VERSION}}" | sed 's/^v//'
+    cmds:
+      - dotnet tool restore
+      - dotnet restore Deathborn.Client.sln
+      - dotnet publish Deathborn.Client/Deathborn.Client.csproj -c Release -r {{.CLIENT_RID}} --self-contained true -p:Version={{.VERSION_STRIP}} -o publish
+      - mkdir -p ../dist
+      - |
+        set -euo pipefail
+        version="{{.VERSION_STRIP}}"
+        rid="{{.CLIENT_RID}}"
+        out="../dist/Deathborn-${version}-${rid}.zip"
+        rm -f "$out"
+        if command -v powershell.exe >/dev/null 2>&1 && [[ "$(uname -s)" =~ MINGW|MSYS|CYGWIN ]]; then
+          powershell.exe -NoProfile -Command "Compress-Archive -Path 'publish/*' -DestinationPath '$out' -Force"
+        else
+          (cd publish && zip -r "$out" .)
+        fi
+        echo "Published: $out"
+        echo "Run: publish/Deathborn.Client.exe (keep the whole publish/ folder together)"
+
+  client:installer:
+    desc: Build Windows setup wizard in dist/ (requires Inno Setup 6)
+    deps: [client:publish]
+    vars:
+      VERSION_STRIP:
+        sh: echo "{{.VERSION}}" | sed 's/^v//'
+    cmds:
+      - bash installer/build-installer.sh {{.VERSION_STRIP}}
 
   client:restore:
     desc: Restore NuGet packages and dotnet tools for the client
