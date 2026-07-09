@@ -39,14 +39,28 @@ jobs:
           KEEP: ${{ env.RELEASE_RETENTION_COUNT }}
         run: |
           set -euo pipefail
-          mapfile -t tags < <(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname)
-          for i in "${!tags[@]}"; do
+          mapfile -t published < <(
+            gh release list --limit 100 --json tagName,isDraft,prerelease \
+              -q '.[] | select(.isDraft==false and .prerelease==false) | .tagName' \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -r
+          )
+          for i in "${!published[@]}"; do
             if (( i >= KEEP )); then
-              tag="${tags[$i]}"
-              echo "Pruning GitHub Release $tag (keeping newest $KEEP)"
+              tag="${published[$i]}"
+              echo "Pruning published release $tag (keeping newest $KEEP)"
               gh release delete "$tag" --yes 2>/dev/null || true
             fi
           done
+          # Drop stale drafts (not the release we are building now).
+          while IFS= read -r draft_tag; do
+            [ -n "$draft_tag" ] || continue
+            [ "$draft_tag" = "$RELEASE_TAG" ] && continue
+            echo "Removing stale draft $draft_tag"
+            gh release delete "$draft_tag" --yes --cleanup-tag 2>/dev/null || true
+          done < <(
+            gh release list --limit 50 --json tagName,isDraft \
+              -q '.[] | select(.isDraft==true) | .tagName'
+          )
 
       - name: Free Actions artifact storage
         env:
@@ -76,6 +90,14 @@ jobs:
             --draft \
             --title "Deathborn ${RELEASE_TAG}" \
             --notes "Client builds in progress. Download links will appear when the release is published."
+          tag_sha="$(git ls-remote origin "refs/tags/${RELEASE_TAG}^{}" | awk '{print $1}' | head -1 || true)"
+          echo "Created draft ${RELEASE_TAG}; tag -> ${tag_sha:-<missing>}"
+          if [ -z "$tag_sha" ]; then
+            echo "gh release create did not create tag; creating ref manually" >&2
+            gh api --method POST "/repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${RELEASE_TAG}" \
+              -f sha="${{ github.sha }}"
+          fi
 
   client:
     name: Client (${{ matrix.rid }})
@@ -265,26 +287,8 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Add checksums, download links, and publish
+      - name: Add checksums, download links, tag verify, and publish
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
-        run: |
-          set -euo pipefail
-          asset_count="$(gh release view "$RELEASE_TAG" --json assets -q '.assets | length')"
-          echo "Release assets uploaded: ${asset_count}"
-          if [ "${asset_count}" -eq 0 ]; then
-            echo "No release files were uploaded; leaving draft unpublished." >&2
-            exit 1
-          fi
-
-          mkdir -p release
-          gh release download "$RELEASE_TAG" --dir release
-          cd release
-          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
-          gh release upload "$RELEASE_TAG" SHA256SUMS.txt --clobber
-          cd ..
-
-          bash .github/scripts/build-release-notes.sh "$RELEASE_TAG" "${{ github.sha }}" > release-notes.md
-          gh release edit "$RELEASE_TAG" --notes-file release-notes.md --draft=false --latest
-          echo "Published ${RELEASE_TAG} as Latest with ${asset_count} file(s) plus SHA256SUMS.txt"
+        run: bash .github/scripts/publish-release.sh "$RELEASE_TAG" "${{ github.sha }}"

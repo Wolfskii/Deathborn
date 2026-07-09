@@ -9,7 +9,7 @@ using Deathborn.Client.Ui;
 
 namespace Deathborn.Client;
 
-    /// <summary>MonoGame entry point — window, screens, and shared networking.</summary>
+    /// <summary>MonoGame entry point — screens, audio, and authoritative client networking.</summary>
 public sealed class DeathbornGame : Game
 {
     public static DeathbornGame Instance { get; private set; } = null!;

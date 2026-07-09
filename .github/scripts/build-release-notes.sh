@@ -6,7 +6,12 @@ TAG="${1:?release tag}"
 SHA="${2:?target commit sha}"
 REPO="${GITHUB_REPOSITORY:?}"
 
-prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vFx "$TAG" | head -1 || true)"
+prev="$(gh release list --limit 100 --json tagName,isDraft,prerelease \
+  -q '.[] | select(.isDraft==false and .prerelease==false) | .tagName' \
+  | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vFx "$TAG" | sort -V | tail -1 || true)"
+if [ -z "$prev" ]; then
+  prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vFx "$TAG" | head -1 || true)"
+fi
 BASE="https://github.com/${REPO}/releases/download/${TAG}"
 
 mapfile -t assets < <(gh release view "$TAG" --json assets -q '.assets[].name' | sort)
