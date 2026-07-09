@@ -572,8 +572,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _disconnectOverlay.Draw(sb, font);
             sb.End();
         }
-
-        DrawCustomCursor(sb);
     }
 
     private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, float zoom)
@@ -998,8 +996,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             new Point(GameViewport.Width, GameViewport.Height));
     }
 
-    private void DrawCustomCursor(SpriteBatch sb)
+    internal void DrawCustomCursor()
     {
+        var sb = DeathbornGame.Instance.SpriteBatch;
         var mouse = Mouse.GetState().Position;
         var cursorKind = UiCursorKind.Normal;
         Rectangle? hoverSlotRect = null;

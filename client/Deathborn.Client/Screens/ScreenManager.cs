@@ -63,12 +63,16 @@ public sealed class ScreenManager
     {
         _current?.Draw(gameTime);
 
-        if (!_escMenu.IsOpen) return;
+        if (_escMenu.IsOpen)
+        {
+            var sb = _game.SpriteBatch;
+            IReadOnlyList<string>? debugLines = _current is IDebugInfoScreen info ? info.DebugInfoLines : null;
+            sb.Begin();
+            _escMenu.Draw(sb, _game.Font, debugLines);
+            sb.End();
+        }
 
-        var sb = _game.SpriteBatch;
-        IReadOnlyList<string>? debugLines = _current is IDebugInfoScreen info ? info.DebugInfoLines : null;
-        sb.Begin();
-        _escMenu.Draw(sb, _game.Font, debugLines);
-        sb.End();
+        if (_current is WorldScreen world)
+            world.DrawCustomCursor();
     }
 }
