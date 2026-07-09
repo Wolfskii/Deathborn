@@ -143,39 +143,124 @@ tasks:
 
   client:publish:run:
     internal: true
-    desc: Publish self-contained client (no Explorer reveal)
+    desc: Publish self-contained client for one RID (no reveal)
     dir: "{{.CLIENT_DIR}}"
     vars:
+      RID: '{{.RID | default .CLIENT_RID}}'
       VERSION_STRIP:
         sh: echo "{{.VERSION}}" | sed 's/^v//'
     cmds:
       - dotnet tool restore
       - dotnet restore Deathborn.Client.sln
-      - dotnet publish Deathborn.Client/Deathborn.Client.csproj -c Release -r {{.CLIENT_RID}} --self-contained true -p:Version={{.VERSION_STRIP}} -o publish
+      - dotnet publish Deathborn.Client/Deathborn.Client.csproj -c Release -r {{.RID}} --self-contained true -p:Version={{.VERSION_STRIP}} -o publish/{{.RID}}
       - mkdir -p ../dist
       - |
         set -euo pipefail
         version="{{.VERSION_STRIP}}"
-        rid="{{.CLIENT_RID}}"
+        rid="{{.RID}}"
         out="../dist/Deathborn-${version}-${rid}.zip"
         rm -f "$out"
         if command -v powershell.exe >/dev/null 2>&1 && [[ "$(uname -s)" =~ MINGW|MSYS|CYGWIN ]]; then
-          powershell.exe -NoProfile -Command "Compress-Archive -Path 'publish/*' -DestinationPath '$out' -Force"
+          powershell.exe -NoProfile -Command "Compress-Archive -Path 'publish/${rid}/*' -DestinationPath '$out' -Force"
         else
-          (cd publish && zip -r "$out" .)
+          (cd "publish/${rid}" && zip -r "../../dist/Deathborn-${version}-${rid}.zip" .)
         fi
-        echo "Published: $out"
+        echo "Published zip: $out"
 
   client:publish:
-    desc: Publish a self-contained client zip in dist/ and reveal the .exe
+    desc: Publish self-contained zip for this machine's OS/arch
     cmds:
       - task: client:publish:run
-      - cmd: bash ../scripts/reveal-artifact.sh publish/Deathborn.Client
+      - cmd: bash ../scripts/reveal-artifact.sh publish/{{.CLIENT_RID}}/Deathborn.Client
         dir: "{{.CLIENT_DIR}}"
+
+  client:publish:win:
+    desc: Publish Windows x64 zip to dist/
+    cmds:
+      - task: client:publish:run
+        vars: { RID: win-x64 }
+      - cmd: bash ../scripts/reveal-artifact.sh publish/win-x64/Deathborn.Client
+        dir: "{{.CLIENT_DIR}}"
+
+  client:publish:linux:
+    desc: Publish Linux x64 zip to dist/ (cross-builds from Windows/macOS)
+    cmds:
+      - task: client:publish:run
+        vars: { RID: linux-x64 }
+      - cmd: bash ../scripts/reveal-artifact.sh publish/linux-x64/Deathborn.Client
+        dir: "{{.CLIENT_DIR}}"
+
+  client:publish:mac:
+    desc: Publish macOS zip for this Mac (osx-arm64 or osx-x64)
+    cmds:
+      - task: client:publish:run
+      - cmd: bash ../scripts/reveal-artifact.sh publish/{{.CLIENT_RID}}/Deathborn.Client
+        dir: "{{.CLIENT_DIR}}"
+
+  client:publish:mac:arm64:
+    desc: Publish macOS Apple Silicon zip to dist/
+    cmds:
+      - task: client:publish:run
+        vars: { RID: osx-arm64 }
+      - cmd: bash ../scripts/reveal-artifact.sh publish/osx-arm64/Deathborn.Client
+        dir: "{{.CLIENT_DIR}}"
+
+  client:publish:mac:x64:
+    desc: Publish macOS Intel zip to dist/
+    cmds:
+      - task: client:publish:run
+        vars: { RID: osx-x64 }
+      - cmd: bash ../scripts/reveal-artifact.sh publish/osx-x64/Deathborn.Client
+        dir: "{{.CLIENT_DIR}}"
+
+  client:publish:all:
+    desc: Publish Windows + Linux zips (build macOS on a Mac or via GitHub release)
+    cmds:
+      - task: client:publish:win
+      - task: client:publish:linux
+
+  client:package:linux:
+    desc: Linux tar.gz with install.sh (Ubuntu, Fedora, Arch, etc.)
+    vars:
+      VERSION_STRIP:
+        sh: echo "{{.VERSION}}" | sed 's/^v//'
+    cmds:
+      - task: client:publish:run
+        vars: { RID: linux-x64 }
+      - bash installer/package-linux.sh {{.VERSION_STRIP}} linux-x64
+      - bash scripts/reveal-artifact.sh dist/Deathborn-{{.VERSION_STRIP}}-linux-x64.tar.gz
+
+  client:package:mac:
+    desc: macOS .dmg with Deathborn.app (must run on macOS)
+    vars:
+      VERSION_STRIP:
+        sh: echo "{{.VERSION}}" | sed 's/^v//'
+    cmds:
+      - task: client:publish:run
+      - bash installer/package-macos.sh {{.VERSION_STRIP}} {{.CLIENT_RID}}
+      - bash scripts/reveal-artifact.sh dist/Deathborn-{{.VERSION_STRIP}}-{{.CLIENT_RID}}.dmg
+
+  client:package:
+    desc: Build the native installer/package for this OS
+    cmds:
+      - |
+        case "$(uname -s)" in
+          MINGW*|MSYS*|CYGWIN*|Windows*)
+            task client:installer
+            ;;
+          Darwin)
+            task client:package:mac
+            ;;
+          *)
+            task client:package:linux
+            ;;
+        esac
 
   client:installer:
     desc: Build Windows setup wizard in dist/ and reveal the Setup.exe
-    deps: [client:publish:run]
+    deps:
+      - task: client:publish:run
+        vars: { RID: win-x64 }
     vars:
       VERSION_STRIP:
         sh: echo "{{.VERSION}}" | sed 's/^v//'

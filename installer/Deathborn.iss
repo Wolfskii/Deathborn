@@ -6,7 +6,7 @@
 #endif
 
 #ifndef PublishDir
-  #define PublishDir "..\client\publish"
+  #define PublishDir "..\client\publish\win-x64"
 #endif
 
 #define MyAppName "Deathborn"

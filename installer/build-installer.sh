@@ -5,11 +5,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ISS="$ROOT/installer/Deathborn.iss"
 VERSION="${1:-dev}"
-PUBLISH_DIR="$ROOT/client/publish"
+PUBLISH_DIR="$ROOT/client/publish/win-x64"
 
 if [[ ! -f "$PUBLISH_DIR/Deathborn.Client.exe" ]]; then
   echo "Missing publish build: $PUBLISH_DIR/Deathborn.Client.exe" >&2
-  echo "Run: task client:publish" >&2
+  echo "Run: task client:publish:win" >&2
   exit 1
 fi
 

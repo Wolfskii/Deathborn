@@ -17,6 +17,7 @@ installer/assets/
 client/**/bin/
 client/**/obj/
 client/publish/
+client/.package-stage/
 client/**/.vs/
 
 # OS / editor

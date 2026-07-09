@@ -25,49 +25,20 @@ Or from repo root:
 task client
 ```
 
-## Ship to friends (Windows)
+## Ship to friends
 
-### Quick start
+See the root [README shipping section](../README.md#shipping-the-client) for full detail. Quick map:
 
-```bash
-# From repo root — builds publish output + installer
-task client:installer
-```
-
-Send: `dist/Deathborn-<version>-win-x64-Setup.exe`
-
-### Prerequisites (your machine only)
-
-| Tool | Purpose |
-| --- | --- |
-| [.NET 8 SDK](https://dotnet.microsoft.com/download) | Build the client |
-| [Task](https://taskfile.dev) | `task client:installer` |
-| [Inno Setup 6](https://jrsoftware.org/isdl.php) | Compile the wizard |
-
-```bash
-winget install JRSoftware.InnoSetup
-```
-
-Friends need **none** of the above — the installer is self-contained.
-
-### Publish vs installer
-
-| Command | Output | Send to friends? |
+| OS | Build (your machine) | Send friends |
 | --- | --- | --- |
-| `task client:publish` | `dist/Deathborn-<version>-win-x64.zip` | Yes — they must unzip the **whole** folder |
-| `task client:installer` | `dist/Deathborn-<version>-win-x64-Setup.exe` | **Preferred** — single setup file |
+| **This OS** | `task client:package` | — |
+| Windows | `task client:installer` | `dist/*-win-x64-Setup.exe` |
+| Linux | `task client:package:linux` | `dist/*-linux-x64.tar.gz` → `tar -xzf … && ./install.sh` |
+| macOS | `task client:package:mac` *(on a Mac)* | `dist/*-osx-*.dmg` → drag app to Applications |
 
-`task client:installer` runs `client:publish` first, then packages the result into a Windows wizard (logo, running swordsman during install, shortcuts, uninstaller).
+One **linux-x64** build covers Ubuntu, Fedora, Arch, Mint, etc. macOS needs **osx-arm64** (Apple Silicon) or **osx-x64** (Intel) — `task client:publish:mac` picks the right one for your Mac.
 
-**Do not** send only `Deathborn.Client.exe` — the game needs DLLs, `.xnb` content, and world binaries alongside it.
-
-### After install
-
-Default install path: `C:\Program Files\Deathborn\`
-
-Launch **Deathborn** from the desktop shortcut or Start Menu. Optional post-install checkbox launches the game immediately.
-
-Uninstall via Windows **Settings → Apps → Deathborn**.
+From Windows you can also run `task client:publish:linux` or `task client:package:linux` without a Linux VM.
 
 ### Server URL
 
@@ -79,36 +50,29 @@ Resolution order ([`Net/ServerEndpoints.cs`](Deathborn.Client/Net/ServerEndpoint
 
 For a custom server without rebuilding:
 
+```bash
+# Linux / macOS
+export DEATHBORN_SERVER_URL=https://your-api.example.com
+deathborn   # or ./Deathborn.Client
+```
+
 ```bat
+REM Windows
 set DEATHBORN_SERVER_URL=https://your-api.example.com
 Deathborn.Client.exe
-```
-
-Or set `DEATHBORN_SERVER_URL` as a Windows user environment variable.
-
-### Manual build (without Task)
-
-```bash
-cd client
-dotnet tool restore
-dotnet publish Deathborn.Client/Deathborn.Client.csproj \
-  -c Release -r win-x64 --self-contained true -o publish
-```
-
-Then from repo root:
-
-```bash
-bash installer/build-installer.sh <version>
 ```
 
 ### Installer files
 
 ```
 installer/
-  Deathborn.iss         Inno Setup script
-  prepare_assets.py     Logo + run-frame bitmaps for the wizard
-  build-installer.sh    Compile helper (used by Task)
-  assets/               Generated BMPs (gitignored; rebuilt each run)
+  Deathborn.iss           Windows Inno Setup
+  build-installer.sh      Windows Setup.exe
+  package-linux.sh        Linux tar.gz
+  package-macos.sh        macOS .dmg
+  linux/install.sh        per-user Linux install script
+  macos/Info.plist        macOS app bundle metadata
+  prepare_assets.py       Windows wizard art
 ```
 
 ## Project layout
