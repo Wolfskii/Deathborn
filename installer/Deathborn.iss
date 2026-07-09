@@ -82,8 +82,8 @@ var
   RunAnimFrame: Integer;
   RunAnimStatus: TNewStaticText;
   RunStatusIndex: Integer;
-  RunAnimTimer: TTimer;
-  RunMessageTimer: TTimer;
+  LastAnimTick: Cardinal;
+  LastMessageTick: Cardinal;
 
 const
   RunAnimIntervalMs = 175;
@@ -132,36 +132,46 @@ begin
   SetRunFrame(RunAnimFrame);
 end;
 
-procedure RunAnimTimerTimer(Sender: TObject);
+procedure AdvanceRunMessage;
 begin
-  if RunAnimImage.Visible then
-    RunAnimStep;
-end;
-
-procedure RunMessageTimerTimer(Sender: TObject);
-begin
-  if not RunAnimStatus.Visible then
-    Exit;
   RunStatusIndex := (RunStatusIndex + 1) mod 8;
   RunAnimStatus.Caption := GetRunStatusLine(RunStatusIndex);
+end;
+
+procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
+var
+  Now: Cardinal;
+begin
+  if not RunAnimImage.Visible then
+    Exit;
+
+  Now := GetTickCount();
+  if (Now - LastAnimTick) >= RunAnimIntervalMs then
+  begin
+    LastAnimTick := Now;
+    RunAnimStep;
+  end;
+  if (Now - LastMessageTick) >= RunMessageIntervalMs then
+  begin
+    LastMessageTick := Now;
+    AdvanceRunMessage;
+  end;
 end;
 
 procedure ShowRunAnim;
 begin
   RunAnimFrame := 0;
   RunStatusIndex := 0;
+  LastAnimTick := GetTickCount();
+  LastMessageTick := LastAnimTick;
   SetRunFrame(0);
   RunAnimStatus.Caption := GetRunStatusLine(0);
   RunAnimImage.Visible := True;
   RunAnimStatus.Visible := True;
-  RunAnimTimer.Enabled := True;
-  RunMessageTimer.Enabled := True;
 end;
 
 procedure HideRunAnim;
 begin
-  RunAnimTimer.Enabled := False;
-  RunMessageTimer.Enabled := False;
   RunAnimImage.Visible := False;
   RunAnimStatus.Visible := False;
 end;
@@ -190,16 +200,6 @@ begin
   RunAnimStatus.Font.Style := [fsItalic];
   RunAnimStatus.Caption := '';
   RunAnimStatus.Visible := False;
-
-  RunAnimTimer := TTimer.Create(WizardForm);
-  RunAnimTimer.OnTimer := @RunAnimTimerTimer;
-  RunAnimTimer.Interval := RunAnimIntervalMs;
-  RunAnimTimer.Enabled := False;
-
-  RunMessageTimer := TTimer.Create(WizardForm);
-  RunMessageTimer.OnTimer := @RunMessageTimerTimer;
-  RunMessageTimer.Interval := RunMessageIntervalMs;
-  RunMessageTimer.Enabled := False;
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
