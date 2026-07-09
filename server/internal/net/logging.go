@@ -37,14 +37,14 @@ func (r *statusRecorder) Flush() {
 	}
 }
 
-// LogRequests wraps an HTTP handler and logs each request. Health checks are
-// skipped to avoid noise from Docker/orchestrator probes.
+// LogRequests wraps an HTTP handler and logs each request. Health checks and
+// 404s are skipped — probes against /, /.env, etc. would otherwise flood logs.
 func LogRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
-		if r.URL.Path == "/health" {
+		if r.URL.Path == "/health" || rec.status == http.StatusNotFound {
 			return
 		}
 		log.Printf("http %s %s -> %d (%s)", r.Method, r.URL.Path, rec.status, time.Since(start).Round(time.Millisecond))
