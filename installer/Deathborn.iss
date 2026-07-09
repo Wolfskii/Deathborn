@@ -35,7 +35,7 @@ WizardImageFile=assets\wizard_large.bmp
 WizardSmallImageFile=assets\wizard_small.bmp
 SetupIconFile=..\client\Deathborn.Client\Icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
@@ -82,6 +82,12 @@ var
   RunAnimFrame: Integer;
   RunAnimStatus: TNewStaticText;
   RunStatusIndex: Integer;
+  RunAnimTimer: TTimer;
+  RunMessageTimer: TTimer;
+
+const
+  RunAnimIntervalMs = 175;
+  RunMessageIntervalMs = 7000;
 
 function GetRunStatusLine(Index: Integer): string;
 begin
@@ -124,17 +130,20 @@ procedure RunAnimStep;
 begin
   RunAnimFrame := (RunAnimFrame + 1) mod 8;
   SetRunFrame(RunAnimFrame);
-  if (RunAnimFrame mod 2) = 0 then
-  begin
-    RunStatusIndex := (RunStatusIndex + 1) mod 8;
-    RunAnimStatus.Caption := GetRunStatusLine(RunStatusIndex);
-  end;
 end;
 
-procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
+procedure RunAnimTimerTimer(Sender: TObject);
 begin
   if RunAnimImage.Visible then
     RunAnimStep;
+end;
+
+procedure RunMessageTimerTimer(Sender: TObject);
+begin
+  if not RunAnimStatus.Visible then
+    Exit;
+  RunStatusIndex := (RunStatusIndex + 1) mod 8;
+  RunAnimStatus.Caption := GetRunStatusLine(RunStatusIndex);
 end;
 
 procedure ShowRunAnim;
@@ -145,10 +154,14 @@ begin
   RunAnimStatus.Caption := GetRunStatusLine(0);
   RunAnimImage.Visible := True;
   RunAnimStatus.Visible := True;
+  RunAnimTimer.Enabled := True;
+  RunMessageTimer.Enabled := True;
 end;
 
 procedure HideRunAnim;
 begin
+  RunAnimTimer.Enabled := False;
+  RunMessageTimer.Enabled := False;
   RunAnimImage.Visible := False;
   RunAnimStatus.Visible := False;
 end;
@@ -177,6 +190,16 @@ begin
   RunAnimStatus.Font.Style := [fsItalic];
   RunAnimStatus.Caption := '';
   RunAnimStatus.Visible := False;
+
+  RunAnimTimer := TTimer.Create(WizardForm);
+  RunAnimTimer.OnTimer := @RunAnimTimerTimer;
+  RunAnimTimer.Interval := RunAnimIntervalMs;
+  RunAnimTimer.Enabled := False;
+
+  RunMessageTimer := TTimer.Create(WizardForm);
+  RunMessageTimer.OnTimer := @RunMessageTimerTimer;
+  RunMessageTimer.Interval := RunMessageIntervalMs;
+  RunMessageTimer.Enabled := False;
 end;
 
 procedure CurPageChanged(CurPageID: Integer);
