@@ -69,7 +69,7 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release delete "$RELEASE_TAG" --yes --cleanup-tag=false
+            gh release delete "$RELEASE_TAG" --yes --cleanup-tag=true
           fi
           gh release create "$RELEASE_TAG" \
             --target "${{ github.sha }}" \
@@ -272,5 +272,5 @@ jobs:
           cd ..
 
           bash .github/scripts/build-release-notes.sh "$RELEASE_TAG" "${{ github.sha }}" > release-notes.md
-          gh release edit "$RELEASE_TAG" --notes-file release-notes.md --draft=false
-          echo "Published ${RELEASE_TAG} with ${asset_count} file(s) plus SHA256SUMS.txt"
+          gh release edit "$RELEASE_TAG" --notes-file release-notes.md --draft=false --latest
+          echo "Published ${RELEASE_TAG} as Latest with ${asset_count} file(s) plus SHA256SUMS.txt"

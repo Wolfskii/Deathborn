@@ -41,9 +41,16 @@ jobs:
 
       - name: Compute next patch version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"
+          latest="$(gh release list --limit 100 --json tagName,isDraft,prerelease \
+            -q '.[] | select(.isDraft==false and .prerelease==false) | .tagName' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)"
+          if [ -z "$latest" ]; then
+            latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"
+          fi
           if [ -z "$latest" ]; then
             next="0.1.0"
           else
@@ -55,6 +62,7 @@ jobs:
             next="${major}.${minor}.$((patch + 1))"
           fi
           echo "tag=v$next" >> "$GITHUB_OUTPUT"
+          echo "Latest published: ${latest:-<none>}"
           echo "Next release: v$next"
 
       - name: Skip if tag or release already exists
@@ -66,18 +74,26 @@ jobs:
           tag="${{ steps.version.outputs.tag }}"
           if [ "${FORCE}" = "true" ]; then
             echo "Force release requested for $tag"
+            gh release delete "$tag" --yes --cleanup-tag=true 2>/dev/null || true
             echo "skip=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git rev-parse "$tag" >/dev/null 2>&1; then
-            echo "Local tag $tag already exists."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            is_draft="$(gh release view "$tag" --json isDraft -q '.isDraft')"
+            asset_count="$(gh release view "$tag" --json assets -q '.assets | length')"
+            if [ "$is_draft" = "true" ] || [ "$asset_count" -eq 0 ]; then
+              echo "Retrying incomplete release $tag"
+              gh release delete "$tag" --yes --cleanup-tag=true
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "GitHub release $tag already published with assets."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "GitHub release $tag already exists."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Removing orphan tag $tag"
+            git push origin ":refs/tags/${tag}" 2>/dev/null || true
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
