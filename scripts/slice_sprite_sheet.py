@@ -73,6 +73,110 @@ def standardize_sheet(image: Image.Image, width: int, height: int) -> Image.Imag
     return resized.convert("RGBA")
 
 
+def canonical_spec(atlas: dict) -> tuple[int, int, int]:
+    spec = atlas["targets"]["canonical"]
+    cell = int(spec.get("cell", 64))
+    return int(spec["width"]), int(spec["height"]), cell
+
+
+def extract_distributed_cells(
+    sheet: Image.Image,
+    columns: int,
+    rows: int,
+) -> list[list[Image.Image]]:
+    cells: list[list[Image.Image]] = []
+    for row in range(rows):
+        row_cells: list[Image.Image] = []
+        for col in range(columns):
+            x0, x1 = axis_bounds(sheet.width, columns, col)
+            y0, y1 = axis_bounds(sheet.height, rows, row)
+            row_cells.append(sheet.crop((x0, y0, x1, y1)))
+        cells.append(row_cells)
+    return cells
+
+
+def extract_fixed_cells(
+    sheet: Image.Image,
+    columns: int,
+    rows: int,
+    cell_size: int,
+) -> list[list[Image.Image]]:
+    cells: list[list[Image.Image]] = []
+    for row in range(rows):
+        row_cells: list[Image.Image] = []
+        for col in range(columns):
+            x0 = col * cell_size
+            y0 = row * cell_size
+            row_cells.append(sheet.crop((x0, y0, x0 + cell_size, y0 + cell_size)))
+        cells.append(row_cells)
+    return cells
+
+
+def resize_cell_grid(
+    cells: list[list[Image.Image]],
+    cell_size: int,
+) -> list[list[Image.Image]]:
+    return [
+        [cell.resize((cell_size, cell_size), Image.Resampling.NEAREST) for cell in row]
+        for row in cells
+    ]
+
+
+def compose_sheet_from_cells(
+    cells: list[list[Image.Image]],
+    width: int,
+    height: int,
+    columns: int,
+    rows: int,
+) -> Image.Image:
+    sheet = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    for row in range(rows):
+        for col in range(columns):
+            x0, x1 = axis_bounds(width, columns, col)
+            y0, y1 = axis_bounds(height, rows, row)
+            target_w, target_h = x1 - x0, y1 - y0
+            scaled = cells[row][col].resize((target_w, target_h), Image.Resampling.NEAREST)
+            sheet.paste(scaled, (x0, y0))
+    return sheet
+
+
+def normalize_to_canonical_cells(
+    image: Image.Image,
+    atlas: dict,
+) -> list[list[Image.Image]]:
+    """Extract a clean 64x64 cell grid regardless of input sheet size."""
+    columns = int(atlas["columns"])
+    rows = int(atlas["rows"])
+    canon_w, canon_h, cell_size = canonical_spec(atlas)
+    game_w, game_h = resolve_target(atlas, "game")
+
+    if image.size == (game_w, game_h):
+        distributed = extract_distributed_cells(image, columns, rows)
+        return resize_cell_grid(distributed, cell_size)
+
+    normalized = standardize_sheet(image, canon_w, canon_h)
+    return extract_fixed_cells(normalized, columns, rows, cell_size)
+
+
+def build_target_sheet(
+    cells: list[list[Image.Image]],
+    atlas: dict,
+    target: str,
+) -> Image.Image:
+    columns = int(atlas["columns"])
+    rows = int(atlas["rows"])
+    width, height = resolve_target(atlas, target)
+    if target == "canonical":
+        canon_w, canon_h, cell_size = canonical_spec(atlas)
+        if width != canon_w or height != canon_h:
+            raise SystemExit(
+                f"Canonical target size mismatch: expected {canon_w}x{canon_h}, got {width}x{height}"
+            )
+        return compose_sheet_from_cells(cells, width, height, columns, rows)
+
+    return compose_sheet_from_cells(cells, width, height, columns, rows)
+
+
 def apply_chroma_key(
     image: Image.Image,
     key_rgb: tuple[int, int, int],
@@ -103,10 +207,21 @@ def axis_bounds(total: int, parts: int, index: int) -> tuple[int, int]:
     return total * index // parts, total * (index + 1) // parts
 
 
+def apply_inset(image: Image.Image, inset: int) -> Image.Image:
+    if inset <= 0:
+        return image
+
+    width, height = image.size
+    x0 = min(inset, width - 1)
+    y0 = min(inset, height - 1)
+    x1 = max(width - inset, x0 + 1)
+    y1 = max(height - inset, y0 + 1)
+    cropped = image.crop((x0, y0, x1, y1))
+    return cropped.resize((width, height), Image.Resampling.NEAREST)
+
+
 def slice_cells(
-    sheet: Image.Image,
-    columns: int,
-    rows: int,
+    cells: list[list[Image.Image]],
     cell_names: list[list[str | None]],
     output_dir: Path,
     *,
@@ -116,21 +231,13 @@ def slice_cells(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     exported: list[dict] = []
-    for row in range(rows):
-        for col in range(columns):
+    for row, row_cells in enumerate(cells):
+        for col, cell_image in enumerate(row_cells):
             name = cell_names[row][col]
             if name is None and skip_empty:
                 continue
 
-            x0, x1 = axis_bounds(sheet.width, columns, col)
-            y0, y1 = axis_bounds(sheet.height, rows, row)
-            if inset > 0:
-                x0 = min(x0 + inset, x1 - 1)
-                y0 = min(y0 + inset, y1 - 1)
-                x1 = max(x1 - inset, x0 + 1)
-                y1 = max(y1 - inset, y0 + 1)
-
-            cell = sheet.crop((x0, y0, x1, y1))
+            cell = apply_inset(cell_image, inset)
             filename = f"{name}.png" if name else f"empty_r{row}_c{col}.png"
             out_path = output_dir / filename
             cell.save(out_path)
@@ -255,7 +362,6 @@ def main() -> int:
         raise SystemExit(f"Input file not found: {args.input}")
 
     atlas = load_atlas(args.atlas)
-    width, height = resolve_target(atlas, args.target)
     chroma = resolve_chroma_key(args, atlas)
 
     stem = args.input.stem
@@ -266,21 +372,32 @@ def main() -> int:
 
     with Image.open(args.input) as src:
         print(f"Input: {args.input} ({src.width}x{src.height}, {src.mode})")
-        sheet = standardize_sheet(src, width, height)
+        canon_w, canon_h, cell_size = canonical_spec(atlas)
+        cell_grid = normalize_to_canonical_cells(src, atlas)
+        print(
+            f"Normalized to canonical cells: {cell_size}x{cell_size} "
+            f"({atlas['columns']}x{atlas['rows']} grid, {canon_w}x{canon_h})"
+        )
 
     if chroma:
         key_label, key_rgb = chroma
-        sheet = apply_chroma_key(sheet, key_rgb, max(0, args.tolerance))
+        cell_grid = [
+            [
+                apply_chroma_key(cell, key_rgb, max(0, args.tolerance))
+                for cell in row
+            ]
+            for row in cell_grid
+        ]
         print(f"Chroma key removed: {key_label} (tolerance {args.tolerance})")
+
+    sheet = build_target_sheet(cell_grid, atlas, args.target)
 
     sheet_out.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(sheet_out)
     print(f"Processed sheet: {sheet_out} ({sheet.width}x{sheet.height}, RGBA)")
 
     cells = slice_cells(
-        sheet,
-        atlas["columns"],
-        atlas["rows"],
+        cell_grid,
         atlas["cells"],
         cells_out,
         skip_empty=args.skip_empty,

@@ -42,27 +42,9 @@ public static class WorldZones
 
     public static void Initialize(WorldMap map)
     {
-        var s = map.TileSize / 16f;
-        Vector2 Tile(int tx, int ty) => new((tx + 0.5f) * map.TileSize, (ty + 0.5f) * map.TileSize);
-
-        _towns =
-        [
-            Zone("starter_town", "Starter Town", map.DefaultSpawn, 148 * s, 128 * s, TownStyle.Starter),
-            Zone("northhaven", "Northhaven", Tile(234, 45), 136 * s, 118 * s, TownStyle.Castle),
-            Zone("westmere", "Westmere", Tile(39, 189), 128 * s, 112 * s, TownStyle.Village),
-            Zone("eastwatch", "Eastwatch", Tile(229, 128), 132 * s, 116 * s, TownStyle.Castle),
-            Zone("southport", "Southport", Tile(112, 281), 140 * s, 120 * s, TownStyle.Port),
-        ];
-
-        _pathLinks =
-        [
-            ("starter_town", "northhaven"),
-            ("starter_town", "eastwatch"),
-            ("starter_town", "westmere"),
-            ("starter_town", "southport"),
-            ("northhaven", "eastwatch"),
-            ("westmere", "southport"),
-        ];
+        _ = map;
+        _towns = [];
+        _pathLinks = [];
     }
 
     public static WorldZone? Get(string id) =>

@@ -1,0 +1,214 @@
+{
+  "atlas": "cosmetic",
+  "source": "C:\\Users\\dawid\\Projects\\Deathborn\\client\\Deathborn.Client\\Content\\Icons\\cosmetic_sheet.png",
+  "standardized_sheet": "C:\\Users\\dawid\\Projects\\Deathborn\\.tile_debug\\sheets\\cosmetic\\cosmetic_sheet_processed.png",
+  "target": "game",
+  "sheet_size": [
+    1024,
+    819
+  ],
+  "chroma_key": null,
+  "chroma_tolerance": null,
+  "cells": [
+    {
+      "name": "santa_hat",
+      "row": 0,
+      "col": 0,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/santa_hat.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "party_hat",
+      "row": 0,
+      "col": 1,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/party_hat.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "jester_cap",
+      "row": 0,
+      "col": 2,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/jester_cap.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "bucket_helmet",
+      "row": 0,
+      "col": 3,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/bucket_helmet.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "pirate_hat",
+      "row": 0,
+      "col": 4,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/pirate_hat.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "propeller_hat",
+      "row": 1,
+      "col": 0,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/propeller_hat.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "bunny_ears",
+      "row": 1,
+      "col": 1,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/bunny_ears.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "top_hat",
+      "row": 1,
+      "col": 2,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/top_hat.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "traffic_cone",
+      "row": 1,
+      "col": 3,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/traffic_cone.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "beer_helm",
+      "row": 1,
+      "col": 4,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/beer_helm.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "wizard_hat_torn",
+      "row": 2,
+      "col": 0,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/wizard_hat_torn.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "crown_of_bones",
+      "row": 2,
+      "col": 1,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/crown_of_bones.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "rubber_chicken_hat",
+      "row": 2,
+      "col": 2,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/rubber_chicken_hat.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "grim_hood",
+      "row": 2,
+      "col": 3,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/grim_hood.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "gold_helm_rusty",
+      "row": 2,
+      "col": 4,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/gold_helm_rusty.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "fedora_of_shame",
+      "row": 3,
+      "col": 0,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/fedora_of_shame.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "clown_nose_glasses",
+      "row": 3,
+      "col": 1,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/clown_nose_glasses.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": "severed_elf_hat",
+      "row": 3,
+      "col": 2,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/severed_elf_hat.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": null,
+      "row": 3,
+      "col": 3,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/empty_r3_c3.png",
+      "size": [
+        64,
+        64
+      ]
+    },
+    {
+      "name": null,
+      "row": 3,
+      "col": 4,
+      "file": ".tile_debug/sheets/cosmetic/cosmetic_sheet_cells/empty_r3_c4.png",
+      "size": [
+        64,
+        64
+      ]
+    }
+  ]
+}

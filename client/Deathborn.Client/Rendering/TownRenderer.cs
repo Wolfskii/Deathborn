@@ -21,9 +21,6 @@ public static class TownRenderer
 
     public static void Draw(SpriteBatch sb, Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        if (WorldZones.Towns.Count == 0)
-            WorldZones.Initialize(WorldMap.Realik);
-
         foreach (var town in WorldZones.Towns)
             DrawTown(sb, town, camera, screenCenter, zoom);
     }

@@ -24,9 +24,11 @@ public sealed class WorldMap
     private sbyte[] _elevation = [];
     private byte[] _ramps = [];
     private int _maxElevation;
-    private Texture2D? _landOverlayTexture;
+    private Texture2D? _mapColorTexture;
+    private Color[] _mapTileColors = [];
     private DateTime _collisionWriteTime;
-    private DateTime _overlaySourceWriteTime;
+    private DateTime _elevationWriteTime;
+    private DateTime _mapColorSourceWriteTime;
 
     public bool IsLand(int tx, int ty) =>
         (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight && _walkable[ty * TileWidth + tx];
@@ -95,7 +97,7 @@ public sealed class WorldMap
         if (_realik != null && writeTime == _sourceWriteTime)
             return _realik;
 
-        _realik?._landOverlayTexture?.Dispose();
+        _realik?._mapColorTexture?.Dispose();
         _realik = Load(path);
         _sourceWriteTime = writeTime;
         return _realik;
