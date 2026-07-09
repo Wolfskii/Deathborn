@@ -62,37 +62,6 @@ jobs:
               -q '.artifacts[] | select(.expired==false) | .id'
           )
 
-      - name: Generate changelog
-        env:
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
-        run: |
-          set -euo pipefail
-          prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vFx "$RELEASE_TAG" | head -1 || true)"
-          {
-            echo "## What's Changed"
-            echo ""
-            if [ -z "$prev" ]; then
-              git log --pretty=format:'- %s (%h)' --reverse
-            else
-              git log "${prev}..HEAD" --pretty=format:'- %s (%h)' --reverse
-            fi
-            echo ""
-            echo ""
-            echo "## Client downloads"
-            echo ""
-            echo "| Platform | Portable | Installer |"
-            echo "| --- | --- | --- |"
-            echo "| Windows x64 | \`Deathborn-*-win-x64.zip\` | \`Deathborn-*-win-x64-Setup.exe\` |"
-            echo "| Linux x64 | \`Deathborn-*-linux-x64.zip\` | \`Deathborn-*-linux-x64.tar.gz\` (run \`install.sh\`) |"
-            echo "| macOS Intel | \`Deathborn-*-osx-x64.zip\` | \`Deathborn-*-osx-x64.dmg\` |"
-            echo "| macOS Apple Silicon | \`Deathborn-*-osx-arm64.zip\` | \`Deathborn-*-osx-arm64.dmg\` |"
-            echo ""
-            if [ -n "$prev" ]; then
-              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${prev}...${RELEASE_TAG}"
-            fi
-          } > release-notes.md
-          echo "Changelog entries: $(grep -c '^- ' release-notes.md || true)"
-
       - name: Create draft GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -106,7 +75,7 @@ jobs:
             --target "${{ github.sha }}" \
             --draft \
             --title "Deathborn ${RELEASE_TAG}" \
-            --notes-file release-notes.md
+            --notes "Client builds in progress. Download links will appear when the release is published."
 
   client:
     name: Client (${{ matrix.rid }})
@@ -271,17 +240,37 @@ jobs:
   finalize-release:
     name: Publish GitHub Release
     needs: [client, prepare-release]
+    if: >-
+      always() &&
+      needs.prepare-release.result == 'success' &&
+      needs.client.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Add checksums and publish release
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Add checksums, download links, and publish
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
           set -euo pipefail
+          asset_count="$(gh release view "$RELEASE_TAG" --json assets -q '.assets | length')"
+          echo "Release assets uploaded: ${asset_count}"
+          if [ "${asset_count}" -eq 0 ]; then
+            echo "No release files were uploaded; leaving draft unpublished." >&2
+            exit 1
+          fi
+
           mkdir -p release
           gh release download "$RELEASE_TAG" --dir release
           cd release
           find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
           gh release upload "$RELEASE_TAG" SHA256SUMS.txt --clobber
-          gh release edit "$RELEASE_TAG" --draft=false
+          cd ..
+
+          bash .github/scripts/build-release-notes.sh "$RELEASE_TAG" "${{ github.sha }}" > release-notes.md
+          gh release edit "$RELEASE_TAG" --notes-file release-notes.md --draft=false
+          echo "Published ${RELEASE_TAG} with ${asset_count} file(s) plus SHA256SUMS.txt"
