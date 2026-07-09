@@ -115,9 +115,13 @@ public sealed class CharacterCreateScreen : IScreen
 
     private void OnDisconnected()
     {
-        if (!_busy) return;
-        _status = "Error: lost connection to server";
+        var msg = _screens.Net.DisconnectMessage;
+        if (string.IsNullOrWhiteSpace(msg))
+            msg = "Lost connection to the server.";
+        _status = msg;
         _busy = false;
         _createBtn.Enabled = true;
+        _screens.Net.ClearWorldSession();
+        _screens.Change(new LoginScreen(_screens));
     }
 }

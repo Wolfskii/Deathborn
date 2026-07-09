@@ -346,6 +346,11 @@ func BuildYouDied(x, y, dirX, dirY float64) []byte {
 	return encode("you_died", YouDiedData{X: x, Y: y, DirX: dirX, DirY: dirY})
 }
 
+// BuildServerShutdown notifies clients before the server closes the socket.
+func BuildServerShutdown(message string) []byte {
+	return encode("server_shutdown", MessageData{Message: message})
+}
+
 // BuildPlayerHeal serializes a heal event for broadcast.
 func BuildPlayerHeal(playerID int64, amount int, ability string, hp, hpMax float64) []byte {
 	return encode("player_heal", PlayerHealData{

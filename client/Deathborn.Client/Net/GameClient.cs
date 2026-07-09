@@ -34,6 +34,9 @@ public sealed class GameClient : IDisposable
     public List<InventoryItemState> SpawnInventory { get; private set; } = [];
     public bool WsConnected => _ws?.State == WebSocketState.Open;
 
+    /// <summary>Human-readable reason from the server or the network stack.</summary>
+    public string DisconnectMessage { get; private set; } = "";
+
     public event Action<string>? AuthFailed;
     public event Action? AuthSucceeded;
     public event Action? NeedCharacter;
@@ -168,6 +171,7 @@ public sealed class GameClient : IDisposable
 
         await DisconnectWorldAsync();
         LocalCharacterId = -1;
+        DisconnectMessage = "";
 
         _ws = new ClientWebSocket();
         _ws.Options.SetRequestHeader(ProtocolCompat.HttpHeader, ProtocolCompat.Protocol.ToString());
@@ -214,6 +218,18 @@ public sealed class GameClient : IDisposable
             _ws = null;
         }
         while (_incoming.TryDequeue(out _)) { }
+    }
+
+    public void ClearWorldSession()
+    {
+        LocalCharacterId = -1;
+        SpawnName = "";
+        SpawnX = 0;
+        SpawnY = 0;
+        SpawnSkills = new Dictionary<string, long>();
+        SpawnTotalXp = 0;
+        SpawnInventory = [];
+        DisconnectMessage = "";
     }
 
     public void Poll()
@@ -435,7 +451,15 @@ public sealed class GameClient : IDisposable
         }
     }
 
-    private void PostDisconnected() => _mainThread.Enqueue(() => Disconnected?.Invoke());
+    private void PostDisconnected()
+    {
+        _mainThread.Enqueue(() =>
+        {
+            if (string.IsNullOrWhiteSpace(DisconnectMessage))
+                DisconnectMessage = "Connection to the server was lost.";
+            Disconnected?.Invoke();
+        });
+    }
 
     private void HandleMessage(string raw)
     {
@@ -578,6 +602,11 @@ public sealed class GameClient : IDisposable
             case "error":
                 var err = env.Data.Deserialize<MessageData>(JsonOpts);
                 ServerError?.Invoke(err?.Message ?? "error");
+                break;
+            case "server_shutdown":
+                var shutdown = env.Data.Deserialize<MessageData>(JsonOpts);
+                DisconnectMessage = shutdown?.Message
+                    ?? "The realm is closing for maintenance. Please log in again shortly.";
                 break;
         }
     }

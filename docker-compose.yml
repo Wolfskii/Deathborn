@@ -22,6 +22,7 @@ services:
         VERSION: ${VERSION:-dev}
     image: deathborn-server:${VERSION:-dev}
     restart: unless-stopped
+    stop_grace_period: 20s
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     # Dokploy writes UI env vars to `.env` next to this file; load them into the container.

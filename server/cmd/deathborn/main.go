@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -70,7 +71,12 @@ func main() {
 	}
 	hub := gnet.NewHub(world, database)
 	hub.ProcessExpiredWorldDrops()
-	go hub.Run(ctx)
+	var hubDone sync.WaitGroup
+	hubDone.Add(1)
+	go func() {
+		defer hubDone.Done()
+		hub.Run(ctx)
+	}()
 
 	// Simulation loop: advance the world and broadcast a snapshot each tick.
 	go game.RunLoop(ctx, world, tickHz, func(tick uint64, heals []game.HealEvent, dt float64) {
@@ -118,7 +124,9 @@ func main() {
 	<-ctx.Done()
 	log.Println("shutting down")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	hubDone.Wait()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
 }

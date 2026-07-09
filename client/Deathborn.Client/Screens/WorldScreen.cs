@@ -24,6 +24,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly GameWindowManager _windows = new();
     private readonly WorldMapOverlay _worldMap = new();
     private readonly DeathGhostOverlay _deathOverlay = new();
+    private readonly ServerDisconnectOverlay _disconnectOverlay = new();
     private readonly BuffTracker _buffTracker = new();
     private readonly BuffBarOverlay _buffBar = new();
     private readonly Dictionary<long, float> _hunterMarks = new();
@@ -38,6 +39,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private Vector2 _corpsePosition;
     private bool _ghostMode;
     private bool _ghostModePending;
+    private bool _disconnectMode;
     private readonly HashSet<long> _knownFriendRequests = [];
     private readonly ZoneBannerOverlay _zoneBanner = new();
     private readonly GameNotificationOverlay _notifications = new();
@@ -97,6 +99,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _chat.Submitted += OnChatSubmitted;
         _chat.TypingChanged += OnChatTypingChanged;
         _deathOverlay.NewLifeRequested += OnNewLifeRequested;
+        _disconnectOverlay.ReturnToLoginRequested += OnReturnToLoginRequested;
         _playerContextMenu.ItemChosen += OnPlayerContextMenu;
     }
 
@@ -214,6 +217,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.FriendsUpdated -= OnFriendsUpdated;
         net.PrivateMessage -= OnPrivateMessage;
         _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
+        _disconnectOverlay.ReturnToLoginRequested -= OnReturnToLoginRequested;
         _playerContextMenu.ItemChosen -= OnPlayerContextMenu;
         _fishing.Caught -= OnFishCaught;
         _chat.Submitted -= OnChatSubmitted;
@@ -232,6 +236,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _ghost = null;
         _ghostMode = false;
         _ghostModePending = false;
+        _disconnectMode = false;
         _interactables.Clear();
         _npcs.Clear();
         _feedback.Clear();
@@ -297,6 +302,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _chat.Update(gameTime, kb, _prevKb);
         _windows.Friends.TickInput(gameTime, kb, _prevKb);
+
+        if (_disconnectMode)
+        {
+            UpdateDisconnectMode(mouse.Position);
+            _prevKb = kb;
+            if (windowActive)
+                _prevMouse = mouse;
+            return;
+        }
 
         if (_ghostMode)
         {
@@ -550,6 +564,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         {
             sb.Begin();
             _deathOverlay.Draw(sb, font);
+            sb.End();
+        }
+        else if (_disconnectMode)
+        {
+            sb.Begin();
+            _disconnectOverlay.Draw(sb, font);
             sb.End();
         }
 
@@ -1061,6 +1081,25 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     }
 
     private void OnNewLifeRequested() => _screens.Change(new CharacterCreateScreen(_screens));
+
+    private void OnReturnToLoginRequested() => _ = ReturnToLoginAsync();
+
+    private async Task ReturnToLoginAsync()
+    {
+        if (!_disconnectMode)
+            return;
+        _disconnectMode = false;
+        await _screens.Net.DisconnectWorldAsync();
+        _screens.Net.ClearWorldSession();
+        _screens.Change(new LoginScreen(_screens));
+    }
+
+    private void UpdateDisconnectMode(Point mouse)
+    {
+        var clicked = Mouse.GetState().LeftButton == ButtonState.Pressed
+            && _prevMouse.LeftButton == ButtonState.Released;
+        _disconnectOverlay.Update(mouse, clicked);
+    }
 
     private void DrawWorldMapOverlay(SpriteBatch sb, SpriteFont font)
     {
@@ -2360,7 +2399,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
-    private void OnDisconnected() => _status = "Disconnected from server.";
+    private void OnDisconnected()
+    {
+        if (_disconnectMode || _ghostMode)
+            return;
+        _disconnectMode = true;
+        var msg = _screens.Net.DisconnectMessage;
+        if (string.IsNullOrWhiteSpace(msg))
+            msg = "Connection to the server was lost.";
+        _disconnectOverlay.SetMessage(msg);
+        _status = msg;
+        _notifications.Push("Server disconnected", msg, NotificationKind.Danger);
+    }
 
     private bool EquipCosmeticFromEntry(Dictionary<string, object> entry)
     {

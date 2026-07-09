@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -24,6 +25,8 @@ type Hub struct {
 
 	onlineMu      sync.RWMutex
 	onlineAccount map[int64]int64
+
+	shuttingDown bool
 }
 
 type directMessage struct {
@@ -49,6 +52,7 @@ func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			h.gracefulShutdownAll("The realm is closing for maintenance. Your progress has been saved — please log in again shortly.")
 			return
 		case c := <-h.register:
 			h.clients[c] = true
@@ -176,6 +180,39 @@ func (h *Hub) HandlePlayerDeath(database *db.DB, playerID, killerID int64) {
 	h.Broadcast(BuildPlayerDeath(playerID, killerID, x, y, dirX, dirY))
 	h.SendToCharacter(playerID, BuildYouDied(x, y, dirX, dirY), true)
 	h.world.RemovePlayer(playerID)
+}
+
+func (h *Hub) gracefulShutdownAll(reason string) {
+	if h.shuttingDown {
+		return
+	}
+	h.shuttingDown = true
+	if reason == "" {
+		reason = "The server is restarting. Please log in again shortly."
+	}
+
+	clients := make([]*Client, 0, len(h.clients))
+	for c := range h.clients {
+		clients = append(clients, c)
+	}
+	if len(clients) == 0 {
+		log.Println("graceful shutdown: no connected clients")
+		return
+	}
+
+	log.Printf("graceful shutdown: notifying %d connected clients", len(clients))
+	msg := BuildServerShutdown(reason)
+	for _, c := range clients {
+		c.safeSend(msg)
+	}
+	time.Sleep(150 * time.Millisecond)
+
+	for _, c := range clients {
+		c.endSession(h.db, false)
+		delete(h.clients, c)
+		c.close()
+	}
+	log.Println("graceful shutdown complete")
 }
 
 // spawnXY is the default position for newly created characters on Realik.

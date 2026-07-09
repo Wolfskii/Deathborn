@@ -43,6 +43,8 @@ type Client struct {
 	accountID   int64
 	characterID int64
 	spawned     bool
+
+	sessionOnce sync.Once
 }
 
 func (c *Client) markUnspawned() {
@@ -191,37 +193,56 @@ func dbFurnitureToDB(items []game.FurnitureItem) []db.FurnitureItem {
 	return out
 }
 
-func (c *Client) readPump(database *db.DB) {
-	defer func() {
-		if c.spawned {
-			if x, y, ok := c.hub.world.Position(c.characterID); ok {
-				_ = database.SaveCharacterPosition(context.Background(), c.characterID, x, y)
-				if skillSet, total, ok := c.hub.world.SkillsForSave(c.characterID); ok {
-					m := map[string]int64{}
-					for k, v := range skillSet {
-						m[k] = v
-					}
-					_ = database.SaveCharacterSkills(context.Background(), c.characterID, m, total)
-				}
-				if inv, ok := c.hub.world.PlayerInventory(c.characterID); ok {
-					_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(inv))
-				}
-				cosmetics := db.EquippedCosmetics{}
-				if head := c.hub.world.HeadCosmetic(c.characterID); head != "" {
-					cosmetics[game.CosmeticSlotHead] = head
-				}
-				_ = database.SaveCharacterCosmetics(context.Background(), c.characterID, cosmetics)
-				log.Printf("ws disconnected account_id=%d character_id=%d saved_pos=(%.0f,%.0f)",
-					c.accountID, c.characterID, x, y)
-			} else {
-				log.Printf("ws disconnected account_id=%d character_id=%d", c.accountID, c.characterID)
+func (c *Client) persistSpawnedState(database *db.DB) {
+	if !c.spawned {
+		return
+	}
+	ctx := context.Background()
+	if x, y, ok := c.hub.world.Position(c.characterID); ok {
+		_ = database.SaveCharacterPosition(ctx, c.characterID, x, y)
+		if skillSet, total, ok := c.hub.world.SkillsForSave(c.characterID); ok {
+			m := map[string]int64{}
+			for k, v := range skillSet {
+				m[k] = v
 			}
+			_ = database.SaveCharacterSkills(ctx, c.characterID, m, total)
+		}
+		if inv, ok := c.hub.world.PlayerInventory(c.characterID); ok {
+			_ = database.SaveCharacterInventory(ctx, c.characterID, game.InventoryToDB(inv))
+		}
+		cosmetics := db.EquippedCosmetics{}
+		if head := c.hub.world.HeadCosmetic(c.characterID); head != "" {
+			cosmetics[game.CosmeticSlotHead] = head
+		}
+		_ = database.SaveCharacterCosmetics(ctx, c.characterID, cosmetics)
+		log.Printf("saved account_id=%d character_id=%d pos=(%.0f,%.0f)",
+			c.accountID, c.characterID, x, y)
+		return
+	}
+	log.Printf("saved account_id=%d character_id=%d (no position)", c.accountID, c.characterID)
+}
+
+func (c *Client) endSession(database *db.DB, unregister bool) {
+	c.sessionOnce.Do(func() {
+		if c.spawned {
+			c.persistSpawnedState(database)
 			c.hub.world.RemovePlayer(c.characterID)
 			c.hub.ClearOnline(c.accountID)
 		} else {
 			log.Printf("ws disconnected account_id=%d (no character)", c.accountID)
 		}
-		c.hub.unregister <- c
+		if unregister && !c.hub.shuttingDown {
+			select {
+			case c.hub.unregister <- c:
+			default:
+			}
+		}
+	})
+}
+
+func (c *Client) readPump(database *db.DB) {
+	defer func() {
+		c.endSession(database, true)
 		c.close()
 	}()
 
