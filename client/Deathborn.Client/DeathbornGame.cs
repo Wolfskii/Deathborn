@@ -56,6 +56,7 @@ public sealed class DeathbornGame : Game
 
         Window.TextInput += OnTextInput;
         _screens = new ScreenManager(this);
+        ServerEndpoints.EnsureResolvedAsync().GetAwaiter().GetResult();
         base.Initialize();
         SyncViewport();
     }

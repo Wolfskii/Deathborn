@@ -1,3 +1,5 @@
+using Deathborn.Client.Net;
+
 namespace Deathborn.Client;
 
 public static class Config
@@ -6,8 +8,8 @@ public static class Config
     public static int DevInstance { get; } =
         int.TryParse(Environment.GetEnvironmentVariable("DEATHBORN_INSTANCE"), out var n) && n > 0 ? n : 0;
 
-    public const string HttpBase = "http://127.0.0.1:8080";
-    public const string WsBase = "ws://127.0.0.1:8080/ws";
+    public static string HttpBase => ServerEndpoints.HttpBase;
+    public static string WsBase => ServerEndpoints.WsBase;
     public const int DefaultWidth = 1280;
     public const int DefaultHeight = 720;
     /// <summary>World camera scale at <see cref="DefaultWidth"/>×<see cref="DefaultHeight"/>; higher = closer.</summary>
