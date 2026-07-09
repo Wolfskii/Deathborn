@@ -15,13 +15,102 @@ on:
 permissions:
   contents: write
   packages: write
+  actions: write
 
 env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  # Keep this many semver GitHub Releases (older release assets are deleted).
+  RELEASE_RETENTION_COUNT: 5
 
 jobs:
+  prepare-release:
+    name: Prune old releases and open draft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Prune old GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          KEEP: ${{ env.RELEASE_RETENTION_COUNT }}
+        run: |
+          set -euo pipefail
+          mapfile -t tags < <(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname)
+          for i in "${!tags[@]}"; do
+            if (( i >= KEEP )); then
+              tag="${tags[$i]}"
+              echo "Pruning GitHub Release $tag (keeping newest $KEEP)"
+              gh release delete "$tag" --yes --cleanup-tag=false 2>/dev/null || true
+            fi
+          done
+
+      - name: Free Actions artifact storage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Releases upload directly to GitHub Releases; artifacts are not needed.
+          while IFS= read -r id; do
+            [ -n "$id" ] || continue
+            gh api --method DELETE "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" || true
+          done < <(
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --paginate \
+              -q '.artifacts[] | select(.expired==false) | .id'
+          )
+
+      - name: Generate changelog
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vFx "$RELEASE_TAG" | head -1 || true)"
+          {
+            echo "## What's Changed"
+            echo ""
+            if [ -z "$prev" ]; then
+              git log --pretty=format:'- %s (%h)' --reverse
+            else
+              git log "${prev}..HEAD" --pretty=format:'- %s (%h)' --reverse
+            fi
+            echo ""
+            echo ""
+            echo "## Client downloads"
+            echo ""
+            echo "| Platform | Portable | Installer |"
+            echo "| --- | --- | --- |"
+            echo "| Windows x64 | \`Deathborn-*-win-x64.zip\` | \`Deathborn-*-win-x64-Setup.exe\` |"
+            echo "| Linux x64 | \`Deathborn-*-linux-x64.zip\` | \`Deathborn-*-linux-x64.tar.gz\` (run \`install.sh\`) |"
+            echo "| macOS Intel | \`Deathborn-*-osx-x64.zip\` | \`Deathborn-*-osx-x64.dmg\` |"
+            echo "| macOS Apple Silicon | \`Deathborn-*-osx-arm64.zip\` | \`Deathborn-*-osx-arm64.dmg\` |"
+            echo ""
+            if [ -n "$prev" ]; then
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${prev}...${RELEASE_TAG}"
+            fi
+          } > release-notes.md
+          echo "Changelog entries: $(grep -c '^- ' release-notes.md || true)"
+
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release delete "$RELEASE_TAG" --yes --cleanup-tag=false
+          fi
+          gh release create "$RELEASE_TAG" \
+            --target "${{ github.sha }}" \
+            --draft \
+            --title "Deathborn ${RELEASE_TAG}" \
+            --notes-file release-notes.md
+
   client:
     name: Client (${{ matrix.rid }})
+    needs: prepare-release
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -124,15 +213,20 @@ jobs:
           version="${RELEASE_TAG#v}"
           bash installer/package-macos.sh "$version" "${{ matrix.rid }}"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: client-${{ matrix.rid }}
-          path: |
-            dist/*.zip
-            dist/*.tar.gz
-            dist/*.dmg
-            dist/*-Setup.exe
-          if-no-files-found: error
+      - name: Upload client assets to draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist/*.zip dist/*.tar.gz dist/*.dmg dist/*-Setup.exe)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No release files found in dist/" >&2
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
 
   docker:
     name: Server Docker (GHCR)
@@ -168,78 +262,20 @@ jobs:
           build-args: |
             VERSION=${{ env.RELEASE_TAG }}
 
-  github-release:
-    name: GitHub Release (client downloads)
-    needs: [client]
+  finalize-release:
+    name: Publish GitHub Release
+    needs: [client, prepare-release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: client-*
-          path: dist
-          merge-multiple: true
-
-      - name: Flatten artifact layout
-        run: |
-          shopt -s nullglob
-          mkdir -p release
-          find dist -type f \( \
-            -name '*.zip' -o \
-            -name '*.tar.gz' -o \
-            -name '*.dmg' -o \
-            -name '*-Setup.exe' \
-          \) -exec cp {} release/ \;
-          ls -la release/
-          test "$(find release -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' | wc -l)" -gt 0
-
-      - name: Generate checksums
-        run: |
-          cd release
-          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
-
-      - name: Generate changelog
+      - name: Add checksums and publish release
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
         run: |
           set -euo pipefail
-          prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vFx "$RELEASE_TAG" | head -1 || true)"
-          {
-            echo "## What's Changed"
-            echo ""
-            if [ -z "$prev" ]; then
-              git log --pretty=format:'- %s (%h)' --reverse
-            else
-              git log "${prev}..HEAD" --pretty=format:'- %s (%h)' --reverse
-            fi
-            echo ""
-            echo ""
-            echo "## Client downloads"
-            echo ""
-            echo "| Platform | Portable | Installer |"
-            echo "| --- | --- | --- |"
-            echo "| Windows x64 | \`Deathborn-*-win-x64.zip\` | \`Deathborn-*-win-x64-Setup.exe\` |"
-            echo "| Linux x64 | \`Deathborn-*-linux-x64.zip\` | \`Deathborn-*-linux-x64.tar.gz\` (run \`install.sh\`) |"
-            echo "| macOS Intel | \`Deathborn-*-osx-x64.zip\` | \`Deathborn-*-osx-x64.dmg\` |"
-            echo "| macOS Apple Silicon | \`Deathborn-*-osx-arm64.zip\` | \`Deathborn-*-osx-arm64.dmg\` |"
-            echo ""
-            if [ -n "$prev" ]; then
-              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${prev}...${RELEASE_TAG}"
-            fi
-          } > release-notes.md
-          echo "Changelog entries: $(grep -c '^- ' release-notes.md || true)"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          target_commitish: ${{ github.sha }}
-          name: Deathborn ${{ env.RELEASE_TAG }}
-          body_path: release-notes.md
-          files: |
-            release/*
-            !release/release-notes.md
+          mkdir -p release
+          gh release download "$RELEASE_TAG" --dir release
+          cd release
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          gh release upload "$RELEASE_TAG" SHA256SUMS.txt --clobber
+          gh release edit "$RELEASE_TAG" --draft=false
