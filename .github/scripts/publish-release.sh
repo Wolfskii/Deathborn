@@ -62,14 +62,6 @@ fi
 
 echo "Tag ${TAG} -> ${tag_sha:-<missing>}"
 
-mkdir -p release
-gh release download "$TAG" --dir release
-(
-  cd release
-  find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
-)
-gh release upload "$TAG" release/SHA256SUMS.txt --clobber
-
 bash "$(dirname "$0")/build-release-notes.sh" "$TAG" "$SHA" > release-notes.md
 
 release_id="$(gh release view "$TAG" --json databaseId -q '.databaseId')"
@@ -102,4 +94,4 @@ if [ "$is_latest" != "true" ]; then
   exit 1
 fi
 
-echo "Published ${TAG} with ${asset_count} asset(s) plus SHA256SUMS.txt"
+echo "Published ${TAG} with ${asset_count} client asset(s)"
