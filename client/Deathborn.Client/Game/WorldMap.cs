@@ -129,6 +129,7 @@ public sealed class WorldMap
 
         var spawn = FindSpawnTile(walkable, tw, th, tileSize);
         var writeTime = File.GetLastWriteTimeUtc(path);
+        var elevWriteTime = File.Exists(ElevationPath) ? File.GetLastWriteTimeUtc(ElevationPath) : DateTime.MinValue;
         var (elevation, ramps, maxElev) = TryLoadElevation(tw, th);
         return new WorldMap
         {
@@ -141,6 +142,7 @@ public sealed class WorldMap
             _maxElevation = maxElev,
             DefaultSpawn = spawn,
             _collisionWriteTime = writeTime,
+            _elevationWriteTime = elevWriteTime,
         };
     }
 
@@ -344,28 +346,30 @@ public sealed class WorldMap
         return new Color(20, 50 + v, 140 + v / 2);
     }
 
-    private static readonly Color OverlayLand = new(138, 134, 128);
-    /// <summary>Flat grass fill for the circular minimap (no tile sprites).</summary>
-    public static readonly Color MinimapLandFill = new(110, 150, 92);
+    private DateTime MapColorSourceTime =>
+        _collisionWriteTime > _elevationWriteTime ? _collisionWriteTime : _elevationWriteTime;
 
-    public void EnsureOverlayTexture(GraphicsDevice device)
+    public void EnsureMapColorTexture(GraphicsDevice device)
     {
-        if (_landOverlayTexture != null && _overlaySourceWriteTime == _collisionWriteTime)
+        var sourceTime = MapColorSourceTime;
+        if (_mapColorTexture != null && _mapColorSourceWriteTime == sourceTime)
             return;
 
-        _landOverlayTexture?.Dispose();
+        _mapColorTexture?.Dispose();
 
-        var tex = new Texture2D(device, TileWidth, TileHeight);
         var data = new Color[TileWidth * TileHeight];
         for (var ty = 0; ty < TileHeight; ty++)
         for (var tx = 0; tx < TileWidth; tx++)
         {
             var i = ty * TileWidth + tx;
-            data[i] = _walkable[i] ? OverlayLand : Color.Transparent;
+            data[i] = TerrainMapColors.ForTile(this, tx, ty);
         }
+
+        _mapTileColors = data;
+        var tex = new Texture2D(device, TileWidth, TileHeight);
         tex.SetData(data);
-        _landOverlayTexture = tex;
-        _overlaySourceWriteTime = _collisionWriteTime;
+        _mapColorTexture = tex;
+        _mapColorSourceWriteTime = sourceTime;
     }
 
     /// <summary>Local area land fill for the circular minimap (centered on worldCenter).</summary>
