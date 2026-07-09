@@ -90,13 +90,10 @@ jobs:
             --draft \
             --title "Deathborn ${RELEASE_TAG}" \
             --notes "Client builds in progress. Download links will appear when the release is published."
-          tag_sha="$(git ls-remote origin "refs/tags/${RELEASE_TAG}^{}" | awk '{print $1}' | head -1 || true)"
-          echo "Created draft ${RELEASE_TAG}; tag -> ${tag_sha:-<missing>}"
-          if [ -z "$tag_sha" ]; then
-            echo "gh release create did not create tag; creating ref manually" >&2
-            gh api --method POST "/repos/${GITHUB_REPOSITORY}/git/refs" \
-              -f ref="refs/tags/${RELEASE_TAG}" \
-              -f sha="${{ github.sha }}"
+          if gh api "/repos/${GITHUB_REPOSITORY}/git/refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Draft ${RELEASE_TAG} created; git tag present on GitHub"
+          else
+            echo "Draft ${RELEASE_TAG} created; tag will be ensured at publish time"
           fi
 
   client:

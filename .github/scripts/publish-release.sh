@@ -20,21 +20,46 @@ if [ "${asset_count}" -eq 0 ]; then
   exit 1
 fi
 
-# gh release create should create the tag; ensure it exists and points at this commit.
-tag_sha="$(git ls-remote origin "refs/tags/${TAG}^{}" 2>/dev/null | awk '{print $1}' | head -1 || true)"
-if [ -z "$tag_sha" ]; then
-  echo "Tag ${TAG} missing on origin; creating at ${SHA}"
-  gh api --method POST "/repos/${REPO}/git/refs" \
+resolve_tag_commit() {
+  local tag="$1"
+  if ! gh api "/repos/${REPO}/git/refs/tags/${tag}" >/dev/null 2>&1; then
+    return 1
+  fi
+  local type obj_sha
+  type="$(gh api "/repos/${REPO}/git/refs/tags/${tag}" -q '.object.type')"
+  obj_sha="$(gh api "/repos/${REPO}/git/refs/tags/${tag}" -q '.object.sha')"
+  if [ "$type" = "tag" ]; then
+    obj_sha="$(gh api "/repos/${REPO}/git/tags/${obj_sha}" -q '.object.sha')"
+  fi
+  printf '%s' "$obj_sha"
+}
+
+tag_sha=""
+if tag_sha="$(resolve_tag_commit "$TAG")"; then
+  echo "Tag ${TAG} already exists at ${tag_sha}"
+  if [ "$tag_sha" != "$SHA" ]; then
+    echo "Moving tag ${TAG} from ${tag_sha} to ${SHA}"
+    gh api --method PATCH "/repos/${REPO}/git/refs/tags/${TAG}" \
+      -f sha="${SHA}" \
+      -F force=true >/dev/null
+  fi
+else
+  echo "Creating tag ${TAG} at ${SHA}"
+  if ! gh api --method POST "/repos/${REPO}/git/refs" \
     -f ref="refs/tags/${TAG}" \
-    -f sha="${SHA}" >/dev/null
-elif [ "$tag_sha" != "$SHA" ]; then
-  echo "Tag ${TAG} points at ${tag_sha}; moving to ${SHA}"
-  gh api --method PATCH "/repos/${REPO}/git/refs/tags/${TAG}" \
-    -f sha="${SHA}" \
-    -F force=true >/dev/null
+    -f sha="${SHA}" 2>post_err.txt; then
+    if grep -q 'Reference already exists' post_err.txt || resolve_tag_commit "$TAG" >/dev/null; then
+      tag_sha="$(resolve_tag_commit "$TAG")"
+      echo "Tag ${TAG} already exists on GitHub at ${tag_sha}"
+    else
+      cat post_err.txt >&2
+      exit 1
+    fi
+  else
+    tag_sha="$(resolve_tag_commit "$TAG")"
+  fi
 fi
 
-tag_sha="$(git ls-remote origin "refs/tags/${TAG}^{}" 2>/dev/null | awk '{print $1}' | head -1 || true)"
 echo "Tag ${TAG} -> ${tag_sha:-<missing>}"
 
 mkdir -p release

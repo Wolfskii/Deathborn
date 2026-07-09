@@ -81,6 +81,12 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             is_draft="$(gh release view "$tag" --json isDraft -q '.isDraft')"
             asset_count="$(gh release view "$tag" --json assets -q '.assets | length')"
+            if [ "$is_draft" = "true" ] && [ "$asset_count" -gt 0 ]; then
+              echo "Draft $tag already has ${asset_count} assets."
+              echo "Publish it with Actions -> Publish draft release (or re-run failed finalize job)."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             if [ "$is_draft" = "true" ] || [ "$asset_count" -eq 0 ]; then
               echo "Retrying incomplete release $tag"
               gh release delete "$tag" --yes --cleanup-tag

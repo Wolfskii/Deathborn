@@ -1,0 +1,42 @@
+name: Publish draft release
+
+# Publish an existing draft that already has uploaded assets (e.g. finalize failed).
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (e.g. v0.1.22)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve commit SHA for tag
+        id: sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          type="$(gh api "/repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" -q '.object.type')"
+          sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" -q '.object.sha')"
+          if [ "$type" = "tag" ]; then
+            sha="$(gh api "/repos/${GITHUB_REPOSITORY}/git/tags/${sha}" -q '.object.sha')"
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/publish-release.sh "${{ inputs.tag }}" "${{ steps.sha.outputs.sha }}"
