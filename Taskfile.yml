@@ -27,12 +27,12 @@ tasks:
   start:
     desc: Build and run the full stack (Postgres + server) in the foreground
     cmds:
-      - docker compose up --build
+      - docker compose --profile local up --build
 
   up:
     desc: Start the full stack in the background (Docker only — no local client)
     cmds:
-      - docker compose up --build -d
+      - docker compose --profile local up --build -d
 
   stop:
     desc: Stop and remove the stack containers
@@ -104,7 +104,7 @@ tasks:
       - |
         echo "Waiting for PostgreSQL..."
         for i in $(seq 1 30); do
-          if docker compose exec -T db pg_isready -U deathborn -d deathborn >/dev/null 2>&1; then
+          if docker compose --profile local exec -T db pg_isready -U deathborn -d deathborn >/dev/null 2>&1; then
             echo "PostgreSQL is ready."
             exit 0
           fi
@@ -116,7 +116,7 @@ tasks:
   db:
     desc: Start only PostgreSQL in Docker
     cmds:
-      - docker compose up -d db
+      - docker compose --profile local up -d db
 
   # --- MonoGame C# client (aliases) ---
   client:
