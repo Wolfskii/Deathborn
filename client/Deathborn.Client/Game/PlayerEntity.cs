@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Deathborn.Client.Net;
 using Deathborn.Client.Rendering;
+using Deathborn.Client.Rendering.Characters;
 
 namespace Deathborn.Client.Gameplay;
 
@@ -19,16 +20,7 @@ public sealed class PlayerEntity
     public static Vector2 CollisionCenter(Vector2 feetPosition) =>
         feetPosition + new Vector2(0, CollisionCenterYOffset);
 
-    private FourDirectionRunAnimation? _runAnim;
-    private FourDirectionIdleAnimation? _idleAnim;
-    private FourDirectionAttackAnimation? _attackAnim;
-    private FourDirectionDeathAnimation? _deathAnim;
-    private FourDirectionHurtAnimation? _hurtAnim;
-    private FourDirectionRunAnimation RunAnim => _runAnim ??= CharacterSprites.CreateSwordsmanRun();
-    private FourDirectionIdleAnimation IdleAnim => _idleAnim ??= CharacterSprites.CreateSwordsmanIdle();
-    private FourDirectionAttackAnimation AttackAnim => _attackAnim ??= CharacterSprites.CreateSwordsmanAttack();
-    private FourDirectionDeathAnimation DeathAnim => _deathAnim ??= CharacterSprites.CreateSwordsmanDeath();
-    private FourDirectionHurtAnimation HurtAnim => _hurtAnim ??= CharacterSprites.CreateSwordsmanHurt();
+    private readonly CharacterVisual _visual = new();
     private readonly PlayerChatBubble _chatBubble = new();
     private readonly ThinkingBubble _thinking = new();
     private readonly HashSet<long> _meleeHitThisSwing = [];
@@ -62,12 +54,12 @@ public sealed class PlayerEntity
     /// <summary>Local sprint held (Shift) with enough stamina.</summary>
     public bool IsRunning;
 
-    public bool IsAttacking => AttackAnim.IsPlaying;
+    public bool IsAttacking => _visual.Controller.IsAttackPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
     public bool IsDashing => _isDashing;
     public bool IsWhirlwinding => _whirlwindTimer > 0f;
     public bool IsBusy => IsAttacking || IsCasting || IsDashing || IsWhirlwinding;
-    public bool IsHurt => HurtAnim.IsPlaying;
+    public bool IsHurt => _visual.Controller.IsHurtPlaying;
     public bool IsTyping
     {
         get => _thinking.Active;
@@ -75,8 +67,8 @@ public sealed class PlayerEntity
     }
 
     public bool IsBandaging => _bandageHoTTimer > 0f;
-    public bool IsDying => DeathAnim.IsPlaying;
-    public bool IsCorpse => DeathAnim.IsComplete;
+    public bool IsDying => _visual.Controller.IsDeathPlaying;
+    public bool IsCorpse => _visual.Controller.IsDeathComplete;
     public bool IsDead => IsDying || IsCorpse;
 
     public CharacterStats Stats { get; } = CharacterStats.CreateStarter();
@@ -88,7 +80,7 @@ public sealed class PlayerEntity
         var dir = facing ?? FacingDir;
         if (dir.LengthSquared() > 0.01f)
             MoveDir = Vector2.Normalize(dir);
-        DeathAnim.Start(dir);
+        _visual.BeginDeath(dir);
     }
 
     public void StartBandageHoT() => _bandageHoTTimer = Config.BandageDuration;
@@ -123,7 +115,7 @@ public sealed class PlayerEntity
     public void ApplyHit(int damage)
     {
         if (damage <= 0 || IsDead) return;
-        HurtAnim.Start(FacingDir);
+        _visual.ApplyHit(FacingDir);
     }
 
     public void CheckLocalMeleeHits(
@@ -133,7 +125,7 @@ public sealed class PlayerEntity
         if (!IsLocal || IsDead || !IsAttacking) return;
 
         var def = _activeMeleeDef ?? MeleeAbilityDefinitions.Slash;
-        var frame = AttackAnim.Frame;
+        var frame = _visual.Controller.AttackFrame;
         if (frame < def.HitFrameStart || frame > def.HitFrameEnd) return;
 
         var facing = CardinalFacing(FacingDir);
@@ -239,7 +231,7 @@ public sealed class PlayerEntity
         if (!IsLocal || IsDead || !IsAttacking || npcs.Count == 0) return;
 
         var def = _activeMeleeDef ?? MeleeAbilityDefinitions.Slash;
-        var frame = AttackAnim.Frame;
+        var frame = _visual.Controller.AttackFrame;
         if (frame < def.HitFrameStart || frame > def.HitFrameEnd) return;
 
         var facing = CardinalFacing(FacingDir);
@@ -296,7 +288,7 @@ public sealed class PlayerEntity
         var dir = facing ?? FacingDir;
         if (dir.LengthSquared() > 0.01f)
             MoveDir = Vector2.Normalize(dir);
-        AttackAnim.Start(dir);
+        _visual.StartAttack(dir);
         return true;
     }
 
@@ -400,8 +392,7 @@ public sealed class PlayerEntity
 
         if (IsDead)
         {
-            if (IsDying)
-                DeathAnim.Update(dt);
+            _visual.UpdateAnimation(dt, BuildAnimationInput());
             return;
         }
 
@@ -442,54 +433,25 @@ public sealed class PlayerEntity
 
         UpdateBandageVisual(dt);
 
-        if (HurtAnim.IsPlaying)
-            HurtAnim.Update(dt);
-
-        if (IsWhirlwinding)
-        {
-            RunAnim.Update(dt, FacingDir, true, Config.RunAnimSpeed);
-            _chatBubble.Update(dt);
-            _thinking.Update(dt);
-            return;
-        }
-
-        if (_isDashing)
-        {
-            RunAnim.Update(dt, FacingDir, true, Config.RunAnimSpeed);
-            _chatBubble.Update(dt);
-            _thinking.Update(dt);
-            return;
-        }
-
-        if (IsAttacking)
-        {
-            AttackAnim.Update(dt);
-            if (!AttackAnim.IsPlaying)
-                _activeMeleeDef = null;
-            _chatBubble.Update(dt);
-            _thinking.Update(dt);
-            return;
-        }
-
-        if (IsCasting)
-        {
-            IdleAnim.Update(dt, FacingDir);
-            _chatBubble.Update(dt);
-            _thinking.Update(dt);
-            return;
-        }
-
-        if (IsMoving)
-        {
-            var animSpeed = IsRunning ? Config.RunAnimSpeed : Config.WalkAnimSpeed;
-            RunAnim.Update(dt, FacingDir, true, animSpeed);
-        }
-        else
-            IdleAnim.Update(dt, FacingDir);
+        var wasAttacking = IsAttacking;
+        _visual.UpdateAnimation(dt, BuildAnimationInput());
+        if (wasAttacking && !IsAttacking)
+            _activeMeleeDef = null;
 
         _chatBubble.Update(dt);
         _thinking.Update(dt);
     }
+
+    private AnimationInput BuildAnimationInput() => new()
+    {
+        IsDead = IsDead,
+        IsWhirlwinding = IsWhirlwinding,
+        IsDashing = _isDashing,
+        IsCasting = IsCasting,
+        IsMoving = IsMoving,
+        IsRunning = IsRunning,
+        FacingDir = FacingDir,
+    };
 
     private void UpdateBandageVisual(float dt)
     {
@@ -505,7 +467,7 @@ public sealed class PlayerEntity
 
         if (IsDead)
         {
-            DeathAnim.Draw(sb, screenPos, tint, scale);
+            _visual.Draw(sb, screenPos, tint, scale);
             if (IsCorpse)
             {
                 var markerY = screenPos.Y + (-Radius - 28f) * zoom;
@@ -514,18 +476,7 @@ public sealed class PlayerEntity
             return;
         }
 
-        if (IsHurt)
-            HurtAnim.Draw(sb, screenPos, tint, scale);
-        else if (IsWhirlwinding)
-            RunAnim.Draw(sb, screenPos, tint, scale);
-        else if (IsDashing)
-            RunAnim.Draw(sb, screenPos, tint, scale);
-        else if (IsAttacking)
-            AttackAnim.Draw(sb, screenPos, tint, scale);
-        else if (IsMoving)
-            RunAnim.Draw(sb, screenPos, tint, scale);
-        else
-            IdleAnim.Draw(sb, screenPos, tint, scale);
+        _visual.Draw(sb, screenPos, tint, scale);
 
         PlayerCosmeticDraw.DrawHead(sb, HeadCosmetic, screenPos, FacingDir, zoom);
 
@@ -575,16 +526,7 @@ public sealed class PlayerEntity
     private void DrawHoverOutlinePass(
         SpriteBatch sb, Vector2 screenPos, Color outline, float scale, float thickness)
     {
-        if (IsHurt)
-            HurtAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
-        else if (IsWhirlwinding || IsDashing)
-            RunAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
-        else if (IsAttacking)
-            AttackAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
-        else if (IsMoving)
-            RunAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
-        else
-            IdleAnim.DrawOutline(sb, screenPos, outline, scale, thickness);
+        _visual.DrawOutline(sb, screenPos, outline, scale, thickness);
     }
 
     private void DrawBandageHoT(SpriteBatch sb, Vector2 screenPos, float zoom)

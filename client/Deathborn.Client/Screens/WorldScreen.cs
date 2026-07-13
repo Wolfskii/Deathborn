@@ -805,10 +805,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 continue;
 
             var corpsePos = player.IsLocal ? _corpsePosition : player.Position;
-            _corpses.Add(new PlayerCorpse(
-                CharacterSprites.CreateCorpseDeathAnim(),
-                corpsePos,
-                player.MoveDir));
+            _corpses.Add(new PlayerCorpse(corpsePos, player.MoveDir));
 
             var wasLocal = player.IsLocal;
             _players.Remove(id);
@@ -859,10 +856,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
         else
         {
-            _corpses.Add(new PlayerCorpse(
-                CharacterSprites.CreateCorpseDeathAnim(),
-                deathPos,
-                facing));
+            _corpses.Add(new PlayerCorpse(deathPos, facing));
         }
     }
 

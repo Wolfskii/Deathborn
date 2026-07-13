@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Deathborn.Client.Rendering;
+using Deathborn.Client.Rendering.Characters;
 
 namespace Deathborn.Client.Gameplay;
 
@@ -9,7 +10,7 @@ public sealed class GhostEntity
 {
     public Vector2 Position;
     public Vector2 MoveDir;
-    private readonly FourDirectionIdleAnimation _idle = CharacterSprites.CreateSwordsmanIdle();
+    private readonly CharacterVisual _visual = new();
     private float _bobTimer;
 
     public const float FlySpeed = 95f;
@@ -21,7 +22,8 @@ public sealed class GhostEntity
         if (MoveDir.LengthSquared() > 0.01f)
             Position += Vector2.Normalize(MoveDir) * FlySpeed * dt;
 
-        _idle.Update(dt, MoveDir.LengthSquared() > 0.01f ? MoveDir : new Vector2(0, 1));
+        var face = MoveDir.LengthSquared() > 0.01f ? MoveDir : new Vector2(0, 1);
+        _visual.UpdateAnimation(dt, new AnimationInput { FacingDir = face });
     }
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, float zoom)
@@ -33,7 +35,7 @@ public sealed class GhostEntity
 
         DrawPrimitives.FillCircle(sb, drawPos + new Vector2(0, 10f * zoom), 20f * zoom, new Color(0.75f, 0.85f, 1f, 0.12f));
         DrawPrimitives.FillCircle(sb, drawPos + new Vector2(0, 8f * zoom), 16f * zoom, new Color(1f, 1f, 1f, 0.1f));
-        _idle.Draw(sb, drawPos, ghostTint, scale);
+        _visual.Draw(sb, drawPos, ghostTint, scale);
         DrawPrimitives.DrawCircleOutline(sb, drawPos + new Vector2(0, -6f * zoom), 16f * zoom,
             new Color(0.85f, 0.92f, 1f, 0.45f), 24, 2f);
     }

@@ -31,4 +31,14 @@ public static class CharacterSprites
     public static FourDirectionHurtAnimation CreateSwordsmanHurt() => new(_swordsmanHurt);
 
     public static FourDirectionDeathAnimation CreateCorpseDeathAnim() => new(_swordsmanDeath);
+
+    public static Texture2D GetTexture(Characters.CharacterClip clip) => clip switch
+    {
+        Characters.CharacterClip.Idle or Characters.CharacterClip.Cast => _swordsmanIdle,
+        Characters.CharacterClip.Run or Characters.CharacterClip.Roll => _swordsmanRun,
+        Characters.CharacterClip.Attack => _swordsmanAttack,
+        Characters.CharacterClip.Hurt => _swordsmanHurt,
+        Characters.CharacterClip.Death => _swordsmanDeath,
+        _ => _swordsmanIdle,
+    };
 }

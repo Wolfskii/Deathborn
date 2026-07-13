@@ -1,31 +1,5 @@
 You are creating production-ready pixel art assets for an upcoming MMORPG called "Deathborn".
 
-REFERENCE IMAGE
-
-I will provide an existing Deathborn logo/banner image.
-
-Use it ONLY as artistic inspiration.
-
-Match its:
-
-• pixel art quality
-• cute proportions
-• soft shading
-• dark fantasy atmosphere
-• purple magical accents
-• clean outlines
-• readability
-• color palette
-• medieval fantasy feeling
-
-Do NOT recreate the logo.
-
-Do NOT include any text.
-
-Do NOT include logo elements.
-
-Only use it to match the artistic style.
-
 ==================================================
 STYLE
 ==================================================
