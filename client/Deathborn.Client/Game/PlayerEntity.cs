@@ -376,6 +376,18 @@ public sealed class PlayerEntity
         }
     }
 
+    private Vector2 ResolvePosition(Vector2 feet, Vector2 delta)
+    {
+        if (InsideHouseId > 0)
+        {
+            var house = WorldZones.HouseById(InsideHouseId);
+            if (house != null)
+                return HousingConstants.ResolveInteriorMove(feet, delta, house.Center);
+        }
+
+        return WorldMap.Realik.ResolveMove(feet, delta, Radius);
+    }
+
     public void Update(float dt)
     {
         if (_abilityLockTimer > 0f)
@@ -396,7 +408,7 @@ public sealed class PlayerEntity
             _dashTimer = MathF.Max(0f, _dashTimer - dt);
             var t = 1f - _dashTimer / MathF.Max(0.001f, _dashDuration);
             var next = Vector2.Lerp(_dashStart, _dashEnd, t);
-            Position = WorldMap.Realik.ResolveMove(next, Vector2.Zero, Radius);
+            Position = ResolvePosition(next, Vector2.Zero);
             Target = _dashEnd;
             if (_dashTimer <= 0f)
                 _isDashing = false;
@@ -405,16 +417,16 @@ public sealed class PlayerEntity
         {
             var dir = Vector2.Normalize(InputDir);
             var speed = IsRunning ? Config.RunSpeed : Config.WalkSpeed;
-            var predicted = WorldMap.Realik.ResolveMove(Position, dir * speed * dt, Radius);
+            var predicted = ResolvePosition(Position, dir * speed * dt);
 
             var err = Target - predicted;
             var errLenSq = err.LengthSquared();
             if (errLenSq > Config.LocalSnapDistance * Config.LocalSnapDistance)
-                Position = WorldMap.Realik.ResolveMove(Target, Vector2.Zero, Radius);
+                Position = ResolvePosition(Target, Vector2.Zero);
             else if (errLenSq > 2f)
             {
                 predicted += err * MathHelper.Clamp(dt * Config.LocalReconcileSpeed, 0f, 0.35f);
-                Position = WorldMap.Realik.ResolveMove(predicted, Vector2.Zero, Radius);
+                Position = ResolvePosition(predicted, Vector2.Zero);
             }
             else
                 Position = predicted;
@@ -423,7 +435,7 @@ public sealed class PlayerEntity
         {
             var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
             var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
-            Position = WorldMap.Realik.ResolveMove(lerped, Vector2.Zero, Radius);
+            Position = ResolvePosition(lerped, Vector2.Zero);
         }
 
         UpdateBandageVisual(dt);

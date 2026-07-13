@@ -84,17 +84,17 @@ public sealed class WorldMap
 
         if (dx == 0 && dy == -1 && te == fe + 1)
         {
-            if (GetRamp(tx, ty) != 0) return true;
-            if ((uint)ty + 1 < (uint)TileHeight && GetRamp(tx, ty + 1) != 0) return true;
-            if (GetRamp(fx - 1, fy) == 1) return true;
-            if (GetRamp(fx + 1, fy) == 2) return true;
+            if (GetRamp(tx, ty) != 0 && fx == tx && fy == ty + 1) return true;
+            var (rx1, ry1, _, ok1) = RampTreadCellId(fx, fy);
+            var (rx2, ry2, _, ok2) = RampTreadCellId(tx, ty);
+            if (ok1 && ok2 && rx1 == rx2 && ry1 == ry2) return true;
         }
         if (dx == 0 && dy == 1 && fe == te + 1)
         {
-            if (GetRamp(fx, fy) != 0) return true;
-            if (GetRamp(tx, ty) != 0) return true;
-            if (GetRamp(tx - 1, ty) == 1) return true;
-            if (GetRamp(tx + 1, ty) == 2) return true;
+            if (GetRamp(fx, fy) != 0 && tx == fx && ty == fy + 1) return true;
+            var (rx1, ry1, _, ok1) = RampTreadCellId(fx, fy);
+            var (rx2, ry2, _, ok2) = RampTreadCellId(tx, ty);
+            if (ok1 && ok2 && rx1 == rx2 && ry1 == ry2) return true;
         }
 
         if (dx != 0 && dy != 0)
@@ -122,6 +122,40 @@ public sealed class WorldMap
             if (ramp == 0) continue;
             if (tx == rx && (ty == ry || ty == ry - 1))
                 return (rx, ry, ramp, true);
+        }
+        return (0, 0, 0, false);
+    }
+
+    private (int rx, int ry, int kind, bool ok) RampEngagedAtWorld(float worldX, float worldY)
+    {
+        var (rx, ry, kind, hit) = RampTreadAtWorld(worldX, worldY);
+        if (hit) return (rx, ry, kind, true);
+
+        var tx = (int)(worldX / TileSize);
+        var ty = (int)(worldY / TileSize);
+        var lx = (worldX - tx * TileSize) / TileSize;
+
+        for (var ry2 = 0; ry2 < TileHeight; ry2++)
+        for (var rx2 = 0; rx2 < TileWidth; rx2++)
+        {
+            var ramp = GetRamp(rx2, ry2);
+            if (ramp == 0) continue;
+
+            if (ramp == 1)
+            {
+                if (tx == rx2 - 1 && ty == ry2) return (rx2, ry2, 1, true);
+                if (tx == rx2 && ty == ry2 + 1) return (rx2, ry2, 1, true);
+                if (tx == rx2 && ty == ry2 && lx < 0.50f) return (rx2, ry2, 1, true);
+                if (tx == rx2 && ty == ry2 - 1 && lx <= 0.50f) return (rx2, ry2, 1, true);
+            }
+            else
+            {
+                var lxr = tx == rx2 ? 1f - lx : lx;
+                if (tx == rx2 + 1 && ty == ry2) return (rx2, ry2, 2, true);
+                if (tx == rx2 && ty == ry2 + 1) return (rx2, ry2, 2, true);
+                if (tx == rx2 && ty == ry2 && lxr < 0.50f) return (rx2, ry2, 2, true);
+                if (tx == rx2 && ty == ry2 - 1 && lxr <= 0.50f) return (rx2, ry2, 2, true);
+            }
         }
         return (0, 0, 0, false);
     }
@@ -202,7 +236,7 @@ public sealed class WorldMap
         dyPerDx = 0;
         if (!HasElevation) return false;
 
-        var (_, _, kind, hit) = RampTreadAtWorld(worldX, worldY);
+        var (_, _, kind, hit) = RampEngagedAtWorld(worldX, worldY);
         if (!hit) return false;
         dyPerDx = kind == 1 ? -1f : 1f;
         return true;
@@ -218,8 +252,8 @@ public sealed class WorldMap
 
         if (HasElevation)
         {
-            var (rx1, ry1, k1, ok1) = RampTreadAtWorld(fromX, fromY);
-            var (rx2, ry2, k2, ok2) = RampTreadAtWorld(toX, toY);
+            var (rx1, ry1, k1, ok1) = RampEngagedAtWorld(fromX, fromY);
+            var (rx2, ry2, k2, ok2) = RampEngagedAtWorld(toX, toY);
             if (ok1 && ok2 && rx1 == rx2 && ry1 == ry2 && k1 == k2)
             {
                 var fe = GetElevation(fx, fy);

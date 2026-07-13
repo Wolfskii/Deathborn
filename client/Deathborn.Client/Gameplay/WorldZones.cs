@@ -74,6 +74,9 @@ public static class WorldZones
     public static HousePlotZone? HouseByOwner(long characterId) =>
         _houses.FirstOrDefault(h => h.OwnerId == characterId);
 
+    public static HousePlotZone? HouseById(long houseId) =>
+        houseId <= 0 ? null : _houses.FirstOrDefault(h => h.Id == houseId);
+
     public static bool HasHouse(long characterId) => HouseByOwner(characterId) != null;
 
     /// <summary>Plot owned by the character or linked to their homestead key.</summary>

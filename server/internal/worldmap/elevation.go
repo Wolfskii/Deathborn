@@ -102,32 +102,24 @@ func (g *elevationGrid) canStep(fx, fy, tx, ty, tw, th int) bool {
 		return true
 	}
 
-	// North/south along ramp corridors (enter from below, climb to platform).
+	// North/south only on the stair tread cells (or straight onto landing from south).
 	if dx == 0 && dy == -1 && te == fe+1 {
-		if g.rampAt(tx, ty, tw, th) != 0 {
+		if g.rampAt(tx, ty, tw, th) != 0 && fx == tx && fy == ty+1 {
 			return true
 		}
-		if ty+1 < th && g.rampAt(tx, ty+1, tw, th) != 0 {
-			return true
-		}
-		if g.rampAt(fx-1, fy, tw, th) == 1 {
-			return true
-		}
-		if g.rampAt(fx+1, fy, tw, th) == 2 {
+		rx1, ry1, _, ok1 := g.rampTreadCellID(fx, fy, tw, th)
+		rx2, ry2, _, ok2 := g.rampTreadCellID(tx, ty, tw, th)
+		if ok1 && ok2 && rx1 == rx2 && ry1 == ry2 {
 			return true
 		}
 	}
 	if dx == 0 && dy == 1 && fe == te+1 {
-		if g.rampAt(fx, fy, tw, th) != 0 {
+		if g.rampAt(fx, fy, tw, th) != 0 && tx == fx && ty == fy+1 {
 			return true
 		}
-		if g.rampAt(tx, ty, tw, th) != 0 {
-			return true
-		}
-		if g.rampAt(tx-1, ty, tw, th) == 1 {
-			return true
-		}
-		if g.rampAt(tx+1, ty, tw, th) == 2 {
+		rx1, ry1, _, ok1 := g.rampTreadCellID(fx, fy, tw, th)
+		rx2, ry2, _, ok2 := g.rampTreadCellID(tx, ty, tw, th)
+		if ok1 && ok2 && rx1 == rx2 && ry1 == ry2 {
 			return true
 		}
 	}
@@ -157,6 +149,58 @@ func (g *elevationGrid) rampTreadCellID(tx, ty, tw, th int) (landingX, landingY,
 			}
 			if tx == rx && (ty == ry || ty == ry-1) {
 				return rx, ry, ramp, true
+			}
+		}
+	}
+	return 0, 0, 0, false
+}
+
+// rampEngagedAtWorld is true on the green tread band or valid stair entry/approach tiles.
+func (g *elevationGrid) rampEngagedAtWorld(wx, wy, tileSize float64, tw, th int) (landingX, landingY, kind int, ok bool) {
+	if rx, ry, k, hit := g.rampTreadAtWorld(wx, wy, tileSize, tw, th); hit {
+		return rx, ry, k, true
+	}
+
+	tx := int(wx / tileSize)
+	ty := int(wy / tileSize)
+	lx := (wx - float64(tx)*tileSize) / tileSize
+
+	for ry := 0; ry < th; ry++ {
+		for rx := 0; rx < tw; rx++ {
+			ramp := int(g.rampAt(rx, ry, tw, th))
+			if ramp == 0 {
+				continue
+			}
+			if ramp == 1 {
+				if tx == rx-1 && ty == ry {
+					return rx, ry, 1, true
+				}
+				if tx == rx && ty == ry+1 && ry+1 < th {
+					return rx, ry, 1, true
+				}
+				if tx == rx && ty == ry && lx < 0.50 {
+					return rx, ry, 1, true
+				}
+				if tx == rx && ty == ry-1 && ry > 0 && lx <= 0.50 {
+					return rx, ry, 1, true
+				}
+			} else {
+				lxr := lx
+				if tx == rx {
+					lxr = 1 - (wx-float64(tx)*tileSize)/tileSize
+				}
+				if tx == rx+1 && ty == ry {
+					return rx, ry, 2, true
+				}
+				if tx == rx && ty == ry+1 && ry+1 < th {
+					return rx, ry, 2, true
+				}
+				if tx == rx && ty == ry && lxr < 0.50 {
+					return rx, ry, 2, true
+				}
+				if tx == rx && ty == ry-1 && ry > 0 && lxr <= 0.50 {
+					return rx, ry, 2, true
+				}
 			}
 		}
 	}
@@ -246,9 +290,9 @@ func rampBandHit(lx, ly, ax, ay, bx, by, halfW float64) bool {
 	return ddx*ddx+ddy*ddy <= halfW*halfW
 }
 
-// rampSlopeAtWorld returns stair slope only when the feet stand on the green tread pixels.
+// rampSlopeAtWorld returns stair slope when feet are on the tread band or a valid entry tile.
 func (g *elevationGrid) rampSlopeAtWorld(wx, wy, tileSize float64, tw, th int) (ok bool, dyPerDx float64) {
-	_, _, kind, hit := g.rampTreadAtWorld(wx, wy, tileSize, tw, th)
+	_, _, kind, hit := g.rampEngagedAtWorld(wx, wy, tileSize, tw, th)
 	if !hit {
 		return false, 0
 	}

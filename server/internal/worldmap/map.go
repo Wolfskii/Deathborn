@@ -163,8 +163,8 @@ func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
 		return true
 	}
 	if m.elevation != nil {
-		rx1, ry1, k1, ok1 := m.elevation.rampTreadAtWorld(fromX, fromY, m.TileSize, m.TileWidth, m.TileHeight)
-		rx2, ry2, k2, ok2 := m.elevation.rampTreadAtWorld(toX, toY, m.TileSize, m.TileWidth, m.TileHeight)
+		rx1, ry1, k1, ok1 := m.elevation.rampEngagedAtWorld(fromX, fromY, m.TileSize, m.TileWidth, m.TileHeight)
+		rx2, ry2, k2, ok2 := m.elevation.rampEngagedAtWorld(toX, toY, m.TileSize, m.TileWidth, m.TileHeight)
 		if ok1 && ok2 && rx1 == rx2 && ry1 == ry2 && k1 == k2 {
 			fe := m.elevation.at(fx, fy, m.TileWidth, m.TileHeight)
 			te := m.elevation.at(tx, ty, m.TileWidth, m.TileHeight)

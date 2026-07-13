@@ -45,6 +45,22 @@ public static class HousingConstants
     public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8 * Hs);
 
     public const float DoorInteractRadius = 38f * Hs;
+    public const float InteriorWallInset = 16f * Hs;
+
+    public static Vector2 ClampToInterior(Vector2 world, Vector2 center)
+    {
+        var inset = InteriorWallInset;
+        var minX = center.X - InteriorHalfW + inset;
+        var maxX = center.X + InteriorHalfW - inset;
+        var minY = center.Y - InteriorHalfH + inset;
+        var maxY = center.Y + InteriorHalfH - 8 * Hs - inset;
+        return new Vector2(
+            Math.Clamp(world.X, minX, maxX),
+            Math.Clamp(world.Y, minY, maxY));
+    }
+
+    public static Vector2 ResolveInteriorMove(Vector2 feet, Vector2 delta, Vector2 center) =>
+        ClampToInterior(feet + delta, center);
 
     public static bool IsNearDoor(Vector2 world, Vector2 center) =>
         Vector2.Distance(world, DoorWorldPosition(center)) <= DoorInteractRadius;

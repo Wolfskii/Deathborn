@@ -125,6 +125,36 @@ public static class TinySwordsUi
         sb.Draw(_btnRedTiny, dest, tint);
     }
 
+    // ui_bar_small_fill.png — thin red strip centered in the 64×64 cell.
+    private static readonly Rectangle SmallBarFillSrc = new(0, 30, 64, 3);
+
+    // ui_bar_big_fill.png
+    private static readonly Rectangle BigBarFillSrc = new(0, 20, 64, 24);
+
+    // Inner groove insets from bar art, scaled by drawn height (not track width).
+    private readonly struct BarGrooveInset(int left, int right, int top, int bottom, float nativeH)
+    {
+        public void GetInnerRect(Rectangle dest, out Rectangle inner)
+        {
+            var scale = dest.Height / Math.Max(nativeH, 1f);
+            var innerLeft = Math.Max(0, (int)MathF.Round(left * scale));
+            var innerRight = Math.Max(0, (int)MathF.Round(right * scale));
+            var innerTop = Math.Max(0, (int)MathF.Round(top * scale));
+            var innerBottom = Math.Max(0, (int)MathF.Round(bottom * scale));
+            inner = new Rectangle(
+                dest.X + innerLeft,
+                dest.Y + innerTop,
+                Math.Max(1, dest.Width - innerLeft - innerRight),
+                Math.Max(1, dest.Height - innerTop - innerBottom));
+        }
+    }
+
+    // Small bar outer art: groove insets in source pixels at native height 19.
+    private static readonly BarGrooveInset SmallBarGroove = new(8, 7, 5, 5, 19f);
+
+    // Big bar outer art at native height 51.
+    private static readonly BarGrooveInset BigBarGroove = new(0, 0, 9, 0, 51f);
+
     public static void DrawBar(
         SpriteBatch sb, Rectangle dest, float fill01, bool big = true, Color? fillTint = null, float alpha = 1f)
     {
@@ -132,16 +162,19 @@ public static class TinySwordsUi
         var fillTex = big ? _barBigFill : _barSmallFill;
         if (baseTex == null || fillTex == null) return;
 
-        DrawHorizontalBarSlice(sb, baseTex, dest, row: 0, alpha);
-        var inset = 6;
-        var inner = new Rectangle(dest.X + inset, dest.Y + inset, dest.Width - inset * 2, dest.Height - inset * 2);
-        if (inner.Width <= 0 || inner.Height <= 0) return;
+        var caps = big ? BigBarCaps : SmallBarCaps;
+        DrawHorizontalBarSlice(sb, baseTex, dest, caps, alpha);
 
-        var fillW = Math.Max(0, (int)((inner.Width - 4) * MathHelper.Clamp(fill01, 0f, 1f)));
+        var groove = big ? BigBarGroove : SmallBarGroove;
+        groove.GetInnerRect(dest, out var inner);
+
+        var fillW = Math.Max(0, (int)(inner.Width * MathHelper.Clamp(fill01, 0f, 1f)));
         if (fillW <= 0) return;
-        var fillRect = new Rectangle(inner.X + 2, inner.Y + 2, fillW, inner.Height - 4);
+
+        var fillRect = new Rectangle(inner.X, inner.Y, fillW, inner.Height);
+        var fillSrc = big ? BigBarFillSrc : SmallBarFillSrc;
         var tint = (fillTint ?? Color.White) * alpha;
-        sb.Draw(fillTex, fillRect, new Rectangle(0, 0, fillTex.Width, fillTex.Height), tint);
+        sb.Draw(fillTex, fillRect, fillSrc, tint);
     }
 
     public static Rectangle MeasureRibbonTextArea(Rectangle ribbonDest, int padX = 12) =>
@@ -301,23 +334,38 @@ public static class TinySwordsUi
         sb.Draw(tex, new Rectangle(dest.X + leftW + midW, y, rightW, capH), rightSrc, color);
     }
 
-    private static void DrawHorizontalBarSlice(
-        SpriteBatch sb, Texture2D tex, Rectangle dest, int row, float alpha)
+    private readonly struct BarCapSpec(Rectangle left, Rectangle mid, Rectangle right)
     {
-        var cell = RibbonCol;
-        var cap = Math.Min(cell, dest.Height);
-        var leftW = Math.Min(cap, dest.Width / 3);
-        var rightW = Math.Min(cap, dest.Width / 3);
-        var midW = Math.Max(0, dest.Width - leftW - rightW);
-        var y = dest.Y + (dest.Height - cap) / 2;
+        public Rectangle Left { get; } = left;
+        public Rectangle Mid { get; } = mid;
+        public Rectangle Right { get; } = right;
+    }
 
+    // ui_bar_small_base.png — measured cap / repeat / cap regions on the 320×64 sheet.
+    private static readonly BarCapSpec SmallBarCaps = new(
+        left: new(49, 22, 15, 19),
+        mid: new(128, 22, 64, 19),
+        right: new(256, 22, 15, 19));
+
+    // ui_bar_big_base.png
+    private static readonly BarCapSpec BigBarCaps = new(
+        left: new(40, 9, 24, 51),
+        mid: new(128, 9, 64, 51),
+        right: new(256, 9, 24, 51));
+
+    private static void DrawHorizontalBarSlice(
+        SpriteBatch sb, Texture2D tex, Rectangle dest, BarCapSpec caps, float alpha)
+    {
+        var scale = dest.Height / (float)Math.Max(caps.Left.Height, 1);
+        var leftW = Math.Max(1, (int)MathF.Round(caps.Left.Width * scale));
+        var rightW = Math.Max(1, (int)MathF.Round(caps.Right.Width * scale));
+        var midW = Math.Max(0, dest.Width - leftW - rightW);
         var color = Color.White * alpha;
-        var srcY = row * cell;
-        sb.Draw(tex, new Rectangle(dest.X, y, leftW, cap), new Rectangle(0, srcY, cell, cell), color);
+
+        sb.Draw(tex, new Rectangle(dest.X, dest.Y, leftW, dest.Height), caps.Left, color);
         if (midW > 0)
-            sb.Draw(tex, new Rectangle(dest.X + leftW, y, midW, cap), new Rectangle(cell, srcY, cell, cell), color);
-        sb.Draw(tex, new Rectangle(dest.X + leftW + midW, y, rightW, cap),
-            new Rectangle(cell * 2, srcY, cell, cell), color);
+            sb.Draw(tex, new Rectangle(dest.X + leftW, dest.Y, midW, dest.Height), caps.Mid, color);
+        sb.Draw(tex, new Rectangle(dest.X + leftW + midW, dest.Y, rightW, dest.Height), caps.Right, color);
     }
 
     private static Rectangle OffsetY(Rectangle src, int y) => new(src.X, src.Y + y, src.Width, src.Height);
