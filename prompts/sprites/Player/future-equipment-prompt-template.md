@@ -36,7 +36,7 @@ Iron Sword
 
 Every frame must match:
 
-Eight-direction sheet layout (see `eight-direction-layout.md`)
+Eight directions — same row order as the base body sheet (South, South-East, East, North-East, North, North-West, West, South-West)
 
 Frame count
 

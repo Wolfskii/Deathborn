@@ -14,7 +14,20 @@ Only body animation.
 
 Future staffs and spell effects will be rendered separately.
 
-Use the eight-direction sheet layout specification.
+Eight directions — exactly one row each. No duplicate directions. No missing directions.
+
+Sheet layout: 8 rows × 8 columns (row = facing, column = animation frame, left to right).
+
+Row order is mandatory — do not reorder, skip, merge, or repeat any row:
+
+Row 1: South — front view, character faces the camera
+Row 2: South-East — diagonal front-right quarter view
+Row 3: East — profile facing right
+Row 4: North-East — diagonal back-right quarter view
+Row 5: North — back view, character faces away from the camera
+Row 6: North-West — diagonal back-left quarter view
+Row 7: West — profile facing left
+Row 8: South-West — diagonal front-left quarter view
 
 Each row contains exactly 8 cast frames in animation order.
 
