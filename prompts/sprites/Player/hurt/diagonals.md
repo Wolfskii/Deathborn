@@ -1,7 +1,5 @@
 You are creating production-ready pixel art assets for an upcoming MMORPG called "Deathborn".
 
-Note: Each animation folder under `prompts/sprites/Player/<animation>/` contains self-contained `cardinals.md` and `diagonals.md` prompts with this style block inlined for copy-paste. Edit this file first, then regenerate those prompts if the style changes.
-
 ==================================================
 STYLE
 ==================================================
@@ -95,3 +93,73 @@ No noise.
 No compression artifacts.
 
 This background will be removed automatically by software.
+
+==================================================
+ANIMATION PROMPT
+==================================================
+
+Animation:
+
+Hit reaction.
+
+Four diagonal directions — exactly one row each. No duplicate directions. No missing directions.
+
+Sheet layout: 4 rows × 4 columns (row = facing, column = animation frame, left to right).
+
+Row order is mandatory — do not reorder, skip, merge, or repeat any row:
+
+Row 1: South-East — diagonal front-right quarter view
+Row 2: North-East — diagonal back-right quarter view
+Row 3: North-West — diagonal back-left quarter view
+Row 4: South-West — diagonal front-left quarter view
+
+Each row contains exactly 4 hurt frames in animation order.
+
+Quick recoil.
+
+Pain reaction.
+
+Returns naturally.
+
+Reference Image 1
+
+Use ONLY for:
+
+- overall art direction
+- color palette
+- atmosphere
+- pixel quality
+
+Do NOT copy any characters.
+
+Reference Image 2
+
+Use ONLY as the exact player character.
+
+This character MUST remain visually identical.
+
+Only animate it.
+
+CHARACTER LOCK
+
+The attached Base Body is the canonical Deathborn player.
+
+Every future sprite sheet must depict this exact same character.
+
+Never redesign him.
+
+Never reinterpret him.
+
+Never improve him.
+
+Never add clothing.
+
+Never change proportions.
+
+Never alter facial features.
+
+Never alter hair.
+
+Never alter colors.
+
+Every future animation should look like frames that were drawn by the same pixel artist for the exact same sprite.

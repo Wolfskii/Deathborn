@@ -36,7 +36,10 @@ Iron Sword
 
 Every frame must match:
 
-Eight directions — same row order as the base body sheet (South, South-East, East, North-East, North, North-West, West, South-West)
+Direction layout — generate cardinals and diagonals as separate sheets matching the body animation folders:
+
+Cardinals row order: South, East, North, West
+Diagonals row order: South-East, North-East, North-West, South-West
 
 Frame count
 

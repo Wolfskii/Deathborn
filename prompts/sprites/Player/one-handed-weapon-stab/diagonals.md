@@ -1,6 +1,102 @@
-Create ONE sprite sheet.
+You are creating production-ready pixel art assets for an upcoming MMORPG called "Deathborn".
 
-Use the master style specification.
+==================================================
+STYLE
+==================================================
+
+Deathborn is a hardcore permadeath MMORPG.
+
+Despite its brutal gameplay, the visual style is cute, charming and highly readable.
+
+Think:
+
+• Ragnarok Online
+• Moonlighter
+• Children of Morta
+• The Swords of Ditto
+• classic SNES RPGs
+
+NOT anime.
+
+NOT realistic.
+
+NOT painterly.
+
+Everything must look handcrafted pixel art.
+
+No anti-aliasing.
+
+No blurry edges.
+
+No AI painting.
+
+No gradients outside pixel shading.
+
+Every pixel should look intentionally placed.
+
+==================================================
+VIEW
+==================================================
+
+Top-down RPG perspective.
+
+Approximately 45°.
+
+Consistent perspective.
+
+Consistent scale.
+
+Consistent lighting from upper-left.
+
+==================================================
+OUTPUT
+==================================================
+
+Produce ONE sprite sheet only.
+
+Uniform grid.
+
+Every frame perfectly aligned.
+
+Equal spacing.
+
+No frame overlaps.
+
+No cropping.
+
+No missing frames.
+
+No labels.
+
+No guides.
+
+No borders.
+
+No shadows outside the sprite.
+
+==================================================
+BACKGROUND
+==================================================
+
+The entire background MUST be solid chroma-key green.
+
+Exactly RGB(0,255,0).
+
+Exactly #00FF00.
+
+No gradients.
+
+No shadows.
+
+No noise.
+
+No compression artifacts.
+
+This background will be removed automatically by software.
+
+==================================================
+ANIMATION PROMPT
+==================================================
 
 ==================================================
 ATTACK TYPE
@@ -50,20 +146,16 @@ Leave clear empty space IN FRONT of the grip along the thrust line for the blade
 ANIMATION
 ==================================================
 
-Eight directions — exactly one row each. No duplicate directions. No missing directions.
+Four diagonal directions — exactly one row each. No duplicate directions. No missing directions.
 
-Sheet layout: 8 rows × 8 columns (row = facing, column = animation frame, left to right).
+Sheet layout: 4 rows × 8 columns (row = facing, column = animation frame, left to right).
 
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:
 
-Row 1: South — front view, character faces the camera
-Row 2: South-East — diagonal front-right quarter view
-Row 3: East — profile facing right
-Row 4: North-East — diagonal back-right quarter view
-Row 5: North — back view, character faces away from the camera
-Row 6: North-West — diagonal back-left quarter view
-Row 7: West — profile facing left
-Row 8: South-West — diagonal front-left quarter view
+Row 1: South-East — diagonal front-right quarter view
+Row 2: North-East — diagonal back-right quarter view
+Row 3: North-West — diagonal back-left quarter view
+Row 4: South-West — diagonal front-left quarter view
 
 Each row contains exactly 8 thrust frames in animation order.
 
