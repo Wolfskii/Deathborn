@@ -23,6 +23,7 @@ public static class CharacterRenderer
     if (clip == CharacterClip.Attack && frameIndex < 0) return;
     if (clip == CharacterClip.Hurt && frameIndex < 0) return;
 
+    scale *= GetRowDrawScale(spec, facing);
     var (src, origin, effects) = GetFrameRect(spec, clip, frameIndex, facing);
     foreach (var layer in layers)
       sb.Draw(layer.Texture, screenPos, src, tint, 0f, origin, scale, effects, 0f);
@@ -44,9 +45,22 @@ public static class CharacterRenderer
     if (clip == CharacterClip.Attack && frameIndex < 0) return;
     if (clip == CharacterClip.Hurt && frameIndex < 0) return;
 
+    scale *= GetRowDrawScale(spec, facing);
     var (src, origin, effects) = GetFrameRect(spec, clip, frameIndex, facing);
     foreach (var layer in layers)
       SpriteOutlineDraw.Draw(sb, layer.Texture, screenPos, src, origin, outline, scale, thickness);
+  }
+
+  private static float GetRowDrawScale(in AnimationSpecification spec, Facing8 facing)
+  {
+    if (spec.DirectionRowDrawScale is not { Length: > 0 } scales)
+      return 1f;
+
+    var facingIndex = (int)facing;
+    var row = spec.DirectionRowMap is { Length: > 0 } map && facingIndex < map.Length
+      ? map[facingIndex]
+      : facingIndex;
+    return row < scales.Length ? scales[row] : 1f;
   }
 
   public static (Rectangle Source, Vector2 Origin, SpriteEffects Effects) GetFrameRect(

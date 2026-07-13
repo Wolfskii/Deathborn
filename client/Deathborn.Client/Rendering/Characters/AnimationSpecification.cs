@@ -38,6 +38,9 @@ public readonly struct AnimationSpecification
     /// <summary>Maps logical facing index to physical sheet row (walk has 6 rows).</summary>
     public int[]? DirectionRowMap { get; init; }
 
+    /// <summary>Draw scale per physical sheet row (normalizes diagonal vs cardinal height).</summary>
+    public float[]? DirectionRowDrawScale { get; init; }
+
     /// <summary>Left edge of each frame column (length = frames + 1; last entry is sheet width).</summary>
     public int[]? ColumnStarts { get; init; }
 

@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 
 namespace Deathborn.Client.Rendering;
 
-/// <summary>8-way facing matching Swordsman V2 sprite sheet row order (down first, clockwise).</summary>
+/// <summary>8-way facing: South first, then counter-clockwise through SW, W, NW, N, NE, E, SE.</summary>
 public enum Facing8
 {
     Down = 0,
@@ -34,10 +34,23 @@ public static class Facing8Resolver
         if (ay < 0.01f)
             return dir.X > 0 ? Facing8.Right : Facing8.Left;
 
+        // 8 sectors centered on cardinals/diagonals; sector 0 = East (+X).
         var angle = MathF.Atan2(dir.Y, dir.X);
-        var sector = (int)MathF.Floor((angle + MathHelper.PiOver4) / MathHelper.PiOver2);
+        var sector = (int)MathF.Floor((angle + MathHelper.Pi / 8f) / (MathHelper.Pi / 4f));
         sector = ((sector % 8) + 8) % 8;
-        return (Facing8)((sector + 6) % 8);
+
+        return sector switch
+        {
+            0 => Facing8.Right,
+            1 => Facing8.DownRight,
+            2 => Facing8.Down,
+            3 => Facing8.DownLeft,
+            4 => Facing8.Left,
+            5 => Facing8.UpLeft,
+            6 => Facing8.Up,
+            7 => Facing8.UpRight,
+            _ => Facing8.Down,
+        };
     }
 
     public static FacingDirection ToCardinal4(Facing8 facing) => facing switch
