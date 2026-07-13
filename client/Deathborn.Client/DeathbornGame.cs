@@ -61,7 +61,6 @@ public sealed class DeathbornGame : Game
         ServerEndpoints.EnsureResolvedAsync().GetAwaiter().GetResult();
         base.Initialize();
         SyncViewport();
-        GameWindowIcon.Apply(this);
     }
 
     private static void OnTextInput(object? sender, TextInputEventArgs e)

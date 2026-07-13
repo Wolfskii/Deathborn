@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework;
 namespace Deathborn.Client.Platform;
 
 /// <summary>
-/// MonoGame/SDL sets a single low-res <c>Icon.bmp</c> on the HWND; override with crisp PE/ICO sizes for the taskbar.
+/// MonoGame/SDL sets a single low-res <c>Icon.bmp</c> on the HWND; override with crisp ICO sizes for the taskbar.
 /// </summary>
 internal static class GameWindowIcon
 {
@@ -24,44 +24,34 @@ internal static class GameWindowIcon
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr hIcon);
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern uint PrivateExtractIcons(
-        string szFileName,
-        int nIconIndex,
-        int cxIcon,
-        int cyIcon,
-        IntPtr[]? phicon,
-        uint[]? piconid,
-        uint nIcons,
-        uint flags);
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CopyIcon(IntPtr hIcon);
 
     public static void Apply(Game game)
     {
         if (!OperatingSystem.IsWindows())
             return;
 
-        var hwnd = game.Window.Handle;
-        if (hwnd == IntPtr.Zero)
-            return;
-
-        var taskbarPx = TaskbarPixels(hwnd);
-        var smallSize = PickIcoSize(taskbarPx);
-
-        var exePath = Environment.ProcessPath;
-        if (!string.IsNullOrEmpty(exePath) &&
-            exePath.EndsWith("Deathborn.Client.exe", StringComparison.OrdinalIgnoreCase) &&
-            TrySetFromExe(hwnd, exePath, IconSmall, smallSize) &&
-            TrySetFromExe(hwnd, exePath, IconBig, 256))
+        try
         {
-            return;
+            var hwnd = game.Window.Handle;
+            if (hwnd == IntPtr.Zero)
+                return;
+
+            var icoBytes = LoadEmbeddedIco();
+            if (icoBytes is null)
+                return;
+
+            var taskbarPx = TaskbarPixels(hwnd);
+            var smallSize = PickIcoSize(taskbarPx);
+
+            TrySetFromIco(hwnd, icoBytes, IconSmall, smallSize, 48, 32, 64, 24, 16);
+            TrySetFromIco(hwnd, icoBytes, IconBig, 256, 128, 64, 48, 32);
         }
-
-        var icoBytes = LoadEmbeddedIco();
-        if (icoBytes is null)
-            return;
-
-        TrySetFromIco(hwnd, icoBytes, IconSmall, smallSize, 48, 32, 64, 24, 16);
-        TrySetFromIco(hwnd, icoBytes, IconBig, 256, 128, 64, 48, 32);
+        catch
+        {
+            // Icon overrides are best-effort — never take down the game.
+        }
     }
 
     private static int TaskbarPixels(IntPtr hwnd)
@@ -88,19 +78,6 @@ internal static class GameWindowIcon
         }
 
         return best;
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static bool TrySetFromExe(IntPtr hwnd, string exePath, int slot, int size)
-    {
-        var icons = new IntPtr[1];
-        var got = PrivateExtractIcons(exePath, 0, size, size, icons, null, 1, 0);
-        if (got == 0 || icons[0] == IntPtr.Zero)
-            return false;
-
-        SendMessage(hwnd, WmSetIcon, (IntPtr)slot, icons[0]);
-        DestroyIcon(icons[0]);
-        return true;
     }
 
     private static byte[]? LoadEmbeddedIco()
@@ -147,7 +124,4 @@ internal static class GameWindowIcon
             return false;
         }
     }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr CopyIcon(IntPtr hIcon);
 }
