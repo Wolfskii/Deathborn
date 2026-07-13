@@ -103,6 +103,15 @@ client_sources_changed() {
       -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
+  if [ -n "$(find "$CLIENT_DIR/Deathborn.Client" "${FIND_PRUNE[@]}" \
+      \( -name 'Icon.ico' -o -name 'Icon.bmp' \) -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ -f "$ROOT/client/Deathborn.Client/Content/Images/Logos/logo_v2.png" ] && \
+     [ "$ROOT/client/Deathborn.Client/Content/Images/Logos/logo_v2.png" -nt "$BUILD_STAMP" ]; then
+    python "$ROOT/scripts/generate_app_icons.py"
+    return 0
+  fi
   if [ -n "$(find "$ROOT/shared/world" -name '*.bin' -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
@@ -173,6 +182,9 @@ fi
 
 cd "$CLIENT_DIR"
 dotnet tool restore
+
+echo "Refreshing app icons..."
+python "$ROOT/scripts/generate_app_icons.py"
 
 echo "Building MonoGame client..."
 dotnet build "$CLIENT_PROJECT" --configuration Debug

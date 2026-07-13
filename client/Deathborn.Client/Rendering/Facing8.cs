@@ -17,11 +17,22 @@ public enum Facing8
 
 public static class Facing8Resolver
 {
-    /// <summary>Resolves movement/aim direction to the nearest of 8 sprite rows.</summary>
-    public static Facing8 Resolve(Microsoft.Xna.Framework.Vector2 dir)
+    /// <summary>
+    /// Resolves movement/aim direction to 8 sprite rows.
+    /// Cardinals require a single axis; diagonals require both (e.g. W+D).
+    /// </summary>
+    public static Facing8 Resolve(Vector2 dir)
     {
         if (dir.LengthSquared() < 0.0001f)
             return Facing8.Down;
+
+        var ax = MathF.Abs(dir.X);
+        var ay = MathF.Abs(dir.Y);
+
+        if (ax < 0.01f)
+            return dir.Y > 0 ? Facing8.Down : Facing8.Up;
+        if (ay < 0.01f)
+            return dir.X > 0 ? Facing8.Right : Facing8.Left;
 
         var angle = MathF.Atan2(dir.Y, dir.X);
         var sector = (int)MathF.Floor((angle + MathHelper.PiOver4) / MathHelper.PiOver2);

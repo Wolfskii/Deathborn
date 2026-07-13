@@ -57,15 +57,44 @@ public static class CharacterRenderer
   {
     var facingIndex = (int)facing;
 
+    if (spec.Layout == AnimationSheetLayout.TightFrames)
+    {
+      var row = spec.DirectionRowMap is { Length: > 0 } map && facingIndex < map.Length
+        ? map[facingIndex]
+        : facingIndex;
+      var frame = Math.Clamp(frameIndex, 0, spec.FramesPerDirection - 1);
+      var tight = clip switch
+      {
+        CharacterClip.Idle or CharacterClip.Cast => SwordsmanV2FrameAtlas.GetIdle(row, frame),
+        CharacterClip.Run or CharacterClip.Roll => SwordsmanV2FrameAtlas.GetWalk(row, frame),
+        CharacterClip.Attack => SwordsmanV2FrameAtlas.GetAttack(row, frame),
+        _ => SwordsmanV2FrameAtlas.GetIdle(row, frame),
+      };
+      return (tight.Source, tight.Origin, SpriteEffects.None);
+    }
+
     if (spec.Layout == AnimationSheetLayout.UniformGrid)
     {
       var row = spec.DirectionRowMap is { Length: > 0 } map && facingIndex < map.Length
         ? map[facingIndex]
         : facingIndex;
-      var srcX = frameIndex * spec.CellWidth;
-      var srcY = row * spec.CellHeight;
+
+      if (spec.ColumnStarts is { Length: >= 2 } cols && spec.RowStarts is { Length: >= 2 } rows)
+      {
+        var frame = Math.Clamp(frameIndex, 0, cols.Length - 2);
+        var rowIndex = Math.Clamp(row, 0, rows.Length - 2);
+        var srcX = cols[frame];
+        var srcY = rows[rowIndex];
+        var srcW = cols[frame + 1] - srcX;
+        var srcH = rows[rowIndex + 1] - srcY;
+        var origin = new Vector2(srcW / 2f, srcH - 1f);
+        return (new Rectangle(srcX, srcY, srcW, srcH), origin, SpriteEffects.None);
+      }
+
+      var srcXLegacy = frameIndex * spec.FrameWidth;
+      var srcYLegacy = row * spec.FrameHeight;
       return (
-        new Rectangle(srcX, srcY, spec.FrameWidth, spec.FrameHeight),
+        new Rectangle(srcXLegacy, srcYLegacy, spec.FrameWidth, spec.FrameHeight),
         spec.Origin,
         SpriteEffects.None);
     }

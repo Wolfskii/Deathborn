@@ -18,5 +18,5 @@ public static class CharacterAnimationCatalog
 
     /// <summary>World draw scale so V2 (~100px) matches V1 (~32px) footprint.</summary>
     public static float GetDrawScale(string bodyTypeId) =>
-        bodyTypeId == SwordsmanV2 ? 0.46f : PlayerEntity.SpriteDrawScale;
+        bodyTypeId == SwordsmanV2 ? 0.216f : PlayerEntity.SpriteDrawScale;
 }

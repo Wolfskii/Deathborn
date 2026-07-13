@@ -39,6 +39,7 @@ if [[ -z "$ISCC_BIN" ]]; then
   exit 1
 fi
 
+python "$ROOT/scripts/generate_app_icons.py"
 python "$ROOT/installer/prepare_assets.py"
 
 cd "$ROOT/installer"

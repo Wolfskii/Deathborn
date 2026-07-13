@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 
 namespace Deathborn.Client.Rendering.Characters;
 
-/// <summary>Swordsman V2 sprite sheets — 8 directions, uniform grid layout.</summary>
+/// <summary>Swordsman V2 sprite sheets — 8 directions, tight per-frame atlas.</summary>
 internal static class SwordsmanV2AnimationSpecs
 {
     public const int Directions = 8;
@@ -10,18 +10,23 @@ internal static class SwordsmanV2AnimationSpecs
     public const float WalkFrameDuration = 0.12f;
     public const float AttackFrameDuration = 0.075f;
 
-    // Walk sheet has 6 physical rows; map 8 facings onto them.
-    // Rows: 0=down, 1=left, 2=up, 3=right, 4=down dup, 5=up dup
+    // Walk sheet rows (0-based): 0=SE, 1=E, 2=NE, 3=SW, 4=W, 5=NW (no pure N/S).
     private static readonly int[] WalkRowMap =
     [
-        0, // Down
-        1, // DownLeft -> left profile
-        1, // Left
-        2, // UpLeft -> up
-        2, // Up
-        2, // UpRight -> up
-        3, // Right
-        3, // DownRight -> right profile
+        0, // Down — SE (closest to south)
+        3, // DownLeft — SW
+        4, // Left — W profile
+        5, // UpLeft — NW
+        2, // Up — NE back (closest to north)
+        2, // UpRight — NE
+        1, // Right — E profile
+        0, // DownRight — SE
+    ];
+
+    // Idle row 7 in the source art is incomplete — reuse row 6 (east).
+    private static readonly int[] IdleRowMap =
+    [
+        0, 1, 2, 3, 4, 5, 6, 6,
     ];
 
     public static AnimationSpecification For(CharacterClip clip) => clip switch
@@ -36,44 +41,27 @@ internal static class SwordsmanV2AnimationSpecs
 
     public static AnimationSpecification Idle => new()
     {
-        FrameWidth = 209,
-        FrameHeight = 156,
-        CellWidth = 209,
-        CellHeight = 156,
         FramesPerDirection = 6,
         Directions = Directions,
-        Pivot = new Vector2(104.5f, 155f),
-        Origin = new Vector2(104.5f, 155f),
         FrameDuration = IdleFrameDuration,
-        Layout = AnimationSheetLayout.UniformGrid,
+        Layout = AnimationSheetLayout.TightFrames,
+        DirectionRowMap = IdleRowMap,
     };
 
     public static AnimationSpecification Walk => new()
     {
-        FrameWidth = 156,
-        FrameHeight = 209,
-        CellWidth = 156,
-        CellHeight = 209,
         FramesPerDirection = 8,
         Directions = Directions,
-        Pivot = new Vector2(78f, 208f),
-        Origin = new Vector2(78f, 208f),
         FrameDuration = WalkFrameDuration,
-        Layout = AnimationSheetLayout.UniformGrid,
+        Layout = AnimationSheetLayout.TightFrames,
         DirectionRowMap = WalkRowMap,
     };
 
     public static AnimationSpecification Attack => new()
     {
-        FrameWidth = 192,
-        FrameHeight = 128,
-        CellWidth = 192,
-        CellHeight = 128,
         FramesPerDirection = 8,
         Directions = Directions,
-        Pivot = new Vector2(96f, 127f),
-        Origin = new Vector2(96f, 127f),
         FrameDuration = AttackFrameDuration,
-        Layout = AnimationSheetLayout.UniformGrid,
+        Layout = AnimationSheetLayout.TightFrames,
     };
 }

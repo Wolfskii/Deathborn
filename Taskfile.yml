@@ -24,6 +24,7 @@ vars:
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo dev
   LDFLAGS: -s -w -X main.version={{.VERSION}}
+  DOTNET_VERBOSITY: q
 
 tasks:
   default:
@@ -102,6 +103,8 @@ tasks:
   dev:client:
     desc: Run only the MonoGame client; dotnet watch restarts the game on code changes
     dir: "{{.CLIENT_DIR}}"
+    deps:
+      - task: client:icons
     env:
       DEATHBORN_SKIP_UPDATE: "1"
     cmds:
@@ -135,26 +138,36 @@ tasks:
     cmds:
       - task: dev:client
 
+  client:icons:
+    desc: Regenerate app icons (Windows/macOS/Linux/mobile) from logo_v2.png
+    cmds:
+      - python scripts/generate_app_icons.py
+
   client:build:
     desc: Build the MonoGame client (Release) and reveal the .exe in Explorer/Finder
     dir: "{{.CLIENT_DIR}}"
+    deps:
+      - task: client:icons
     cmds:
       - dotnet tool restore
-      - dotnet build Deathborn.Client/Deathborn.Client.csproj -c Release
-      - bash ../scripts/reveal-artifact.sh Deathborn.Client/bin/Release/net8.0/Deathborn.Client
+      - dotnet build Deathborn.Client/Deathborn.Client.csproj -c Release -v {{.DOTNET_VERBOSITY}}
+      - cmd: bash ../scripts/reveal-artifact.sh Deathborn.Client/bin/Release/net8.0/Deathborn.Client
+        dir: "{{.CLIENT_DIR}}"
 
   client:publish:run:
     internal: true
     desc: Publish self-contained client for one RID (no reveal)
     dir: "{{.CLIENT_DIR}}"
+    deps:
+      - task: client:icons
     vars:
       RID: '{{.RID | default .CLIENT_RID}}'
       VERSION_STRIP:
         sh: echo "{{.VERSION}}" | sed 's/^v//'
     cmds:
       - dotnet tool restore
-      - dotnet restore Deathborn.Client.sln
-      - dotnet publish Deathborn.Client/Deathborn.Client.csproj -c Release -r {{.RID}} --self-contained true -p:Version={{.VERSION_STRIP}} -o publish/{{.RID}}
+      - dotnet restore Deathborn.Client.sln -r {{.RID}} -v {{.DOTNET_VERBOSITY}}
+      - dotnet publish Deathborn.Client/Deathborn.Client.csproj -c Release -r {{.RID}} --self-contained true -p:Version={{.VERSION_STRIP}} -o publish/{{.RID}} -v {{.DOTNET_VERBOSITY}} --no-restore
       - mkdir -p ../dist
       - |
         set -euo pipefail
@@ -173,47 +186,41 @@ tasks:
     desc: Publish self-contained zip for this machine's OS/arch
     cmds:
       - task: client:publish:run
-      - cmd: bash ../scripts/reveal-artifact.sh publish/{{.CLIENT_RID}}/Deathborn.Client
-        dir: "{{.CLIENT_DIR}}"
+      - bash scripts/reveal-artifact.sh client/publish/{{.CLIENT_RID}}/Deathborn.Client
 
   client:publish:win:
     desc: Publish Windows x64 zip to dist/
     cmds:
       - task: client:publish:run
         vars: { RID: win-x64 }
-      - cmd: bash ../scripts/reveal-artifact.sh publish/win-x64/Deathborn.Client
-        dir: "{{.CLIENT_DIR}}"
+      - bash scripts/reveal-artifact.sh client/publish/win-x64/Deathborn.Client
 
   client:publish:linux:
     desc: Publish Linux x64 zip to dist/ (cross-builds from Windows/macOS)
     cmds:
       - task: client:publish:run
         vars: { RID: linux-x64 }
-      - cmd: bash ../scripts/reveal-artifact.sh publish/linux-x64/Deathborn.Client
-        dir: "{{.CLIENT_DIR}}"
+      - bash scripts/reveal-artifact.sh client/publish/linux-x64/Deathborn.Client
 
   client:publish:mac:
     desc: Publish macOS zip for this Mac (osx-arm64 or osx-x64)
     cmds:
       - task: client:publish:run
-      - cmd: bash ../scripts/reveal-artifact.sh publish/{{.CLIENT_RID}}/Deathborn.Client
-        dir: "{{.CLIENT_DIR}}"
+      - bash scripts/reveal-artifact.sh client/publish/{{.CLIENT_RID}}/Deathborn.Client
 
   client:publish:mac:arm64:
     desc: Publish macOS Apple Silicon zip to dist/
     cmds:
       - task: client:publish:run
         vars: { RID: osx-arm64 }
-      - cmd: bash ../scripts/reveal-artifact.sh publish/osx-arm64/Deathborn.Client
-        dir: "{{.CLIENT_DIR}}"
+      - bash scripts/reveal-artifact.sh client/publish/osx-arm64/Deathborn.Client
 
   client:publish:mac:x64:
     desc: Publish macOS Intel zip to dist/
     cmds:
       - task: client:publish:run
         vars: { RID: osx-x64 }
-      - cmd: bash ../scripts/reveal-artifact.sh publish/osx-x64/Deathborn.Client
-        dir: "{{.CLIENT_DIR}}"
+      - bash scripts/reveal-artifact.sh client/publish/osx-x64/Deathborn.Client
 
   client:publish:all:
     desc: Publish Windows + Linux zips (build macOS on a Mac or via GitHub release)

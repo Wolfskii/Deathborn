@@ -21,7 +21,7 @@ Type=Application
 Name=${GAME_NAME}
 Comment=You are born to die. Only skill decides when.
 Exec=${INSTALL_DIR}/Deathborn.Client
-Icon=${INSTALL_DIR}/Deathborn.Client
+Icon=${INSTALL_DIR}/deathborn.png
 Terminal=false
 Categories=Game;
 EOF

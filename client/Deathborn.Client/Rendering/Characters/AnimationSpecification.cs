@@ -38,11 +38,11 @@ public readonly struct AnimationSpecification
     /// <summary>Maps logical facing index to physical sheet row (walk has 6 rows).</summary>
     public int[]? DirectionRowMap { get; init; }
 
-    /// <summary>Full cell width in a uniform grid sheet.</summary>
-    public int CellWidth { get; init; }
+    /// <summary>Left edge of each frame column (length = frames + 1; last entry is sheet width).</summary>
+    public int[]? ColumnStarts { get; init; }
 
-    /// <summary>Full cell height in a uniform grid sheet.</summary>
-    public int CellHeight { get; init; }
+    /// <summary>Top edge of each direction row (length = rows + 1; last entry is sheet height).</summary>
+    public int[]? RowStarts { get; init; }
 
     /// <summary>Left-facing attack swings extend into the cell's left margin.</summary>
     public int AttackLeftSourcePad { get; init; }

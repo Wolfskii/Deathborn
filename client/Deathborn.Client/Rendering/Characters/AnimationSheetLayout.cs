@@ -11,4 +11,7 @@ public enum AnimationSheetLayout
 
     /// <summary>Uniform row-per-direction, column-per-frame grid (Swordsman V2).</summary>
     UniformGrid,
+
+    /// <summary>Pre-measured tight bounding boxes per frame (Swordsman V2).</summary>
+    TightFrames,
 }

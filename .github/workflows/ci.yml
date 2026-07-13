@@ -48,6 +48,11 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Generate app icons
+        run: |
+          pip install pillow
+          python ../scripts/generate_app_icons.py
+
       - name: Restore
         run: dotnet tool restore && dotnet restore Deathborn.Client.sln
 

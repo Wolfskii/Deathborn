@@ -138,6 +138,13 @@ jobs:
           cp /opt/homebrew/lib/libfreetype.6.dylib "$MGCB_DIR/libfreetype6.dylib"
           cp /opt/homebrew/lib/libfreeimage.dylib "$MGCB_DIR/libFreeImage.dylib"
 
+      - name: Generate app icons
+        shell: bash
+        run: |
+          set -euo pipefail
+          pip install pillow
+          python scripts/generate_app_icons.py
+
       - name: Publish Deathborn client
         shell: bash
         env:

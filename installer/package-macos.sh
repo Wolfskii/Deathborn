@@ -22,11 +22,20 @@ if [[ ! -x "$PUBLISH_DIR/Deathborn.Client" ]]; then
   exit 1
 fi
 
+python "$ROOT/scripts/generate_app_icons.py"
+
 rm -rf "$STAGE"
 mkdir -p "$APP_PATH/Contents/MacOS"
 cp -a "$PUBLISH_DIR/." "$APP_PATH/Contents/MacOS/"
 cp "$ROOT/installer/macos/Info.plist" "$APP_PATH/Contents/Info.plist"
 chmod +x "$APP_PATH/Contents/MacOS/Deathborn.Client"
+
+ICONSET="$ROOT/installer/macos/AppIcon.iconset"
+ICNS="$APP_PATH/Contents/Resources/AppIcon.icns"
+if [[ -d "$ICONSET" ]]; then
+  mkdir -p "$APP_PATH/Contents/Resources"
+  iconutil -c icns "$ICONSET" -o "$ICNS"
+fi
 
 # Replace version placeholder in Info.plist when possible.
 if command -v sed >/dev/null 2>&1; then

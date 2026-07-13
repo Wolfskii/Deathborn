@@ -7,15 +7,15 @@ import struct
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "client" / "Deathborn.Client"
 OUT = Path(__file__).resolve().parent / "assets"
 
-LOGO = CLIENT / "Content" / "Images" / "Logos" / "logo_no_text.png"
+LOGO = CLIENT / "Content" / "Images" / "Logos" / "logo_v2.png"
+BANNER = CLIENT / "Content" / "Images" / "Logos" / "Banners" / "Banner V2.png"
 RUN = CLIENT / "Content" / "Characters" / "Swordsman" / "Run.png"
-ICON = CLIENT / "Icon.ico"
 
 # Matches SwordsmanSpriteSheet.cs (down-facing run row).
 FRAME_START_X = 16
@@ -24,8 +24,9 @@ FRAME_COUNT = 8
 RUN_ROW_Y = 16
 
 BG = (12, 10, 8)
-GOLD = (210, 170, 80)
-TAGLINE = (200, 185, 140)
+
+WIZARD_LARGE_SIZE = (164, 314)
+WIZARD_SMALL_SIZE = (55, 58)
 
 
 def save_bmp24(img: Image.Image, path: Path) -> None:
@@ -67,20 +68,6 @@ def save_bmp24(img: Image.Image, path: Path) -> None:
     path.write_bytes(header + dib + pixel_data)
 
 
-def load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    candidates = [
-        "C:/Windows/Fonts/georgia.ttf",
-        "C:/Windows/Fonts/times.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-    ]
-    for candidate in candidates:
-        try:
-            return ImageFont.truetype(candidate, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
-
-
 def fit_inside(img: Image.Image, max_w: int, max_h: int) -> Image.Image:
     scale = min(max_w / img.width, max_h / img.height, 1.0)
     if scale >= 0.999:
@@ -89,38 +76,22 @@ def fit_inside(img: Image.Image, max_w: int, max_h: int) -> Image.Image:
     return img.resize(size, Image.Resampling.LANCZOS)
 
 
-def make_wizard_large(logo: Image.Image) -> Image.Image:
-    canvas = Image.new("RGB", (164, 314), BG)
-    draw = ImageDraw.Draw(canvas)
-
-    logo_fit = fit_inside(logo.convert("RGBA"), 148, 148)
-    lx = (164 - logo_fit.width) // 2
-    canvas.paste(logo_fit, (lx, 18), logo_fit)
-
-    tag_font = load_font(11)
-    tag = "You are born to die."
-    tw = draw.textlength(tag, font=tag_font)
-    draw.text(((164 - tw) / 2, 178), tag, fill=TAGLINE, font=tag_font)
-
-    sub_font = load_font(9)
-    sub = "Only skill decides when."
-    sw = draw.textlength(sub, font=sub_font)
-    draw.text(((164 - sw) / 2, 196), sub, fill=GOLD, font=sub_font)
-
-    draw.line((18, 222, 146, 222), fill=(60, 48, 32), width=1)
-    credit = "— Wolfskii"
-    cw = draw.textlength(credit, font=sub_font)
-    draw.text(((164 - cw) / 2, 236), credit, fill=(120, 100, 70), font=sub_font)
-
+def make_wizard_large(banner: Image.Image) -> Image.Image:
+    """Side panel art — same banner as README / marketing."""
+    canvas = Image.new("RGB", WIZARD_LARGE_SIZE, BG)
+    banner_fit = fit_inside(banner.convert("RGBA"), *WIZARD_LARGE_SIZE)
+    x = (WIZARD_LARGE_SIZE[0] - banner_fit.width) // 2
+    y = (WIZARD_LARGE_SIZE[1] - banner_fit.height) // 2
+    canvas.paste(banner_fit, (x, y), banner_fit)
     return canvas
 
 
 def make_wizard_small(logo: Image.Image) -> Image.Image:
-    canvas = Image.new("RGB", (55, 58), BG)
+    canvas = Image.new("RGB", WIZARD_SMALL_SIZE, BG)
     logo_fit = fit_inside(logo.convert("RGBA"), 48, 48)
     canvas.paste(
         logo_fit,
-        ((55 - logo_fit.width) // 2, (58 - logo_fit.height) // 2),
+        ((WIZARD_SMALL_SIZE[0] - logo_fit.width) // 2, (WIZARD_SMALL_SIZE[1] - logo_fit.height) // 2),
         logo_fit,
     )
     return canvas
@@ -136,17 +107,17 @@ def extract_run_frames(run_sheet: Image.Image) -> list[Image.Image]:
 
 
 def main() -> int:
-    if not LOGO.is_file():
-        print(f"Missing logo: {LOGO}", file=sys.stderr)
-        return 1
-    if not RUN.is_file():
-        print(f"Missing run sheet: {RUN}", file=sys.stderr)
+    missing = [path for path in (LOGO, BANNER, RUN) if not path.is_file()]
+    if missing:
+        for path in missing:
+            print(f"Missing asset: {path}", file=sys.stderr)
         return 1
 
     logo = Image.open(LOGO)
+    banner = Image.open(BANNER)
     run_sheet = Image.open(RUN)
 
-    save_bmp24(make_wizard_large(logo), OUT / "wizard_large.bmp")
+    save_bmp24(make_wizard_large(banner), OUT / "wizard_large.bmp")
     save_bmp24(make_wizard_small(logo), OUT / "wizard_small.bmp")
 
     for i, frame in enumerate(extract_run_frames(run_sheet)):
@@ -154,17 +125,6 @@ def main() -> int:
         panel = Image.new("RGB", (160, 160), BG)
         panel.paste(frame, ((160 - frame.width) // 2, 24), frame)
         save_bmp24(panel, OUT / f"run_frame_{i:02d}.bmp")
-
-    if ICON.is_file():
-        icon = Image.open(ICON).convert("RGBA")
-        icon_fit = fit_inside(icon, 48, 48)
-        icon_canvas = Image.new("RGB", (55, 58), BG)
-        icon_canvas.paste(
-            icon_fit,
-            ((55 - icon_fit.width) // 2, (58 - icon_fit.height) // 2),
-            icon_fit,
-        )
-        save_bmp24(icon_canvas, OUT / "wizard_small.bmp")
 
     print(f"Installer assets written to {OUT}")
     return 0

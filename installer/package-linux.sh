@@ -15,10 +15,13 @@ if [[ ! -x "$PUBLISH_DIR/Deathborn.Client" ]]; then
   exit 1
 fi
 
+python "$ROOT/scripts/generate_app_icons.py"
+
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
 cp -a "$PUBLISH_DIR/." "$STAGE/"
 cp "$ROOT/installer/linux/install.sh" "$STAGE/install.sh"
+cp "$ROOT/installer/linux/deathborn.png" "$STAGE/deathborn.png"
 chmod +x "$STAGE/install.sh" "$STAGE/Deathborn.Client"
 
 mkdir -p "$ROOT/dist"
