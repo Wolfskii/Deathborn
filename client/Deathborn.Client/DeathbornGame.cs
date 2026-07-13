@@ -104,6 +104,7 @@ public sealed class DeathbornGame : Game
         MusicPlayer.ApplySavedSettings();
         _screens.Change(new LoginScreen(_screens));
         SyncViewport();
+        GameWindowIcon.Apply(this);
     }
 
     protected override void Update(GameTime gameTime)

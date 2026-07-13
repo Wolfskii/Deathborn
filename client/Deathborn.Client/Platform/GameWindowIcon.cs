@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Xna.Framework;
@@ -6,8 +5,7 @@ using Microsoft.Xna.Framework;
 namespace Deathborn.Client.Platform;
 
 /// <summary>
-/// Fallback when the game is hosted by <c>dotnet exec</c> — set a DPI-sized ICO on the HWND.
-/// Native <c>Deathborn.Client.exe</c> dev runs use the PE icon instead and skip this.
+/// MonoGame/SDL sets a single low-res <c>Icon.bmp</c> on the HWND; override with crisp PE/ICO sizes for the taskbar.
 /// </summary>
 internal static class GameWindowIcon
 {
@@ -23,26 +21,47 @@ internal static class GameWindowIcon
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint PrivateExtractIcons(
+        string szFileName,
+        int nIconIndex,
+        int cxIcon,
+        int cyIcon,
+        IntPtr[]? phicon,
+        uint[]? piconid,
+        uint nIcons,
+        uint flags);
+
     public static void Apply(Game game)
     {
         if (!OperatingSystem.IsWindows())
             return;
 
-        // Hosted by dotnet.exe — the apphost PE icon is not used; patch the window icon.
-        if (string.Equals(Assembly.GetEntryAssembly()?.GetName().Name, "Deathborn.Client", StringComparison.Ordinal))
+        var hwnd = game.Window.Handle;
+        if (hwnd == IntPtr.Zero)
             return;
 
-        var handle = game.Window.Handle;
-        if (handle == IntPtr.Zero)
+        var taskbarPx = TaskbarPixels(hwnd);
+        var smallSize = PickIcoSize(taskbarPx);
+
+        var exePath = Environment.ProcessPath;
+        if (!string.IsNullOrEmpty(exePath) &&
+            exePath.EndsWith("Deathborn.Client.exe", StringComparison.OrdinalIgnoreCase) &&
+            TrySetFromExe(hwnd, exePath, IconSmall, smallSize) &&
+            TrySetFromExe(hwnd, exePath, IconBig, 256))
+        {
             return;
+        }
 
         var icoBytes = LoadEmbeddedIco();
         if (icoBytes is null)
             return;
 
-        var taskbarSize = PickIcoSize(TaskbarPixels(handle));
-        TrySetIcon(handle, icoBytes, IconSmall, taskbarSize, 48, 32, 64, 24, 16);
-        TrySetIcon(handle, icoBytes, IconBig, 256, 128, 64, 48, 32);
+        TrySetFromIco(hwnd, icoBytes, IconSmall, smallSize, 48, 32, 64, 24, 16);
+        TrySetFromIco(hwnd, icoBytes, IconBig, 256, 128, 64, 48, 32);
     }
 
     private static int TaskbarPixels(IntPtr hwnd)
@@ -51,7 +70,6 @@ internal static class GameWindowIcon
         if (dpi == 0)
             dpi = 96;
 
-        // Win11 taskbar uses a 24×24 logical icon; scale to physical pixels.
         return (int)Math.Round(24.0 * dpi / 96.0);
     }
 
@@ -72,6 +90,19 @@ internal static class GameWindowIcon
         return best;
     }
 
+    [SupportedOSPlatform("windows")]
+    private static bool TrySetFromExe(IntPtr hwnd, string exePath, int slot, int size)
+    {
+        var icons = new IntPtr[1];
+        var got = PrivateExtractIcons(exePath, 0, size, size, icons, null, 1, 0);
+        if (got == 0 || icons[0] == IntPtr.Zero)
+            return false;
+
+        SendMessage(hwnd, WmSetIcon, (IntPtr)slot, icons[0]);
+        DestroyIcon(icons[0]);
+        return true;
+    }
+
     private static byte[]? LoadEmbeddedIco()
     {
         var assembly = typeof(DeathbornGame).Assembly;
@@ -87,7 +118,7 @@ internal static class GameWindowIcon
     }
 
     [SupportedOSPlatform("windows")]
-    private static void TrySetIcon(IntPtr hwnd, byte[] icoBytes, int slot, params int[] sizes)
+    private static void TrySetFromIco(IntPtr hwnd, byte[] icoBytes, int slot, params int[] sizes)
     {
         foreach (var size in sizes)
         {
@@ -95,6 +126,7 @@ internal static class GameWindowIcon
                 continue;
 
             SendMessage(hwnd, WmSetIcon, (IntPtr)slot, handle);
+            DestroyIcon(handle);
             return;
         }
     }
@@ -107,8 +139,7 @@ internal static class GameWindowIcon
         {
             using var stream = new MemoryStream(icoBytes, writable: false);
             using var icon = new System.Drawing.Icon(stream, size, size);
-            handle = icon.Handle;
-            handle = CopyIcon(handle);
+            handle = CopyIcon(icon.Handle);
             return handle != IntPtr.Zero;
         }
         catch
