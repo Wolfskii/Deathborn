@@ -14,7 +14,7 @@ public sealed class SpriteAssembler
     _ = appearance;
     _ = equipment;
 
-    var texture = CharacterSprites.GetTexture(clip);
+    var texture = CharacterAnimationCatalog.GetTexture(appearance.BodyTypeId, clip);
     _buffer[0] = new SpriteLayer(texture, CharacterLayerId.Body);
     _layerCount = 1;
     return _buffer.AsSpan(0, _layerCount);

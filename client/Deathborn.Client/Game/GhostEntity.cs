@@ -30,7 +30,7 @@ public sealed class GhostEntity
     {
         var bob = MathF.Sin(_bobTimer * 3f) * 4f * zoom;
         var drawPos = screenPos + new Vector2(0, bob);
-        var scale = PlayerEntity.SpriteDrawScale * zoom;
+        var scale = CharacterAnimationCatalog.GetDrawScale(_visual.Appearance.BodyTypeId) * zoom;
         var ghostTint = new Color(0.78f, 0.82f, 0.95f, 0.72f);
 
         DrawPrimitives.FillCircle(sb, drawPos + new Vector2(0, 10f * zoom), 20f * zoom, new Color(0.75f, 0.85f, 1f, 0.12f));

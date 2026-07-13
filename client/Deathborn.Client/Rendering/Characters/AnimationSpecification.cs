@@ -35,6 +35,15 @@ public readonly struct AnimationSpecification
     /// <summary>Physical row index per facing for grid layout (death, hurt).</summary>
     public int[]? DirectionRows { get; init; }
 
+    /// <summary>Maps logical facing index to physical sheet row (walk has 6 rows).</summary>
+    public int[]? DirectionRowMap { get; init; }
+
+    /// <summary>Full cell width in a uniform grid sheet.</summary>
+    public int CellWidth { get; init; }
+
+    /// <summary>Full cell height in a uniform grid sheet.</summary>
+    public int CellHeight { get; init; }
+
     /// <summary>Left-facing attack swings extend into the cell's left margin.</summary>
     public int AttackLeftSourcePad { get; init; }
 

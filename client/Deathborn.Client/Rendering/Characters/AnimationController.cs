@@ -9,26 +9,33 @@ namespace Deathborn.Client.Rendering.Characters;
 /// </summary>
 public sealed class AnimationController
 {
+  private string _bodyTypeId = CharacterAnimationCatalog.SwordsmanV2;
   private CharacterClip _locomotionClip = CharacterClip.Idle;
   private float _locomotionTimer;
   private int _locomotionFrame;
-  private FacingDirection _facing = FacingDirection.Down;
+  private Facing8 _facing = Facing8.Down;
 
   private bool _attackPlaying;
   private float _attackTimer;
   private int _attackFrame;
-  private FacingDirection _attackFacing = FacingDirection.Down;
+  private Facing8 _attackFacing = Facing8.Down;
 
   private bool _hurtPlaying;
   private float _hurtTimer;
   private int _hurtFrame;
-  private FacingDirection _hurtFacing = FacingDirection.Down;
+  private Facing8 _hurtFacing = Facing8.Down;
 
   private bool _deathPlaying;
   private bool _deathComplete;
   private float _deathTimer;
   private int _deathFrame;
-  private FacingDirection _deathFacing = FacingDirection.Down;
+  private Facing8 _deathFacing = Facing8.Down;
+
+  public string BodyTypeId
+  {
+    get => _bodyTypeId;
+    set => _bodyTypeId = string.IsNullOrEmpty(value) ? CharacterAnimationCatalog.SwordsmanV2 : value;
+  }
 
   public bool IsAttackPlaying => _attackPlaying;
   public bool IsHurtPlaying => _hurtPlaying;
@@ -50,7 +57,7 @@ public sealed class AnimationController
 
   public void HoldDeathPose(Vector2 facingDir)
   {
-    var spec = SwordsmanAnimationSpecs.Death;
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Death);
     _deathFacing = ResolveFacing(facingDir);
     _deathFrame = spec.FramesPerDirection - 1;
     _deathTimer = 0;
@@ -88,7 +95,7 @@ public sealed class AnimationController
 
     if (input.IsWhirlwinding || input.IsDashing)
     {
-      UpdateRun(dt, input.FacingDir, true, Config.RunAnimSpeed);
+      UpdateWalk(dt, input.FacingDir, true, Config.RunAnimSpeed);
       return;
     }
 
@@ -107,7 +114,7 @@ public sealed class AnimationController
     if (input.IsMoving)
     {
       var speed = input.IsRunning ? Config.RunAnimSpeed : Config.WalkAnimSpeed;
-      UpdateRun(dt, input.FacingDir, true, speed);
+      UpdateWalk(dt, input.FacingDir, true, speed);
       return;
     }
 
@@ -117,23 +124,32 @@ public sealed class AnimationController
   public AnimationDrawState GetDrawState()
   {
     if (IsDead)
-      return new AnimationDrawState(CharacterClip.Death, SwordsmanAnimationSpecs.Death, _deathFrame, _deathFacing);
+    {
+      var deathSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Death);
+      return new AnimationDrawState(CharacterClip.Death, deathSpec, _deathFrame, _deathFacing);
+    }
 
     if (_hurtPlaying)
-      return new AnimationDrawState(CharacterClip.Hurt, SwordsmanAnimationSpecs.Hurt, _hurtFrame, _hurtFacing);
+    {
+      var hurtSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Hurt);
+      return new AnimationDrawState(CharacterClip.Hurt, hurtSpec, _hurtFrame, _hurtFacing);
+    }
 
     if (_attackPlaying)
-      return new AnimationDrawState(CharacterClip.Attack, SwordsmanAnimationSpecs.Attack, _attackFrame, _attackFacing);
+    {
+      var attackSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Attack);
+      return new AnimationDrawState(CharacterClip.Attack, attackSpec, _attackFrame, _attackFacing);
+    }
 
     var clip = _locomotionClip == CharacterClip.Run ? CharacterClip.Run : CharacterClip.Idle;
-    var spec = SwordsmanAnimationSpecs.For(clip);
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, clip);
     return new AnimationDrawState(clip, spec, _locomotionFrame, _facing);
   }
 
   private void UpdateIdle(float dt, Vector2 faceDir)
   {
     _locomotionClip = CharacterClip.Idle;
-    var spec = SwordsmanAnimationSpecs.Idle;
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Idle);
 
     if (faceDir.LengthSquared() > 0.01f)
     {
@@ -147,7 +163,9 @@ public sealed class AnimationController
     }
 
     _locomotionTimer += dt;
-    var frameCount = spec.FrameCountForFacing(_facing);
+    var frameCount = spec.Directions >= 8
+      ? spec.FramesPerDirection
+      : spec.FrameCountForFacing(Facing8Resolver.ToCardinal4(_facing));
     while (_locomotionTimer >= spec.FrameDuration)
     {
       _locomotionTimer -= spec.FrameDuration;
@@ -155,10 +173,10 @@ public sealed class AnimationController
     }
   }
 
-  private void UpdateRun(float dt, Vector2 moveDir, bool isMoving, float animSpeed)
+  private void UpdateWalk(float dt, Vector2 moveDir, bool isMoving, float animSpeed)
   {
     _locomotionClip = CharacterClip.Run;
-    var spec = SwordsmanAnimationSpecs.Run;
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Run);
 
     if (moveDir.LengthSquared() > 0.01f)
       _facing = ResolveFacing(moveDir);
@@ -181,7 +199,7 @@ public sealed class AnimationController
 
   private void UpdateAttack(float dt)
   {
-    var spec = SwordsmanAnimationSpecs.Attack;
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Attack);
     _attackTimer += dt;
     while (_attackTimer >= spec.FrameDuration)
     {
@@ -198,7 +216,7 @@ public sealed class AnimationController
 
   private void UpdateHurt(float dt)
   {
-    var spec = SwordsmanAnimationSpecs.Hurt;
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Hurt);
     _hurtTimer += dt;
     while (_hurtTimer >= spec.FrameDuration)
     {
@@ -215,7 +233,7 @@ public sealed class AnimationController
 
   private void UpdateDeath(float dt)
   {
-    var spec = SwordsmanAnimationSpecs.Death;
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Death);
     _deathTimer += dt;
     while (_deathTimer >= spec.FrameDuration)
     {
@@ -231,18 +249,17 @@ public sealed class AnimationController
     }
   }
 
-  public static FacingDirection ResolveFacing(Vector2 dir) =>
-    FourDirectionRunAnimation.ResolveDirection(dir);
+  public static Facing8 ResolveFacing(Vector2 dir) => Facing8Resolver.Resolve(dir);
 }
 
 public readonly struct AnimationDrawState(
   CharacterClip clip,
   AnimationSpecification spec,
   int frame,
-  FacingDirection facing)
+  Facing8 facing)
 {
   public CharacterClip Clip { get; } = clip;
   public AnimationSpecification Spec { get; } = spec;
   public int Frame { get; } = frame;
-  public FacingDirection Facing { get; } = facing;
+  public Facing8 Facing { get; } = facing;
 }

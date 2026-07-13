@@ -134,6 +134,48 @@
 
 #end Characters/Swordsman/Hurt.png
 
+#begin Characters/Swordsman V2/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/Swordsman V2/idle.png
+
+#end Characters/Swordsman V2/idle.png
+
+#begin Characters/Swordsman V2/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/Swordsman V2/walk.png
+
+#end Characters/Swordsman V2/walk.png
+
+#begin Characters/Swordsman V2/one-handed-attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/Swordsman V2/one-handed-attack.png
+
+#end Characters/Swordsman V2/one-handed-attack.png
+
 #begin Icons/ability_sheet.png
 /importer:TextureImporter
 /processor:TextureProcessor

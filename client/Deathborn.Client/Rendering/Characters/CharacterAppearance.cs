@@ -4,5 +4,8 @@ public readonly struct CharacterAppearance
 {
     public string BodyTypeId { get; init; }
 
-    public static CharacterAppearance DefaultSwordsman => new() { BodyTypeId = "swordsman" };
+    public static CharacterAppearance DefaultSwordsman => new()
+    {
+        BodyTypeId = CharacterAnimationCatalog.SwordsmanV2,
+    };
 }

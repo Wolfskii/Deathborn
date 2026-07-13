@@ -12,7 +12,7 @@ public sealed class PlayerEntity
     public const float SpriteDrawScale = 1.5f;
     /// <summary>Collision circle sits slightly below the feet anchor to tighten edge blocking.</summary>
     public const float CollisionCenterYOffset = 2f;
-    private const float SpriteScale = SpriteDrawScale;
+    private float VisualDrawScale => CharacterAnimationCatalog.GetDrawScale(_visual.Appearance.BodyTypeId);
 
     /// <summary>World Y for Y-sorting — feet on the ground.</summary>
     public float SortY => Position.Y;
@@ -463,7 +463,7 @@ public sealed class PlayerEntity
     public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
     {
         var tint = IsLocal ? Color.White : new Color(0.92f, 0.82f, 0.78f);
-        var scale = SpriteScale * zoom;
+        var scale = VisualDrawScale * zoom;
 
         if (IsDead)
         {
@@ -514,7 +514,7 @@ public sealed class PlayerEntity
     {
         if (IsDead || IsLocal) return;
 
-        var scale = SpriteScale * zoom;
+        var scale = VisualDrawScale * zoom;
         var outerThick = Math.Max(2.5f, 3.1f * zoom);
         var innerThick = Math.Max(2f, 2.5f * zoom);
 

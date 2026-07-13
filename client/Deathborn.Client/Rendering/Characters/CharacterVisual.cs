@@ -16,7 +16,11 @@ public sealed class CharacterVisual
   public CharacterAppearance Appearance
   {
     get => _appearance;
-    set => _appearance = value;
+    set
+    {
+      _appearance = value;
+      _controller.BodyTypeId = value.BodyTypeId;
+    }
   }
 
   public CharacterEquipment Equipment

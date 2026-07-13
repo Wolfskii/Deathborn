@@ -8,4 +8,7 @@ public enum AnimationSheetLayout
 
     /// <summary>Uniform 64×64 grid with remapped direction rows (death, hurt).</summary>
     Grid64,
+
+    /// <summary>Uniform row-per-direction, column-per-frame grid (Swordsman V2).</summary>
+    UniformGrid,
 }
