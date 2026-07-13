@@ -162,13 +162,30 @@ func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
 	if fx == tx && fy == ty {
 		return true
 	}
-	if !m.canTraverseTiles(fx, fy, tx, fy) {
-		return false
+	if m.canTraverseTiles(fx, fy, tx, fy) && m.canTraverseTiles(tx, fy, tx, ty) {
+		return true
 	}
-	if !m.canTraverseTiles(tx, fy, tx, ty) {
-		return false
+	if fx != tx && fy != ty {
+		if m.canTraverseTiles(fx, fy, fx, ty) && m.canTraverseTiles(fx, ty, tx, ty) {
+			return true
+		}
 	}
-	return true
+	return false
+}
+
+func (m *Map) adjustRampDelta(x, y, dx, dy float64) (float64, float64) {
+	if m.elevation == nil || math.Abs(dx) < 0.0001 {
+		return dx, dy
+	}
+	if math.Abs(dy) > math.Abs(dx)*0.85 {
+		return dx, dy
+	}
+	tx, ty := m.tileAt(x, y)
+	ok, slope := m.elevation.rampSlopeAt(tx, ty, m.TileWidth, m.TileHeight)
+	if !ok {
+		return dx, dy
+	}
+	return dx, slope * dx
 }
 
 // CanWalk reports whether a circle at (x,y) may stand on land. (x,y) is the feet position.
@@ -189,12 +206,18 @@ func (m *Map) CanWalk(x, y, radius float64) bool {
 
 // ResolveMove applies axis-separated sliding against land/water tiles and foliage.
 func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
+	dx, dy = m.adjustRampDelta(x, y, dx, dy)
+
 	nx, ny := x+dx, y+dy
-	if m.CanWalk(nx, y, playerRadius) && m.canTraverseWorld(x, y, nx, y) {
-		x = nx
-	}
-	if m.CanWalk(x, ny, playerRadius) && m.canTraverseWorld(x, y, x, ny) {
-		y = ny
+	if m.CanWalk(nx, ny, playerRadius) && m.canTraverseWorld(x, y, nx, ny) {
+		x, y = nx, ny
+	} else {
+		if m.CanWalk(nx, y, playerRadius) && m.canTraverseWorld(x, y, nx, y) {
+			x = nx
+		}
+		if m.CanWalk(x, ny, playerRadius) && m.canTraverseWorld(x, y, x, ny) {
+			y = ny
+		}
 	}
 	if m.foliage != nil {
 		x, y = m.foliage.resolvePosition(x, y, playerRadius)

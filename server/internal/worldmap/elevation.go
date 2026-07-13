@@ -101,5 +101,59 @@ func (g *elevationGrid) canStep(fx, fy, tx, ty, tw, th int) bool {
 	if dx == 1 && dy == 0 && fe == te+1 && g.rampAt(tx, ty+1, tw, th) == 2 {
 		return true
 	}
+
+	// North/south along ramp corridors (enter from below, climb to platform).
+	if dx == 0 && dy == -1 && te == fe+1 {
+		if g.rampAt(tx, ty, tw, th) != 0 {
+			return true
+		}
+		if g.rampAt(fx-1, fy, tw, th) == 1 {
+			return true
+		}
+		if g.rampAt(fx+1, fy, tw, th) == 2 {
+			return true
+		}
+	}
+	if dx == 0 && dy == 1 && fe == te+1 {
+		if g.rampAt(fx, fy, tw, th) != 0 {
+			return true
+		}
+		if g.rampAt(tx-1, ty, tw, th) == 1 {
+			return true
+		}
+		if g.rampAt(tx+1, ty, tw, th) == 2 {
+			return true
+		}
+	}
 	return false
+}
+
+// rampSlopeAt reports whether (tx,ty) is on a stair and the dy-per-dx slope for sideways travel.
+// dyPerDx is -1 for left ramps (east = uphill/north) and +1 for right ramps (west = uphill/north).
+func (g *elevationGrid) rampSlopeAt(tx, ty, tw, th int) (ok bool, dyPerDx float64) {
+	if ramp := g.rampAt(tx, ty, tw, th); ramp == 1 {
+		return true, -1
+	}
+	if ramp := g.rampAt(tx, ty, tw, th); ramp == 2 {
+		return true, 1
+	}
+	if ty+1 < th {
+		if ramp := g.rampAt(tx, ty+1, tw, th); ramp == 1 {
+			return true, -1
+		}
+		if ramp := g.rampAt(tx, ty+1, tw, th); ramp == 2 {
+			return true, 1
+		}
+	}
+	if ty+1 < th && g.rampAt(tx-1, ty+1, tw, th) == 1 {
+		if g.at(tx, ty, tw, th) == g.at(tx-1, ty+1, tw, th)+1 {
+			return true, -1
+		}
+	}
+	if ty+1 < th && g.rampAt(tx+1, ty+1, tw, th) == 2 {
+		if g.at(tx, ty, tw, th) == g.at(tx+1, ty+1, tw, th)+1 {
+			return true, 1
+		}
+	}
+	return false, 0
 }

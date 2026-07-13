@@ -396,7 +396,7 @@ public sealed class PlayerEntity
             _dashTimer = MathF.Max(0f, _dashTimer - dt);
             var t = 1f - _dashTimer / MathF.Max(0.001f, _dashDuration);
             var next = Vector2.Lerp(_dashStart, _dashEnd, t);
-            Position = WorldFoliage.ResolvePosition(next, Radius);
+            Position = WorldMap.Realik.ResolveMove(next, Vector2.Zero, Radius);
             Target = _dashEnd;
             if (_dashTimer <= 0f)
                 _isDashing = false;
@@ -405,17 +405,16 @@ public sealed class PlayerEntity
         {
             var dir = Vector2.Normalize(InputDir);
             var speed = IsRunning ? Config.RunSpeed : Config.WalkSpeed;
-            var predicted = Position + dir * speed * dt;
-            predicted = WorldFoliage.ResolvePosition(predicted, Radius);
+            var predicted = WorldMap.Realik.ResolveMove(Position, dir * speed * dt, Radius);
 
             var err = Target - predicted;
             var errLenSq = err.LengthSquared();
             if (errLenSq > Config.LocalSnapDistance * Config.LocalSnapDistance)
-                Position = WorldFoliage.ResolvePosition(Target, Radius);
+                Position = WorldMap.Realik.ResolveMove(Target, Vector2.Zero, Radius);
             else if (errLenSq > 2f)
             {
                 predicted += err * MathHelper.Clamp(dt * Config.LocalReconcileSpeed, 0f, 0.35f);
-                Position = WorldFoliage.ResolvePosition(predicted, Radius);
+                Position = WorldMap.Realik.ResolveMove(predicted, Vector2.Zero, Radius);
             }
             else
                 Position = predicted;
@@ -424,7 +423,7 @@ public sealed class PlayerEntity
         {
             var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
             var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
-            Position = WorldFoliage.ResolvePosition(lerped, Radius);
+            Position = WorldMap.Realik.ResolveMove(lerped, Vector2.Zero, Radius);
         }
 
         UpdateBandageVisual(dt);

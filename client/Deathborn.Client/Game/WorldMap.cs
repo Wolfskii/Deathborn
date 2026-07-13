@@ -82,7 +82,109 @@ public sealed class WorldMap
         if (dx == 1 && dy == 0 && fe == te + 1 && GetRamp(tx, ty + 1) == 2)
             return true;
 
+        if (dx == 0 && dy == -1 && te == fe + 1)
+        {
+            if (GetRamp(tx, ty) != 0) return true;
+            if (GetRamp(fx - 1, fy) == 1) return true;
+            if (GetRamp(fx + 1, fy) == 2) return true;
+        }
+        if (dx == 0 && dy == 1 && fe == te + 1)
+        {
+            if (GetRamp(fx, fy) != 0) return true;
+            if (GetRamp(tx - 1, ty) == 1) return true;
+            if (GetRamp(tx + 1, ty) == 2) return true;
+        }
+
         return false;
+    }
+
+    /// <summary>dy per dx when running sideways on a stair (-1 = left ramp, +1 = right ramp).</summary>
+    public bool TryGetRampSlope(int tx, int ty, out float dyPerDx)
+    {
+        dyPerDx = 0;
+        if (!HasElevation) return false;
+
+        var ramp = GetRamp(tx, ty);
+        if (ramp == 1) { dyPerDx = -1; return true; }
+        if (ramp == 2) { dyPerDx = 1; return true; }
+
+        if ((uint)ty + 1 < (uint)TileHeight)
+        {
+            ramp = GetRamp(tx, ty + 1);
+            if (ramp == 1) { dyPerDx = -1; return true; }
+            if (ramp == 2) { dyPerDx = 1; return true; }
+        }
+
+        if ((uint)ty + 1 < (uint)TileHeight && GetRamp(tx - 1, ty + 1) == 1
+            && GetElevation(tx, ty) == GetElevation(tx - 1, ty + 1) + 1)
+        {
+            dyPerDx = -1;
+            return true;
+        }
+        if ((uint)ty + 1 < (uint)TileHeight && GetRamp(tx + 1, ty + 1) == 2
+            && GetElevation(tx, ty) == GetElevation(tx + 1, ty + 1) + 1)
+        {
+            dyPerDx = 1;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool CanTraverseWorld(float fromX, float fromY, float toX, float toY)
+    {
+        var fx = (int)(fromX / TileSize);
+        var fy = (int)(fromY / TileSize);
+        var tx = (int)(toX / TileSize);
+        var ty = (int)(toY / TileSize);
+        if (fx == tx && fy == ty) return true;
+
+        if (CanStepElevation(fx, fy, tx, fy) && CanStepElevation(tx, fy, tx, ty))
+            return true;
+        if (fx != tx && fy != ty
+            && CanStepElevation(fx, fy, fx, ty) && CanStepElevation(fx, ty, tx, ty))
+            return true;
+        return false;
+    }
+
+    private Vector2 AdjustRampDelta(float x, float y, Vector2 delta)
+    {
+        if (!HasElevation || MathF.Abs(delta.X) < 0.0001f)
+            return delta;
+        if (MathF.Abs(delta.Y) > MathF.Abs(delta.X) * 0.85f)
+            return delta;
+
+        var tx = (int)(x / TileSize);
+        var ty = (int)(y / TileSize);
+        if (!TryGetRampSlope(tx, ty, out var dyPerDx))
+            return delta;
+
+        return new Vector2(delta.X, dyPerDx * delta.X);
+    }
+
+    /// <summary>Authoritative terrain slide (elevation + foliage), matching server ResolveMove.</summary>
+    public Vector2 ResolveMove(Vector2 feet, Vector2 delta, float entityRadius)
+    {
+        var x = feet.X;
+        var y = feet.Y;
+        delta = AdjustRampDelta(x, y, delta);
+
+        var nx = x + delta.X;
+        var ny = y + delta.Y;
+        if (IsWalkable(nx, ny, entityRadius) && CanTraverseWorld(x, y, nx, ny))
+        {
+            x = nx;
+            y = ny;
+        }
+        else
+        {
+            if (IsWalkable(nx, y, entityRadius) && CanTraverseWorld(x, y, nx, y))
+                x = nx;
+            if (IsWalkable(x, ny, entityRadius) && CanTraverseWorld(x, y, x, ny))
+                y = ny;
+        }
+
+        return WorldFoliage.ResolvePosition(new Vector2(x, y), entityRadius);
     }
 
     private static string CollisionPath =>
