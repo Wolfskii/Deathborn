@@ -45,6 +45,19 @@ Deathborn icon art = **dark fantasy lore + bright nostalgic pixel execution**.
 
 Do **not** generate images unless the user explicitly asks. Default deliverable is the text prompt.
 
+## Workflow C — player body animations (Swordsman V2)
+
+Use when creating, installing, or wiring **player character** sprite sheets (not UI icon atlases).
+
+1. Read [`prompts/sprites/Player/manifest.json`](../../../prompts/sprites/Player/manifest.json) for animation ids, frame counts, and path mapping.
+2. **Prompts:** copy `prompts/sprites/Player/<animation>/cardinals.md` or `diagonals.md` to image AI (self-contained). Attach Reference Image 1 = canonical base body.
+3. **Install halves:** save output to `Content/Characters/Swordsman V2/_source/<animation>/cardinals.png` and `diagonals.png`.
+4. **Merge:** `python scripts/generate_player_sprite_placeholders.py <animation> --merge-only`
+5. **Atlas (wired clips):** `python scripts/regenerate_swordsman_v2_atlas.py`
+6. See [AGENTS.md](../../../AGENTS.md) player sprite section for row order, `Facing8` mapping, and C# wiring.
+
+Regenerate all placeholders: `python scripts/generate_player_sprite_placeholders.py`
+
 ## Workflow B — user pasted a sprite sheet
 
 When the user provides a new PNG sheet, install it with the slicer (no AI):
@@ -82,5 +95,8 @@ python scripts/slice_sprite_sheet.py sheet.png --atlas ability --chroma-key --ce
 | File | Purpose |
 |------|---------|
 | [reference.md](reference.md) | Style guide, cell maps, prompt template |
+| `prompts/sprites/Player/manifest.json` | Player animation → prompt/path/frame manifest |
+| `scripts/generate_player_sprite_placeholders.py` | Placeholder + merge cardinals/diagonals halves |
+| `scripts/regenerate_swordsman_v2_atlas.py` | Tight-frame atlas codegen for wired V2 sheets |
 | `scripts/slice_sprite_sheet.py` | Standardize, chroma-key, slice, install |
 | `scripts/sprite_sheet_atlases.json` | Atlas layouts, install paths, default key color |

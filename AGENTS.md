@@ -1,5 +1,85 @@
 # Deathborn — Agent Guide
 
+## Player character sprites (Swordsman V2)
+
+Authoritative manifest: [`prompts/sprites/Player/manifest.json`](prompts/sprites/Player/manifest.json)
+
+### Quick facts
+
+- **Body type id:** `swordsman_v2` (`CharacterAnimationCatalog.SwordsmanV2`)
+- **Prompts:** `prompts/sprites/Player/<animation>/cardinals.md` and `diagonals.md` (self-contained — master style is inlined)
+- **Base body prompt:** `prompts/sprites/Player/base-body.md` (uses Reference Image 1 for art direction only)
+- **AI workflow:** generate `cardinals` and `diagonals` as **separate** 4-row sheets, then merge
+- **Cell size:** 64×64 px uniform grid; background `#00FF00` chroma key
+- **Merged sheet:** 8 rows × N columns — interleaved row order below
+
+### File layout
+
+| Path | Purpose |
+|------|---------|
+| `Content/Characters/Swordsman V2/_source/<animation>/cardinals.png` | Paste AI output for S, E, N, W |
+| `Content/Characters/Swordsman V2/_source/<animation>/diagonals.png` | Paste AI output for SE, NE, NW, SW |
+| `Content/Characters/Swordsman V2/<animation>.png` | Merged runtime sheet (MonoGame loads this) |
+| `Content/Characters/Swordsman V2/_source/base-body.png` | Canonical character reference (not loaded at runtime) |
+
+Animation folder names **match** prompt dirs and merged PNG names (`walk`, `one-handed-attack`, …).
+
+### Merged row order (0-based)
+
+| Row | Half | Compass | `Facing8` |
+|-----|------|---------|-----------|
+| 0 | cardinals | South | `Down` |
+| 1 | diagonals | South-East | `DownRight` |
+| 2 | cardinals | East | `Right` |
+| 3 | diagonals | North-East | `UpRight` |
+| 4 | cardinals | North | `Up` |
+| 5 | diagonals | North-West | `UpLeft` |
+| 6 | cardinals | West | `Left` |
+| 7 | diagonals | South-West | `DownLeft` |
+
+Row-major frame index: `row * framesPerDirection + column`.
+
+### Scripts
+
+```bash
+# Regenerate labelled placeholder halves + merged sheets (all animations)
+python scripts/generate_player_sprite_placeholders.py
+
+# One animation only
+python scripts/generate_player_sprite_placeholders.py walk
+
+# Re-merge after replacing _source PNGs from AI
+python scripts/generate_player_sprite_placeholders.py walk --merge-only
+```
+
+After replacing real art, regenerate tight-frame atlas for wired sheets:
+
+```bash
+python scripts/regenerate_swordsman_v2_atlas.py
+```
+
+### Client code map
+
+| File | Role |
+|------|------|
+| `Rendering/CharacterSprites.cs` | Loads V2 textures by clip |
+| `Rendering/Characters/SwordsmanV2AnimationSpecs.cs` | Frame counts, durations, direction row maps |
+| `Rendering/Characters/SwordsmanV2FrameAtlas.cs` | Per-frame tight rects (generated) |
+| `Rendering/Characters/CharacterRenderer.cs` | Draws body from atlas |
+| `Rendering/Facing8.cs` | 8-way facing resolver |
+
+**Currently wired:** `idle`, `walk` (also Run/Roll speed), `one-handed-attack` (Attack clip). Other merged placeholders exist in Content but are not yet loaded in `CharacterSprites.cs`.
+
+### When installing new player art
+
+1. Drop AI sheets into `_source/<animation>/cardinals.png` and `diagonals.png`.
+2. Run `generate_player_sprite_placeholders.py <animation> --merge-only`.
+3. Register in `Content.mgcb` if new animation (see manifest).
+4. Wire texture + spec in `CharacterSprites.cs` / `SwordsmanV2AnimationSpecs.cs`.
+5. Run `regenerate_swordsman_v2_atlas.py` and rebuild client.
+
+---
+
 ## Tiny Swords terrain (elevated land & hills)
 
 Authoritative reference: [`.tile_debug/tinyswords_guide.json`](.tile_debug/tinyswords_guide.json)
