@@ -52,9 +52,9 @@ Leave clear empty space beyond the grip where the blade will be composited later
 ANIMATION
 ==================================================
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 one-handed slash frames in animation order.
 
 Motion type: horizontal / diagonal SLASHING ARC.
 

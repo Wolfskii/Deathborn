@@ -57,9 +57,9 @@ Leave clear empty space beyond EACH grip where the left and right weapon layers 
 ANIMATION
 ==================================================
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 dual-wield slash frames in animation order.
 
 Motion type: dual SLASHING ARCS — agile, compact, offensive.
 

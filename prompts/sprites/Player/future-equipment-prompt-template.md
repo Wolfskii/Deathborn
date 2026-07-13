@@ -36,6 +36,8 @@ Iron Sword
 
 Every frame must match:
 
+Eight-direction sheet layout (see `eight-direction-layout.md`)
+
 Frame count
 
 Frame size

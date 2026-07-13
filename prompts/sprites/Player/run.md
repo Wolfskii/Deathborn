@@ -3,9 +3,9 @@ Create ONE sprite sheet.
 Animation:
 Running
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames.
+Each row contains exactly 8 run-cycle frames in animation order.
 
 More energetic than walking.
 

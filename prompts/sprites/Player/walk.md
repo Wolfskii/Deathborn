@@ -3,9 +3,9 @@ Create ONE sprite sheet.
 Animation:
 Walking
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 walk-cycle frames in animation order.
 
 Natural walk cycle.
 

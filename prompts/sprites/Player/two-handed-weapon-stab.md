@@ -50,9 +50,9 @@ Leave clear empty space IN FRONT of the forward hand along the thrust line for t
 ANIMATION
 ==================================================
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 thrust frames in animation order.
 
 Motion type: straight two-handed THRUST along the facing direction.
 

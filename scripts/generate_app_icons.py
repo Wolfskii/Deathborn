@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import math
 import struct
 import sys
 from pathlib import Path
@@ -88,21 +87,10 @@ def clean_alpha(img: Image.Image) -> Image.Image:
     return cleaned
 
 
-def resize_pixel_art(logo: Image.Image, target: int) -> Image.Image:
-    """Downscale with an exact integer ratio so pixel-art edges stay crisp."""
+def resize_icon(logo: Image.Image, target: int) -> Image.Image:
+    """Downscale the painted logo with high-quality filtering for native icons."""
     source = normalize_square(logo)
-    side = source.width
-    if side == target:
-        return clean_alpha(source.copy())
-
-    canvas_size = math.ceil(side / target) * target
-    if canvas_size != side:
-        canvas = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
-        offset = (canvas_size - side) // 2
-        canvas.paste(source, (offset, offset), source)
-        source = canvas
-
-    return clean_alpha(source.resize((target, target), Image.Resampling.NEAREST))
+    return clean_alpha(source.resize((target, target), Image.Resampling.LANCZOS))
 
 
 def save_png(img: Image.Image, path: Path) -> None:
@@ -111,7 +99,7 @@ def save_png(img: Image.Image, path: Path) -> None:
 
 
 def save_ico(logo: Image.Image, path: Path) -> None:
-    frames = [resize_pixel_art(logo, size) for size in ICO_SIZES]
+    frames = [resize_icon(logo, size) for size in ICO_SIZES]
     path.parent.mkdir(parents=True, exist_ok=True)
     # Pillow skips sizes larger than the base image — use 256px as the base frame.
     frames[-1].save(
@@ -124,7 +112,7 @@ def save_ico(logo: Image.Image, path: Path) -> None:
 
 def save_bmp32_rgba(logo: Image.Image, path: Path, size: int = WINDOW_ICON_BMP_SIZE) -> None:
     """32-bit BMP with alpha — MonoGame/SDL uses this for the taskbar icon in dev (dotnet exec)."""
-    rgba = resize_pixel_art(logo, size)
+    rgba = resize_icon(logo, size)
     w, h = rgba.size
     pixel_data = bytearray()
     for y in range(h - 1, -1, -1):
@@ -165,19 +153,19 @@ def write_mac_iconset(logo: Image.Image, iconset_dir: Path) -> None:
     else:
         iconset_dir.mkdir(parents=True)
     for filename, size in MAC_ICONSET:
-        save_png(resize_pixel_art(logo, size), iconset_dir / filename)
+        save_png(resize_icon(logo, size), iconset_dir / filename)
 
 
 def write_mobile_icons(logo: Image.Image, mobile_root: Path) -> None:
     android_root = mobile_root / "android"
     for rel_path, size in ANDROID_MIPMAPS:
-        save_png(resize_pixel_art(logo, size), android_root / rel_path)
+        save_png(resize_icon(logo, size), android_root / rel_path)
 
     ios_root = mobile_root / "ios" / "AppIcon.appiconset"
     ios_root.mkdir(parents=True, exist_ok=True)
     images: list[str] = []
     for filename, size, idiom, size_key, scale in IOS_ICONS:
-        save_png(resize_pixel_art(logo, size), ios_root / filename)
+        save_png(resize_icon(logo, size), ios_root / filename)
         images.append(
             f'    {{"filename": "{filename}", "idiom": "{idiom}", '
             f'"scale": "{scale}", "size": "{size_key}"}}'
@@ -196,7 +184,7 @@ def main() -> int:
 
     save_ico(logo, CLIENT / "Icon.ico")
     save_bmp32_rgba(logo, CLIENT / "Icon.bmp")
-    save_png(resize_pixel_art(logo, LINUX_ICON_SIZE), ROOT / "installer" / "linux" / "deathborn.png")
+    save_png(resize_icon(logo, LINUX_ICON_SIZE), ROOT / "installer" / "linux" / "deathborn.png")
     write_mac_iconset(logo, ROOT / "installer" / "macos" / "AppIcon.iconset")
     write_mobile_icons(logo, ROOT / "installer" / "mobile")
 

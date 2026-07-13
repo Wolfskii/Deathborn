@@ -14,15 +14,14 @@ internal static class GameWindowIcon
     private const int IconBig = 1;
 
     private static readonly int[] IcoSizes = [16, 24, 32, 48, 64, 128, 256];
+    private static IntPtr _smallIcon;
+    private static IntPtr _largeIcon;
 
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lIcon);
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool DestroyIcon(IntPtr hIcon);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr CopyIcon(IntPtr hIcon);
@@ -103,7 +102,10 @@ internal static class GameWindowIcon
                 continue;
 
             SendMessage(hwnd, WmSetIcon, (IntPtr)slot, handle);
-            DestroyIcon(handle);
+            if (slot == IconSmall)
+                _smallIcon = handle;
+            else
+                _largeIcon = handle;
             return;
         }
     }

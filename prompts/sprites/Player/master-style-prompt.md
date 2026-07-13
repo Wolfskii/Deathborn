@@ -54,6 +54,8 @@ OUTPUT
 
 Produce ONE sprite sheet only.
 
+For 8-way player animations, use the eight-direction sheet layout specification (`eight-direction-layout.md`).
+
 Uniform grid.
 
 Every frame perfectly aligned.

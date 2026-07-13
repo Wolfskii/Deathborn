@@ -50,9 +50,9 @@ Leave clear empty space beyond the hands where the weapon head/blade will be com
 ANIMATION
 ==================================================
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 slash frames in animation order.
 
 Motion type: heavy two-handed SLASHING ARC.
 

@@ -4,9 +4,9 @@ Animation:
 
 Combat dodge roll.
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames.
+Each row contains exactly 8 roll frames in animation order.
 
 Compact roll.
 

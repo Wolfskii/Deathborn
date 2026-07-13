@@ -57,29 +57,22 @@ stop_clients() {
     fi
   done
   CLIENT_PIDS=()
+
+  # Clean up stray native apphost runs (manual tests) that lock bin/Debug/Deathborn.Client.exe.
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+      taskkill //F //IM Deathborn.Client.exe //T >/dev/null 2>&1 || true
+      ;;
+  esac
 }
 
 start_clients() {
   local i
-  local launcher
-  case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*)
-      if [ ! -f "$CLIENT_EXE" ]; then
-        echo "Missing Windows client build: $CLIENT_EXE" >&2
-        exit 1
-      fi
-      launcher="./Deathborn.Client.exe"
-      ;;
-    *)
-      launcher="dotnet exec ./Deathborn.Client.dll"
-      ;;
-  esac
-
   for ((i = 1; i <= CLIENT_COUNT; i++)); do
     (
       cd "$CLIENT_OUT"
       DEATHBORN_INSTANCE="$i" DEATHBORN_SKIP_UPDATE="${DEATHBORN_SKIP_UPDATE:-1}" \
-        exec $launcher
+        exec dotnet exec "./Deathborn.Client.dll"
     ) &
     CLIENT_PIDS+=("$!")
   done
@@ -200,6 +193,13 @@ dotnet tool restore
 
 echo "Refreshing app icons..."
 python "$ROOT/scripts/generate_app_icons.py"
+
+echo "Stopping any stray Deathborn.Client.exe from prior runs..."
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    taskkill //F //IM Deathborn.Client.exe //T >/dev/null 2>&1 || true
+    ;;
+esac
 
 echo "Building MonoGame client..."
 dotnet build "$CLIENT_PROJECT" --configuration Debug -v q

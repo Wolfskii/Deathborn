@@ -4,9 +4,9 @@ Animation:
 
 Hit reaction.
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 4 frames.
+Each row contains exactly 4 hurt frames in animation order.
 
 Quick recoil.
 

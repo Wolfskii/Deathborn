@@ -64,9 +64,9 @@ Leave clear empty space:
 ANIMATION
 ==================================================
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 sword-and-shield slash frames in animation order.
 
 Motion type: compact sword-and-board SLASH.
 

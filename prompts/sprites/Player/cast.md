@@ -14,9 +14,9 @@ Only body animation.
 
 Future staffs and spell effects will be rendered separately.
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames.
+Each row contains exactly 8 cast frames in animation order.
 
 Large expressive magical motion.
 

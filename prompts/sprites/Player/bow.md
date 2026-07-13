@@ -12,9 +12,9 @@ Character pantomimes drawing a bow.
 
 Future bows and arrows will be separate sprite sheets.
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames.
+Each row contains exactly 8 bow-draw frames in animation order.
 
 
 Reference Image 1

@@ -3,27 +3,9 @@ Create ONE sprite sheet.
 Animation:
 Idle
 
-Directions:
+Use the eight-direction sheet layout specification.
 
-South
-
-South-East
-
-East
-
-North-East
-
-North
-
-North-West
-
-West
-
-South-West
-
-Eight directions.
-
-Each direction contains exactly 6 frames.
+Each row contains exactly 6 idle frames in animation order.
 
 The character performs:
 

@@ -11,7 +11,7 @@ public static class Config
     public static string HttpBase => ServerEndpoints.HttpBase;
     public static string WsBase => ServerEndpoints.WsBase;
     public const int DefaultWidth = 1280;
-    public const int DefaultHeight = 720;
+    public const int DefaultHeight = 800;
     /// <summary>World camera scale at <see cref="DefaultWidth"/>×<see cref="DefaultHeight"/>; higher = closer.</summary>
     public const float WorldZoomBase = 1.85f;
     public const float WorldZoomMin = 1.0f;

@@ -59,9 +59,9 @@ Leave clear empty space IN FRONT of the shield forearm where the shield layer wi
 ANIMATION
 ==================================================
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 shield-bash frames in animation order.
 
 Motion type: forward SHIELD BASH along the facing direction.
 

@@ -46,9 +46,9 @@ Do not mix jab and hook frames in the same sheet.
 ANIMATION
 ==================================================
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 8 frames per direction.
+Each row contains exactly 8 punch frames in animation order.
 
 Phases across the 8 frames:
 

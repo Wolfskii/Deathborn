@@ -4,9 +4,9 @@ Animation:
 
 Death.
 
-Eight directions.
+Use the eight-direction sheet layout specification.
 
-Exactly 10 frames.
+Each row contains exactly 10 death frames in animation order.
 
 Character slowly collapses.
 
