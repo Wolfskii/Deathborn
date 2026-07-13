@@ -5,12 +5,12 @@ namespace Deathborn.Client.Rendering;
 
 /// <summary>
 /// Animated login banner from <c>Banner V2 - animated.png</c>.
-/// Sheet is 1536×1024: 4×2 grid of 384×512 frames (8 animation poses).
+/// Sheet is 1536×1024: 4×4 grid of 384×256 frames (16 animation poses).
 /// </summary>
 public sealed class AnimatedBannerSprite
 {
     private const int Columns = 4;
-    private const int Rows = 2;
+    private const int Rows = 4;
     private const float FrameDuration = 0.15f;
 
     private Texture2D? _sheet;

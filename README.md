@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/readme-banner.gif" alt="Deathborn banner" width="384" height="512">
+  <img src="docs/assets/readme-banner.gif" alt="Deathborn banner" width="480" height="320">
 </p>
 
 # DEATHBORN
