@@ -373,7 +373,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             }
 
             if (_moveDir.LengthSquared() > 0.0001f)
-                localEntity.AimDir = PlayerEntity.CardinalFacing(_moveDir);
+                localEntity.AimDir = _moveDir;
             else if (windowActive && !inputBlocked)
                 UpdateLocalAimFacing(localEntity, mouse.Position, _prevMouse.Position);
         }
@@ -1416,7 +1416,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (toMouse.LengthSquared() <= 4f)
             return;
 
-        local.AimDir = PlayerEntity.CardinalFacing(toMouse);
+        local.AimDir = Vector2.Normalize(toMouse);
     }
 
     private static bool IsMouseInViewport(Point p) =>

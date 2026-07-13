@@ -8,7 +8,8 @@ public sealed class NpcCatalogEntry
     public required NpcDisposition Disposition { get; init; }
     public required string SpriteId { get; init; }
     public float Radius { get; init; } = 14f;
-    public float DisplayScale { get; init; } = 0.36f;
+    // Tiny RPG strips are ~15px art centered in 100px cells; scale compensates vs tight player atlas.
+    public float DisplayScale { get; init; } = 2.1f;
 }
 
 public static class NpcCatalog
@@ -19,9 +20,9 @@ public static class NpcCatalog
         ["storm_wyrm"] = new() { DefId = "storm_wyrm", Name = "Storm Wyrm", Category = NpcCategory.Boss, Disposition = NpcDisposition.Hostile, SpriteId = "", Radius = 20f },
         ["blight_herald"] = new() { DefId = "blight_herald", Name = "Blight Herald", Category = NpcCategory.Boss, Disposition = NpcDisposition.Hostile, SpriteId = "", Radius = 22f },
         ["forest_skeleton"] = new() { DefId = "forest_skeleton", Name = "Skeleton", Category = NpcCategory.Monster, Disposition = NpcDisposition.Hostile, SpriteId = "skeleton", Radius = 14f },
-        ["forest_slime"] = new() { DefId = "forest_slime", Name = "Slime", Category = NpcCategory.Monster, Disposition = NpcDisposition.Hostile, SpriteId = "slime", Radius = 12f, DisplayScale = 0.34f },
+        ["forest_slime"] = new() { DefId = "forest_slime", Name = "Slime", Category = NpcCategory.Monster, Disposition = NpcDisposition.Hostile, SpriteId = "slime", Radius = 12f, DisplayScale = 1.85f },
         ["forest_orc"] = new() { DefId = "forest_orc", Name = "Orc", Category = NpcCategory.Monster, Disposition = NpcDisposition.Hostile, SpriteId = "orc", Radius = 16f },
-        ["wild_bat"] = new() { DefId = "wild_bat", Name = "Bat", Category = NpcCategory.WildAnimal, Disposition = NpcDisposition.Hostile, SpriteId = "bat", Radius = 10f, DisplayScale = 0.32f },
+        ["wild_bat"] = new() { DefId = "wild_bat", Name = "Bat", Category = NpcCategory.WildAnimal, Disposition = NpcDisposition.Hostile, SpriteId = "bat", Radius = 10f, DisplayScale = 1.45f },
         ["town_guard"] = new() { DefId = "town_guard", Name = "Town Guard", Category = NpcCategory.Guard, Disposition = NpcDisposition.Friendly, SpriteId = "soldier", Radius = 14f },
         ["town_priest"] = new() { DefId = "town_priest", Name = "Priest", Category = NpcCategory.QuestNpc, Disposition = NpcDisposition.Friendly, SpriteId = "priest", Radius = 14f },
         ["town_wizard"] = new() { DefId = "town_wizard", Name = "Wizard", Category = NpcCategory.QuestNpc, Disposition = NpcDisposition.Friendly, SpriteId = "wizard", Radius = 14f },

@@ -10,12 +10,12 @@ public sealed class MinimapHud
 {
     private static readonly Color WaterFill = new(0.04f, 0.18f, 0.22f, 0.95f);
     private static readonly Color FrameFill = new(0.08f, 0.08f, 0.1f, 0.92f);
-    private static readonly Color CompassColor = new(0.75f, 0.62f, 0.38f, 0.92f);
+    private static readonly Color CompassColor = new(0.92f, 0.22f, 0.2f, 0.95f);
 
     public Vector2 Center =>
         new(
-            GameViewport.Width - Config.MinimapMargin - Config.MinimapScreenRadius,
-            Config.MinimapMargin + Config.MinimapScreenRadius);
+            GameViewport.Width - Config.MinimapRightMargin - Config.MinimapScreenRadius,
+            Config.MinimapTopMargin + Config.MinimapScreenRadius);
 
     public void Draw(
         SpriteBatch sb,
@@ -95,8 +95,8 @@ public sealed class MinimapHud
 
     private static void DrawCompassMarkers(SpriteBatch sb, SpriteFont font, Vector2 center, float radius)
     {
-        const float scale = 0.58f;
-        const float pad = 11f;
+        const float scale = 1.05f;
+        const float pad = 16f;
         DrawCompassLabel(sb, font, "N", center + new Vector2(0, -radius - pad), scale);
         DrawCompassLabel(sb, font, "S", center + new Vector2(0, radius + pad - 2), scale);
         DrawCompassLabel(sb, font, "W", center + new Vector2(-radius - pad, 0), scale);
@@ -107,8 +107,8 @@ public sealed class MinimapHud
     {
         var size = SpriteFontSafe.MeasureString(font, label) * scale;
         var drawPos = new Vector2(pos.X - size.X / 2f, pos.Y - size.Y / 2f);
-        SpriteFontSafe.DrawString(sb, font, label, drawPos, CompassColor,
-            0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        SpriteFontSafe.DrawOutlined(sb, font, label, drawPos, CompassColor, Color.Black,
+            scale, outlinePx: 1.5f);
     }
 
     private static bool InLocalRange(Vector2 world, Vector2 worldCenter, float worldRadius)

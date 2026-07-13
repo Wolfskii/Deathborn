@@ -91,7 +91,7 @@ def merge_halves(
     diagonals: Image.Image,
 ) -> Image.Image:
     if cardinals.size != diagonals.size:
-        raise ValueError("cardinals and diagonals must share dimensions")
+        diagonals = diagonals.resize(cardinals.size, Image.Resampling.LANCZOS)
 
     width, half_height = cardinals.size
     half_row_starts = uniform_starts(half_height, 4)

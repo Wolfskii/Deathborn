@@ -119,4 +119,6 @@ public static class Config
     public const float MinimapWorldRadius = 400f * Ws;
     public const float MinimapScreenRadius = 58f;
     public const int MinimapMargin = 14;
+    public const int MinimapTopMargin = 40;
+    public const int MinimapRightMargin = 28;
 }
