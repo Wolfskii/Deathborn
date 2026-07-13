@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import struct
 import sys
 from pathlib import Path
@@ -17,7 +18,6 @@ ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
 LINUX_ICON_SIZE = 256
 # MonoGame DesktopGL loads Icon.bmp (embedded) for the SDL taskbar/window icon in dev builds.
 WINDOW_ICON_BMP_SIZE = 256
-ICON_PADDING_PX = 2
 MAC_ICONSET = (
     ("icon_16x16.png", 16),
     ("icon_16x16@2x.png", 32),
@@ -63,6 +63,18 @@ def trim_transparent(img: Image.Image) -> Image.Image:
     return img.crop(bbox) if bbox else img
 
 
+def normalize_square(logo: Image.Image) -> Image.Image:
+    """1:1 canvas around artwork without dropping non-transparent pixels."""
+    trimmed = trim_transparent(logo)
+    w, h = trimmed.size
+    side = max(w, h)
+    if w == side and h == side:
+        return trimmed
+    canvas = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    canvas.paste(trimmed, ((side - w) // 2, (side - h) // 2), trimmed)
+    return canvas
+
+
 def clean_alpha(img: Image.Image) -> Image.Image:
     """Drop RGB on fully transparent pixels so ICO/Windows don't show black halos."""
     cleaned = img.convert("RGBA")
@@ -76,21 +88,21 @@ def clean_alpha(img: Image.Image) -> Image.Image:
     return cleaned
 
 
-def fit_icon(logo: Image.Image, size: int, padding: int = ICON_PADDING_PX) -> Image.Image:
-    """Pixel-art friendly: trim, nearest-neighbor scale, transparent square canvas."""
-    trimmed = trim_transparent(logo)
-    inner = max(1, size - padding * 2)
-    scale = min(inner / trimmed.width, inner / trimmed.height)
-    new_w = max(1, int(round(trimmed.width * scale)))
-    new_h = max(1, int(round(trimmed.height * scale)))
-    resized = trimmed.resize((new_w, new_h), Image.Resampling.NEAREST)
-    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    canvas.paste(
-        resized,
-        ((size - new_w) // 2, (size - new_h) // 2),
-        resized,
-    )
-    return clean_alpha(canvas)
+def resize_pixel_art(logo: Image.Image, target: int) -> Image.Image:
+    """Downscale with an exact integer ratio so pixel-art edges stay crisp."""
+    source = normalize_square(logo)
+    side = source.width
+    if side == target:
+        return clean_alpha(source.copy())
+
+    canvas_size = math.ceil(side / target) * target
+    if canvas_size != side:
+        canvas = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
+        offset = (canvas_size - side) // 2
+        canvas.paste(source, (offset, offset), source)
+        source = canvas
+
+    return clean_alpha(source.resize((target, target), Image.Resampling.NEAREST))
 
 
 def save_png(img: Image.Image, path: Path) -> None:
@@ -99,7 +111,7 @@ def save_png(img: Image.Image, path: Path) -> None:
 
 
 def save_ico(logo: Image.Image, path: Path) -> None:
-    frames = [fit_icon(logo, size) for size in ICO_SIZES]
+    frames = [resize_pixel_art(logo, size) for size in ICO_SIZES]
     path.parent.mkdir(parents=True, exist_ok=True)
     # Pillow skips sizes larger than the base image — use 256px as the base frame.
     frames[-1].save(
@@ -112,7 +124,7 @@ def save_ico(logo: Image.Image, path: Path) -> None:
 
 def save_bmp32_rgba(logo: Image.Image, path: Path, size: int = WINDOW_ICON_BMP_SIZE) -> None:
     """32-bit BMP with alpha — MonoGame/SDL uses this for the taskbar icon in dev (dotnet exec)."""
-    rgba = fit_icon(logo, size)
+    rgba = resize_pixel_art(logo, size)
     w, h = rgba.size
     pixel_data = bytearray()
     for y in range(h - 1, -1, -1):
@@ -153,19 +165,19 @@ def write_mac_iconset(logo: Image.Image, iconset_dir: Path) -> None:
     else:
         iconset_dir.mkdir(parents=True)
     for filename, size in MAC_ICONSET:
-        save_png(fit_icon(logo, size), iconset_dir / filename)
+        save_png(resize_pixel_art(logo, size), iconset_dir / filename)
 
 
 def write_mobile_icons(logo: Image.Image, mobile_root: Path) -> None:
     android_root = mobile_root / "android"
     for rel_path, size in ANDROID_MIPMAPS:
-        save_png(fit_icon(logo, size), android_root / rel_path)
+        save_png(resize_pixel_art(logo, size), android_root / rel_path)
 
     ios_root = mobile_root / "ios" / "AppIcon.appiconset"
     ios_root.mkdir(parents=True, exist_ok=True)
     images: list[str] = []
     for filename, size, idiom, size_key, scale in IOS_ICONS:
-        save_png(fit_icon(logo, size), ios_root / filename)
+        save_png(resize_pixel_art(logo, size), ios_root / filename)
         images.append(
             f'    {{"filename": "{filename}", "idiom": "{idiom}", '
             f'"scale": "{scale}", "size": "{size_key}"}}'
@@ -184,7 +196,7 @@ def main() -> int:
 
     save_ico(logo, CLIENT / "Icon.ico")
     save_bmp32_rgba(logo, CLIENT / "Icon.bmp")
-    save_png(fit_icon(logo, LINUX_ICON_SIZE), ROOT / "installer" / "linux" / "deathborn.png")
+    save_png(resize_pixel_art(logo, LINUX_ICON_SIZE), ROOT / "installer" / "linux" / "deathborn.png")
     write_mac_iconset(logo, ROOT / "installer" / "macos" / "AppIcon.iconset")
     write_mobile_icons(logo, ROOT / "installer" / "mobile")
 

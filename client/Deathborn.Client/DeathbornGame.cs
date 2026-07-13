@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Deathborn.Client.Audio;
 using Deathborn.Client.Net;
+using Deathborn.Client.Platform;
 using Deathborn.Client.Rendering;
 using Deathborn.Client.Screens;
 using Deathborn.Client.Ui;
@@ -60,6 +61,7 @@ public sealed class DeathbornGame : Game
         ServerEndpoints.EnsureResolvedAsync().GetAwaiter().GetResult();
         base.Initialize();
         SyncViewport();
+        GameWindowIcon.Apply(this);
     }
 
     private static void OnTextInput(object? sender, TextInputEventArgs e)

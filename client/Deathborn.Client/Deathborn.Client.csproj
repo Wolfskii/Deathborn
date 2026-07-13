@@ -10,8 +10,7 @@
     <Version>0.1.0</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
     <FileVersion>0.1.0.0</FileVersion>
-    <!-- Debug: no apphost.exe so rebuilds don't fight a locked Deathborn.Client.exe during dev:all. -->
-    <UseAppHost Condition="'$(Configuration)' == 'Debug'">false</UseAppHost>
+    <!-- dev-all stops game windows before rebuild, so Debug apphost.exe is safe to run and carries Icon.ico. -->
     <!-- MonoGame needs a full process restart; hot reload cannot patch the game loop. -->
     <HotReloadEnabled>false</HotReloadEnabled>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
@@ -44,5 +43,6 @@
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.2.1105" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
   </ItemGroup>
 </Project>

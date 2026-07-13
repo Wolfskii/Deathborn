@@ -19,6 +19,7 @@ CLIENT_DIR="${ROOT}/client"
 CLIENT_PROJECT="$CLIENT_DIR/Deathborn.Client/Deathborn.Client.csproj"
 CLIENT_OUT="$CLIENT_DIR/Deathborn.Client/bin/Debug/net8.0"
 CLIENT_DLL="$CLIENT_OUT/Deathborn.Client.dll"
+CLIENT_EXE="$CLIENT_OUT/Deathborn.Client.exe"
 BUILD_STAMP="$CLIENT_OUT/.dev-last-build.stamp"
 DEV_PORT="${PORT:-8080}"
 WATCH_INTERVAL="${DEV_WATCH_INTERVAL:-0.75}"
@@ -60,11 +61,25 @@ stop_clients() {
 
 start_clients() {
   local i
+  local launcher
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+      if [ ! -f "$CLIENT_EXE" ]; then
+        echo "Missing Windows client build: $CLIENT_EXE" >&2
+        exit 1
+      fi
+      launcher="./Deathborn.Client.exe"
+      ;;
+    *)
+      launcher="dotnet exec ./Deathborn.Client.dll"
+      ;;
+  esac
+
   for ((i = 1; i <= CLIENT_COUNT; i++)); do
     (
       cd "$CLIENT_OUT"
       DEATHBORN_INSTANCE="$i" DEATHBORN_SKIP_UPDATE="${DEATHBORN_SKIP_UPDATE:-1}" \
-        exec dotnet exec "./Deathborn.Client.dll"
+        exec $launcher
     ) &
     CLIENT_PIDS+=("$!")
   done
@@ -130,7 +145,7 @@ rebuild_clients_if_needed() {
   echo "Client sources changed — stopping game windows to rebuild..."
   stop_clients
 
-  if dotnet build "$CLIENT_PROJECT" --configuration Debug --no-restore; then
+  if dotnet build "$CLIENT_PROJECT" --configuration Debug --no-restore -v q; then
     touch_build_stamp
     COOLDOWN_UNTIL=$(( $(date +%s) + REBUILD_COOLDOWN ))
     echo "Client rebuilt — restarting game windows..."
@@ -187,7 +202,7 @@ echo "Refreshing app icons..."
 python "$ROOT/scripts/generate_app_icons.py"
 
 echo "Building MonoGame client..."
-dotnet build "$CLIENT_PROJECT" --configuration Debug
+dotnet build "$CLIENT_PROJECT" --configuration Debug -v q
 touch_build_stamp
 COOLDOWN_UNTIL=$(( $(date +%s) + REBUILD_COOLDOWN ))
 
