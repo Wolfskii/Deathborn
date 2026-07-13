@@ -107,7 +107,7 @@ Canvas size: **1254×1254** (same width as the cardinals idle half — do not us
 
 Match the walk diagonal silhouette width — character body should be the same visual bulk as walk diagonals, not thinner.
 
-**Headroom (critical):** Leave at least **12px of solid green** above the highest hair pixel in every frame, every row. The top of the hair must never touch the row edge. Never crop or flatten the top of the head. South-West (row 4) is especially prone to this — give extra top margin there.
+**Headroom (critical):** Leave at least **12px of solid green** above the top of the bald head in every frame, every row. The scalp must never touch the row edge. Never crop or flatten the top of the head. South-West (row 4) is especially prone to this — give extra top margin there.
 
 Character scale must match the cardinals idle half — same body height and footprint per frame, not larger.
 
@@ -143,11 +143,11 @@ This character MUST remain visually identical.
 
 Only animate it.
 
-CHARACTER LOCK
+CHARACTER LOCK (BODY LAYER ONLY)
 
-The attached Base Body is the canonical Deathborn player.
+The attached Base Body is the canonical Deathborn player mannequin.
 
-Every future sprite sheet must depict this exact same character.
+Every body animation sheet must depict this exact same bald character.
 
 Never redesign him.
 
@@ -155,14 +155,14 @@ Never reinterpret him.
 
 Never improve him.
 
-Never add clothing.
+Never add hair — hair is a separate composited layer.
+
+Never add clothing, armor, boots, gloves, weapons, or shields — equipment is separate.
 
 Never change proportions.
 
-Never alter facial features.
+Never alter facial structure.
 
-Never alter hair.
+Skin and eye colors use the canonical palette from base-body.md — remapped at runtime.
 
-Never alter colors.
-
-Every future animation should look like frames that were drawn by the same pixel artist for the exact same sprite.
+Every future body animation should look like frames drawn by the same pixel artist for the exact same sprite.

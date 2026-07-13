@@ -8,7 +8,8 @@ Authoritative manifest: [`prompts/sprites/Player/manifest.json`](prompts/sprites
 
 - **Body type id:** `swordsman_v2` (`CharacterAnimationCatalog.SwordsmanV2`)
 - **Prompts:** `prompts/sprites/Player/<animation>/cardinals.md` and `diagonals.md` (self-contained — master style is inlined)
-- **Base body prompt:** `prompts/sprites/Player/base-body.md` (uses Reference Image 1 for art direction only)
+- **Base body prompt:** `prompts/sprites/Player/base-body.md` — **bald mannequin** (skin + underwear + face only; no hair/clothes)
+- **Layer manifest:** `prompts/sprites/Player/layers/manifest.json` — hair, armor, weapons as separate composited sheets
 - **AI workflow:** generate `cardinals` and `diagonals` as **separate** 4-row sheets, then merge
 - **Cell size:** 64×64 px uniform grid; background `#00FF00` chroma key
 - **Merged sheet:** 8 rows × N columns — interleaved row order below
@@ -65,7 +66,10 @@ python scripts/regenerate_swordsman_v2_atlas.py
 | `Rendering/CharacterSprites.cs` | Loads V2 textures by clip |
 | `Rendering/Characters/SwordsmanV2AnimationSpecs.cs` | Frame counts, durations, direction row maps |
 | `Rendering/Characters/SwordsmanV2FrameAtlas.cs` | Per-frame tight rects (generated) |
-| `Rendering/Characters/CharacterRenderer.cs` | Draws body from atlas |
+| `Rendering/Characters/CharacterRenderer.cs` | Multi-layer compositor (body + equipment) |
+| `Rendering/Characters/SpriteAssembler.cs` | Resolves layer stack + palette remaps |
+| `Rendering/Characters/CharacterLayerCatalog.cs` | Layer item → content path mapping |
+| `Rendering/Characters/CharacterColorPresets.cs` | Skin / eye / hair palette presets |
 | `Rendering/Facing8.cs` | 8-way facing resolver |
 
 **Currently wired:** `idle`, `walk` (also Run/Roll speed), `one-handed-attack` (Attack clip). Other merged placeholders exist in Content but are not yet loaded in `CharacterSprites.cs`.
@@ -77,6 +81,30 @@ python scripts/regenerate_swordsman_v2_atlas.py
 3. Register in `Content.mgcb` if new animation (see manifest).
 4. Wire texture + spec in `CharacterSprites.cs` / `SwordsmanV2AnimationSpecs.cs`.
 5. Run `regenerate_swordsman_v2_atlas.py` and rebuild client.
+
+### Modular layers (hair, gear, weapons)
+
+Body sheets are a **bald mannequin**. Hair, clothing, and weapons are separate aligned sprite layers composited at runtime.
+
+| Path | Purpose |
+|------|---------|
+| `prompts/sprites/Player/layers/manifest.json` | Layer catalog, draw order, palette canonical colors |
+| `prompts/sprites/Player/layers/layer-prompt-template.md` | AI prompt for one equipment/hair layer |
+| `Content/Characters/Swordsman V2/layers/<item>/<clip>.png` | Runtime layer sheets (optional until art exists) |
+
+**Draw order (bottom → top):** Cape → BackHair → Legs → **Body** → Chest → Gloves → Boots → FrontHair → Helmet → Weapon → Shield.
+
+**Colors:** Body art bakes canonical skin/eye colors; hair layers bake canonical hair colors. Runtime palette swap via `CharacterColorPresets` (`SkinTone`, `EyeColor`, `HairColor` on `CharacterAppearance`).
+
+**When installing a new layer:**
+
+1. AI-generate layer halves using `layer-prompt-template.md` + body sheet as reference.
+2. Edit in Aseprite/Photoshop, merge like body animations.
+3. Save to `Content/Characters/Swordsman V2/layers/<item-id>/<clip>.png`.
+4. Register PNG in `Content.mgcb`.
+5. Add item to `CharacterLayerCatalog.cs` and `layers/manifest.json` if new.
+
+Missing layer PNGs are skipped gracefully — body-only fallback until art is installed.
 
 ---
 

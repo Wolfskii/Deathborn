@@ -199,12 +199,12 @@ This character MUST remain visually identical.
 Only animate it.
 
 ==================================================
-CHARACTER LOCK
+CHARACTER LOCK (BODY LAYER ONLY)
 ==================================================
 
-The attached Base Body is the canonical Deathborn player.
+The attached Base Body is the canonical Deathborn player mannequin.
 
-Every future sprite sheet must depict this exact same character.
+Every body animation sheet must depict this exact same bald character.
 
 Never redesign him.
 
@@ -212,14 +212,14 @@ Never reinterpret him.
 
 Never improve him.
 
-Never add clothing.
+Never add hair — hair is a separate composited layer.
+
+Never add clothing, armor, boots, gloves, weapons, or shields — equipment is separate.
 
 Never change proportions.
 
-Never alter facial features.
+Never alter facial structure.
 
-Never alter hair.
+Skin and eye colors use the canonical palette from base-body.md — remapped at runtime.
 
-Never alter colors.
-
-Every future animation should look like frames that were drawn by the same pixel artist for the exact same sprite.
+Every future body animation should look like frames drawn by the same pixel artist for the exact same sprite.

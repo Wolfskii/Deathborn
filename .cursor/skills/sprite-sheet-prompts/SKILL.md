@@ -50,11 +50,13 @@ Do **not** generate images unless the user explicitly asks. Default deliverable 
 Use when creating, installing, or wiring **player character** sprite sheets (not UI icon atlases).
 
 1. Read [`prompts/sprites/Player/manifest.json`](../../../prompts/sprites/Player/manifest.json) for animation ids, frame counts, and path mapping.
-2. **Prompts:** copy `prompts/sprites/Player/<animation>/cardinals.md` or `diagonals.md` to image AI (self-contained). Attach Reference Image 1 = canonical base body.
-3. **Install halves:** save output to `Content/Characters/Swordsman V2/_source/<animation>/cardinals.png` and `diagonals.png`.
-4. **Merge:** `python scripts/generate_player_sprite_placeholders.py <animation> --merge-only`
-5. **Atlas (wired clips):** `python scripts/regenerate_swordsman_v2_atlas.py`
-6. See [AGENTS.md](../../../AGENTS.md) player sprite section for row order, `Facing8` mapping, and C# wiring.
+2. **Body prompts:** copy `prompts/sprites/Player/<animation>/cardinals.md` or `diagonals.md` to image AI (self-contained). Attach Reference Image 1 = canonical **bald** base body.
+3. **Layer prompts:** for hair/gear/weapons use [`prompts/sprites/Player/layers/layer-prompt-template.md`](../../../prompts/sprites/Player/layers/layer-prompt-template.md) + [`layers/manifest.json`](../../../prompts/sprites/Player/layers/manifest.json).
+4. **Install body halves:** save output to `Content/Characters/Swordsman V2/_source/<animation>/cardinals.png` and `diagonals.png`.
+5. **Install layer sheets:** `Content/Characters/Swordsman V2/layers/<item-id>/<clip>.png` (register in Content.mgcb).
+6. **Merge:** `python scripts/generate_player_sprite_placeholders.py <animation> --merge-only`
+7. **Atlas (wired clips):** `python scripts/regenerate_swordsman_v2_atlas.py`
+8. See [AGENTS.md](../../../AGENTS.md) player sprite section for row order, `Facing8` mapping, layer draw order, and C# wiring.
 
 Regenerate all placeholders: `python scripts/generate_player_sprite_placeholders.py`
 

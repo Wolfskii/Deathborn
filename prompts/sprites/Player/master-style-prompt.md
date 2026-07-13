@@ -95,3 +95,22 @@ No noise.
 No compression artifacts.
 
 This background will be removed automatically by software.
+
+==================================================
+MODULAR LAYERS
+==================================================
+
+Body animation prompts produce a **bald mannequin** only (skin + underwear + face).
+
+Hair, clothing, armor, weapons, and shields are separate composited sprite layers.
+
+Layer catalog: `prompts/sprites/Player/layers/manifest.json`
+
+Layer prompt template: `prompts/sprites/Player/layers/layer-prompt-template.md`
+
+Canonical body palette (remapped at runtime for skin tone / eye color):
+
+• Skin base #D8B48C, shadow #B08460
+• Eye white #F0F0F0, iris #3C5078
+
+Hair layers use canonical hair palette (remapped at runtime for hair color).

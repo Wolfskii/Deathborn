@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "bodyTypeId": "swordsman_v2",
+  "contentDir": "client/Deathborn.Client/Content/Characters/Swordsman V2/layers",
+  "promptDir": "prompts/sprites/Player/layers",
+  "chromaKey": "#00FF00",
+  "cellSizePx": 64,
+  "halves": ["cardinals", "diagonals"],
+  "cardinalsRowOrder": ["South", "East", "North", "West"],
+  "diagonalsRowOrder": ["South-East", "North-East", "North-West", "South-West"],
+  "drawOrder": [
+    "Shadow",
+    "Cape",
+    "BackHair",
+    "WeaponBack",
+    "Legs",
+    "Body",
+    "Chest",
+    "Gloves",
+    "Boots",
+    "FrontHair",
+    "Beard",
+    "Helmet",
+    "Weapon",
+    "Shield",
+    "BackAccessory",
+    "SpellEffect"
+  ],
+  "palette": {
+    "body": {
+      "canonical": {
+        "skin": "#D8B48C",
+        "skinShadow": "#B08460",
+        "eyeWhite": "#F0F0F0",
+        "eyeIris": "#3C5078"
+      },
+      "notes": "Skin tone and eye color are remapped at runtime from these canonical colors."
+    },
+    "hair": {
+      "canonical": {
+        "base": "#503728",
+        "highlight": "#6E503C",
+        "shadow": "#322318"
+      },
+      "notes": "Hair color is remapped at runtime. Hairstyle shape uses separate sprite sheets."
+    }
+  },
+  "layers": {
+    "hair-short": {
+      "displayName": "Short Hair",
+      "layerId": "FrontHair",
+      "paletteSlot": "hair",
+      "slot": "hairStyle",
+      "promptTemplate": "layer-prompt-template.md",
+      "clips": {
+        "Idle": "hair-short/idle.png",
+        "Run": "hair-short/walk.png",
+        "Attack": "hair-short/one-handed-attack.png"
+      },
+      "wiredInClient": false,
+      "notes": "Generate cardinals + diagonals halves per clip, merge like body animations."
+    },
+    "hair-long": {
+      "displayName": "Long Hair",
+      "layerId": "BackHair",
+      "paletteSlot": "hair",
+      "slot": "hairStyle",
+      "promptTemplate": "layer-prompt-template.md",
+      "clips": {
+        "Idle": "hair-long/idle.png",
+        "Run": "hair-long/walk.png",
+        "Attack": "hair-long/one-handed-attack.png"
+      },
+      "wiredInClient": false
+    },
+    "starter-legs": {
+      "displayName": "Starter Pants",
+      "layerId": "Legs",
+      "slot": "legs",
+      "promptTemplate": "layer-prompt-template.md",
+      "clips": {
+        "Idle": "starter-legs/idle.png",
+        "Run": "starter-legs/walk.png",
+        "Attack": "starter-legs/one-handed-attack.png"
+      },
+      "wiredInClient": false
+    },
+    "starter-chest": {
+      "displayName": "Starter Shirt",
+      "layerId": "Chest",
+      "slot": "chest",
+      "promptTemplate": "layer-prompt-template.md",
+      "clips": {
+        "Idle": "starter-chest/idle.png",
+        "Run": "starter-chest/walk.png",
+        "Attack": "starter-chest/one-handed-attack.png"
+      },
+      "wiredInClient": false
+    },
+    "starter-boots": {
+      "displayName": "Starter Boots",
+      "layerId": "Boots",
+      "slot": "boots",
+      "promptTemplate": "layer-prompt-template.md",
+      "clips": {
+        "Idle": "starter-boots/idle.png",
+        "Run": "starter-boots/walk.png",
+        "Attack": "starter-boots/one-handed-attack.png"
+      },
+      "wiredInClient": false
+    },
+    "iron-sword": {
+      "displayName": "Iron Sword",
+      "layerId": "Weapon",
+      "slot": "weapon",
+      "promptTemplate": "layer-prompt-template.md",
+      "clips": {
+        "Idle": "iron-sword/idle.png",
+        "Run": "iron-sword/walk.png",
+        "Attack": "iron-sword/one-handed-attack.png"
+      },
+      "wiredInClient": false
+    },
+    "wooden-shield": {
+      "displayName": "Wooden Shield",
+      "layerId": "Shield",
+      "slot": "shield",
+      "promptTemplate": "layer-prompt-template.md",
+      "clips": {
+        "Idle": "wooden-shield/idle.png",
+        "Run": "wooden-shield/walk.png",
+        "Attack": "wooden-shield/one-handed-shield-attack.png"
+      },
+      "wiredInClient": false
+    }
+  },
+  "defaults": {
+    "hairStyle": "hair-short",
+    "chest": "starter-chest",
+    "legs": "starter-legs",
+    "boots": "starter-boots",
+    "weapon": null,
+    "shield": null
+  }
+}

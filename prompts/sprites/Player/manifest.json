@@ -240,6 +240,6 @@
   "baseBody": {
     "prompt": "base-body.md",
     "source": "base-body.png",
-    "notes": "Single reference frame for CHARACTER LOCK — not an animation sheet."
+    "notes": "Bald mannequin reference for CHARACTER LOCK — skin + underwear + face only. Hair and gear are separate layers (see layers/manifest.json)."
   }
 }

@@ -9,7 +9,7 @@ public sealed class CharacterVisual
   private readonly AnimationController _controller = new();
   private readonly SpriteAssembler _assembler = new();
   private CharacterAppearance _appearance = CharacterAppearance.DefaultSwordsman;
-  private CharacterEquipment _equipment = CharacterEquipment.Empty;
+  private CharacterEquipment _equipment = CharacterEquipment.Starter;
 
   public AnimationController Controller => _controller;
 

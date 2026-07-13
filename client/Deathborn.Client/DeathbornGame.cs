@@ -88,6 +88,7 @@ public sealed class DeathbornGame : Game
         DrawPrimitives.Init(GraphicsDevice);
         Font = Content.Load<SpriteFont>("Fonts/Default");
         CharacterSprites.Load(Content);
+        Rendering.Characters.CharacterLayerCatalog.Load(Content);
         AbilityIconAtlas.Load(Content);
         CosmeticIconAtlas.Load(Content);
         UiCursorTheme.Load(Content);

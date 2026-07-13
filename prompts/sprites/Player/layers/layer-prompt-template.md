@@ -6,23 +6,11 @@ The layer must align PERFECTLY with the body mannequin.
 
 Do not redraw the body.
 
-Only generate pixels for this layer item (pick one):
+Only generate pixels for this layer item:
 
-Iron Helmet
+**{LAYER_NAME}**
 
-Leather Chest
-
-Wizard Robe
-
-Steel Boots
-
-Long Hair
-
-Short Hair
-
-Wooden Shield
-
-Iron Sword
+Layer slot: **{LAYER_ID}**
 
 Every frame must match the body sheet:
 
@@ -37,6 +25,8 @@ Output only this layer's pixels on a solid #00FF00 chroma-key background.
 
 Do not include skin, underwear, or other equipment — only this item.
 
-For hair layers, use the canonical hair palette from `layers/manifest.json` so hair color can be remapped at runtime.
+If this is a **hair** layer, use the canonical hair palette from `layers/manifest.json` (base #503728, highlight #6E503C, shadow #322318) so hair color can be remapped at runtime.
 
-See `layers/layer-prompt-template.md` and `layers/manifest.json` for the full layer catalog and draw order.
+If this is **starter-chest**, **starter-legs**, or **starter-boots**, draw simple medieval starter gear that covers the underwear on the body layer.
+
+If this is a **weapon** or **shield**, align to the body's grip pose and leave correct depth ordering (weapon in front of body where appropriate).
