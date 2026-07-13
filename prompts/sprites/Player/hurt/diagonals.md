@@ -123,17 +123,6 @@ Returns naturally.
 
 Reference Image 1
 
-Use ONLY for:
-
-- overall art direction
-- color palette
-- atmosphere
-- pixel quality
-
-Do NOT copy any characters.
-
-Reference Image 2
-
 Use ONLY as the exact player character.
 
 This character MUST remain visually identical.

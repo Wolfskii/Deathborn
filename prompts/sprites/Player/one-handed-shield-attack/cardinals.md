@@ -201,21 +201,10 @@ Do NOT draw a shield silhouette, wooden disc, or metal plate on the off hand.
 Only the base body with correct weapon-grip and shield-guard poses.
 
 ==================================================
-REFERENCE IMAGES
+REFERENCE IMAGE
 ==================================================
 
 Reference Image 1
-
-Use ONLY for:
-
-- overall art direction
-- color palette
-- atmosphere
-- pixel quality
-
-Do NOT copy any characters.
-
-Reference Image 2
 
 Use ONLY as the exact player character.
 

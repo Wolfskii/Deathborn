@@ -196,21 +196,10 @@ Do NOT draw a shield silhouette on the striking arm.
 Only the base body with correct shield-grip bash motion and empty off-hand.
 
 ==================================================
-REFERENCE IMAGES
+REFERENCE IMAGE
 ==================================================
 
 Reference Image 1
-
-Use ONLY for:
-
-- overall art direction
-- color palette
-- atmosphere
-- pixel quality
-
-Do NOT copy any characters.
-
-Reference Image 2
 
 Use ONLY as the exact player character.
 

@@ -1,0 +1,241 @@
+{
+  "version": 1,
+  "bodyTypeId": "swordsman_v2",
+  "contentDir": "client/Deathborn.Client/Content/Characters/Swordsman V2",
+  "sourceDir": "client/Deathborn.Client/Content/Characters/Swordsman V2/_source",
+  "promptDir": "prompts/sprites/Player",
+  "cellSizePx": 64,
+  "chromaKey": "#00FF00",
+  "halves": ["cardinals", "diagonals"],
+  "cardinalsRowOrder": ["South", "East", "North", "West"],
+  "diagonalsRowOrder": ["South-East", "North-East", "North-West", "South-West"],
+  "mergedRowOrder": [
+    { "half": "cardinals", "row": 0, "compass": "South", "facing8": "Down" },
+    { "half": "diagonals", "row": 0, "compass": "South-East", "facing8": "DownRight" },
+    { "half": "cardinals", "row": 1, "compass": "East", "facing8": "Right" },
+    { "half": "diagonals", "row": 1, "compass": "North-East", "facing8": "UpRight" },
+    { "half": "cardinals", "row": 2, "compass": "North", "facing8": "Up" },
+    { "half": "diagonals", "row": 2, "compass": "North-West", "facing8": "UpLeft" },
+    { "half": "cardinals", "row": 3, "compass": "West", "facing8": "Left" },
+    { "half": "diagonals", "row": 3, "compass": "South-West", "facing8": "DownLeft" }
+  ],
+  "animations": {
+    "idle": {
+      "framesPerDirection": 6,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "idle/cardinals.md", "diagonals": "idle/diagonals.md" },
+      "source": { "cardinals": "idle/cardinals.png", "diagonals": "idle/diagonals.png" },
+      "merged": "idle.png",
+      "characterClip": "Idle",
+      "wiredInClient": true
+    },
+    "walk": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "walk/cardinals.md", "diagonals": "walk/diagonals.md" },
+      "source": { "cardinals": "walk/cardinals.png", "diagonals": "walk/diagonals.png" },
+      "merged": "walk.png",
+      "characterClip": "Run",
+      "wiredInClient": true,
+      "notes": "Also used for Run and Roll clips at different playback speeds."
+    },
+    "run": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "run/cardinals.md", "diagonals": "run/diagonals.md" },
+      "source": { "cardinals": "run/cardinals.png", "diagonals": "run/diagonals.png" },
+      "merged": "run.png",
+      "characterClip": "Run",
+      "wiredInClient": false
+    },
+    "roll": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "roll/cardinals.md", "diagonals": "roll/diagonals.md" },
+      "source": { "cardinals": "roll/cardinals.png", "diagonals": "roll/diagonals.png" },
+      "merged": "roll.png",
+      "characterClip": "Roll",
+      "wiredInClient": false
+    },
+    "hurt": {
+      "framesPerDirection": 4,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "hurt/cardinals.md", "diagonals": "hurt/diagonals.md" },
+      "source": { "cardinals": "hurt/cardinals.png", "diagonals": "hurt/diagonals.png" },
+      "merged": "hurt.png",
+      "characterClip": "Hurt",
+      "wiredInClient": false,
+      "notes": "Client still falls back to Swordsman V1 Hurt until wired."
+    },
+    "death": {
+      "framesPerDirection": 10,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "death/cardinals.md", "diagonals": "death/diagonals.md" },
+      "source": { "cardinals": "death/cardinals.png", "diagonals": "death/diagonals.png" },
+      "merged": "death.png",
+      "characterClip": "Death",
+      "wiredInClient": false,
+      "notes": "Client still falls back to Swordsman V1 Death until wired."
+    },
+    "cast": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "cast/cardinals.md", "diagonals": "cast/diagonals.md" },
+      "source": { "cardinals": "cast/cardinals.png", "diagonals": "cast/diagonals.png" },
+      "merged": "cast.png",
+      "characterClip": "Cast",
+      "wiredInClient": false,
+      "notes": "Client currently reuses idle texture for Cast."
+    },
+    "bow": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": { "cardinals": "bow/cardinals.md", "diagonals": "bow/diagonals.md" },
+      "source": { "cardinals": "bow/cardinals.png", "diagonals": "bow/diagonals.png" },
+      "merged": "bow.png",
+      "characterClip": null,
+      "wiredInClient": false
+    },
+    "one-handed-attack": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "one-handed-attack/cardinals.md",
+        "diagonals": "one-handed-attack/diagonals.md"
+      },
+      "source": {
+        "cardinals": "one-handed-attack/cardinals.png",
+        "diagonals": "one-handed-attack/diagonals.png"
+      },
+      "merged": "one-handed-attack.png",
+      "characterClip": "Attack",
+      "wiredInClient": true
+    },
+    "one-handed-weapon-stab": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "one-handed-weapon-stab/cardinals.md",
+        "diagonals": "one-handed-weapon-stab/diagonals.md"
+      },
+      "source": {
+        "cardinals": "one-handed-weapon-stab/cardinals.png",
+        "diagonals": "one-handed-weapon-stab/diagonals.png"
+      },
+      "merged": "one-handed-weapon-stab.png",
+      "characterClip": null,
+      "wiredInClient": false
+    },
+    "one-handed-shield-attack": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "one-handed-shield-attack/cardinals.md",
+        "diagonals": "one-handed-shield-attack/diagonals.md"
+      },
+      "source": {
+        "cardinals": "one-handed-shield-attack/cardinals.png",
+        "diagonals": "one-handed-shield-attack/diagonals.png"
+      },
+      "merged": "one-handed-shield-attack.png",
+      "characterClip": null,
+      "wiredInClient": false
+    },
+    "one-handed-unarmed-punch": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "one-handed-unarmed-punch/cardinals.md",
+        "diagonals": "one-handed-unarmed-punch/diagonals.md"
+      },
+      "source": {
+        "cardinals": "one-handed-unarmed-punch/cardinals.png",
+        "diagonals": "one-handed-unarmed-punch/diagonals.png"
+      },
+      "merged": "one-handed-unarmed-punch.png",
+      "characterClip": null,
+      "wiredInClient": false
+    },
+    "two-handed-attack": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "two-handed-attack/cardinals.md",
+        "diagonals": "two-handed-attack/diagonals.md"
+      },
+      "source": {
+        "cardinals": "two-handed-attack/cardinals.png",
+        "diagonals": "two-handed-attack/diagonals.png"
+      },
+      "merged": "two-handed-attack.png",
+      "characterClip": null,
+      "wiredInClient": false
+    },
+    "two-handed-weapon-stab": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "two-handed-weapon-stab/cardinals.md",
+        "diagonals": "two-handed-weapon-stab/diagonals.md"
+      },
+      "source": {
+        "cardinals": "two-handed-weapon-stab/cardinals.png",
+        "diagonals": "two-handed-weapon-stab/diagonals.png"
+      },
+      "merged": "two-handed-weapon-stab.png",
+      "characterClip": null,
+      "wiredInClient": false
+    },
+    "dual-wield-attack": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "dual-wield-attack/cardinals.md",
+        "diagonals": "dual-wield-attack/diagonals.md"
+      },
+      "source": {
+        "cardinals": "dual-wield-attack/cardinals.png",
+        "diagonals": "dual-wield-attack/diagonals.png"
+      },
+      "merged": "dual-wield-attack.png",
+      "characterClip": null,
+      "wiredInClient": false
+    },
+    "shield-only-attack": {
+      "framesPerDirection": 8,
+      "halfRows": 4,
+      "mergedRows": 8,
+      "prompts": {
+        "cardinals": "shield-only-attack/cardinals.md",
+        "diagonals": "shield-only-attack/diagonals.md"
+      },
+      "source": {
+        "cardinals": "shield-only-attack/cardinals.png",
+        "diagonals": "shield-only-attack/diagonals.png"
+      },
+      "merged": "shield-only-attack.png",
+      "characterClip": null,
+      "wiredInClient": false
+    }
+  },
+  "baseBody": {
+    "prompt": "base-body.md",
+    "source": "base-body.png",
+    "notes": "Single reference frame for CHARACTER LOCK — not an animation sheet."
+  }
+}

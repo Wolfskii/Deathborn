@@ -187,21 +187,10 @@ Do NOT draw any weapon, stick, sword, glow, slash trail, or VFX.
 Only the base body with correct grip pose and arc motion.
 
 ==================================================
-REFERENCE IMAGES
+REFERENCE IMAGE
 ==================================================
 
 Reference Image 1
-
-Use ONLY for:
-
-- overall art direction
-- color palette
-- atmosphere
-- pixel quality
-
-Do NOT copy any characters.
-
-Reference Image 2
 
 Use ONLY as the exact player character.
 

@@ -185,21 +185,10 @@ Do NOT draw any weapon, blade, glow, thrust trail, or VFX.
 Only the base body with correct grip pose and thrust motion.
 
 ==================================================
-REFERENCE IMAGES
+REFERENCE IMAGE
 ==================================================
 
 Reference Image 1
-
-Use ONLY for:
-
-- overall art direction
-- color palette
-- atmosphere
-- pixel quality
-
-Do NOT copy any characters.
-
-Reference Image 2
 
 Use ONLY as the exact player character.
 

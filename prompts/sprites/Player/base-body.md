@@ -65,3 +65,14 @@ No chibi style.
 This character will later receive hundreds of interchangeable equipment pieces.
 
 Design accordingly.
+
+Reference Image 1
+
+Use ONLY for:
+
+- overall art direction
+- color palette
+- atmosphere
+- pixel quality
+
+Do NOT copy any characters.
