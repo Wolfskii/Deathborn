@@ -267,8 +267,115 @@ def apron_ok_right(elev: list[list[int]], walkable: list[list[bool]], tx: int, t
     return True
 
 
+FOLIAGE_SEED = 0xB00B5
+FOLIAGE_LAND_STRIDE = 2
+
+
+def foliage_hash(tx: int, ty: int, salt: int) -> int:
+    h = (FOLIAGE_SEED ^ (tx * 73856093) ^ (ty * 19349663) ^ (salt * 83492791)) & 0xFFFFFFFF
+    h ^= (h >> 16) & 0xFFFF
+    h = (h * 0x85EBCA6B) & 0xFFFFFFFF
+    h ^= (h >> 13) & 0x1FFF
+    h = (h * 0xC2B2AE35) & 0xFFFFFFFF
+    h ^= (h >> 16) & 0xFFFF
+    return h
+
+
+def _is_inland(walkable: list[list[bool]], tx: int, ty: int, tw: int, th: int) -> bool:
+    for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
+        nx, ny = tx + dx, ty + dy
+        if not (0 <= nx < tw and 0 <= ny < th) or not walkable[ny][nx]:
+            return False
+    return True
+
+
+def would_spawn_blocking_foliage(
+    tx: int, ty: int, elev: list[list[int]], walkable: list[list[bool]], tw: int, th: int
+) -> bool:
+    """Matches server/client foliage placement for trees and rocks (movement blockers)."""
+    if tx % FOLIAGE_LAND_STRIDE != 0 or ty % FOLIAGE_LAND_STRIDE != 0:
+        return False
+    if not (0 <= tx < tw and 0 <= ty < th):
+        return False
+    if not walkable[ty][tx] or elev[ty][tx] < 1:
+        return False
+    if foliage_hash(tx, ty, 1) % 1000 < 16 and _is_inland(walkable, tx, ty, tw, th):
+        return True
+    return foliage_hash(tx, ty, 2) % 1000 < 12
+
+
+def _ramp_foliage_clear(
+    tx: int, ty: int, elev: list[list[int]], walkable: list[list[bool]], tw: int, th: int
+) -> bool:
+    for nx in range(tx - 2, tx + 5):
+        for ny in range(ty - 3, ty + 2):
+            if would_spawn_blocking_foliage(nx, ny, elev, walkable, tw, th):
+                return False
+    return True
+
+
+def ramp_clear_left(
+    elev: list[list[int]],
+    walkable: list[list[bool]],
+    sea: list[list[bool]],
+    tx: int,
+    ty: int,
+    tw: int,
+    th: int,
+) -> bool:
+    landing = elev[ty][tx]
+    platform = landing + 1
+    footprint = ((tx, ty), (tx, ty - 1), (tx + 1, ty - 1))
+    for nx, ny in footprint:
+        if not (0 <= nx < tw and 0 <= ny < th):
+            return False
+        if not walkable[ny][nx] or elev[ny][nx] < 0 or sea[ny][nx]:
+            return False
+    for dx in (1, 2, 3):
+        nx, ny = tx + dx, ty - 1
+        if not walkable[ny][nx] or elev[ny][nx] != platform or sea[ny][nx]:
+            return False
+    if not walkable[ty + 1][tx] or elev[ty + 1][tx] != landing:
+        return False
+    if 0 <= tx - 1 < tw and walkable[ty - 1][tx - 1] and elev[ty - 1][tx - 1] > platform:
+        return False
+    if ty >= 2 and walkable[ty - 2][tx] and elev[ty - 2][tx] > platform:
+        return False
+    return _ramp_foliage_clear(tx, ty, elev, walkable, tw, th)
+
+
+def ramp_clear_right(
+    elev: list[list[int]],
+    walkable: list[list[bool]],
+    sea: list[list[bool]],
+    tx: int,
+    ty: int,
+    tw: int,
+    th: int,
+) -> bool:
+    landing = elev[ty][tx]
+    platform = landing + 1
+    footprint = ((tx, ty), (tx, ty - 1), (tx - 1, ty - 1))
+    for nx, ny in footprint:
+        if not (0 <= nx < tw and 0 <= ny < th):
+            return False
+        if not walkable[ny][nx] or elev[ny][nx] < 0 or sea[ny][nx]:
+            return False
+    for dx in (1, 2, 3):
+        nx, ny = tx - dx, ty - 1
+        if not walkable[ny][nx] or elev[ny][nx] != platform or sea[ny][nx]:
+            return False
+    if not walkable[ty + 1][tx] or elev[ty + 1][tx] != landing:
+        return False
+    if 0 <= tx + 1 < tw and walkable[ty - 1][tx + 1] and elev[ty - 1][tx + 1] > platform:
+        return False
+    if ty >= 2 and walkable[ty - 2][tx] and elev[ty - 2][tx] > platform:
+        return False
+    return _ramp_foliage_clear(tx, ty, elev, walkable, tw, th)
+
+
 def try_left_ramp(
-    elev: list[list[int]], walkable: list[list[bool]], tx: int, ty: int, tw: int, th: int
+    elev: list[list[int]], walkable: list[list[bool]], sea: list[list[bool]], tx: int, ty: int, tw: int, th: int
 ) -> bool:
     if ty < 1:
         return False
@@ -284,11 +391,13 @@ def try_left_ramp(
         return False
     if not has_south_drop(elev, walkable, px, py, tw, th):
         return False
-    return apron_ok_left(elev, walkable, tx, ty, landing, tw, th)
+    if not apron_ok_left(elev, walkable, tx, ty, landing, tw, th):
+        return False
+    return ramp_clear_left(elev, walkable, sea, tx, ty, tw, th)
 
 
 def try_right_ramp(
-    elev: list[list[int]], walkable: list[list[bool]], tx: int, ty: int, tw: int, th: int
+    elev: list[list[int]], walkable: list[list[bool]], sea: list[list[bool]], tx: int, ty: int, tw: int, th: int
 ) -> bool:
     if ty < 1:
         return False
@@ -304,23 +413,25 @@ def try_right_ramp(
         return False
     if not has_south_drop(elev, walkable, px, py, tw, th):
         return False
-    return apron_ok_right(elev, walkable, tx, ty, landing, tw, th)
+    if not apron_ok_right(elev, walkable, tx, ty, landing, tw, th):
+        return False
+    return ramp_clear_right(elev, walkable, sea, tx, ty, tw, th)
 
 
 def place_ramps(
-    elev: list[list[int]], walkable: list[list[bool]], tw: int, th: int
+    elev: list[list[int]], walkable: list[list[bool]], sea: list[list[bool]], tw: int, th: int
 ) -> list[list[int]]:
     ramps = [[RAMP_NONE] * tw for _ in range(th)]
     candidates: list[tuple[int, int, int, int]] = []
 
     for ty in range(1, th):
         for tx in range(tw):
-            if try_left_ramp(elev, walkable, tx, ty, tw, th):
+            if try_left_ramp(elev, walkable, sea, tx, ty, tw, th):
                 landing = elev[ty][tx]
                 px, py = tx + 1, ty - 1
                 if region_size(elev, walkable, px, py, landing + 1, tw, th) >= MIN_PLATEAU_CELLS:
                     candidates.append((RAMP_LEFT, tx, ty, landing + 1))
-            if try_right_ramp(elev, walkable, tx, ty, tw, th):
+            if try_right_ramp(elev, walkable, sea, tx, ty, tw, th):
                 landing = elev[ty][tx]
                 px, py = tx - 1, ty - 1
                 if region_size(elev, walkable, px, py, landing + 1, tw, th) >= MIN_PLATEAU_CELLS:
@@ -374,7 +485,7 @@ def main() -> None:
     autopad(elev, ramps, tw, th)
     collapse_cliff_base_ledges(elev, walkable, tw, th)
     enforce_cliff_column_spacing(elev, tw, th, MIN_CLIFF_GAP_ROWS)
-    ramps = place_ramps(elev, walkable, tw, th)
+    ramps = place_ramps(elev, walkable, sea, tw, th)
 
     write_elevation(OUT, tw, th, elev, ramps)
     SERVER_COPY.parent.mkdir(parents=True, exist_ok=True)

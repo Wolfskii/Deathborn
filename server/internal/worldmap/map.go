@@ -162,6 +162,23 @@ func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
 	if fx == tx && fy == ty {
 		return true
 	}
+	if m.elevation != nil {
+		rx1, ry1, k1, ok1 := m.elevation.rampTreadAtWorld(fromX, fromY, m.TileSize, m.TileWidth, m.TileHeight)
+		rx2, ry2, k2, ok2 := m.elevation.rampTreadAtWorld(toX, toY, m.TileSize, m.TileWidth, m.TileHeight)
+		if ok1 && ok2 && rx1 == rx2 && ry1 == ry2 && k1 == k2 {
+			fe := m.elevation.at(fx, fy, m.TileWidth, m.TileHeight)
+			te := m.elevation.at(tx, ty, m.TileWidth, m.TileHeight)
+			if fe >= 0 && te >= 0 {
+				diff := int(fe) - int(te)
+				if diff < 0 {
+					diff = -diff
+				}
+				if diff <= 1 {
+					return true
+				}
+			}
+		}
+	}
 	if m.canTraverseTiles(fx, fy, tx, fy) && m.canTraverseTiles(tx, fy, tx, ty) {
 		return true
 	}
@@ -177,12 +194,13 @@ func (m *Map) adjustRampDelta(x, y, dx, dy float64) (float64, float64) {
 	if m.elevation == nil || math.Abs(dx) < 0.0001 {
 		return dx, dy
 	}
-	if math.Abs(dy) > math.Abs(dx)*0.85 {
+	ok, slope := m.elevation.rampSlopeAtWorld(x, y, m.TileSize, m.TileWidth, m.TileHeight)
+	if !ok {
 		return dx, dy
 	}
-	tx, ty := m.tileAt(x, y)
-	ok, slope := m.elevation.rampSlopeAt(tx, ty, m.TileWidth, m.TileHeight)
-	if !ok {
+	// On stairs, sideways input always follows the ramp unless the player is clearly
+	// moving vertically on purpose (e.g. stepping off with W/S).
+	if math.Abs(dy) > math.Abs(dx)*1.25 {
 		return dx, dy
 	}
 	return dx, slope * dx

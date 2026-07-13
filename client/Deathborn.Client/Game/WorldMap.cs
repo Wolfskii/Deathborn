@@ -85,50 +85,127 @@ public sealed class WorldMap
         if (dx == 0 && dy == -1 && te == fe + 1)
         {
             if (GetRamp(tx, ty) != 0) return true;
+            if ((uint)ty + 1 < (uint)TileHeight && GetRamp(tx, ty + 1) != 0) return true;
             if (GetRamp(fx - 1, fy) == 1) return true;
             if (GetRamp(fx + 1, fy) == 2) return true;
         }
         if (dx == 0 && dy == 1 && fe == te + 1)
         {
             if (GetRamp(fx, fy) != 0) return true;
+            if (GetRamp(tx, ty) != 0) return true;
             if (GetRamp(tx - 1, ty) == 1) return true;
             if (GetRamp(tx + 1, ty) == 2) return true;
+        }
+
+        if (dx != 0 && dy != 0)
+        {
+            var (rx1, ry1, _, ok1) = RampTreadCellId(fx, fy);
+            var (rx2, ry2, _, ok2) = RampTreadCellId(tx, ty);
+            if (ok1 && ok2 && rx1 == rx2 && ry1 == ry2)
+            {
+                var onTread = static (int x, int y, int rx, int ry) =>
+                    (x == rx && y == ry) || (x == rx && y == ry - 1);
+                if (onTread(fx, fy, rx1, ry1) && onTread(tx, ty, rx1, ry1))
+                    return true;
+            }
         }
 
         return false;
     }
 
-    /// <summary>dy per dx when running sideways on a stair (-1 = left ramp, +1 = right ramp).</summary>
-    public bool TryGetRampSlope(int tx, int ty, out float dyPerDx)
+    private (int rx, int ry, int kind, bool ok) RampTreadCellId(int tx, int ty)
+    {
+        for (var ry = 0; ry < TileHeight; ry++)
+        for (var rx = 0; rx < TileWidth; rx++)
+        {
+            var ramp = GetRamp(rx, ry);
+            if (ramp == 0) continue;
+            if (tx == rx && (ty == ry || ty == ry - 1))
+                return (rx, ry, ramp, true);
+        }
+        return (0, 0, 0, false);
+    }
+
+    private (int rx, int ry, int kind, bool ok) RampTreadAtWorld(float worldX, float worldY)
+    {
+        for (var ry = 0; ry < TileHeight; ry++)
+        for (var rx = 0; rx < TileWidth; rx++)
+        {
+            var ramp = GetRamp(rx, ry);
+            if (ramp == 1 && OnLeftRampTread(worldX, worldY, rx, ry))
+                return (rx, ry, 1, true);
+            if (ramp == 2 && OnRightRampTread(worldX, worldY, rx, ry))
+                return (rx, ry, 2, true);
+        }
+        return (0, 0, 0, false);
+    }
+
+    /// <summary>Green tread band for left stair pieces 29 (bottom) and 25 (top).</summary>
+    private bool OnLeftRampTread(float worldX, float worldY, int rx, int ry)
+    {
+        var tx = (int)(worldX / TileSize);
+        var ty = (int)(worldY / TileSize);
+        var lx = (worldX - tx * TileSize) / TileSize;
+        var ly = (worldY - ty * TileSize) / TileSize;
+
+        if (tx == rx && ty == ry)
+        {
+            if (lx < 0.42f) return false;
+            return RampBandHit(lx, ly, 0.46f, 0.56f, 0.93f, 0.14f, 0.11f);
+        }
+        if (tx == rx && ty == ry - 1)
+        {
+            if (lx > 0.50f) return false;
+            return RampBandHit(lx, ly, 0.10f, 0.66f, 0.48f, 0.34f, 0.10f);
+        }
+        return false;
+    }
+
+    /// <summary>Green tread band for right stair pieces 32 (bottom) and 28 (top).</summary>
+    private bool OnRightRampTread(float worldX, float worldY, int rx, int ry)
+    {
+        var tx = (int)(worldX / TileSize);
+        var ty = (int)(worldY / TileSize);
+        var lx = 1f - (worldX - tx * TileSize) / TileSize;
+        var ly = (worldY - ty * TileSize) / TileSize;
+
+        if (tx == rx && ty == ry)
+        {
+            if (lx < 0.42f) return false;
+            return RampBandHit(lx, ly, 0.46f, 0.56f, 0.93f, 0.14f, 0.11f);
+        }
+        if (tx == rx && ty == ry - 1)
+        {
+            if (lx > 0.50f) return false;
+            return RampBandHit(lx, ly, 0.10f, 0.66f, 0.48f, 0.34f, 0.10f);
+        }
+        return false;
+    }
+
+    private static bool RampBandHit(float lx, float ly, float ax, float ay, float bx, float by, float halfW)
+    {
+        var dx = bx - ax;
+        var dy = by - ay;
+        var len2 = dx * dx + dy * dy;
+        if (len2 < 0.0001f) return false;
+        var t = ((lx - ax) * dx + (ly - ay) * dy) / len2;
+        t = MathHelper.Clamp(t, 0f, 1f);
+        var px = ax + t * dx;
+        var py = ay + t * dy;
+        var ddx = lx - px;
+        var ddy = ly - py;
+        return ddx * ddx + ddy * ddy <= halfW * halfW;
+    }
+
+    private bool TryGetRampSlopeWorld(float worldX, float worldY, out float dyPerDx)
     {
         dyPerDx = 0;
         if (!HasElevation) return false;
 
-        var ramp = GetRamp(tx, ty);
-        if (ramp == 1) { dyPerDx = -1; return true; }
-        if (ramp == 2) { dyPerDx = 1; return true; }
-
-        if ((uint)ty + 1 < (uint)TileHeight)
-        {
-            ramp = GetRamp(tx, ty + 1);
-            if (ramp == 1) { dyPerDx = -1; return true; }
-            if (ramp == 2) { dyPerDx = 1; return true; }
-        }
-
-        if ((uint)ty + 1 < (uint)TileHeight && GetRamp(tx - 1, ty + 1) == 1
-            && GetElevation(tx, ty) == GetElevation(tx - 1, ty + 1) + 1)
-        {
-            dyPerDx = -1;
-            return true;
-        }
-        if ((uint)ty + 1 < (uint)TileHeight && GetRamp(tx + 1, ty + 1) == 2
-            && GetElevation(tx, ty) == GetElevation(tx + 1, ty + 1) + 1)
-        {
-            dyPerDx = 1;
-            return true;
-        }
-
-        return false;
+        var (_, _, kind, hit) = RampTreadAtWorld(worldX, worldY);
+        if (!hit) return false;
+        dyPerDx = kind == 1 ? -1f : 1f;
+        return true;
     }
 
     private bool CanTraverseWorld(float fromX, float fromY, float toX, float toY)
@@ -138,6 +215,19 @@ public sealed class WorldMap
         var tx = (int)(toX / TileSize);
         var ty = (int)(toY / TileSize);
         if (fx == tx && fy == ty) return true;
+
+        if (HasElevation)
+        {
+            var (rx1, ry1, k1, ok1) = RampTreadAtWorld(fromX, fromY);
+            var (rx2, ry2, k2, ok2) = RampTreadAtWorld(toX, toY);
+            if (ok1 && ok2 && rx1 == rx2 && ry1 == ry2 && k1 == k2)
+            {
+                var fe = GetElevation(fx, fy);
+                var te = GetElevation(tx, ty);
+                if (fe >= 0 && te >= 0 && Math.Abs(fe - te) <= 1)
+                    return true;
+            }
+        }
 
         if (CanStepElevation(fx, fy, tx, fy) && CanStepElevation(tx, fy, tx, ty))
             return true;
@@ -151,12 +241,9 @@ public sealed class WorldMap
     {
         if (!HasElevation || MathF.Abs(delta.X) < 0.0001f)
             return delta;
-        if (MathF.Abs(delta.Y) > MathF.Abs(delta.X) * 0.85f)
+        if (!TryGetRampSlopeWorld(x, y, out var dyPerDx))
             return delta;
-
-        var tx = (int)(x / TileSize);
-        var ty = (int)(y / TileSize);
-        if (!TryGetRampSlope(tx, ty, out var dyPerDx))
+        if (MathF.Abs(delta.Y) > MathF.Abs(delta.X) * 1.25f)
             return delta;
 
         return new Vector2(delta.X, dyPerDx * delta.X);

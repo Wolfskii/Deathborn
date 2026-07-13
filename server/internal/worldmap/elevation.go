@@ -107,6 +107,9 @@ func (g *elevationGrid) canStep(fx, fy, tx, ty, tw, th int) bool {
 		if g.rampAt(tx, ty, tw, th) != 0 {
 			return true
 		}
+		if ty+1 < th && g.rampAt(tx, ty+1, tw, th) != 0 {
+			return true
+		}
 		if g.rampAt(fx-1, fy, tw, th) == 1 {
 			return true
 		}
@@ -118,6 +121,9 @@ func (g *elevationGrid) canStep(fx, fy, tx, ty, tw, th int) bool {
 		if g.rampAt(fx, fy, tw, th) != 0 {
 			return true
 		}
+		if g.rampAt(tx, ty, tw, th) != 0 {
+			return true
+		}
 		if g.rampAt(tx-1, ty, tw, th) == 1 {
 			return true
 		}
@@ -125,35 +131,129 @@ func (g *elevationGrid) canStep(fx, fy, tx, ty, tw, th int) bool {
 			return true
 		}
 	}
+
+	// Diagonal step only when both tiles are the stair sprite cells (elevation rules still apply).
+	if dx != 0 && dy != 0 {
+		rx1, ry1, _, ok1 := g.rampTreadCellID(fx, fy, tw, th)
+		rx2, ry2, _, ok2 := g.rampTreadCellID(tx, ty, tw, th)
+		if ok1 && ok2 && rx1 == rx2 && ry1 == ry2 {
+			if (fx == rx1 && fy == ry1) || (fx == rx1 && fy == ry1-1) {
+				if (tx == rx1 && ty == ry1) || (tx == rx1 && ty == ry1-1) {
+					return true
+				}
+			}
+		}
+	}
 	return false
 }
 
-// rampSlopeAt reports whether (tx,ty) is on a stair and the dy-per-dx slope for sideways travel.
-// dyPerDx is -1 for left ramps (east = uphill/north) and +1 for right ramps (west = uphill/north).
-func (g *elevationGrid) rampSlopeAt(tx, ty, tw, th int) (ok bool, dyPerDx float64) {
-	if ramp := g.rampAt(tx, ty, tw, th); ramp == 1 {
+// rampTreadCellID maps a tile to its stair only when it is a tread sprite cell (landing or top).
+func (g *elevationGrid) rampTreadCellID(tx, ty, tw, th int) (landingX, landingY, kind int, ok bool) {
+	for ry := 0; ry < th; ry++ {
+		for rx := 0; rx < tw; rx++ {
+			ramp := int(g.rampAt(rx, ry, tw, th))
+			if ramp == 0 {
+				continue
+			}
+			if tx == rx && (ty == ry || ty == ry-1) {
+				return rx, ry, ramp, true
+			}
+		}
+	}
+	return 0, 0, 0, false
+}
+
+// rampTreadAtWorld checks world position against the green tread band inside the stair sprites.
+func (g *elevationGrid) rampTreadAtWorld(wx, wy, tileSize float64, tw, th int) (landingX, landingY, kind int, ok bool) {
+	for ry := 0; ry < th; ry++ {
+		for rx := 0; rx < tw; rx++ {
+			ramp := int(g.rampAt(rx, ry, tw, th))
+			if ramp == 0 {
+				continue
+			}
+			if ramp == 1 && g.onLeftRampTread(wx, wy, tileSize, rx, ry) {
+				return rx, ry, 1, true
+			}
+			if ramp == 2 && g.onRightRampTread(wx, wy, tileSize, rx, ry) {
+				return rx, ry, 2, true
+			}
+		}
+	}
+	return 0, 0, 0, false
+}
+
+// onLeftRampTread matches the green diagonal band in pieces 29 (bottom) and 25 (top).
+func (g *elevationGrid) onLeftRampTread(wx, wy, tileSize float64, rx, ry int) bool {
+	tx := int(wx / tileSize)
+	ty := int(wy / tileSize)
+	lx := (wx - float64(tx)*tileSize) / tileSize
+	ly := (wy - float64(ty)*tileSize) / tileSize
+
+	if tx == rx && ty == ry {
+		if lx < 0.42 {
+			return false
+		}
+		return rampBandHit(lx, ly, 0.46, 0.56, 0.93, 0.14, 0.11)
+	}
+	if tx == rx && ty == ry-1 && ry > 0 {
+		if lx > 0.50 {
+			return false
+		}
+		return rampBandHit(lx, ly, 0.10, 0.66, 0.48, 0.34, 0.10)
+	}
+	return false
+}
+
+// onRightRampTread matches pieces 32 (bottom) and 28 (top).
+func (g *elevationGrid) onRightRampTread(wx, wy, tileSize float64, rx, ry int) bool {
+	tx := int(wx / tileSize)
+	ty := int(wy / tileSize)
+	lx := 1 - (wx-float64(tx)*tileSize)/tileSize
+	ly := (wy - float64(ty)*tileSize) / tileSize
+
+	if tx == rx && ty == ry {
+		if lx < 0.42 {
+			return false
+		}
+		return rampBandHit(lx, ly, 0.46, 0.56, 0.93, 0.14, 0.11)
+	}
+	if tx == rx && ty == ry-1 && ry > 0 {
+		if lx > 0.50 {
+			return false
+		}
+		return rampBandHit(lx, ly, 0.10, 0.66, 0.48, 0.34, 0.10)
+	}
+	return false
+}
+
+func rampBandHit(lx, ly, ax, ay, bx, by, halfW float64) bool {
+	dx := bx - ax
+	dy := by - ay
+	len2 := dx*dx + dy*dy
+	if len2 < 0.0001 {
+		return false
+	}
+	t := ((lx-ax)*dx + (ly-ay)*dy) / len2
+	if t < 0 {
+		t = 0
+	} else if t > 1 {
+		t = 1
+	}
+	px := ax + t*dx
+	py := ay + t*dy
+	ddx := lx - px
+	ddy := ly - py
+	return ddx*ddx+ddy*ddy <= halfW*halfW
+}
+
+// rampSlopeAtWorld returns stair slope only when the feet stand on the green tread pixels.
+func (g *elevationGrid) rampSlopeAtWorld(wx, wy, tileSize float64, tw, th int) (ok bool, dyPerDx float64) {
+	_, _, kind, hit := g.rampTreadAtWorld(wx, wy, tileSize, tw, th)
+	if !hit {
+		return false, 0
+	}
+	if kind == 1 {
 		return true, -1
 	}
-	if ramp := g.rampAt(tx, ty, tw, th); ramp == 2 {
-		return true, 1
-	}
-	if ty+1 < th {
-		if ramp := g.rampAt(tx, ty+1, tw, th); ramp == 1 {
-			return true, -1
-		}
-		if ramp := g.rampAt(tx, ty+1, tw, th); ramp == 2 {
-			return true, 1
-		}
-	}
-	if ty+1 < th && g.rampAt(tx-1, ty+1, tw, th) == 1 {
-		if g.at(tx, ty, tw, th) == g.at(tx-1, ty+1, tw, th)+1 {
-			return true, -1
-		}
-	}
-	if ty+1 < th && g.rampAt(tx+1, ty+1, tw, th) == 2 {
-		if g.at(tx, ty, tw, th) == g.at(tx+1, ty+1, tw, th)+1 {
-			return true, 1
-		}
-	}
-	return false, 0
+	return true, 1
 }

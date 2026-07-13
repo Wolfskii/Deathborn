@@ -3,7 +3,8 @@
 # Used by: task dev / task dev:all [-- CLIENT_COUNT]
 #
 # Client reload: poll for source changes, stop all game windows, rebuild, restart.
-# (dotnet watch build cannot overwrite the running .dll/.exe on Windows while clients are open.)
+# Uses a build stamp (not the DLL mtime) and ignores obj/bin so generated files
+# don't retrigger an infinite rebuild loop on Windows.
 set -e
 
 CLIENT_COUNT="${1:-1}"
@@ -18,8 +19,10 @@ CLIENT_DIR="${ROOT}/client"
 CLIENT_PROJECT="$CLIENT_DIR/Deathborn.Client/Deathborn.Client.csproj"
 CLIENT_OUT="$CLIENT_DIR/Deathborn.Client/bin/Debug/net8.0"
 CLIENT_DLL="$CLIENT_OUT/Deathborn.Client.dll"
+BUILD_STAMP="$CLIENT_OUT/.dev-last-build.stamp"
 DEV_PORT="${PORT:-8080}"
 WATCH_INTERVAL="${DEV_WATCH_INTERVAL:-0.75}"
+REBUILD_COOLDOWN="${DEV_REBUILD_COOLDOWN:-2}"
 
 export DATABASE_URL="${DATABASE_URL:-postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable}"
 export JWT_SECRET="${JWT_SECRET:-dev-secret-change-me}"
@@ -35,11 +38,14 @@ esac
 SERVER_PID=""
 CLIENT_PIDS=()
 BUILDING=0
+COOLDOWN_UNTIL=0
 
-file_mtime() {
-  if [ -f "$1" ]; then
-    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"
-  fi
+# Paths excluded from change detection (build artifacts, not source).
+FIND_PRUNE=( ! -path '*/obj/*' ! -path '*/bin/*' ! -path '*/.git/*' )
+
+touch_build_stamp() {
+  mkdir -p "$CLIENT_OUT"
+  touch "$BUILD_STAMP"
 }
 
 stop_clients() {
@@ -77,20 +83,27 @@ all_clients_closed() {
   return 0
 }
 
-# True when any watched client input is newer than the built DLL.
+# True when any watched source is newer than the last successful build stamp.
 client_sources_changed() {
-  local dll="$1"
-  if [ ! -f "$dll" ]; then
+  local now
+  now=$(date +%s)
+  if [ "$now" -lt "$COOLDOWN_UNTIL" ]; then
+    return 1
+  fi
+  if [ ! -f "$BUILD_STAMP" ]; then
     return 0
   fi
 
-  if [ -n "$(find "$CLIENT_DIR/Deathborn.Client" \( -name '*.cs' -o -name '*.csproj' \) -newer "$dll" -print -quit 2>/dev/null)" ]; then
+  if [ -n "$(find "$CLIENT_DIR/Deathborn.Client" "${FIND_PRUNE[@]}" \
+      \( -name '*.cs' -o -name '*.csproj' \) -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
-  if [ -n "$(find "$CLIENT_DIR/Deathborn.Client/Content" \( -name '*.mgcb' -o -name '*.png' -o -name '*.jpg' -o -name '*.mp3' -o -name '*.ogg' -o -name '*.wav' -o -name '*.spritefont' \) -newer "$dll" -print -quit 2>/dev/null)" ]; then
+  if [ -n "$(find "$CLIENT_DIR/Deathborn.Client/Content" "${FIND_PRUNE[@]}" \
+      \( -name '*.mgcb' -o -name '*.png' -o -name '*.jpg' -o -name '*.mp3' -o -name '*.ogg' -o -name '*.wav' -o -name '*.spritefont' \) \
+      -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
-  if [ -n "$(find "$ROOT/shared/world" -name '*.bin' -newer "$dll" -print -quit 2>/dev/null)" ]; then
+  if [ -n "$(find "$ROOT/shared/world" -name '*.bin' -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
   return 1
@@ -100,7 +113,7 @@ rebuild_clients_if_needed() {
   if [ "$BUILDING" -eq 1 ]; then
     return
   fi
-  if ! client_sources_changed "$CLIENT_DLL"; then
+  if ! client_sources_changed; then
     return
   fi
 
@@ -108,7 +121,9 @@ rebuild_clients_if_needed() {
   echo "Client sources changed — stopping game windows to rebuild..."
   stop_clients
 
-  if dotnet build "$CLIENT_PROJECT" --configuration Debug; then
+  if dotnet build "$CLIENT_PROJECT" --configuration Debug --no-restore; then
+    touch_build_stamp
+    COOLDOWN_UNTIL=$(( $(date +%s) + REBUILD_COOLDOWN ))
     echo "Client rebuilt — restarting game windows..."
     start_clients
   else
@@ -161,6 +176,8 @@ dotnet tool restore
 
 echo "Building MonoGame client..."
 dotnet build "$CLIENT_PROJECT" --configuration Debug
+touch_build_stamp
+COOLDOWN_UNTIL=$(( $(date +%s) + REBUILD_COOLDOWN ))
 
 if [ "$CLIENT_COUNT" -eq 1 ]; then
   echo "Starting 1 MonoGame client..."
