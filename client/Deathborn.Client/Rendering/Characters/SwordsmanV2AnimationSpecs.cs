@@ -10,17 +10,17 @@ internal static class SwordsmanV2AnimationSpecs
     public const float WalkFrameDuration = 0.12f;
     public const float AttackFrameDuration = 0.075f;
 
-    // Walk sheet rows (0-based): 0=SE, 1=E, 2=NE, 3=SW, 4=W, 5=NW (no pure N/S).
+    // Sheet rows: 0=S, 1=SE, 2=E, 3=NE, 4=N, 5=NW, 6=W, 7=SW (see prompts/sprites/Player/manifest.json).
     private static readonly int[] WalkRowMap =
     [
-        0, // Down — SE (closest to south)
-        3, // DownLeft — SW
-        4, // Left — W profile
-        5, // UpLeft — NW
-        2, // Up — NE back (closest to north)
-        2, // UpRight — NE
-        1, // Right — E profile
-        0, // DownRight — SE
+        0, // Down — South
+        7, // DownLeft — South-West
+        6, // Left — West
+        5, // UpLeft — North-West
+        4, // Up — North
+        3, // UpRight — North-East
+        2, // Right — East
+        1, // DownRight — South-East
     ];
 
     // Idle row 7 in the source art is incomplete — reuse row 6 (east).

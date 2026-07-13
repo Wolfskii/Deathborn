@@ -81,27 +81,35 @@ def draw_half_sheet(
     return im
 
 
+def uniform_starts(length: int, count: int) -> list[int]:
+    return [((i * length) // count) for i in range(count + 1)]
+
+
 def merge_halves(
     manifest: dict,
     cardinals: Image.Image,
     diagonals: Image.Image,
 ) -> Image.Image:
-    cell = manifest["cellSizePx"]
-    frames = cardinals.width // cell
-    if cardinals.width != diagonals.width or cardinals.height != diagonals.height:
-        raise ValueError("cardinals and diagonals must share cell size and column count")
-    if cardinals.height != 4 * cell or diagonals.height != 4 * cell:
-        raise ValueError("expected 4 rows per half sheet")
+    if cardinals.size != diagonals.size:
+        raise ValueError("cardinals and diagonals must share dimensions")
 
-    merged = Image.new("RGBA", (frames * cell, 8 * cell), CHROMA)
-    for merged_row, spec in enumerate(manifest["mergedRowOrder"]):
+    width, half_height = cardinals.size
+    half_row_starts = uniform_starts(half_height, 4)
+    strips: list[Image.Image] = []
+    for spec in manifest["mergedRowOrder"]:
         half = spec["half"]
         src_row = spec["row"]
         src = cardinals if half == "cardinals" else diagonals
-        y0 = src_row * cell
-        y1 = y0 + cell
-        strip = src.crop((0, y0, src.width, y1))
-        merged.paste(strip, (0, merged_row * cell))
+        y0 = half_row_starts[src_row]
+        y1 = half_row_starts[src_row + 1]
+        strips.append(src.crop((0, y0, width, y1)))
+
+    merged_height = sum(s.height for s in strips)
+    merged = Image.new("RGBA", (width, merged_height), CHROMA)
+    y = 0
+    for strip in strips:
+        merged.paste(strip, (0, y))
+        y += strip.height
     return merged
 
 

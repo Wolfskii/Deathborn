@@ -11,10 +11,11 @@ OUT = ROOT / "client/Deathborn.Client/Rendering/Characters/SwordsmanV2FrameAtlas
 
 IDLE_COLS = [0, 230, 397, 565, 733, 903, 1254]
 IDLE_ROWS = [0, 156, 313, 470, 627, 783, 940, 1097, 1254]
-WALK_COLS = [0, 134, 280, 426, 573, 721, 869, 1015, 1254]
-WALK_ROWS = [0, 221, 418, 615, 810, 1004, 1254]
 ATK_COLS = [0, 138, 330, 520, 708, 904, 1092, 1281, 1536]
 ATK_ROWS = [0, 128, 256, 384, 512, 640, 768, 896, 1024]
+
+def uniform_starts(length: int, count: int) -> list[int]:
+    return [((i * length) // count) for i in range(count + 1)]
 
 
 def tight_bbox(im: Image.Image, x0: int, y0: int, x1: int, y1: int) -> tuple[int, int, int, int]:
@@ -73,8 +74,16 @@ def build_frames(
 
 def main() -> None:
     idle_im = Image.open(SHEETS / "idle.png").convert("RGBA")
+    idle_rows = uniform_starts(idle_im.height, 8)
+    idle_cols = uniform_starts(idle_im.width, 6)
+
     walk_im = Image.open(SHEETS / "walk.png").convert("RGBA")
+    walk_rows = uniform_starts(walk_im.height, 8)
+    walk_cols = uniform_starts(walk_im.width, 8)
+
     atk_im = Image.open(SHEETS / "one-handed-attack.png").convert("RGBA")
+    atk_rows = uniform_starts(atk_im.height, 8)
+    atk_cols = uniform_starts(atk_im.width, 8)
 
     cs = """using Microsoft.Xna.Framework;
 
@@ -91,21 +100,21 @@ internal static class SwordsmanV2FrameAtlas
     public static readonly TightFrame[] Idle =
     [
 """
-    cs += "\n".join(build_frames(idle_im, IDLE_ROWS, IDLE_COLS, 8, 6, use_cell_rect=True))
+    cs += "\n".join(build_frames(idle_im, idle_rows, idle_cols, 8, 6, use_cell_rect=True))
     cs += """
     ];
 
     public static readonly TightFrame[] Walk =
     [
 """
-    cs += "\n".join(build_frames(walk_im, WALK_ROWS, WALK_COLS, 6, 8, use_cell_rect=True))
+    cs += "\n".join(build_frames(walk_im, walk_rows, walk_cols, 8, 8, use_cell_rect=True))
     cs += """
     ];
 
     public static readonly TightFrame[] Attack =
     [
 """
-    cs += "\n".join(build_frames(atk_im, ATK_ROWS, ATK_COLS, 8, 8, use_cell_rect=False))
+    cs += "\n".join(build_frames(atk_im, atk_rows, atk_cols, 8, 8, use_cell_rect=True))
     cs += """
     ];
 
