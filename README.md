@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="client/Deathborn.Client/Content/Images/Logos/logo_no_text.png" alt="Deathborn logo" width="300">
+  <img src="client/Deathborn.Client/Content/Images/Logos/Banners/Banner%20V2.png" alt="Deathborn banner" width="480">
 </p>
 
 # DEATHBORN

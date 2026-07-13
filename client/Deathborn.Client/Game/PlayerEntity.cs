@@ -52,6 +52,8 @@ public sealed class PlayerEntity
     public Vector2 Target;
     public bool IsLocal;
     public long InsideHouseId;
+    /// <summary>House plot center while inside — used for interior movement when zone list is stale.</summary>
+    public Vector2? InteriorCenter;
     public string? HeadCosmetic;
     public Vector2 MoveDir;
     public Vector2 InputDir;
@@ -380,9 +382,9 @@ public sealed class PlayerEntity
     {
         if (InsideHouseId > 0)
         {
-            var house = WorldZones.HouseById(InsideHouseId);
-            if (house != null)
-                return HousingConstants.ResolveInteriorMove(feet, delta, house.Center);
+            var center = InteriorCenter ?? WorldZones.HouseById(InsideHouseId)?.Center;
+            if (center is Vector2 c)
+                return HousingConstants.ResolveInteriorMove(feet, delta, c);
         }
 
         return WorldMap.Realik.ResolveMove(feet, delta, Radius);
@@ -611,6 +613,9 @@ public sealed class PlayerEntity
             Target = new Vector2((float)s.X, (float)s.Y),
             IsLocal = isLocal,
             InsideHouseId = s.InsideHouseId,
+            InteriorCenter = s.InsideHouseId > 0
+                ? WorldZones.HouseById(s.InsideHouseId)?.Center
+                : null,
             HeadCosmetic = string.IsNullOrEmpty(s.HeadCosmetic) ? null : s.HeadCosmetic,
         };
         if (s.HpMax > 0)

@@ -16,12 +16,9 @@ public sealed class LoginScreen : IScreen
     private static readonly Color PanelInner = new(18, 15, 12);
     private static readonly Color Gold = new(210, 170, 80);
     private static readonly Color GoldDim = new(130, 105, 55);
-    private static readonly Color Tagline = new(200, 185, 140);
     private static readonly Color Status = new(220, 180, 120);
     private static readonly Color StatusError = new(255, 120, 100);
-    private const string TaglineText = "You are born to die. Only skill decides when.";
-    private const int TaglineGapBelowLogo = 12;
-    private const int PanelGapBelowTagline = 48;
+    private const int PanelGapBelowLogo = 32;
 
     private readonly ScreenManager _screens;
     private readonly TextField _email = new() { Placeholder = "Email" };
@@ -40,7 +37,6 @@ public sealed class LoginScreen : IScreen
     private Song? _theme;
     private Rectangle _panel;
     private Rectangle _logoBounds;
-    private int _taglineY;
     private readonly PixelBrazier _leftBrazier = new();
     private readonly PixelBrazier _rightBrazier = new();
     private int _leftBrazierX;
@@ -56,7 +52,7 @@ public sealed class LoginScreen : IScreen
     public void OnEnter()
     {
         var game = DeathbornGame.Instance;
-        _logo ??= game.Content.Load<Texture2D>("Images/Logos/logo_no_text");
+        _logo ??= game.Content.Load<Texture2D>("Images/Logos/Banners/Banner V2");
         _theme ??= game.Content.Load<Song>("Audio/Songs/The Reaper\u2019s Call");
         MusicPlayer.Play(_theme);
         _lyrics.Reset(_theme);
@@ -175,11 +171,6 @@ public sealed class LoginScreen : IScreen
         if (_logo is not null)
             sb.Draw(_logo, _logoBounds, Color.White);
 
-        var tagline = TaglineText;
-        sb.DrawString(font, tagline,
-            new Vector2(cx - font.MeasureString(tagline).X / 2, _taglineY),
-            Tagline);
-
         _leftBrazier.Draw(sb, _leftBrazierX, _brazierBottomY);
         _rightBrazier.Draw(sb, _rightBrazierX, _brazierBottomY);
 
@@ -224,20 +215,18 @@ public sealed class LoginScreen : IScreen
 
         if (_logo is not null)
         {
-            const int logoDisplaySize = 220;
-            var scale = logoDisplaySize / (float)Math.Max(_logo.Width, _logo.Height);
+            const int logoDisplayWidth = 480;
+            var scale = logoDisplayWidth / (float)_logo.Width;
             var w = (int)(_logo.Width * scale);
             var h = (int)(_logo.Height * scale);
-            _logoBounds = new Rectangle(cx - w / 2, 36, w, h);
+            _logoBounds = new Rectangle(cx - w / 2, 24, w, h);
         }
         else
         {
-            _logoBounds = new Rectangle(cx - 110, 36, 220, 220);
+            _logoBounds = new Rectangle(cx - 240, 24, 480, 480);
         }
 
-        _taglineY = _logoBounds.Bottom + TaglineGapBelowLogo;
-        var taglineBottom = _taglineY + (int)DeathbornGame.Instance.Font.MeasureString(TaglineText).Y;
-        _panel = new Rectangle(cx - 210, taglineBottom + PanelGapBelowTagline, 420, 248);
+        _panel = new Rectangle(cx - 210, _logoBounds.Bottom + PanelGapBelowLogo, 420, 248);
         _email.Bounds = new Rectangle(_panel.X + 30, _panel.Y + 52, 360, 36);
         _password.Bounds = new Rectangle(_panel.X + 30, _panel.Y + 102, 360, 36);
         _remember.BoxBounds = new Rectangle(_panel.X + 30, _panel.Y + 150, 20, 20);

@@ -34,6 +34,20 @@
 
 #end Images/Logos/logo_no_text.png
 
+#begin Images/Logos/Banners/Banner V2.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Images/Logos/Banners/Banner V2.png
+
+#end Images/Logos/Banners/Banner V2.png
+
 #begin Audio/Songs/The Reaper’s Call.mp3
 /importer:Mp3Importer
 /processor:SongProcessor

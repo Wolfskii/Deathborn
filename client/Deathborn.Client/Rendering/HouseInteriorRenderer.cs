@@ -22,14 +22,14 @@ public static class HouseInteriorRenderer
     private static readonly Color DoorHighlight = new(255, 235, 115, 170);
     private static readonly Color RugAccent = new(140, 50, 46, 90);
 
-    public static Rectangle InteriorScreenRect(Vector2 houseCenter, Vector2 screenCenter, float worldZoom)
+    public static Rectangle InteriorScreenRect(Vector2 houseCenter, Vector2 camera, Vector2 screenCenter, float worldZoom)
     {
-        var min = HousingConstants.InteriorLocalMin * worldZoom;
-        var max = HousingConstants.InteriorLocalMax * worldZoom;
-        var tl = screenCenter + min;
-        var size = max - min;
-        var w = Math.Max(32, (int)MathF.Round(size.X));
-        var h = Math.Max(32, (int)MathF.Round(size.Y));
+        var worldMin = houseCenter + HousingConstants.InteriorLocalMin;
+        var worldMax = houseCenter + HousingConstants.InteriorLocalMax;
+        var tl = screenCenter + (worldMin - camera) * worldZoom;
+        var br = screenCenter + (worldMax - camera) * worldZoom;
+        var w = Math.Max(32, (int)MathF.Round(br.X - tl.X));
+        var h = Math.Max(32, (int)MathF.Round(br.Y - tl.Y));
         return new Rectangle((int)MathF.Round(tl.X), (int)MathF.Round(tl.Y), w, h);
     }
 
@@ -37,6 +37,7 @@ public static class HouseInteriorRenderer
         SpriteBatch sb,
         SpriteFont font,
         HousePlotZone house,
+        Vector2 camera,
         Vector2 screenCenter,
         float worldZoom,
         bool exitHighlighted,
@@ -44,7 +45,7 @@ public static class HouseInteriorRenderer
     {
         if (worldZoom < 0.01f) worldZoom = 1f;
 
-        var floor = InteriorScreenRect(house.Center, screenCenter, worldZoom);
+        var floor = InteriorScreenRect(house.Center, camera, screenCenter, worldZoom);
         if (floor.Width <= 0 || floor.Height <= 0) return;
 
         var wall = Math.Max(8, (int)(12 * worldZoom));
@@ -62,7 +63,7 @@ public static class HouseInteriorRenderer
         foreach (var item in furniture)
         {
             if (item == null || string.IsNullOrEmpty(item.Type)) continue;
-            HouseRenderer.DrawFurnitureItem(sb, item, house.Center, screenCenter, worldZoom, 1f);
+            HouseRenderer.DrawFurnitureItem(sb, item, house.Center, camera, screenCenter, worldZoom, 1f);
         }
     }
 

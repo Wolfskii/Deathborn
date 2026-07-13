@@ -429,7 +429,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_ghostMode && _ghost != null)
             _camera = _ghost.Position;
         else if (localEntity != null)
-            _camera = localEntity.Position;
+        {
+            if (localEntity.InsideHouseId > 0)
+            {
+                var house = InteriorHouse();
+                _camera = house?.Center ?? localEntity.InteriorCenter ?? localEntity.Position;
+            }
+            else
+                _camera = localEntity.Position;
+        }
 
         UpdateInteriorFade(dt, localEntity);
 
@@ -613,7 +621,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         var local = FindLocalPlayer();
         var exitHighlight = local != null && HousingConstants.IsNearInteriorExit(local.Position, house.Center);
-        HouseInteriorRenderer.Draw(sb, font, house, ScreenCenter, zoom, exitHighlight,
+        HouseInteriorRenderer.Draw(sb, font, house, _camera, ScreenCenter, zoom, exitHighlight,
             house.DisplayName(_screens.Net.LocalCharacterId));
 
         DrawPlayers(sb, font, zoom, house.Id);
@@ -2263,8 +2271,25 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void ApplyHouseList()
     {
         WorldZones.SyncHouses(_houses);
+        RefreshPlayerInteriorCenters();
         SyncHouseInteractables();
         UpdateBuildHouseEnabled();
+    }
+
+    private void RefreshPlayerInteriorCenters()
+    {
+        foreach (var p in _players.Values)
+        {
+            if (p.InsideHouseId <= 0)
+            {
+                p.InteriorCenter = null;
+                continue;
+            }
+
+            var house = WorldZones.HouseById(p.InsideHouseId);
+            if (house != null)
+                p.InteriorCenter = house.Center;
+        }
     }
 
     private void SyncWorldItemInteractables(List<WorldItemDropState>? drops)
@@ -2372,6 +2397,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 if (houseChanged)
                 {
                     p.InsideHouseId = s.InsideHouseId;
+                    p.InteriorCenter = s.InsideHouseId > 0
+                        ? WorldZones.HouseById(s.InsideHouseId)?.Center ?? p.InteriorCenter
+                        : null;
                     p.Position = pos;
                     p.Target = pos;
                     if (p.InputDir.LengthSquared() > 0.0001f)
@@ -2381,6 +2409,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 {
                     p.SetTarget(pos);
                     p.InsideHouseId = s.InsideHouseId;
+                    if (s.InsideHouseId > 0)
+                    {
+                        var house = WorldZones.HouseById(s.InsideHouseId);
+                        if (house != null)
+                            p.InteriorCenter = house.Center;
+                    }
+                    else
+                        p.InteriorCenter = null;
                 }
             }
 

@@ -152,12 +152,13 @@ public static class HouseRenderer
         SpriteBatch sb,
         FurnitureItemState item,
         Vector2 houseCenter,
+        Vector2 camera,
         Vector2 screenCenter,
         float worldZoom,
         float zoomScale)
     {
         var z = worldZoom * zoomScale;
-        var screen = screenCenter + (item.Position - houseCenter) * z;
+        var screen = screenCenter + (item.Position - camera) * z;
         DrawFurnitureShape(sb, item.Type, screen, z);
     }
 
