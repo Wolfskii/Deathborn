@@ -40,7 +40,7 @@ public sealed class LoginScreen : IScreen
     private bool _waitingWorld;
     private MouseState _prevMouse;
 
-    private readonly AnimatedBannerSprite _banner = new();
+    private Texture2D? _logo;
     private Song? _theme;
     private Rectangle _panel;
     private Rectangle _logoBounds;
@@ -59,7 +59,7 @@ public sealed class LoginScreen : IScreen
     public void OnEnter()
     {
         var game = DeathbornGame.Instance;
-        _banner.SetTexture(game.Content.Load<Texture2D>("Images/Logos/Banners/Banner V2 - animated"));
+        _logo ??= game.Content.Load<Texture2D>("Images/Logos/Banners/Banner V2");
         _theme ??= game.Content.Load<Song>("Audio/Songs/The Reaper\u2019s Call");
         MusicPlayer.Play(_theme);
         _lyrics.Reset(_theme);
@@ -111,7 +111,6 @@ public sealed class LoginScreen : IScreen
         if (_viewportW != GameViewport.Width || _viewportH != GameViewport.Height)
             Layout();
 
-        _banner.Update(gameTime);
         _leftBrazier.Update(gameTime);
         _rightBrazier.Update(gameTime);
         _lyrics.Update();
@@ -172,11 +171,12 @@ public sealed class LoginScreen : IScreen
         var font = game.Font;
         var cx = GameViewport.Width / 2;
 
-        sb.Begin(samplerState: SamplerState.PointClamp);
+        sb.Begin();
 
         DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height), BgBlack);
 
-        _banner.Draw(sb, _logoBounds);
+        if (_logo is not null)
+            sb.Draw(_logo, _logoBounds, Color.White);
 
         _leftBrazier.Draw(sb, _leftBrazierX, _brazierBottomY);
         _rightBrazier.Draw(sb, _rightBrazierX, _brazierBottomY);
@@ -232,7 +232,7 @@ public sealed class LoginScreen : IScreen
         var maxLogoHeight = Math.Max(96, stackBottom - TopMargin - panelGap - panelHeight);
         var maxLogoWidth = Math.Min(MaxLogoWidth, Math.Max(96, viewportWidth - 48));
 
-        var logoAspect = _banner.Aspect;
+        var logoAspect = _logo is null ? 1f : _logo.Width / (float)_logo.Height;
         var logoWidth = Math.Min(maxLogoWidth, (int)MathF.Round(maxLogoHeight * logoAspect));
         var logoHeight = Math.Max(1, (int)MathF.Round(logoWidth / logoAspect));
         _logoBounds = new Rectangle(cx - logoWidth / 2, TopMargin, logoWidth, logoHeight);
