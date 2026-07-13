@@ -10,6 +10,8 @@
     <Version>0.1.0</Version>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
     <FileVersion>0.1.0.0</FileVersion>
+    <!-- Debug: no apphost.exe so rebuilds don't fight a locked Deathborn.Client.exe during dev:all. -->
+    <UseAppHost Condition="'$(Configuration)' == 'Debug'">false</UseAppHost>
     <!-- MonoGame needs a full process restart; hot reload cannot patch the game loop. -->
     <HotReloadEnabled>false</HotReloadEnabled>
     <ApplicationIcon>Icon.ico</ApplicationIcon>

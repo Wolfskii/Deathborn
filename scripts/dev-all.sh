@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Start Go server in background, then N MonoGame clients for local multiplayer testing.
 # Used by: task dev / task dev:all [-- CLIENT_COUNT]
+#
+# Client reload: poll for source changes, stop all game windows, rebuild, restart.
+# (dotnet watch build cannot overwrite the running .dll/.exe on Windows while clients are open.)
 set -e
 
 CLIENT_COUNT="${1:-1}"
@@ -13,13 +16,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER_DIR="${ROOT}/server"
 CLIENT_DIR="${ROOT}/client"
 CLIENT_PROJECT="$CLIENT_DIR/Deathborn.Client/Deathborn.Client.csproj"
-CLIENT_DLL="$CLIENT_DIR/Deathborn.Client/bin/Debug/net8.0/Deathborn.Client.dll"
-CLIENT_EXE="${CLIENT_DLL%.dll}"
+CLIENT_OUT="$CLIENT_DIR/Deathborn.Client/bin/Debug/net8.0"
+CLIENT_DLL="$CLIENT_OUT/Deathborn.Client.dll"
 DEV_PORT="${PORT:-8080}"
-
-case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*) CLIENT_EXE="${CLIENT_EXE}.exe" ;;
-esac
+WATCH_INTERVAL="${DEV_WATCH_INTERVAL:-0.75}"
 
 export DATABASE_URL="${DATABASE_URL:-postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable}"
 export JWT_SECRET="${JWT_SECRET:-dev-secret-change-me}"
@@ -34,7 +34,7 @@ esac
 
 SERVER_PID=""
 CLIENT_PIDS=()
-WATCH_PID=""
+BUILDING=0
 
 file_mtime() {
   if [ -f "$1" ]; then
@@ -55,7 +55,11 @@ stop_clients() {
 start_clients() {
   local i
   for ((i = 1; i <= CLIENT_COUNT; i++)); do
-    DEATHBORN_INSTANCE="$i" DEATHBORN_SKIP_UPDATE="${DEATHBORN_SKIP_UPDATE:-1}" "$CLIENT_EXE" &
+    (
+      cd "$CLIENT_OUT"
+      DEATHBORN_INSTANCE="$i" DEATHBORN_SKIP_UPDATE="${DEATHBORN_SKIP_UPDATE:-1}" \
+        exec dotnet exec "./Deathborn.Client.dll"
+    ) &
     CLIENT_PIDS+=("$!")
   done
 }
@@ -73,11 +77,47 @@ all_clients_closed() {
   return 0
 }
 
-cleanup() {
-  if [ -n "$WATCH_PID" ]; then
-    kill "$WATCH_PID" 2>/dev/null || true
-    wait "$WATCH_PID" 2>/dev/null || true
+# True when any watched client input is newer than the built DLL.
+client_sources_changed() {
+  local dll="$1"
+  if [ ! -f "$dll" ]; then
+    return 0
   fi
+
+  if [ -n "$(find "$CLIENT_DIR/Deathborn.Client" \( -name '*.cs' -o -name '*.csproj' \) -newer "$dll" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ -n "$(find "$CLIENT_DIR/Deathborn.Client/Content" \( -name '*.mgcb' -o -name '*.png' -o -name '*.jpg' -o -name '*.mp3' -o -name '*.ogg' -o -name '*.wav' -o -name '*.spritefont' \) -newer "$dll" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  if [ -n "$(find "$ROOT/shared/world" -name '*.bin' -newer "$dll" -print -quit 2>/dev/null)" ]; then
+    return 0
+  fi
+  return 1
+}
+
+rebuild_clients_if_needed() {
+  if [ "$BUILDING" -eq 1 ]; then
+    return
+  fi
+  if ! client_sources_changed "$CLIENT_DLL"; then
+    return
+  fi
+
+  BUILDING=1
+  echo "Client sources changed — stopping game windows to rebuild..."
+  stop_clients
+
+  if dotnet build "$CLIENT_PROJECT" --configuration Debug; then
+    echo "Client rebuilt — restarting game windows..."
+    start_clients
+  else
+    echo "Client build failed — fix errors and save again to retry."
+  fi
+  BUILDING=0
+}
+
+cleanup() {
   stop_clients
   if [ -n "$SERVER_PID" ]; then
     echo "Stopping server (pid $SERVER_PID)..."
@@ -129,23 +169,13 @@ else
 fi
 start_clients
 
-echo "Watching for client changes (rebuild restarts all game windows)..."
-dotnet watch build --project "$CLIENT_PROJECT" --configuration Debug &
-WATCH_PID=$!
-
-last_mtime="$(file_mtime "$CLIENT_DLL")"
-while kill -0 "$WATCH_PID" 2>/dev/null; do
+echo "Watching for client changes (saves restart all game windows after rebuild)..."
+while true; do
   if all_clients_closed; then
     echo "All clients closed."
     break
   fi
 
-  sleep 1
-  current_mtime="$(file_mtime "$CLIENT_DLL")"
-  if [ -n "$current_mtime" ] && [ "$current_mtime" != "$last_mtime" ]; then
-    echo "Client rebuilt — restarting all game windows..."
-    stop_clients
-    start_clients
-    last_mtime="$current_mtime"
-  fi
+  rebuild_clients_if_needed
+  sleep "$WATCH_INTERVAL"
 done

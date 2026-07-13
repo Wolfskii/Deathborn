@@ -100,7 +100,7 @@ tasks:
       - ../bin/{{.BINARY}}
 
   dev:client:
-    desc: Run only the MonoGame client with auto-restart on file changes
+    desc: Run only the MonoGame client; dotnet watch restarts the game on code changes
     dir: "{{.CLIENT_DIR}}"
     env:
       DEATHBORN_SKIP_UPDATE: "1"
