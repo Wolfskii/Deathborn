@@ -155,15 +155,32 @@ Output canvas: exactly 1774×887 pixels (width × height). The full image must b
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:
 
 Row 1: South-East — diagonal front-right quarter view
+        Slash plane: diagonal DOWNWARD heavy chop toward the front-right ground.
+        WRONG: horizontal profile side-swing while facing SE.
+
 Row 2: North-East — diagonal back-right quarter view
+        Slash plane: diagonal upward / back-right chop in the NE plane.
+
 Row 3: North-West — diagonal back-left quarter view
+        Slash plane: diagonal upward / back-left chop in the NW plane.
+
 Row 4: South-West — diagonal front-left quarter view
+        Slash plane: diagonal DOWNWARD heavy chop toward the front-left ground.
+        WRONG: horizontal profile side-swing while facing SW.
 
 Each row contains exactly 8 slash frames in animation order.
 
-Motion type: heavy two-handed SLASHING ARC.
+==================================================
+SLASH DIRECTION (CRITICAL)
+==================================================
 
-Phases across the 8 frames:
+Each row uses a DIFFERENT slash plane matched to that row's diagonal facing.
+Do NOT copy the same two-handed swing into every row.
+
+• South-East & South-West: downward diagonal chops toward the front ground
+• North-East & North-West: upward / back diagonal chops away from the camera
+
+Phases across the 8 frames (adapt the arc to each row's plane above):
 
 1. guard — wide stance, haft grip held low or at shoulder
 2. anticipation — weight shifts back, grip pulls away from target

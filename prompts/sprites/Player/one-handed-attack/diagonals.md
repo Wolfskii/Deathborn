@@ -157,15 +157,37 @@ Output canvas: exactly 1774×887 pixels (width × height). The full image must b
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:
 
 Row 1: South-East — diagonal front-right quarter view
+        Slash plane: diagonal DOWNWARD chop toward the front-right ground quadrant.
+        Grip hand travels high (front-right) to low (near right hip / front foot).
+        WRONG: horizontal profile side-swing while facing SE.
+
 Row 2: North-East — diagonal back-right quarter view
+        Slash plane: diagonal upward / back-right chop in the NE plane (away from camera, toward back-right).
+        Grip hand drives from low-front to high-back-right.
+
 Row 3: North-West — diagonal back-left quarter view
+        Slash plane: diagonal upward / back-left chop in the NW plane (mirror of NE).
+
 Row 4: South-West — diagonal front-left quarter view
+        Slash plane: diagonal DOWNWARD chop toward the front-left ground quadrant.
+        Grip hand travels high (front-left) to low (near left hip / front foot).
+        WRONG: horizontal profile side-swing while facing SW.
 
 Each row contains exactly 8 one-handed slash frames in animation order.
 
-Motion type: horizontal / diagonal SLASHING ARC.
+==================================================
+SLASH DIRECTION (CRITICAL)
+==================================================
 
-Phases across the 8 frames:
+Each row uses a DIFFERENT slash plane matched to that row's diagonal facing.
+Do NOT copy the same arm motion into every row.
+
+• South-East & South-West: downward diagonal chops toward the front ground (front-facing diagonals)
+• North-East & North-West: upward / back diagonal chops away from the camera (rear-facing diagonals)
+
+The invisible blade follows the grip hand through that row's plane only.
+
+Phases across the 8 frames (adapt the arc to each row's plane above):
 
 1. guard — neutral ready stance, grip at hip or low guard
 2. anticipation — slight lean back, grip hand pulls back

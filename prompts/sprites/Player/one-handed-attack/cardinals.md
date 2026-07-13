@@ -157,15 +157,42 @@ Output canvas: exactly 1774×887 pixels (width × height). The full image must b
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:
 
 Row 1: South — front view, character faces the camera
+        Slash plane: VERTICAL downward chop toward the ground in front of the body.
+        Grip hand travels from high (above shoulder / beside head) down to low (hip or thigh).
+        Arm moves in the FRONTAL plane (toward the camera), not sideways like a profile swing.
+        WRONG: East-style horizontal side-chop while the torso still faces the camera.
+
 Row 2: East — profile facing right
+        Slash plane: horizontal arc in the RIGHT profile plane (edge-on to camera).
+        Grip hand sweeps across the body from the character's left to right (screen left → right).
+        Elbow drives a side-on chop — NOT a downward front-facing chop.
+
 Row 3: North — back view, character faces away from the camera
+        Slash plane: vertical upward or overhead chop in the REAR plane (away from camera).
+        Grip hand rises from low to high behind the shoulders, or chops up/back over the head.
+        WRONG: front-facing downward chop while showing the character's back.
+
 Row 4: West — profile facing left
+        Slash plane: horizontal arc in the LEFT profile plane (mirror of East).
+        Grip hand sweeps from the character's right to left (screen right → left).
 
 Each row contains exactly 8 one-handed slash frames in animation order.
 
-Motion type: horizontal / diagonal SLASHING ARC.
+==================================================
+SLASH DIRECTION (CRITICAL)
+==================================================
 
-Phases across the 8 frames:
+Each row uses a DIFFERENT slash plane matched to that row's facing.
+Do NOT copy the same arm motion into every row.
+
+• South: downward vertical slash in the frontal plane (high → low toward viewer)
+• East: horizontal side slash in the right profile plane
+• North: upward / overhead slash in the rear plane (away from viewer)
+• West: horizontal side slash in the left profile plane
+
+The invisible blade follows the grip hand through that row's plane only.
+
+Phases across the 8 frames (adapt the arc to each row's plane above):
 
 1. guard — neutral ready stance, grip at hip or low guard
 2. anticipation — slight lean back, grip hand pulls back

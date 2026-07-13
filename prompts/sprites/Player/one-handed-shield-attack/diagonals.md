@@ -169,17 +169,34 @@ Output canvas: exactly 1774×887 pixels (width × height). The full image must b
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:
 
 Row 1: South-East — diagonal front-right quarter view
+        Slash plane: diagonal DOWNWARD compact chop toward the front-right ground.
+        WRONG: horizontal profile side-swing while facing SE.
+
 Row 2: North-East — diagonal back-right quarter view
+        Slash plane: diagonal upward / back-right compact chop in the NE plane.
+
 Row 3: North-West — diagonal back-left quarter view
+        Slash plane: diagonal upward / back-left compact chop in the NW plane.
+
 Row 4: South-West — diagonal front-left quarter view
+        Slash plane: diagonal DOWNWARD compact chop toward the front-left ground.
+        WRONG: horizontal profile side-swing while facing SW.
 
 Each row contains exactly 8 sword-and-shield slash frames in animation order.
 
-Motion type: compact sword-and-board SLASH.
-
 The character fights from behind the shield — shorter arc than a naked one-handed swing.
 
-Phases across the 8 frames:
+==================================================
+SLASH DIRECTION (CRITICAL)
+==================================================
+
+Each row uses a DIFFERENT slash plane matched to that row's diagonal facing.
+Shield arm stays raised; weapon arm slashes only in that row's plane.
+
+• South-East & South-West: downward diagonal slashes toward the front ground
+• North-East & North-West: upward / back diagonal slashes away from the camera
+
+Phases across the 8 frames (adapt the arc to each row's plane above):
 
 1. guard — shield forearm up, weapon hand at hip or tight ready behind the shield line
 2. anticipation — slight lean, weapon hand draws back while shield arm holds position

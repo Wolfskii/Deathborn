@@ -85,23 +85,38 @@ def uniform_starts(length: int, count: int) -> list[int]:
     return [((i * length) // count) for i in range(count + 1)]
 
 
+def fit_diagonals_to_cardinals_width(
+    diagonals: Image.Image,
+    cardinals: Image.Image,
+) -> Image.Image:
+    """Uniform scale to cardinals width — avoids squashing diagonal halves."""
+    if diagonals.size == cardinals.size:
+        return diagonals
+    target_w = cardinals.width
+    src_w, src_h = diagonals.size
+    scale = target_w / src_w
+    target_h = max(1, int(round(src_h * scale)))
+    return diagonals.resize((target_w, target_h), Image.Resampling.LANCZOS)
+
+
 def merge_halves(
     manifest: dict,
     cardinals: Image.Image,
     diagonals: Image.Image,
 ) -> Image.Image:
-    if cardinals.size != diagonals.size:
-        diagonals = diagonals.resize(cardinals.size, Image.Resampling.LANCZOS)
+    diagonals = fit_diagonals_to_cardinals_width(diagonals, cardinals)
 
-    width, half_height = cardinals.size
-    half_row_starts = uniform_starts(half_height, 4)
+    width = cardinals.width
+    card_row_starts = uniform_starts(cardinals.height, 4)
+    diag_row_starts = uniform_starts(diagonals.height, 4)
     strips: list[Image.Image] = []
     for spec in manifest["mergedRowOrder"]:
         half = spec["half"]
         src_row = spec["row"]
         src = cardinals if half == "cardinals" else diagonals
-        y0 = half_row_starts[src_row]
-        y1 = half_row_starts[src_row + 1]
+        row_starts = card_row_starts if half == "cardinals" else diag_row_starts
+        y0 = row_starts[src_row]
+        y1 = row_starts[src_row + 1]
         strips.append(src.crop((0, y0, width, y1)))
 
     merged_height = sum(s.height for s in strips)

@@ -52,22 +52,34 @@ def detect_column_starts(im: Image.Image, y0: int, y1: int, frames: int) -> list
     return starts
 
 
+def fitted_diagonals_height(cardinals: Image.Image, diagonals: Image.Image) -> int:
+    if diagonals.size == cardinals.size:
+        return diagonals.height
+    scale = cardinals.width / diagonals.width
+    return max(1, int(round(diagonals.height * scale)))
+
+
 def compute_merged_idle_row_starts() -> list[int]:
     """Row boundaries for interleaved cardinals/diagonals idle merge strips."""
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     card_path = SOURCE / "idle" / "cardinals.png"
-    if card_path.exists():
-        card_h = Image.open(card_path).height
-        half_rows = uniform_starts(card_h, 4)
+    diag_path = SOURCE / "idle" / "diagonals.png"
+    if card_path.exists() and diag_path.exists():
+        card = Image.open(card_path)
+        diag = Image.open(diag_path)
+        card_rows = uniform_starts(card.height, 4)
+        diag_rows = uniform_starts(fitted_diagonals_height(card, diag), 4)
     else:
         merged_h = Image.open(SHEETS / "idle.png").height
-        half_rows = uniform_starts(merged_h // 2, 4)
+        card_rows = uniform_starts(merged_h // 2, 4)
+        diag_rows = card_rows
 
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     starts = [0]
     y = 0
     for spec in manifest["mergedRowOrder"]:
+        rows = card_rows if spec["half"] == "cardinals" else diag_rows
         row = spec["row"]
-        h = half_rows[row + 1] - half_rows[row]
+        h = rows[row + 1] - rows[row]
         y += h
         starts.append(y)
     return starts
@@ -260,7 +272,7 @@ def compute_idle_row_draw_scales(
     walk_widths: list[int],
     walk_draw_scales: list[float],
 ) -> list[float]:
-    """Match idle standing height to walk per row (uniform scale cannot fix narrow diagonal art)."""
+    """Match idle standing height to walk per row (same on-screen height for cardinals and diagonals)."""
     matched: list[float] = []
     for row, idle_h in enumerate(idle_heights):
         walk_h = walk_heights[row]

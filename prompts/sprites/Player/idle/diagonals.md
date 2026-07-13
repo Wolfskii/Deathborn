@@ -103,6 +103,14 @@ Idle
 
 Four diagonal directions — exactly one row each. No duplicate directions. No missing directions.
 
+Canvas size: **1254×1254** (same width as the cardinals idle half — do not use a different aspect ratio).
+
+Match the walk diagonal silhouette width — character body should be the same visual bulk as walk diagonals, not thinner.
+
+**Headroom (critical):** Leave at least **12px of solid green** above the highest hair pixel in every frame, every row. The top of the hair must never touch the row edge. Never crop or flatten the top of the head. South-West (row 4) is especially prone to this — give extra top margin there.
+
+Character scale must match the cardinals idle half — same body height and footprint per frame, not larger.
+
 Sheet layout: 4 rows × 6 columns (row = facing, column = animation frame, left to right).
 
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:

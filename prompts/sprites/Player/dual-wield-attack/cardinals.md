@@ -162,15 +162,33 @@ Output canvas: exactly 1774×887 pixels (width × height). The full image must b
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:
 
 Row 1: South — front view, character faces the camera
+        Slash plane: VERTICAL downward chops in the FRONTAL plane (high → low toward viewer).
+        Both weapon grips travel downward — NOT sideways profile swings.
+        WRONG: East-style horizontal side-chop while the torso faces the camera.
+
 Row 2: East — profile facing right
+        Slash plane: horizontal arcs in the RIGHT profile plane (edge-on side swings).
+
 Row 3: North — back view, character faces away from the camera
+        Slash plane: upward / overhead arcs in the REAR plane (away from camera).
+
 Row 4: West — profile facing left
+        Slash plane: horizontal arcs in the LEFT profile plane (mirror of East).
 
 Each row contains exactly 8 dual-wield slash frames in animation order.
 
-Motion type: dual SLASHING ARCS — agile, compact, offensive.
+==================================================
+SLASH DIRECTION (CRITICAL)
+==================================================
 
-Suggested flow (both arms weapon grips throughout):
+Each row uses slash planes matched to that row's facing. Both arms stay in weapon grips.
+Do NOT copy the same arm motion into every row.
+
+• South: downward vertical slashes in the frontal plane (alternating high → low)
+• East / West: horizontal side slashes in the profile planes
+• North: upward / back slashes in the rear plane
+
+Suggested flow (both arms weapon grips throughout — adapt each slash to the row's plane):
 
 1. guard — both hilts held ready, elbows bent, blades pointed outward
 2. anticipation — torso coils, both arms draw back slightly
