@@ -1,35 +1,89 @@
 Create ONE sprite sheet.
 
-Animation:
+Use the master style specification.
 
-One-handed melee attack.
+==================================================
+ATTACK TYPE
+==================================================
 
-NO weapon.
+One-handed weapon SLASH.
 
-The right hand behaves as if swinging a sword.
+For swords, sticks, clubs, maces, hatchets, and other swinging one-handed weapons.
 
-Future swords will be rendered separately.
+A separate equipment layer will draw the weapon later.
+This sheet is BODY ONLY.
 
-Leave enough empty space around the hand for future weapons.
+==================================================
+NOT THIS ANIMATION
+==================================================
+
+This is NOT punching.
+
+This is NOT boxing.
+
+This is NOT an unarmed strike.
+
+Do NOT show knuckles leading toward the target.
+
+Do NOT show a jabbing fist.
+
+Do NOT show a straight boxing punch.
+
+If the hand looks like it is hitting with the fist, the output is WRONG.
+
+==================================================
+HAND POSE (CRITICAL)
+==================================================
+
+The weapon hand uses a CLOSED GRIP around an invisible hilt.
+
+Imagine the character is holding a sword handle.
+
+• fingers wrapped around a cylinder
+• thumb on the side of the grip
+• wrist aligned with a blade that extends outward from the hand
+• knuckles face along the blade axis (sideways), NOT toward the enemy
+
+The off hand may balance, guard the chest, or pull back — but must NOT punch.
+
+Leave clear empty space beyond the grip where the blade will be composited later.
+
+==================================================
+ANIMATION
+==================================================
 
 Eight directions.
 
-Exactly 8 frames.
+Exactly 8 frames per direction.
 
-Animation phases:
+Motion type: horizontal / diagonal SLASHING ARC.
 
-anticipation
+Phases across the 8 frames:
 
-wind-up
+1. guard — neutral ready stance, grip at hip or low guard
+2. anticipation — slight lean back, grip hand pulls back
+3. wind-up — elbow rises, grip hand draws back behind shoulder or hip
+4. swing — arm sweeps in a wide ARC across the body
+5. impact — maximum arc extension, torso rotated into the slash
+6. follow-through — arm continues past the target line
+7. recovery — arm returns toward center
+8. settle — return toward idle, feet planted
 
-swing
+The motion must read as a WEAPON SWING, not a punch.
 
-follow-through
+Body rotation and shoulder drive sell the slash.
 
-recovery
+==================================================
+MODULAR LAYER RULE
+==================================================
 
-Return naturally to idle.
+Do NOT draw any weapon, stick, sword, glow, slash trail, or VFX.
 
+Only the base body with correct grip pose and arc motion.
+
+==================================================
+REFERENCE IMAGES
+==================================================
 
 Reference Image 1
 
@@ -50,7 +104,9 @@ This character MUST remain visually identical.
 
 Only animate it.
 
+==================================================
 CHARACTER LOCK
+==================================================
 
 The attached Base Body is the canonical Deathborn player.
 

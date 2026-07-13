@@ -6,9 +6,9 @@ Use the master style specification.
 ATTACK TYPE
 ==================================================
 
-Two-handed weapon SLASH.
+One-handed weapon STAB / THRUST.
 
-For greatswords, battle axes, war hammers, halberds (swing), and other heavy two-handed swings.
+For daggers, short swords (thrust), spears (one hand), rapiers, and jabbing weapons.
 
 A separate equipment layer will draw the weapon later.
 This sheet is BODY ONLY.
@@ -19,32 +19,32 @@ NOT THIS ANIMATION
 
 This is NOT punching.
 
-This is NOT boxing.
+This is NOT a boxing jab.
 
-This is NOT an unarmed strike.
+This is NOT a wide slashing arc.
 
-Do NOT show either fist striking forward alone.
+Do NOT show knuckles driving straight forward like a fist strike.
 
-Do NOT separate the hands into two independent punches.
+Do NOT show a roundhouse or sweeping arm motion.
 
-If the motion looks like double punching, the output is WRONG.
+If the motion looks like a punch, the output is WRONG.
 
 ==================================================
 HAND POSE (CRITICAL)
 ==================================================
 
-BOTH hands share ONE CLOSED GRIP on an invisible weapon haft.
+The weapon hand uses a CLOSED GRIP around an invisible hilt.
 
-Imagine gripping a greatsword or axe handle with both hands close together.
+Imagine thrusting a dagger or short sword with the blade in line with the forearm.
 
-• hands stacked or slightly offset on the same handle line
-• fingers wrapped around the haft
-• wrists aligned with the weapon shaft
-• hands move together as a single unit throughout the swing
+• fingers wrapped around the handle
+• thumb locked on the grip side
+• forearm and invisible blade point in the SAME straight line toward the target
+• elbow drives the thrust, not a flicked fist
 
-The arms, shoulders, and torso power a heavy ARC — not a push or punch.
+The off hand may guard, pull back, or balance — but must NOT punch.
 
-Leave clear empty space beyond the hands where the weapon head/blade will be composited later.
+Leave clear empty space IN FRONT of the grip along the thrust line for the blade layer.
 
 ==================================================
 ANIMATION
@@ -54,34 +54,30 @@ Eight directions.
 
 Exactly 8 frames per direction.
 
-Motion type: heavy two-handed SLASHING ARC.
+Motion type: straight THRUST along the facing direction.
 
 Phases across the 8 frames:
 
-1. guard — wide stance, haft grip held low or at shoulder
-2. anticipation — weight shifts back, grip pulls away from target
-3. wind-up — weapon-side shoulder coils back, grip rises
-4. swing start — hips and shoulders begin rotation into the arc
-5. impact — maximum rotation, arms extended through the slash plane
-6. follow-through — large overshoot, strong body twist
-7. recovery — hands pull back toward center, torso unwinds
+1. guard — compact stance, grip at hip or low chest
+2. chamber — elbow draws back, grip near ribs, blade line aimed at target
+3. lunge start — front foot steps, torso leans in
+4. extension — arm extends fully, grip leads along a straight line
+5. full thrust — maximum reach, body committed forward
+6. hold — brief peak extension (weapon layer will show blade)
+7. retract — elbow bends, grip pulls back toward guard
 8. settle — return toward idle, feet planted
 
-Heavy movement.
+The motion must read as a STAB / THRUST, not a punch or slash.
 
-Strong body rotation.
-
-Large follow-through.
-
-The motion must read as a HEAVY WEAPON SWING, not unarmed striking.
+Minimal sideways arc. Mostly forward linear motion.
 
 ==================================================
 MODULAR LAYER RULE
 ==================================================
 
-Do NOT draw any weapon, axe head, hammer head, glow, slash trail, or VFX.
+Do NOT draw any weapon, blade, glow, thrust trail, or VFX.
 
-Only the base body with correct two-hand grip pose and arc motion.
+Only the base body with correct grip pose and thrust motion.
 
 ==================================================
 REFERENCE IMAGES
