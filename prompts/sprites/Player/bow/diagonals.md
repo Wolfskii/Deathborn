@@ -114,6 +114,8 @@ Four diagonal directions — exactly one row each. No duplicate directions. No m
 
 Sheet layout: 4 rows × 8 columns (row = facing, column = animation frame, left to right).
 
+Output canvas: exactly 1774×887 pixels (width × height). The full image must be exactly this size.
+
 Row order is mandatory — do not reorder, skip, merge, or repeat any row:
 
 Row 1: South-East — diagonal front-right quarter view

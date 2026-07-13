@@ -5,6 +5,10 @@
   "sourceDir": "client/Deathborn.Client/Content/Characters/Swordsman V2/_source",
   "promptDir": "prompts/sprites/Player",
   "cellSizePx": 64,
+  "halfSheetSizePx": {
+    "4x8": { "width": 1774, "height": 887 },
+    "notes": "4×8 half sheets (cardinals/diagonals) use 1774×887 in image-generation prompts. Placeholder script still uses 64px cells until real art is installed."
+  },
   "chromaKey": "#00FF00",
   "halves": ["cardinals", "diagonals"],
   "cardinalsRowOrder": ["South", "East", "North", "West"],
