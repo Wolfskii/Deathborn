@@ -101,6 +101,7 @@ public sealed class DeathbornGame : Game
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         MusicPlayer.ApplySavedSettings();
+        SfxPlayer.Load(Content);
         _screens.Change(Config.DevAutoRestore && SavedLogin.HasRemembered()
             ? new DevReconnectScreen(_screens)
             : new LoginScreen(_screens));

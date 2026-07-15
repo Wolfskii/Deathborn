@@ -50,6 +50,14 @@
 
 #end Audio/Songs/The Light of the Living (Instrumental).mp3
 
+#begin Audio/Sfx/Battle/sword-swing-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Battle/sword-swing-sfx.mp3
+
+#end Audio/Sfx/Battle/sword-swing-sfx.mp3
+
 #begin Icons/ability_sheet.png
 /importer:TextureImporter
 /processor:TextureProcessor

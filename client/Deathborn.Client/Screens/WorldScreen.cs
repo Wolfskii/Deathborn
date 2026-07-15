@@ -1386,6 +1386,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (!local.StartAttack(aimDir)) return false;
+        SfxPlayer.PlaySwordSwing();
         _screens.Net.SendPlayerAction(PlayerActions.MeleeAttack, aimDir.X, aimDir.Y);
         return true;
     }

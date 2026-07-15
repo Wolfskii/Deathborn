@@ -257,8 +257,7 @@ public static class WorldFoliage
     private static (int frameW, int frameH, int frameCount, float fps) FrameSpec(FoliageInstance f) => f.Kind switch
     {
         FoliageKind.Bush => (48, 32, 1, 1f),
-        FoliageKind.Tree when f.Variant == 0 => (64, 96, 1, 1f),
-        FoliageKind.Tree => (96, 96, 1, 1f),
+        FoliageKind.Tree => (32, 48, 1, 1f),
         FoliageKind.Rock => (16, 16, 1, 1f),
         FoliageKind.WaterRock => (32, 32, 1, 1f),
         _ => (16, 16, 1, 1f),
@@ -271,11 +270,12 @@ public static class WorldFoliage
             case FoliageKind.Bush:
                 return new Rectangle((f.Variant % 3) * 48, 0, frameW, frameH);
             case FoliageKind.Tree when f.Variant == 0:
-                // Pine sheet: 4× 64 px variants; col 2 = large green (not 32 px cols 3–5 mash-up).
-                return new Rectangle(2 * 64, 0, frameW, frameH);
+                // Pine sheet (256×96): 32 px cols; col 2 row 0–1 = one green tree (not 64 px col with mask/beehive).
+                return new Rectangle(64, 0, frameW, frameH);
             case FoliageKind.Tree:
-                // Maple: row 1 = mature trees (y 96–191); row 3 = white masks.
-                return new Rectangle((f.Variant % 2) * 96, 96, frameW, frameH);
+                // Maple sheet (288×192): row y=48 holds mature 32 px trees; y≥96 = stumps, y=144 = white masks.
+                var mapleX = (f.AnimPhase & 1) * 64;
+                return new Rectangle(mapleX, 48, frameW, frameH);
             case FoliageKind.Rock:
                 return new Rectangle((f.Variant % 8) * 16, 0, frameW, frameH);
             case FoliageKind.WaterRock:
@@ -373,18 +373,18 @@ public static class WorldFoliage
         switch (f.Kind)
         {
             case FoliageKind.Tree when f.Variant == 0:
-                f.FootInset = 10f;
-                f.CanopyTopInset = 78f;
-                f.CanopyBottomInset = 28f;
-                f.CanopyHalfWidth = 22f;
+                f.FootInset = 6f;
+                f.CanopyTopInset = 42f;
+                f.CanopyBottomInset = 14f;
+                f.CanopyHalfWidth = 12f;
                 f.CollisionRadius = 8f * f.Scale;
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Tree:
-                f.FootInset = 14f;
-                f.CanopyTopInset = 82f;
-                f.CanopyBottomInset = 32f;
-                f.CanopyHalfWidth = 30f;
+                f.FootInset = 8f;
+                f.CanopyTopInset = 44f;
+                f.CanopyBottomInset = 16f;
+                f.CanopyHalfWidth = 14f;
                 f.CollisionRadius = 10f * f.Scale;
                 f.BlocksMovement = true;
                 break;
