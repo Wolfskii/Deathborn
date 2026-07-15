@@ -203,12 +203,13 @@ public sealed class AnimationController
   private void UpdateAttack(float dt)
   {
     var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Attack);
+    var frameLimit = FarmRpgAnimationSpecs.AttackFramesFor(_attackFacing);
     _attackTimer += dt;
     while (_attackTimer >= spec.FrameDuration)
     {
       _attackTimer -= spec.FrameDuration;
       _attackFrame++;
-      if (_attackFrame >= spec.FramesPerDirection)
+      if (_attackFrame >= frameLimit)
       {
         _attackPlaying = false;
         _attackFrame = 0;

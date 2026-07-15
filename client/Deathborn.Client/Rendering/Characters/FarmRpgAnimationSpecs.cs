@@ -33,6 +33,17 @@ internal static class FarmRpgAnimationSpecs
     public static AnimationSpecification Walk => Strip(6, WalkFrameDuration);
     public static AnimationSpecification Run => Strip(8, RunFrameDuration);
     public static AnimationSpecification Attack => Strip(10, AttackFrameDuration);
+
+    /// <summary>
+    /// Up/down sword strips include a second reverse arc from frame 6 onward; horizontal strips read as one swing.
+    /// </summary>
+    public const int AttackFramesVertical = 6;
+    public const int AttackFramesDefault = 10;
+
+    public static int AttackFramesFor(FacingDirection facing) =>
+        facing is FacingDirection.Up or FacingDirection.Down
+            ? AttackFramesVertical
+            : AttackFramesDefault;
     public static AnimationSpecification Hurt => Strip(4, HurtFrameDuration);
     public static AnimationSpecification Death => Strip(4, DeathFrameDuration);
 
