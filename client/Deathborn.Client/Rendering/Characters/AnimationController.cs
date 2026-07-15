@@ -21,6 +21,11 @@ public sealed class AnimationController
   private int _attackFrame;
   private FacingDirection _attackFacing = FacingDirection.Down;
 
+  private bool _castPlaying;
+  private float _castTimer;
+  private int _castFrame;
+  private FacingDirection _castFacing = FacingDirection.Down;
+
   private bool _hurtPlaying;
   private float _hurtTimer;
   private int _hurtFrame;
@@ -39,6 +44,7 @@ public sealed class AnimationController
   }
 
   public bool IsAttackPlaying => _attackPlaying;
+  public bool IsCastPlaying => _castPlaying;
   public bool IsHurtPlaying => _hurtPlaying;
   public bool IsDeathPlaying => _deathPlaying;
   public bool IsDeathComplete => _deathComplete;
@@ -53,7 +59,16 @@ public sealed class AnimationController
     _deathPlaying = true;
     _deathComplete = false;
     _attackPlaying = false;
+    _castPlaying = false;
     _hurtPlaying = false;
+  }
+
+  public void BeginCast(Vector2 facingDir)
+  {
+    _castFacing = ResolveFacing(facingDir);
+    _castFrame = 0;
+    _castTimer = 0;
+    _castPlaying = true;
   }
 
   public void HoldDeathPose(Vector2 facingDir)
@@ -108,9 +123,13 @@ public sealed class AnimationController
 
     if (input.IsCasting)
     {
-      UpdateIdle(dt, input.FacingDir);
+      if (!_castPlaying)
+        BeginCast(input.FacingDir);
+      UpdateCast(dt, input.FacingDir);
       return;
     }
+
+    _castPlaying = false;
 
     if (input.IsMoving)
     {
@@ -140,6 +159,12 @@ public sealed class AnimationController
     {
       var attackSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Attack);
       return new AnimationDrawState(CharacterClip.Attack, attackSpec, _attackFrame, _attackFacing);
+    }
+
+    if (_castPlaying)
+    {
+      var castSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Cast);
+      return new AnimationDrawState(CharacterClip.Cast, castSpec, _castFrame, _castFacing);
     }
 
     var clip = _locomotionClip switch
@@ -197,6 +222,21 @@ public sealed class AnimationController
     {
       _locomotionTimer -= frameDuration;
       _locomotionFrame = (_locomotionFrame + 1) % spec.FramesPerDirection;
+    }
+  }
+
+  private void UpdateCast(float dt, Vector2 faceDir)
+  {
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Cast);
+
+    if (faceDir.LengthSquared() > 0.01f)
+      _castFacing = ResolveFacing(faceDir);
+
+    _castTimer += dt;
+    while (_castTimer >= spec.FrameDuration)
+    {
+      _castTimer -= spec.FrameDuration;
+      _castFrame = (_castFrame + 1) % spec.FramesPerDirection;
     }
   }
 

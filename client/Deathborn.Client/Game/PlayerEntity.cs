@@ -315,10 +315,9 @@ public sealed class PlayerEntity
     {
         if (IsBusy || IsDead) return false;
         _meleeHitThisSwing.Clear();
-        var dir = facing ?? FacingDir;
-        if (dir.LengthSquared() > 0.01f)
-            MoveDir = Vector2.Normalize(dir);
-        _visual.StartAttack(dir);
+        var card = CardinalFacing(facing ?? FacingDir);
+        MoveDir = card;
+        _visual.StartAttack(card);
         return true;
     }
 
@@ -350,9 +349,10 @@ public sealed class PlayerEntity
                     _ => Config.FireballCastLockDuration,
                 });
                 if (facingDir.LengthSquared() > 0.01f)
-                    MoveDir = Vector2.Normalize(facingDir);
+                    MoveDir = CardinalFacing(facingDir);
                 break;
             case PlayerActions.UseBandage:
+                StartAbilityLock(0.55f);
                 StartBandageHoT();
                 break;
             case PlayerActions.ShieldBash:
@@ -368,11 +368,13 @@ public sealed class PlayerEntity
             case PlayerActions.IronSkin:
             case PlayerActions.SecondWind:
                 StartAbilityLock(0.35f);
+                if (facingDir.LengthSquared() > 0.01f)
+                    MoveDir = CardinalFacing(facingDir);
                 break;
             case PlayerActions.HunterMark:
                 StartAbilityLock(0.3f);
                 if (facingDir.LengthSquared() > 0.01f)
-                    MoveDir = Vector2.Normalize(facingDir);
+                    MoveDir = CardinalFacing(facingDir);
                 break;
             case PlayerActions.Interact:
                 // Interaction animations can hook in here when added.
@@ -394,9 +396,9 @@ public sealed class PlayerEntity
     {
         get
         {
-            if (IsLocal && InputDir.LengthSquared() > 0.01f) return InputDir;
-            if (IsLocal && AimDir.LengthSquared() > 0.01f) return AimDir;
-            if (MoveDir.LengthSquared() > 0.01f) return MoveDir;
+            if (IsLocal && InputDir.LengthSquared() > 0.01f) return CardinalFacing(InputDir);
+            if (IsLocal && AimDir.LengthSquared() > 0.01f) return CardinalFacing(AimDir);
+            if (MoveDir.LengthSquared() > 0.01f) return CardinalFacing(MoveDir);
             return new Vector2(0, 1);
         }
     }

@@ -13,6 +13,7 @@ internal static class FarmRpgAnimationSpecs
     public const float WalkFrameDuration = 0.12f;
     public const float RunFrameDuration = 0.09f;
     public const float AttackFrameDuration = 0.075f;
+    public const float CastFrameDuration = 0.11f;
     public const float HurtFrameDuration = 0.09f;
     public const float DeathFrameDuration = 0.14f;
 
@@ -20,7 +21,8 @@ internal static class FarmRpgAnimationSpecs
 
     public static AnimationSpecification For(CharacterClip clip) => clip switch
     {
-        CharacterClip.Idle or CharacterClip.Cast => Idle,
+        CharacterClip.Idle => Idle,
+        CharacterClip.Cast => Cast,
         CharacterClip.Walk => Walk,
         CharacterClip.Run or CharacterClip.Roll => Run,
         CharacterClip.Attack => Attack,
@@ -33,6 +35,7 @@ internal static class FarmRpgAnimationSpecs
     public static AnimationSpecification Walk => Strip(6, WalkFrameDuration);
     public static AnimationSpecification Run => Strip(8, RunFrameDuration);
     public static AnimationSpecification Attack => Strip(10, AttackFrameDuration);
+    public static AnimationSpecification Cast => Strip(6, CastFrameDuration);
 
     /// <summary>
     /// Up/down sword strips include a second reverse arc from frame 6 onward; horizontal strips read as one swing.

@@ -1412,7 +1412,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return PlayerEntity.CardinalFacing(_moveDir);
 
         if (local.AimDir.LengthSquared() > 0.01f)
-            return local.AimDir;
+            return PlayerEntity.CardinalFacing(local.AimDir);
 
         return new Vector2(0, 1);
     }
@@ -1429,7 +1429,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (toMouse.LengthSquared() <= 4f)
             return;
 
-        local.AimDir = Vector2.Normalize(toMouse);
+        local.AimDir = PlayerEntity.CardinalFacing(toMouse);
     }
 
     private static bool IsMouseInViewport(Point p) =>
@@ -1545,6 +1545,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (local.IsBandaging) return false;
 
         _screens.Net.SendAbilityUse("bandage");
+        local.StartAbilityLock(0.55f);
         local.StartBandageHoT();
         _status = "Bandage applied — healing over time.";
         return true;

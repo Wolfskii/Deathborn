@@ -25,6 +25,10 @@
       "frames": 10,
       "folder": "8. SwordAttack"
     },
+    "cast": {
+      "frames": 6,
+      "folder": "23. Mage"
+    },
     "hurt": {
       "frames": 4,
       "folder": "10. Damage"
@@ -47,6 +51,7 @@
       "Characters/FarmRpg/layers/skin-1/walk.png",
       "Characters/FarmRpg/layers/skin-1/run.png",
       "Characters/FarmRpg/layers/skin-1/attack.png",
+      "Characters/FarmRpg/layers/skin-1/cast.png",
       "Characters/FarmRpg/layers/skin-1/hurt.png",
       "Characters/FarmRpg/layers/skin-1/death.png"
     ],
@@ -55,6 +60,7 @@
       "Characters/FarmRpg/layers/skin-2/walk.png",
       "Characters/FarmRpg/layers/skin-2/run.png",
       "Characters/FarmRpg/layers/skin-2/attack.png",
+      "Characters/FarmRpg/layers/skin-2/cast.png",
       "Characters/FarmRpg/layers/skin-2/hurt.png",
       "Characters/FarmRpg/layers/skin-2/death.png"
     ],
@@ -63,6 +69,7 @@
       "Characters/FarmRpg/layers/skin-3/walk.png",
       "Characters/FarmRpg/layers/skin-3/run.png",
       "Characters/FarmRpg/layers/skin-3/attack.png",
+      "Characters/FarmRpg/layers/skin-3/cast.png",
       "Characters/FarmRpg/layers/skin-3/hurt.png",
       "Characters/FarmRpg/layers/skin-3/death.png"
     ],
@@ -71,6 +78,7 @@
       "Characters/FarmRpg/layers/skin-4/walk.png",
       "Characters/FarmRpg/layers/skin-4/run.png",
       "Characters/FarmRpg/layers/skin-4/attack.png",
+      "Characters/FarmRpg/layers/skin-4/cast.png",
       "Characters/FarmRpg/layers/skin-4/hurt.png",
       "Characters/FarmRpg/layers/skin-4/death.png"
     ],
@@ -79,6 +87,7 @@
       "Characters/FarmRpg/layers/eyes-male-brown/walk.png",
       "Characters/FarmRpg/layers/eyes-male-brown/run.png",
       "Characters/FarmRpg/layers/eyes-male-brown/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/cast.png",
       "Characters/FarmRpg/layers/eyes-male-brown/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-brown/death.png"
     ],
@@ -87,6 +96,7 @@
       "Characters/FarmRpg/layers/eyes-male-blue/walk.png",
       "Characters/FarmRpg/layers/eyes-male-blue/run.png",
       "Characters/FarmRpg/layers/eyes-male-blue/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/cast.png",
       "Characters/FarmRpg/layers/eyes-male-blue/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-blue/death.png"
     ],
@@ -95,6 +105,7 @@
       "Characters/FarmRpg/layers/eyes-male-green/walk.png",
       "Characters/FarmRpg/layers/eyes-male-green/run.png",
       "Characters/FarmRpg/layers/eyes-male-green/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-green/cast.png",
       "Characters/FarmRpg/layers/eyes-male-green/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-green/death.png"
     ],
@@ -103,6 +114,7 @@
       "Characters/FarmRpg/layers/eyes-male-black/walk.png",
       "Characters/FarmRpg/layers/eyes-male-black/run.png",
       "Characters/FarmRpg/layers/eyes-male-black/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-black/cast.png",
       "Characters/FarmRpg/layers/eyes-male-black/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-black/death.png"
     ],
@@ -111,6 +123,7 @@
       "Characters/FarmRpg/layers/hair-josh-brown/walk.png",
       "Characters/FarmRpg/layers/hair-josh-brown/run.png",
       "Characters/FarmRpg/layers/hair-josh-brown/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/cast.png",
       "Characters/FarmRpg/layers/hair-josh-brown/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-brown/death.png"
     ],
@@ -119,6 +132,7 @@
       "Characters/FarmRpg/layers/hair-josh-black/walk.png",
       "Characters/FarmRpg/layers/hair-josh-black/run.png",
       "Characters/FarmRpg/layers/hair-josh-black/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-black/cast.png",
       "Characters/FarmRpg/layers/hair-josh-black/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-black/death.png"
     ],
@@ -127,6 +141,7 @@
       "Characters/FarmRpg/layers/hair-josh-blonde/walk.png",
       "Characters/FarmRpg/layers/hair-josh-blonde/run.png",
       "Characters/FarmRpg/layers/hair-josh-blonde/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/cast.png",
       "Characters/FarmRpg/layers/hair-josh-blonde/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-blonde/death.png"
     ],
@@ -135,6 +150,7 @@
       "Characters/FarmRpg/layers/hair-josh-ginger/walk.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/run.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/cast.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/death.png"
     ],
@@ -143,6 +159,7 @@
       "Characters/FarmRpg/layers/outfit-farm-blue/walk.png",
       "Characters/FarmRpg/layers/outfit-farm-blue/run.png",
       "Characters/FarmRpg/layers/outfit-farm-blue/attack.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/cast.png",
       "Characters/FarmRpg/layers/outfit-farm-blue/hurt.png",
       "Characters/FarmRpg/layers/outfit-farm-blue/death.png"
     ],
@@ -151,6 +168,7 @@
       "Characters/FarmRpg/layers/outfit-farm-green/walk.png",
       "Characters/FarmRpg/layers/outfit-farm-green/run.png",
       "Characters/FarmRpg/layers/outfit-farm-green/attack.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/cast.png",
       "Characters/FarmRpg/layers/outfit-farm-green/hurt.png",
       "Characters/FarmRpg/layers/outfit-farm-green/death.png"
     ],
@@ -159,11 +177,18 @@
       "Characters/FarmRpg/layers/outfit-farm-red/walk.png",
       "Characters/FarmRpg/layers/outfit-farm-red/run.png",
       "Characters/FarmRpg/layers/outfit-farm-red/attack.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/cast.png",
       "Characters/FarmRpg/layers/outfit-farm-red/hurt.png",
       "Characters/FarmRpg/layers/outfit-farm-red/death.png"
     ],
     "weapon-sword": [
       "Characters/FarmRpg/layers/weapon-sword/attack.png"
+    ],
+    "weapon-staff": [
+      "Characters/FarmRpg/layers/weapon-staff/cast.png"
+    ],
+    "fx-cast": [
+      "Characters/FarmRpg/layers/fx-cast/cast.png"
     ]
   }
 }

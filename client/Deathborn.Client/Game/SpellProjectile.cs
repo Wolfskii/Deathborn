@@ -40,6 +40,7 @@ public sealed class SpellProjectile : IWorldEffect
     {
         var def = definition ?? ProjectileDefinitions.Fireball;
         var dir = direction.LengthSquared() > 0.01f ? Vector2.Normalize(direction) : new Vector2(0, 1);
+        dir = SnapDirectionCardinal(dir);
         return new SpellProjectile
         {
             Definition = def,
@@ -132,6 +133,7 @@ public sealed class SpellProjectile : IWorldEffect
 
         if (WorldFoliage.BlocksCircle(Position, Definition.Radius))
         {
+            Position -= Direction * (Definition.Radius * 0.5f + 2f);
             StartBurst();
             return;
         }
@@ -190,6 +192,9 @@ public sealed class SpellProjectile : IWorldEffect
 
     private void DrawFire(SpriteBatch sb, Vector2 screenPos, float zoom)
     {
+        if (ProjectileSprites.HasMagicSheet && DrawMagicSprite(sb, screenPos, zoom, ProjectileStyle.Fire))
+            return;
+
         if (Phase == SpellProjectilePhase.Flying)
         {
             var pulse = 1f + MathF.Sin(_flyAnim) * 0.12f;
@@ -231,6 +236,9 @@ public sealed class SpellProjectile : IWorldEffect
 
     private void DrawIce(SpriteBatch sb, Vector2 screenPos, float zoom)
     {
+        if (ProjectileSprites.HasMagicSheet && DrawMagicSprite(sb, screenPos, zoom, ProjectileStyle.Ice))
+            return;
+
         if (Phase == SpellProjectilePhase.Flying)
         {
             var spin = _flyAnim * 1.4f;
@@ -274,5 +282,45 @@ public sealed class SpellProjectile : IWorldEffect
         for (var i = 0; i < 6; i++)
             DrawPrimitives.DrawLine(sb, points[i], points[(i + 1) % 6], color, MathF.Max(1.5f, size * 0.12f));
         DrawPrimitives.FillCircle(sb, center, size * 0.22f, color);
+    }
+
+    private bool DrawMagicSprite(SpriteBatch sb, Vector2 screenPos, float zoom, ProjectileStyle style)
+    {
+        var tex = ProjectileSprites.MagicSheet;
+        if (tex == null || Phase != SpellProjectilePhase.Flying)
+            return false;
+
+        if (!ProjectileSprites.TryGetMagicFlyFrame(style, (int)_flyAnim, out var flySrc))
+            return false;
+
+        var angle = CardinalProjectileAngle(Direction);
+        var size = MathF.Max(14f, Definition.Radius * 2f * zoom);
+        var origin = new Vector2(flySrc.Width * 0.5f, flySrc.Height * 0.5f);
+        sb.Draw(
+            tex,
+            screenPos,
+            flySrc,
+            ProjectileSprites.TintForStyle(style),
+            angle,
+            origin,
+            size / flySrc.Width,
+            SpriteEffects.None,
+            0f);
+        return true;
+    }
+
+    /// <summary>4-way angles only — matches cardinal aim and sprite strips.</summary>
+    private static float CardinalProjectileAngle(Vector2 dir)
+    {
+        if (MathF.Abs(dir.X) >= MathF.Abs(dir.Y))
+            return dir.X >= 0 ? 0f : MathF.PI;
+        return dir.Y >= 0 ? MathF.PI * 0.5f : -MathF.PI * 0.5f;
+    }
+
+    private static Vector2 SnapDirectionCardinal(Vector2 dir)
+    {
+        if (MathF.Abs(dir.X) >= MathF.Abs(dir.Y))
+            return dir.X >= 0 ? Vector2.UnitX : -Vector2.UnitX;
+        return dir.Y >= 0 ? Vector2.UnitY : -Vector2.UnitY;
     }
 }

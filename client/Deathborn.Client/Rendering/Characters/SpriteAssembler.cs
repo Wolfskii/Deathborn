@@ -21,6 +21,12 @@ public sealed class SpriteAssembler
         TryAddEquipment(appearance.HairStyleId, clip);
         TryAddEquipment(equipment.WeaponId, clip);
 
+        if (clip == CharacterClip.Cast)
+        {
+            TryAddFarmTexture("weapon-staff", clip, CharacterLayerId.Weapon);
+            TryAddFarmTexture("fx-cast", clip, CharacterLayerId.SpellEffect);
+        }
+
         return _buffer.AsSpan(0, _layerCount);
     }
 

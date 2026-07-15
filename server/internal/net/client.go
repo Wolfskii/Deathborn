@@ -327,6 +327,7 @@ func (c *Client) readPump(database *db.DB) {
 				continue
 			}
 			dirX, dirY := normalizeDir(d.DirX, d.DirY)
+			dirX, dirY = cardinalDir(dirX, dirY)
 			c.hub.Broadcast(BuildPlayerAction(c.characterID, d.Action, dirX, dirY, d.TargetID))
 
 		case "cast_fireball":

@@ -51,6 +51,7 @@ public sealed class CharacterVisual
     var draw = _controller.GetDrawState();
     if (draw.Clip == CharacterClip.Hurt && !_controller.IsHurtPlaying) return;
     if (draw.Clip == CharacterClip.Attack && !_controller.IsAttackPlaying) return;
+    if (draw.Clip == CharacterClip.Cast && !_controller.IsCastPlaying) return;
     if (draw.Clip == CharacterClip.Death && !_controller.IsDead) return;
 
     var layers = _assembler.Assemble(_appearance, _equipment, draw.Clip);
@@ -63,6 +64,7 @@ public sealed class CharacterVisual
     var draw = _controller.GetDrawState();
     if (draw.Clip == CharacterClip.Hurt && !_controller.IsHurtPlaying) return;
     if (draw.Clip == CharacterClip.Attack && !_controller.IsAttackPlaying) return;
+    if (draw.Clip == CharacterClip.Cast && !_controller.IsCastPlaying) return;
 
     var layers = _assembler.Assemble(_appearance, _equipment, draw.Clip);
     CharacterRenderer.DrawOutline(sb, screenPos, outline, scale, thickness,

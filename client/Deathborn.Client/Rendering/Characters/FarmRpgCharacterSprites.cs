@@ -53,7 +53,8 @@ public static class FarmRpgCharacterSprites
 
     private static string ClipFileName(CharacterClip clip) => clip switch
     {
-        CharacterClip.Idle or CharacterClip.Cast => "idle",
+        CharacterClip.Idle => "idle",
+        CharacterClip.Cast => "cast",
         CharacterClip.Walk => "walk",
         CharacterClip.Run or CharacterClip.Roll => "run",
         CharacterClip.Attack => "attack",

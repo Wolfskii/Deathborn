@@ -2676,3 +2676,255 @@
 
 #end Tiles/FarmRpg/water_fill.png
 
+#begin Characters/FarmRpg/layers/eyes-male-black/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-black/cast.png
+
+#end Characters/FarmRpg/layers/eyes-male-black/cast.png
+
+#begin Characters/FarmRpg/layers/eyes-male-blue/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-blue/cast.png
+
+#end Characters/FarmRpg/layers/eyes-male-blue/cast.png
+
+#begin Characters/FarmRpg/layers/eyes-male-brown/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-brown/cast.png
+
+#end Characters/FarmRpg/layers/eyes-male-brown/cast.png
+
+#begin Characters/FarmRpg/layers/eyes-male-green/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-green/cast.png
+
+#end Characters/FarmRpg/layers/eyes-male-green/cast.png
+
+#begin Characters/FarmRpg/layers/fx-cast/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/fx-cast/cast.png
+
+#end Characters/FarmRpg/layers/fx-cast/cast.png
+
+#begin Characters/FarmRpg/layers/hair-josh-black/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-black/cast.png
+
+#end Characters/FarmRpg/layers/hair-josh-black/cast.png
+
+#begin Characters/FarmRpg/layers/hair-josh-blonde/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-blonde/cast.png
+
+#end Characters/FarmRpg/layers/hair-josh-blonde/cast.png
+
+#begin Characters/FarmRpg/layers/hair-josh-brown/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-brown/cast.png
+
+#end Characters/FarmRpg/layers/hair-josh-brown/cast.png
+
+#begin Characters/FarmRpg/layers/hair-josh-ginger/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-ginger/cast.png
+
+#end Characters/FarmRpg/layers/hair-josh-ginger/cast.png
+
+#begin Characters/FarmRpg/layers/outfit-farm-blue/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/outfit-farm-blue/cast.png
+
+#end Characters/FarmRpg/layers/outfit-farm-blue/cast.png
+
+#begin Characters/FarmRpg/layers/outfit-farm-green/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/outfit-farm-green/cast.png
+
+#end Characters/FarmRpg/layers/outfit-farm-green/cast.png
+
+#begin Characters/FarmRpg/layers/outfit-farm-red/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/outfit-farm-red/cast.png
+
+#end Characters/FarmRpg/layers/outfit-farm-red/cast.png
+
+#begin Characters/FarmRpg/layers/skin-1/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-1/cast.png
+
+#end Characters/FarmRpg/layers/skin-1/cast.png
+
+#begin Characters/FarmRpg/layers/skin-2/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-2/cast.png
+
+#end Characters/FarmRpg/layers/skin-2/cast.png
+
+#begin Characters/FarmRpg/layers/skin-3/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-3/cast.png
+
+#end Characters/FarmRpg/layers/skin-3/cast.png
+
+#begin Characters/FarmRpg/layers/skin-4/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-4/cast.png
+
+#end Characters/FarmRpg/layers/skin-4/cast.png
+
+#begin Characters/FarmRpg/layers/weapon-staff/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/weapon-staff/cast.png
+
+#end Characters/FarmRpg/layers/weapon-staff/cast.png
+
+#begin Characters/FarmRpg/Effects/magic.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Effects/magic.png
+
+#end Characters/FarmRpg/Effects/magic.png
+

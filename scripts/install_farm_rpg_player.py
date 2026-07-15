@@ -21,6 +21,7 @@ CLIP_FOLDERS: dict[str, str] = {
     "walk": "2. Walk",
     "run": "3. Run",
     "attack": "8. SwordAttack",
+    "cast": "23. Mage",
     "hurt": "10. Damage",
     "death": "11. Death",
 }
@@ -43,7 +44,12 @@ LAYERS: dict[str, dict[str, str]] = {
     "outfit-farm-green": {"tpl": "Clothers/Farm/Green.png"},
     "outfit-farm-red": {"tpl": "Clothers/Farm/Red.png"},
     "weapon-sword": {"tpl": "Weapons/Sword/1.png", "clips": ["attack"]},
+    "weapon-staff": {"tpl": "Healer Staff.png", "clips": ["cast"]},
+    "fx-cast": {"tpl": "Fx.png", "clips": ["cast"]},
 }
+
+MAGIC_FX_SRC = PACK.parent / "Others/Arrow/Magic.png"
+MAGIC_FX_DEST = OUT / "Effects/magic.png"
 
 MGCB_BLOCK = """#begin {mgcb_path}
 /importer:TextureImporter
@@ -96,6 +102,7 @@ def write_manifest(installed: dict[str, list[str]]) -> None:
             "walk": {"frames": 6, "folder": "2. Walk"},
             "run": {"frames": 8, "folder": "3. Run"},
             "attack": {"frames": 10, "folder": "8. SwordAttack"},
+            "cast": {"frames": 6, "folder": "23. Mage"},
             "hurt": {"frames": 4, "folder": "10. Damage"},
             "death": {"frames": 4, "folder": "11. Death"},
         },
@@ -125,6 +132,14 @@ def patch_mgcb(rel_paths: list[str]) -> None:
     MGCB.write_text(text.rstrip() + "\n\n" + "\n".join(new_blocks) + "\n", encoding="utf-8")
 
 
+def copy_magic_fx() -> str | None:
+    if not MAGIC_FX_SRC.is_file():
+        return None
+    MAGIC_FX_DEST.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(MAGIC_FX_SRC, MAGIC_FX_DEST)
+    return "Characters/FarmRpg/Effects/magic.png"
+
+
 def main() -> None:
     if not PACK.is_dir():
         raise SystemExit(f"Farm RPG pack not found: {PACK}")
@@ -135,6 +150,10 @@ def main() -> None:
         paths = copy_layer(layer_id, spec)
         installed[layer_id] = paths
         all_paths.extend(paths)
+
+    magic_path = copy_magic_fx()
+    if magic_path:
+        all_paths.append(magic_path)
 
     write_manifest(installed)
     patch_mgcb(all_paths)
