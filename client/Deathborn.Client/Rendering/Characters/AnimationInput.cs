@@ -11,6 +11,8 @@ public readonly struct AnimationInput
     public bool IsCasting { get; init; }
     public bool IsMoving { get; init; }
     public bool IsRunning { get; init; }
+    /// <summary>Cardinal movement direction for walk/run — never mouse aim.</summary>
+    public Vector2 LocomotionDir { get; init; }
     public Vector2 FacingDir { get; init; }
     public float AnimSpeed { get; init; }
 }

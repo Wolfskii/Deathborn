@@ -98,15 +98,18 @@ public sealed class TextField
         DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 36, 30) : new Color(22, 20, 16));
         DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2), Focused ? new Color(210, 170, 80) : new Color(90, 75, 50));
 
+        var showPlaceholder = Text.Length == 0 && !Focused && Placeholder.Length > 0;
         var display = Text.Length > 0
             ? (IsPassword ? new string('*', Text.Length) : SpriteFontSafe.Filter(Text))
-            : SpriteFontSafe.Filter(Placeholder);
+            : showPlaceholder ? SpriteFontSafe.Filter(Placeholder) : "";
         var col = Text.Length > 0 ? Color.White : PlaceholderColor;
-        sb.DrawString(font, display, new Vector2(Bounds.X + 8, Bounds.Y + 8), col);
+        if (display.Length > 0)
+            sb.DrawString(font, display, new Vector2(Bounds.X + 8, Bounds.Y + 8), col);
 
         if (Focused && ((int)(_cursorBlink * 2) % 2 == 0))
         {
-            var cursorX = Bounds.X + 8 + font.MeasureString(display).X + 2;
+            var textWidth = display.Length > 0 ? font.MeasureString(display).X : 0f;
+            var cursorX = Bounds.X + 8 + textWidth + 2;
             DrawPrimitives.FillRect(sb, new Rectangle((int)cursorX, Bounds.Y + 6, 2, Bounds.Height - 12), Color.White);
         }
     }

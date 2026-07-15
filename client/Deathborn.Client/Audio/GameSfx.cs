@@ -4,4 +4,13 @@ namespace Deathborn.Client.Audio;
 public static class GameSfx
 {
     public const string SwordSwing = "Audio/Sfx/Battle/sword-swing-sfx";
+    public const string Fireball = "Audio/Sfx/Battle/fireball-sfx";
+    public const string FireballImpact = "Audio/Sfx/Battle/fireball-impact-sfx";
+    public const string IceShard = "Audio/Sfx/Battle/ice-shard-sfx";
+    public const string Heal = "Audio/Sfx/Heal/heal-sfx";
+    public const string HolySpell = "Audio/Sfx/Heal/holy-spell-sfx";
+
+    /// <summary>Source files have long silent tails — stop playback early.</summary>
+    public const float HealMaxDuration = 2f;
+    public const float IceShardMaxDuration = 3f;
 }

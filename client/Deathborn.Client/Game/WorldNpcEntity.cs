@@ -24,7 +24,9 @@ public sealed class WorldNpcEntity
     public float AbilityFlash;
     public bool IsBoss;
 
-    public float SortY => Position.Y;
+    public float SortY => UsesSprite
+        ? TinyRpgCharacterSprites.GetFootSortY(SpriteId, Position, DisplayScale)
+        : Position.Y + Radius;
     public float Radius => NpcCatalog.Get(DefId).Radius;
     public float DisplayScale => NpcCatalog.Get(DefId).DisplayScale;
     public bool IsAttackable => NpcCategoryRules.IsAttackable(Disposition);
@@ -47,7 +49,10 @@ public sealed class WorldNpcEntity
         Target = new Vector2((float)s.X, (float)s.Y);
         Hp = (float)s.Hp;
         HpMax = (float)s.HpMax;
+        var prevAction = Action;
         Action = s.Action ?? "";
+        if (Action == "melee" && prevAction != "melee")
+            _anim?.BeginMeleeAttack();
         if (MathF.Abs((float)s.DirX) > 0.01f || MathF.Abs((float)s.DirY) > 0.01f)
             Facing = Vector2.Normalize(new Vector2((float)s.DirX, (float)s.DirY));
         if (!string.Equals(_animSpriteId, SpriteId, StringComparison.OrdinalIgnoreCase))
@@ -63,10 +68,23 @@ public sealed class WorldNpcEntity
         var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0f, 1f));
         Position = WorldMap.Realik.ResolveMove(lerped, Vector2.Zero, Radius);
         _moving = Vector2.DistanceSquared(before, Position) > 0.05f;
-        _anim?.Update(dt, Facing, _moving, Config.WalkAnimSpeed);
+        var drawFacing = GetDrawFacing();
+        _anim?.Update(dt, drawFacing, _moving, Config.WalkAnimSpeed);
         if (AbilityFlash > 0) AbilityFlash -= dt;
         if (!string.IsNullOrEmpty(Action))
             AbilityFlash = MathF.Max(AbilityFlash, 0.35f);
+    }
+
+    private Vector2 GetDrawFacing()
+    {
+        if (_moving)
+        {
+            var delta = Target - Position;
+            if (delta.LengthSquared() > 0.25f)
+                return Vector2.Normalize(delta);
+        }
+
+        return Facing.LengthSquared() > 0.01f ? Facing : new Vector2(0, 1);
     }
 
     public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
@@ -74,14 +92,78 @@ public sealed class WorldNpcEntity
         if (UsesSprite && _anim != null)
         {
             var scale = DisplayScale * zoom;
-            _anim.Draw(sb, screenPos, Color.White, scale, Facing);
+            _anim.Draw(sb, screenPos, Color.White, scale, GetDrawFacing());
         }
         else
         {
             DrawBossProcedural(sb, screenPos, zoom);
         }
 
-        DrawNameplate(sb, font, screenPos, zoom);
+        DrawOverheadUi(sb, font, screenPos, zoom);
+    }
+
+    private float GetHeadTopScreenY(Vector2 screenPos, float zoom)
+    {
+        if (UsesSprite)
+        {
+            var scale = DisplayScale * zoom;
+            return screenPos.Y + TinyRpgCharacterSprites.GetHeadTopOffsetFromAnchor(SpriteId) * scale;
+        }
+
+        var r = Radius * zoom;
+        return screenPos.Y - r * 1.15f;
+    }
+
+    private bool ShouldShowOverheadHp() => IsAttackable && !IsBoss && HpMax > 0 && Hp > 0;
+
+    private void DrawOverheadUi(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
+    {
+        var label = SpriteFontSafe.Filter(Name);
+        const float labelScale = 0.85f;
+        var hasName = !string.IsNullOrWhiteSpace(label);
+        var size = hasName ? SpriteFontSafe.MeasureString(font, label) * labelScale : Vector2.Zero;
+        if (!hasName && !ShouldShowOverheadHp()) return;
+
+        var headTopY = GetHeadTopScreenY(screenPos, zoom);
+        var gap = 4f * zoom;
+        var stackY = headTopY - gap;
+
+        if (ShouldShowOverheadHp())
+        {
+            var barH = Math.Max(4f, 5f * zoom);
+            var barW = Math.Max(size.X + 10f * zoom, 38f * zoom);
+            stackY -= barH;
+            var barRect = new Rectangle(
+                (int)(screenPos.X - barW * 0.5f),
+                (int)stackY,
+                (int)barW,
+                (int)barH);
+            DrawOverheadHealthBar(sb, barRect);
+            stackY -= gap;
+        }
+
+        if (!hasName) return;
+
+        var nameY = stackY - size.Y;
+        var namePos = new Vector2(screenPos.X - size.X * 0.5f, nameY);
+        SpriteFontSafe.DrawOutlined(sb, font, label, namePos, Color.White, Color.Black, labelScale, 1f);
+    }
+
+    private void DrawOverheadHealthBar(SpriteBatch sb, Rectangle bar)
+    {
+        var pct = Math.Clamp(Hp / HpMax, 0f, 1f);
+        var fill = new Color(235, 48, 48);
+
+        if (TinySwordsUi.IsLoaded)
+        {
+            TinySwordsUi.DrawBar(sb, bar, pct, big: false, fill);
+            return;
+        }
+
+        DrawPrimitives.FillRect(sb, bar, new Color(18, 14, 12, 210));
+        var fillW = Math.Max(0, (int)((bar.Width - 2) * pct));
+        if (fillW > 0)
+            DrawPrimitives.FillRect(sb, new Rectangle(bar.X + 1, bar.Y + 1, fillW, bar.Height - 2), fill);
     }
 
     private void DrawBossProcedural(SpriteBatch sb, Vector2 screenPos, float zoom)
@@ -114,28 +196,11 @@ public sealed class WorldNpcEntity
         }
 
         if (IsBoss)
-            DrawBossIcon(sb, new Vector2(screenPos.X, screenPos.Y - r - 18f * zoom), zoom * 0.9f);
+            DrawBossIcon(sb, new Vector2(screenPos.X, GetHeadTopScreenY(screenPos, zoom) - 14f * zoom), zoom * 0.9f);
     }
 
-    private void DrawNameplate(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
-    {
-        var r = Radius * zoom;
-        var label = SpriteFontSafe.Filter(Name);
-        const float labelScale = 0.95f;
-        var size = SpriteFontSafe.MeasureString(font, label) * labelScale;
-        var nameY = screenPos.Y - r - (UsesSprite ? 52f * zoom : 18f * zoom);
-        var namePos = new Vector2(screenPos.X - size.X / 2f, nameY);
-        SpriteFontSafe.DrawOutlined(sb, font, label, namePos, Color.White, Color.Black, outlinePx: 1f);
-    }
-
-    public static void DrawBossIcon(SpriteBatch sb, Vector2 center, float scale)
-    {
-        var s = 8f * scale;
-        DrawPrimitives.FillCircle(sb, center, s * 0.55f, new Color(180, 40, 40));
-        DrawPrimitives.FillRect(sb, new Rectangle((int)(center.X - s * 0.15f), (int)(center.Y - s * 0.55f), (int)(s * 0.3f), (int)(s * 0.35f)), new Color(230, 220, 210));
-        DrawPrimitives.FillRect(sb, new Rectangle((int)(center.X - s * 0.55f), (int)(center.Y + s * 0.05f), (int)(s * 0.35f), (int)(s * 0.12f)), new Color(230, 220, 210));
-        DrawPrimitives.FillRect(sb, new Rectangle((int)(center.X + s * 0.2f), (int)(center.Y + s * 0.05f), (int)(s * 0.35f), (int)(s * 0.12f)), new Color(230, 220, 210));
-    }
+    public static void DrawBossIcon(SpriteBatch sb, Vector2 center, float scale) =>
+        MonsterMapIcon.Draw(sb, center, scale);
 
     private void DrawColossus(SpriteBatch sb, Vector2 c, float r, Color body, Color core)
     {

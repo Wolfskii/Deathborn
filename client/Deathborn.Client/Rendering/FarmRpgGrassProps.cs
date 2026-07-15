@@ -6,14 +6,19 @@ using Microsoft.Xna.Framework.Graphics;
 namespace Deathborn.Client.Rendering;
 
 /// <summary>
-/// Occasional 16×16 grass/flower props from ALL props seasons.png on flat land tiles.
+/// Occasional 16×16 grass tuft overlays from ALL props seasons.png on flat land tiles.
+/// Bright grass props match spring/summer ground (elev 0–2). Dark/teal props are reserved for deep forest later.
 /// </summary>
 public static class FarmRpgGrassProps
 {
     private const uint Seed = 0x06A5500;
     private const int CellSize = 16;
     private const int SpawnRollMax = 1000;
-    private const int SpawnChance = 130;
+    private const int SoloSpawnChance = 55;
+    private const int PatchSpawnChanceMin = 340;
+    private const int PatchSpawnChanceMax = 820;
+    private const int PatchMacroSize = 8;
+    private const int PatchMacroChance = 300;
 
     private static Texture2D? _sheet;
     private static Point[][] _catalogByElev = [];
@@ -25,13 +30,22 @@ public static class FarmRpgGrassProps
         _sheet = content.Load<Texture2D>("Tiles/FarmRpg/props_seasons");
         _catalogByElev =
         [
-            BuildRange(0, 1, 0, 14),
-            BuildRange(0, 1, 0, 14),
-            BuildRange(6, 7, 0, 11),
-            BuildRange(2, 3, 0, 12),
-            BuildRange(4, 5, 0, 11),
+            BrightGrassProps,
+            BrightGrassProps,
+            BrightGrassProps,
+            [],
+            DarkGrassProps,
         ];
     }
+
+    // Bright spring/summer rows only — no teal tufts (row 0 cols 5–7) or sunflower tiles (row 1 col 6).
+    private static readonly Point[] BrightGrassProps =
+    [
+        new(1, 0), new(1, 1), new(5, 1),
+    ];
+
+    // Reserved for deep-forest / dark grass terrain (teal rows) — wired up later.
+    private static readonly Point[] DarkGrassProps = [];
 
     public static void Draw(SpriteBatch sb, WorldMap map, VisibleTileRegion region)
     {
@@ -40,7 +54,7 @@ public static class FarmRpgGrassProps
         region.ForEachTile((tx, ty) =>
         {
             if (!ShouldPlace(map, tx, ty, out var elev)) return;
-            if (Hash(tx, ty, 1) % SpawnRollMax >= SpawnChance) return;
+            if (!ShouldSpawn(tx, ty)) return;
 
             var catalog = _catalogByElev[Math.Clamp(elev, 0, _catalogByElev.Length - 1)];
             if (catalog.Length == 0) return;
@@ -49,6 +63,51 @@ public static class FarmRpgGrassProps
             var src = new Rectangle(pick.X * CellSize, pick.Y * CellSize, CellSize, CellSize);
             sb.Draw(_sheet, ScaleDest(region.Rect(tx, ty)), src, Color.White);
         });
+    }
+
+    private static bool ShouldSpawn(int tx, int ty)
+    {
+        var patch = PatchInfluence(tx, ty);
+        var threshold = patch <= 0f
+            ? SoloSpawnChance
+            : (int)(PatchSpawnChanceMin + patch * (PatchSpawnChanceMax - PatchSpawnChanceMin));
+        return Hash(tx, ty, 1) % SpawnRollMax < (uint)threshold;
+    }
+
+    /// <summary>
+    /// 0 outside patches; approaches 1 near patch centers for clustered grass tufts.
+    /// </summary>
+    private static float PatchInfluence(int tx, int ty)
+    {
+        var mx = FloorDiv(tx, PatchMacroSize);
+        var my = FloorDiv(ty, PatchMacroSize);
+        if (Hash(mx, my, 60) % SpawnRollMax >= PatchMacroChance)
+            return 0f;
+
+        var patchCount = 1 + (int)(Hash(mx, my, 61) % 2);
+        var best = 0f;
+        for (var i = 0; i < patchCount; i++)
+        {
+            var cx = mx * PatchMacroSize + (int)(Hash(mx, my, 62 + i * 4) % (uint)PatchMacroSize);
+            var cy = my * PatchMacroSize + (int)(Hash(mx, my, 63 + i * 4) % (uint)PatchMacroSize);
+            var radius = 2.2f + (Hash(mx, my, 64 + i * 4) % 1000) / 1000f * 2.8f;
+
+            var dx = tx + 0.5f - cx;
+            var dy = ty + 0.5f - cy;
+            var dist = MathF.Sqrt(dx * dx + dy * dy);
+            if (dist >= radius) continue;
+
+            var influence = 1f - dist / radius;
+            best = MathF.Max(best, influence);
+        }
+
+        return best;
+    }
+
+    private static int FloorDiv(int value, int divisor)
+    {
+        if (value >= 0) return value / divisor;
+        return (value - divisor + 1) / divisor;
     }
 
     private static bool ShouldPlace(WorldMap map, int tx, int ty, out int elev)
@@ -63,23 +122,10 @@ public static class FarmRpgGrassProps
         var south = ty + 1 < map.TileHeight ? map.GetElevation(tx, ty + 1) : elev;
         if (elev > 0 && south < elev && south >= 0) return false;
 
-        if (ty > 0 && map.GetElevation(tx, ty - 1) > elev) return false;
-
         var world = new Vector2((tx + 0.5f) * map.TileSize, (ty + 0.5f) * map.TileSize);
         if (NearSpawn(map, world) || InTown(world)) return false;
 
         return true;
-    }
-
-    private static Point[] BuildRange(int rowStart, int rowEnd, int colStart, int colEnd)
-    {
-        var count = (rowEnd - rowStart + 1) * (colEnd - colStart + 1);
-        var props = new Point[count];
-        var i = 0;
-        for (var row = rowStart; row <= rowEnd; row++)
-        for (var col = colStart; col <= colEnd; col++)
-            props[i++] = new Point(col, row);
-        return props;
     }
 
     private static Rectangle ScaleDest(Rectangle dest)

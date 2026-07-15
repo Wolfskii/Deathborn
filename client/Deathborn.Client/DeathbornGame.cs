@@ -144,6 +144,7 @@ public sealed class DeathbornGame : Game
         }
 
         MusicPlayer.Update();
+        SfxPlayer.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
         _prevKb = kb;
         _wasActive = active;
         base.Update(gameTime);

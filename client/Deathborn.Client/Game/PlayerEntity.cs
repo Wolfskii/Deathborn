@@ -23,11 +23,14 @@ public sealed class PlayerEntity
         CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg);
     private float VisualDrawScale => CharacterAnimationCatalog.GetDrawScale(_visual.Appearance.BodyTypeId);
 
-    /// <summary>World Y for Y-sorting — feet on the ground.</summary>
-    public float SortY => Position.Y;
+    /// <summary>World Y of lowest opaque body pixel (feet), excluding shadow padding below the draw anchor.</summary>
+    public float SortY => Position.Y - Rendering.Characters.FarmRpgAnimationSpecs.FootBottomInsetPx * VisualDrawScale;
 
     public static Vector2 CollisionCenter(Vector2 feetPosition) =>
         feetPosition + new Vector2(0, CollisionCenterYOffset);
+
+    public static Vector2 CollisionCenterToFeet(Vector2 center) =>
+        center - new Vector2(0, CollisionCenterYOffset);
 
     private readonly CharacterVisual _visual = new();
     private readonly PlayerChatBubble _chatBubble = new();
@@ -125,7 +128,11 @@ public sealed class PlayerEntity
 
     public Vector2 GetProjectileSpawnPoint(Vector2? direction = null)
     {
-        var dir = CardinalFacing(direction ?? FacingDir);
+        var dir = direction ?? FacingDir;
+        if (dir.LengthSquared() > 0.01f)
+            dir = Vector2.Normalize(dir);
+        else
+            dir = new Vector2(0, 1);
         var torso = Position + new Vector2(0, Config.CastTorsoOffsetY);
         return torso + dir * (Radius + Config.CastSpawnDistance);
     }
@@ -215,10 +222,13 @@ public sealed class PlayerEntity
     public bool StartDash(Vector2 dir, float distance, float duration)
     {
         if (IsBusy || IsDead || _isDashing) return false;
-        var facing = CardinalFacing(dir);
-        MoveDir = facing;
+        if (dir.LengthSquared() > 0.01f)
+            dir = Vector2.Normalize(dir);
+        else
+            dir = new Vector2(0, 1);
+        MoveDir = CardinalFacing(dir);
         _dashStart = Position;
-        _dashEnd = ResolvePosition(Position, facing * distance);
+        _dashEnd = ResolvePosition(Position, dir * distance);
         _dashDuration = duration;
         _dashTimer = duration;
         _dashHit.Clear();
@@ -280,7 +290,8 @@ public sealed class PlayerEntity
         {
             if (!npc.IsAttackable) continue;
             if (_meleeHitThisSwing.Contains(id)) continue;
-            if (!IsInMeleeArc(Position, facing, npc.Position, def.Range, def.HalfWidth + npc.Radius * 0.4f)) continue;
+            NpcHitboxes.GetWorldAabb(npc, NpcHitboxes.HitTestAnchor(npc), out var center, out var halfW, out _);
+            if (!IsInMeleeArc(Position, facing, center, def.Range, def.HalfWidth + halfW)) continue;
             _meleeHitThisSwing.Add(id);
             reportHit(id, def.Damage, def.Id);
         }
@@ -294,10 +305,9 @@ public sealed class PlayerEntity
         foreach (var (id, npc) in npcs)
         {
             if (!npc.IsAttackable) continue;
-            var radius = Config.WhirlwindRadius + npc.Radius;
-            var radiusSq = radius * radius;
+            var radius = Config.WhirlwindRadius;
             if (_whirlwindHit.Contains(id)) continue;
-            if (Vector2.DistanceSquared(Position, npc.Position) > radiusSq) continue;
+            if (!NpcHitboxes.CircleOverlaps(Position, radius, npc)) continue;
             _whirlwindHit.Add(id);
             reportHit(id, Config.WhirlwindDamage, "whirlwind");
         }
@@ -314,9 +324,8 @@ public sealed class PlayerEntity
         foreach (var (id, npc) in npcs)
         {
             if (!npc.IsAttackable) continue;
-            var radiusSq = (PlayerEntity.Radius + npc.Radius) * (PlayerEntity.Radius + npc.Radius);
             if (_dashHit.Contains(id)) continue;
-            if (Vector2.DistanceSquared(Position, npc.Position) > radiusSq) continue;
+            if (!NpcHitboxes.CircleOverlaps(Position, PlayerEntity.Radius + 18f, npc)) continue;
             _dashHit.Add(id);
             reportHit(id, Config.WarriorDashDamage, "warrior_dash");
         }
@@ -401,6 +410,17 @@ public sealed class PlayerEntity
             if (IsLocal && AimDir.LengthSquared() > 0.01f) return CardinalFacing(AimDir);
             if (MoveDir.LengthSquared() > 0.01f) return CardinalFacing(MoveDir);
             return new Vector2(0, 1);
+        }
+    }
+
+    /// <summary>Walk/run facing follows movement keys — not mouse aim.</summary>
+    public Vector2 LocomotionDir
+    {
+        get
+        {
+            if (IsLocal && InputDir.LengthSquared() > 0.01f) return CardinalFacing(InputDir);
+            if (MoveDir.LengthSquared() > 0.01f) return CardinalFacing(MoveDir);
+            return FacingDir;
         }
     }
 
@@ -518,6 +538,7 @@ public sealed class PlayerEntity
         IsCasting = IsCasting,
         IsMoving = IsMoving,
         IsRunning = IsRunning,
+        LocomotionDir = LocomotionDir,
         FacingDir = FacingDir,
     };
 

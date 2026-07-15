@@ -349,7 +349,6 @@ func (c *Client) readPump(database *db.DB) {
 				continue
 			}
 			dirX, dirY := normalizeDir(d.DirX, d.DirY)
-			dirX, dirY = cardinalDir(dirX, dirY)
 			switch d.SpellID {
 			case "fireball", "ice_shard":
 				c.broadcastProjectileCast(c.characterID, d.SpellID, dirX, dirY)
@@ -371,13 +370,6 @@ func (c *Client) readPump(database *db.DB) {
 					DirY:    dirY,
 				}))
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_poison_cloud", dirX, dirY, ""))
-			case "shield_bash":
-				c.hub.Broadcast(BuildPlayerAction(c.characterID, "shield_bash", dirX, dirY, ""))
-			case "whirlwind":
-				c.hub.Broadcast(BuildPlayerAction(c.characterID, "whirlwind", dirX, dirY, ""))
-			case "warrior_dash":
-				c.hub.world.DashPlayer(c.characterID, dirX, dirY, game.AbilityHitRange("warrior_dash"))
-				c.hub.Broadcast(BuildPlayerAction(c.characterID, "warrior_dash", dirX, dirY, ""))
 			case "hunter_mark":
 				markTarget := c.hub.world.NearestEnemyInCone(c.characterID, dirX, dirY, game.AbilityHitRange("hunter_mark"), 0.25)
 				if markTarget <= 0 {
@@ -389,6 +381,15 @@ func (c *Client) readPump(database *db.DB) {
 				}
 				c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Duration, ev.MarkTargetID))
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "hunter_mark", dirX, dirY, formatTargetID(markTarget)))
+			case "shield_bash":
+				dirX, dirY = cardinalDir(dirX, dirY)
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "shield_bash", dirX, dirY, ""))
+			case "whirlwind":
+				dirX, dirY = cardinalDir(dirX, dirY)
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "whirlwind", dirX, dirY, ""))
+			case "warrior_dash":
+				c.hub.world.DashPlayer(c.characterID, dirX, dirY, game.AbilityHitRange("warrior_dash"))
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, "warrior_dash", dirX, dirY, ""))
 			default:
 				continue
 			}
@@ -825,7 +826,6 @@ func (c *Client) broadcastProjectileCast(playerID int64, spellID string, dirX, d
 		return
 	}
 	dirX, dirY = normalizeDir(dirX, dirY)
-	dirX, dirY = cardinalDir(dirX, dirY)
 	ox, oy := projectileSpawnPoint(x, y, dirX, dirY)
 	c.hub.Broadcast(encode("projectile_spawn", ProjectileSpawnData{
 		OwnerID: playerID,

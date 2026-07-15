@@ -42,6 +42,8 @@ public static class Config
     public const float WalkSpeed = 120f;
     public const float RunSpeed = 195f;
     public const float MinStaminaToRun = 4f;
+    /// <summary>Keep sprinting until stamina drops below this (avoids run/walk anim flicker).</summary>
+    public const float MinStaminaToKeepRunning = 1f;
     public const float RunStaminaDrainPerSecond = 16f;
 
     public const float HpRegenPerSecond = 1.25f;

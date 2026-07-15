@@ -58,7 +58,8 @@ public sealed class HotbarSlot
         var iconPad = FarmRpgInventoryUi.IsLoaded ? 10 : 1;
         var icon = new Rectangle(bounds.X + iconPad, bounds.Y + iconPad,
             bounds.Width - iconPad * 2, bounds.Height - iconPad * 2);
-        var spellId = Entry?.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        var spellId = Entry?.GetValueOrDefault("itemId") as string
+            ?? Entry?.GetValueOrDefault(HotbarEntry.IdKey) as string;
         HotbarIconDraw.Draw(sb, spellId, icon);
 
         var keySize = font.MeasureString(KeyLabel);
@@ -252,7 +253,11 @@ public sealed class Hotbar
 
         var itemId = entry.GetValueOrDefault("itemId") as string;
         if (itemId != null)
+        {
+            if (ItemCatalog.IsWeapon(itemId))
+                return false;
             return ItemCatalog.IsConsumable(itemId);
+        }
 
         // Spells/abilities assigned directly (not dragged from inventory).
         return true;

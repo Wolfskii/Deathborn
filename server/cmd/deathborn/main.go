@@ -82,7 +82,7 @@ func main() {
 	go game.RunLoop(ctx, world, tickHz, func(tick uint64, heals []game.HealEvent, dt float64) {
 		hub.ProcessExpiredWorldDrops()
 		hub.ProcessBossEvents(world.TickBosses(dt))
-		world.TickMobs(dt)
+		hub.ProcessBossEvents(world.TickMobs(dt))
 		hub.ProcessBossEvents(world.DrainPendingBossEvents())
 		for _, h := range heals {
 			hub.Broadcast(gnet.BuildPlayerHeal(h.PlayerID, h.Amount, h.Ability, h.Hp, h.HpMax))

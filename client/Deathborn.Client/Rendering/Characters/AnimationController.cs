@@ -15,6 +15,8 @@ public sealed class AnimationController
   private float _locomotionTimer;
   private int _locomotionFrame;
   private FacingDirection _facing = FacingDirection.Down;
+  private CharacterClip _lastLocomotionClip = CharacterClip.Idle;
+  private FacingDirection _lastLocomotionFacing = FacingDirection.Down;
 
   private bool _attackPlaying;
   private float _attackTimer;
@@ -82,6 +84,20 @@ public sealed class AnimationController
     _deathComplete = true;
   }
 
+  /// <summary>Freeze on idle frame 0 — facing updates, no locomotion cycle.</summary>
+  public void HoldIdlePose(Vector2 facingDir)
+  {
+    _facing = ResolveFacing(facingDir);
+    _locomotionClip = CharacterClip.Idle;
+    _locomotionFrame = 0;
+    _locomotionTimer = 0;
+    _lastLocomotionClip = CharacterClip.Idle;
+    _lastLocomotionFacing = _facing;
+    _attackPlaying = false;
+    _castPlaying = false;
+    _hurtPlaying = false;
+  }
+
   public void StartAttack(Vector2 facingDir, CharacterClip clip = CharacterClip.Attack)
   {
     _attackClip = clip;
@@ -113,7 +129,7 @@ public sealed class AnimationController
 
     if (input.IsWhirlwinding || input.IsDashing)
     {
-      UpdateLocomotion(dt, input.FacingDir, true, true, Config.RunAnimSpeed);
+      UpdateLocomotion(dt, input.LocomotionDir, true, true, Config.RunAnimSpeed);
       return;
     }
 
@@ -136,7 +152,7 @@ public sealed class AnimationController
     if (input.IsMoving)
     {
       var speed = input.IsRunning ? Config.RunAnimSpeed : Config.WalkAnimSpeed;
-      UpdateLocomotion(dt, input.FacingDir, true, input.IsRunning, speed);
+      UpdateLocomotion(dt, input.LocomotionDir, true, input.IsRunning, speed);
       return;
     }
 
@@ -181,6 +197,13 @@ public sealed class AnimationController
 
   private void UpdateIdle(float dt, Vector2 faceDir)
   {
+    if (_lastLocomotionClip != CharacterClip.Idle)
+    {
+      _lastLocomotionClip = CharacterClip.Idle;
+      _locomotionFrame = 0;
+      _locomotionTimer = 0;
+    }
+
     _locomotionClip = CharacterClip.Idle;
     var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Idle);
 
@@ -205,11 +228,19 @@ public sealed class AnimationController
 
   private void UpdateLocomotion(float dt, Vector2 moveDir, bool isMoving, bool useRunAnim, float animSpeed)
   {
-    _locomotionClip = useRunAnim ? CharacterClip.Run : CharacterClip.Walk;
-    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, _locomotionClip);
+    var nextClip = useRunAnim ? CharacterClip.Run : CharacterClip.Walk;
+    var nextFacing = moveDir.LengthSquared() > 0.01f ? ResolveFacing(moveDir) : _facing;
 
-    if (moveDir.LengthSquared() > 0.01f)
-      _facing = ResolveFacing(moveDir);
+    if (nextClip != _lastLocomotionClip || nextFacing != _lastLocomotionFacing)
+    {
+      _locomotionFrame = 0;
+      _locomotionTimer = 0;
+      _lastLocomotionClip = nextClip;
+      _lastLocomotionFacing = nextFacing;
+    }
+
+    _locomotionClip = nextClip;
+    _facing = nextFacing;
 
     if (!isMoving)
     {
@@ -218,12 +249,16 @@ public sealed class AnimationController
       return;
     }
 
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, _locomotionClip);
     var frameDuration = spec.FrameDuration / MathF.Max(0.1f, animSpeed);
     _locomotionTimer += dt;
-    while (_locomotionTimer >= frameDuration)
+
+    var advanced = 0;
+    while (_locomotionTimer >= frameDuration && advanced < 2)
     {
       _locomotionTimer -= frameDuration;
       _locomotionFrame = (_locomotionFrame + 1) % spec.FramesPerDirection;
+      advanced++;
     }
   }
 

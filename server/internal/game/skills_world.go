@@ -41,12 +41,17 @@ func (w *World) applyHitpointsMax(p *player) {
 	}
 	hpLevel := p.skills.Level(skills.Hitpoints)
 	newMax := skills.HitpointsMax(hpLevel)
-	if newMax <= p.hpMax {
+	if newMax == p.hpMax {
 		return
 	}
 	gain := newMax - p.hpMax
 	p.hpMax = newMax
-	p.hp += gain
+	if gain > 0 {
+		p.hp += gain
+	}
+	if p.hp > p.hpMax {
+		p.hp = p.hpMax
+	}
 }
 
 // PlayerSkillsSnapshot returns a copy of a player's skill XP and total.

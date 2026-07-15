@@ -14,7 +14,6 @@ public static class AbilityIconAtlas
 
     private static readonly Dictionary<string, Point> Cells = new()
     {
-        ["slash"] = new(0, 0),
         ["shield_bash"] = new(1, 0),
         ["whirlwind"] = new(2, 0),
         ["warrior_dash"] = new(3, 0),

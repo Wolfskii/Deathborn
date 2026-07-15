@@ -10,7 +10,12 @@ const (
 	bossSpawnInterval = 180.0 // seconds between spawn attempts
 	bossLeashRadius   = 520.0
 	bossAggroRadius   = 340.0
-	bossMeleeReach    = 64.0
+	bossMeleeReach    = 36.0
+	bossMeleeDamage   = 5
+	bossMeleeWindup   = 0.4
+	bossAbilityWindup = 0.45
+	lightningStrikeRange = 72.0 // base px at 16px tile ref; scaled at impact
+	lightningFacingDot   = 0.62 // must face target (~51° cone)
 )
 
 // NpcState is the wire view of an NPC/boss included in snapshots.
@@ -77,6 +82,8 @@ type boss struct {
 	cdTimer      float64
 	attackT      float64
 	targetID     int64
+	pendingAbility string
+	abilityImpactT float64
 }
 
 type bossManager struct {
@@ -113,17 +120,17 @@ var bossDefs = []bossDef{
 	{
 		id: "iron_colossus", name: "Iron Colossus", hpMax: 1200, speed: 58,
 		radius: 22, aggro: bossAggroRadius, leash: bossLeashRadius,
-		ability: "ground_slam", abilityCD: 4.0, abilityDmg: 18, abilityRange: 120,
+		ability: "ground_slam", abilityCD: 5.5, abilityDmg: 11, abilityRange: 110,
 	},
 	{
 		id: "storm_wyrm", name: "Storm Wyrm", hpMax: 850, speed: 92,
 		radius: 18, aggro: 380, leash: bossLeashRadius,
-		ability: "lightning_bolt", abilityCD: 2.8, abilityDmg: 14, abilityRange: 300,
+		ability: "lightning_bolt", abilityCD: 4.5, abilityDmg: 8, abilityRange: 88,
 	},
 	{
 		id: "blight_herald", name: "Blight Herald", hpMax: 950, speed: 72,
 		radius: 20, aggro: bossAggroRadius, leash: bossLeashRadius,
-		ability: "poison_nova", abilityCD: 5.0, abilityDmg: 10, abilityRange: 100,
+		ability: "poison_nova", abilityCD: 6.5, abilityDmg: 7, abilityRange: 95,
 	},
 }
 
@@ -229,6 +236,15 @@ func (w *World) tickBossLocked(b *boss, dt float64) []BossEvent {
 	}
 	b.cdTimer -= dt
 
+	if b.pendingAbility != "" {
+		b.abilityImpactT -= dt
+		if b.abilityImpactT <= 0 {
+			events = append(events, w.bossAbilityImpactLocked(b)...)
+			b.pendingAbility = ""
+		}
+		return events
+	}
+
 	target, dist := w.nearestPlayerLocked(b.x, b.y, b.aggro)
 	if target == nil {
 		b.targetID = 0
@@ -245,11 +261,11 @@ func (w *World) tickBossLocked(b *boss, dt float64) []BossEvent {
 		return events
 	}
 
-	if dist <= bossMeleeReach*w.worldScale()+b.radius+12*w.worldScale() {
+	if b.defID != "storm_wyrm" && w.bossMeleeContact(b, target) {
 		if b.attackT <= 0 {
 			b.action = "melee"
-			b.actionT = 0.45
-			b.attackT = 1.2
+			b.actionT = bossMeleeWindup
+			b.attackT = 1.65
 			if dmgEv := w.bossMeleeHitLocked(b, target); dmgEv != nil {
 				events = append(events, *dmgEv)
 			}
@@ -262,11 +278,26 @@ func (w *World) tickBossLocked(b *boss, dt float64) []BossEvent {
 		b.cdTimer = b.abilityCD
 		b.action = b.ability
 		b.actionT = 0.6
-		abilityEvents := w.bossAbilityLocked(b)
-		events = append(events, abilityEvents...)
+		b.pendingAbility = b.ability
+		b.abilityImpactT = bossAbilityWindup
+		if b.ability == "lightning_bolt" {
+			dx := target.x - b.x
+			dy := target.y - b.y
+			if d := math.Hypot(dx, dy); d > 0.01 {
+				b.dirX = dx / d
+				b.dirY = dy / d
+			}
+		}
+		events = append(events, BossEvent{Type: "boss_action", NpcID: b.id, Name: b.ability})
 	}
 
 	return events
+}
+
+func (w *World) bossMeleeContact(b *boss, target *player) bool {
+	half := b.radius * 1.15
+	reach := bossMeleeReach*w.worldScale() + playerCombatRadius*w.worldScale()
+	return distPointToAabb(target.x, target.y, b.x, b.y, half, half) <= reach
 }
 
 func (w *World) nearestPlayerLocked(x, y, radius float64) (*player, float64) {
@@ -344,7 +375,7 @@ func (w *World) bossMeleeHitLocked(b *boss, target *player) *BossEvent {
 	if w.playerInSafeHavenLocked(target) {
 		return nil
 	}
-	damage := 8
+	damage := bossMeleeDamage
 	hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(target.id, damage)
 	if !ok {
 		return nil
@@ -357,52 +388,82 @@ func (w *World) bossMeleeHitLocked(b *boss, target *player) *BossEvent {
 	return ev
 }
 
-func (w *World) bossAbilityLocked(b *boss) []BossEvent {
-	var events []BossEvent
+func (w *World) bossAbilityImpactLocked(b *boss) []BossEvent {
 	switch b.ability {
 	case "ground_slam":
-		for _, p := range w.players {
-			if p.dead || w.playerInSafeHavenLocked(p) {
-				continue
-			}
-			if math.Hypot(p.x-b.x, p.y-b.y) <= b.abilityRange {
-				if hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(p.id, b.abilityDmg); ok {
-					events = append(events, BossEvent{
-						Type: "player_hit", NpcID: b.id, PlayerID: p.id, Damage: b.abilityDmg,
-						Name: b.ability,
-						Hp:   hp, HpMax: hpMax, JustDied: justDied,
-					})
-				}
-			}
-		}
+		return w.bossGroundSlamLocked(b)
 	case "lightning_bolt":
-		target, _ := w.nearestPlayerLocked(b.x, b.y, b.abilityRange)
-		if target != nil && !w.playerInSafeHavenLocked(target) {
-			if hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(target.id, b.abilityDmg); ok {
+		return w.bossLightningBoltLocked(b)
+	case "poison_nova":
+		return w.bossPoisonNovaLocked(b)
+	default:
+		return nil
+	}
+}
+
+func (w *World) bossGroundSlamLocked(b *boss) []BossEvent {
+	var events []BossEvent
+	for _, p := range w.players {
+		if p.dead || w.playerInSafeHavenLocked(p) {
+			continue
+		}
+		if math.Hypot(p.x-b.x, p.y-b.y) <= b.abilityRange {
+			if hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(p.id, b.abilityDmg); ok {
 				events = append(events, BossEvent{
-					Type: "player_hit", NpcID: b.id, PlayerID: target.id, Damage: b.abilityDmg,
+					Type: "player_hit", NpcID: b.id, PlayerID: p.id, Damage: b.abilityDmg,
 					Name: b.ability,
-					Hp:   hp, HpMax: hpMax, JustDied: justDied,
+					Hp: hp, HpMax: hpMax, JustDied: justDied,
 				})
 			}
-			events = append(events, BossEvent{Type: "boss_action", NpcID: b.id, Name: "lightning_bolt"})
 		}
-	case "poison_nova":
-		for _, p := range w.players {
-			if p.dead || w.playerInSafeHavenLocked(p) {
-				continue
-			}
-			if math.Hypot(p.x-b.x, p.y-b.y) <= b.abilityRange {
-				if hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(p.id, b.abilityDmg); ok {
-					events = append(events, BossEvent{
-						Type: "player_hit", NpcID: b.id, PlayerID: p.id, Damage: b.abilityDmg,
-						Name: b.ability,
-						Hp:   hp, HpMax: hpMax, JustDied: justDied,
-					})
-				}
+	}
+	return events
+}
+
+func (w *World) bossLightningBoltLocked(b *boss) []BossEvent {
+	scale := w.worldScale()
+	strikeRange := lightningStrikeRange * scale
+	target, dist := w.nearestPlayerLocked(b.x, b.y, strikeRange)
+	if target == nil || w.playerInSafeHavenLocked(target) || dist > strikeRange {
+		return nil
+	}
+	dx := target.x - b.x
+	dy := target.y - b.y
+	if d := math.Hypot(dx, dy); d > 0.01 {
+		dx /= d
+		dy /= d
+	}
+	fLen := math.Hypot(b.dirX, b.dirY)
+	if fLen > 0.01 {
+		if (b.dirX/fLen)*dx+(b.dirY/fLen)*dy < lightningFacingDot {
+			return nil
+		}
+	}
+	if hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(target.id, b.abilityDmg); ok {
+		return []BossEvent{{
+			Type: "player_hit", NpcID: b.id, PlayerID: target.id, Damage: b.abilityDmg,
+			Name: b.ability,
+			Hp: hp, HpMax: hpMax, JustDied: justDied,
+		}}
+	}
+	return nil
+}
+
+func (w *World) bossPoisonNovaLocked(b *boss) []BossEvent {
+	var events []BossEvent
+	for _, p := range w.players {
+		if p.dead || w.playerInSafeHavenLocked(p) {
+			continue
+		}
+		if math.Hypot(p.x-b.x, p.y-b.y) <= b.abilityRange {
+			if hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(p.id, b.abilityDmg); ok {
+				events = append(events, BossEvent{
+					Type: "player_hit", NpcID: b.id, PlayerID: p.id, Damage: b.abilityDmg,
+					Name: b.ability,
+					Hp: hp, HpMax: hpMax, JustDied: justDied,
+				})
 			}
 		}
-		events = append(events, BossEvent{Type: "boss_action", NpcID: b.id, Name: "poison_nova"})
 	}
 	return events
 }
@@ -500,9 +561,8 @@ func (w *World) validateBossHitLocked(attackerID, npcID int64, ability string) b
 	if !okA || !okB {
 		return false
 	}
-	dx := a.x - b.x
-	dy := a.y - b.y
-	return dx*dx+dy*dy <= (maxR+b.radius)*(maxR+b.radius)
+	half := b.radius * 1.15
+	return distSqPointToAabb(a.x, a.y, b.x, b.y, half, half) <= maxR*maxR
 }
 
 func (w *World) ApplyDamageToNpc(npcID int64, damage int) (hp, hpMax float64, justDied bool, ok bool) {

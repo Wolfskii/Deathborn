@@ -71,10 +71,6 @@ public static class AbilityCatalog
 
         return new Dictionary<string, AbilityInfo>
         {
-            ["slash"] = A("slash", "Slash", "melee", "Warrior",
-                "A quick sword swing in front of you.", 0f,
-                ResourceCostKind.Stamina, 8,
-                dmg: Config.SlashDamage, range: 44f),
             ["shield_bash"] = A("shield_bash", "Shield Bash", "melee", "Warrior",
                 "Bash foes with your shield.", Config.ShieldBashCooldown,
                 ResourceCostKind.Stamina, 18, dmg: Config.ShieldBashDamage, range: Config.ShieldBashRange),

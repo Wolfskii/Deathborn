@@ -84,12 +84,12 @@ func ProgressToNext(xp int64) float64 {
 	return float64(xp-cur) / float64(next-cur)
 }
 
-// HitpointsMax returns max HP from hitpoints skill level.
+// HitpointsMax returns max HP from hitpoints skill level (100 at level 1, +10 per level).
 func HitpointsMax(hpLevel int) float64 {
 	if hpLevel < 1 {
 		hpLevel = 1
 	}
-	return float64(9 + hpLevel)
+	return float64(90 + hpLevel*10)
 }
 
 // Set holds per-skill XP for one character.

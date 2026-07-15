@@ -58,6 +58,46 @@
 
 #end Audio/Sfx/Battle/sword-swing-sfx.mp3
 
+#begin Audio/Sfx/Battle/fireball-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Battle/fireball-sfx.mp3
+
+#end Audio/Sfx/Battle/fireball-sfx.mp3
+
+#begin Audio/Sfx/Battle/fireball-impact-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Battle/fireball-impact-sfx.mp3
+
+#end Audio/Sfx/Battle/fireball-impact-sfx.mp3
+
+#begin Audio/Sfx/Battle/ice-shard-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Battle/ice-shard-sfx.mp3
+
+#end Audio/Sfx/Battle/ice-shard-sfx.mp3
+
+#begin Audio/Sfx/Heal/heal-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Heal/heal-sfx.mp3
+
+#end Audio/Sfx/Heal/heal-sfx.mp3
+
+#begin Audio/Sfx/Heal/holy-spell-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Heal/holy-spell-sfx.mp3
+
+#end Audio/Sfx/Heal/holy-spell-sfx.mp3
+
 #begin Icons/ability_sheet.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -3193,4 +3233,18 @@
 /build:Ui/FarmRpg/inventory.png
 
 #end Ui/FarmRpg/inventory.png
+
+#begin Tiles/FarmRpg/props_seasons.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Tiles/FarmRpg/props_seasons.png
+
+#end Tiles/FarmRpg/props_seasons.png
 

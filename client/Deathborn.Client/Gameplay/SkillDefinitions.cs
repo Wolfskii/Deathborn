@@ -67,5 +67,5 @@ public static class SkillDefinitions
         return (xp - cur) / (float)(next - cur);
     }
 
-    public static float HitpointsMax(int hpLevel) => Math.Max(10, 9 + hpLevel);
+    public static float HitpointsMax(int hpLevel) => Math.Max(100, 90 + hpLevel * 10);
 }

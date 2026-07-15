@@ -39,6 +39,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private Vector2 _corpsePosition;
     private bool _ghostMode;
     private bool _ghostModePending;
+    private bool _deathPrompt;
     private bool _disconnectMode;
     private readonly HashSet<long> _knownFriendRequests = [];
     private readonly ZoneBannerOverlay _zoneBanner = new();
@@ -67,6 +68,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private MouseState _prevMouse;
     private bool _wasWindowActive = true;
     private bool _debugHudVisible;
+    private bool _localWasRunning;
     private int? _pendingHotbarDragIndex;
     private Point _hotbarDragStartMouse;
     private float _interiorFade;
@@ -99,6 +101,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _chat.Submitted += OnChatSubmitted;
         _chat.TypingChanged += OnChatTypingChanged;
         _deathOverlay.NewLifeRequested += OnNewLifeRequested;
+        _deathOverlay.SpectateRequested += OnSpectateRequested;
         _disconnectOverlay.ReturnToLoginRequested += OnReturnToLoginRequested;
         _playerContextMenu.ItemChosen += OnPlayerContextMenu;
     }
@@ -178,6 +181,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetOpenSkillsHandler(() => _windows.OpenSkills());
         _screens.SetBuildHouseHandler(TryBuildHouse);
         _screens.SetLogoutHandler(OnLogoutRequested);
+        _screens.SetNewLifeHandler(OnNewLifeRequested);
         UpdateBuildHouseEnabled();
         _fishing.Caught += OnFishCaught;
         _fishing.Cancelled += () => _status = "Fishing cancelled.";
@@ -218,6 +222,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.FriendsUpdated -= OnFriendsUpdated;
         net.PrivateMessage -= OnPrivateMessage;
         _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
+        _deathOverlay.SpectateRequested -= OnSpectateRequested;
         _disconnectOverlay.ReturnToLoginRequested -= OnReturnToLoginRequested;
         _playerContextMenu.ItemChosen -= OnPlayerContextMenu;
         _fishing.Caught -= OnFishCaught;
@@ -230,6 +235,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _windows.Inventory.SlotClicked -= OnInventorySlotClicked;
         _screens.SetOpenCharacterHandler(null);
         _screens.SetLogoutHandler(null);
+        _screens.SetNewLifeHandler(null);
+        _screens.SetDeathMenuMode(false);
         _windows.Character.Close();
         _worldMap.Close();
         _effects.Clear();
@@ -238,7 +245,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _ghost = null;
         _ghostMode = false;
         _ghostModePending = false;
+        _deathPrompt = false;
+        _deathOverlay.Spectating = false;
         _disconnectMode = false;
+        _localWasRunning = false;
         _interactables.Clear();
         _npcs.Clear();
         _feedback.Clear();
@@ -251,6 +261,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     public bool HandleEscape()
     {
+        if (_deathPrompt || _ghostMode)
+            return false;
+
         if (_playerContextMenu.IsOpen)
         {
             _playerContextMenu.Close();
@@ -314,6 +327,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
+        SyncDeathMenuState();
+
         if (_ghostMode)
         {
             UpdateGhostMode(dt, kb, mouse, windowActive);
@@ -335,7 +350,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var localEntity = FindLocalPlayer();
         var movementBlocked = localEntity is { BlocksMovement: true };
         var abilityBusy = localEntity is { IsBusy: true };
-        var inputBlocked = chatOpen || menuOpen || movementBlocked || IsLocalDyingOrDead();
+        var inputBlocked = chatOpen || menuOpen || movementBlocked || IsLocalDyingOrDead()
+            || (_deathPrompt && !menuOpen);
 
         _buffTracker.Update(dt);
         _inventory.Update(dt);
@@ -364,8 +380,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var wantsRun = kb.IsKeyDown(Keys.LeftShift) || kb.IsKeyDown(Keys.RightShift);
         if (localEntity is { IsDead: false })
         {
-            var canRun = localEntity.Stats.Stamina >= Config.MinStaminaToRun;
-            localEntity.IsRunning = wantsRun && canRun && _moveDir.LengthSquared() > 0.0001f;
+            var wantsMove = _moveDir.LengthSquared() > 0.0001f;
+            var canStartRun = localEntity.Stats.Stamina >= Config.MinStaminaToRun;
+            var canKeepRun = localEntity.Stats.Stamina >= Config.MinStaminaToKeepRunning;
+            localEntity.IsRunning = wantsRun && wantsMove && (_localWasRunning ? canKeepRun : canStartRun);
+            _localWasRunning = localEntity.IsRunning;
             localEntity.InputDir = _moveDir;
 
             localEntity.Stats.TickRegen(dt, localEntity.IsRunning);
@@ -375,10 +394,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     localEntity.Stats.Stamina - Config.RunStaminaDrainPerSecond * dt);
             }
 
-            if (_moveDir.LengthSquared() > 0.0001f)
+            if (_moveDir.LengthSquared() > 0.0001f && !IsMouseInViewport(mouse.Position))
                 localEntity.AimDir = _moveDir;
             else if (windowActive && !inputBlocked)
-                UpdateLocalAimFacing(localEntity, mouse.Position, _prevMouse.Position);
+                UpdateLocalAimFacing(localEntity, mouse.Position);
         }
 
         if (blockGameplay || IsLocalDyingOrDead())
@@ -432,6 +451,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (_ghostMode && _ghost != null)
             _camera = _ghost.Position;
+        else if (_deathPrompt)
+            _camera = _corpsePosition;
         else if (localEntity != null)
         {
             if (localEntity.InsideHouseId > 0)
@@ -486,6 +507,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
             $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
         ];
+
+        if (_deathPrompt && windowActive && !_screens.EscMenuOpen)
+        {
+            var clicked = mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released;
+            _deathOverlay.Update(mouse.Position, clicked);
+        }
 
         _prevKb = kb;
         if (windowActive)
@@ -578,6 +605,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _deathOverlay.Draw(sb, font);
             sb.End();
         }
+        else if (_deathPrompt)
+        {
+            sb.Begin();
+            _deathOverlay.Draw(sb, font);
+            sb.End();
+        }
         else if (_disconnectMode)
         {
             sb.Begin();
@@ -606,13 +639,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         WorldClouds.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom,
             CollectionsMarshal.AsSpan(_entityPositionScratch));
 
-        if (_ghostMode && _ghost != null)
-            _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
-
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
 
         _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _npcs);
+
+        if (_ghostMode && _ghost != null)
+            _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
 
         if (!_ghostMode && !IsLocalDyingOrDead())
         {
@@ -652,17 +685,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var n in _npcs.Values)
             _exteriorNpcs.Add(n);
 
+        // Cloud/foliage fade only for living local players — veil spectators pass through untouched.
         _entityPositionScratch.Clear();
-        foreach (var p in _exteriorPlayers)
-            _entityPositionScratch.Add(p.Position);
-        foreach (var n in _exteriorNpcs)
-            _entityPositionScratch.Add(n.Position);
+        if (!_ghostMode && FindLocalPlayer() is { InsideHouseId: <= 0 } local)
+            _entityPositionScratch.Add(local.Position);
     }
 
     private void DrawExteriorFoliageAndPlayers(SpriteBatch sb, SpriteFont font, float zoom)
     {
         CollectExteriorEntities();
-        var entityPositions = CollectionsMarshal.AsSpan(_entityPositionScratch);
+        var localOcclusionPositions = CollectionsMarshal.AsSpan(_entityPositionScratch);
         _exteriorDrawOrder.Clear();
 
         WorldFoliage.GetVisible(WorldMap.Realik, _camera, ScreenCenter, zoom, _visibleFoliage);
@@ -706,7 +738,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             switch (entry.Kind)
             {
                 case ExteriorDrawableKind.Foliage:
-                    WorldFoliage.DrawInstance(sb, _visibleFoliage[entry.Index], _camera, ScreenCenter, zoom, entityPositions);
+                    WorldFoliage.DrawInstance(sb, _visibleFoliage[entry.Index], _camera, ScreenCenter, zoom, localOcclusionPositions);
                     break;
                 case ExteriorDrawableKind.Player:
                 {
@@ -785,7 +817,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _ghost.Update(dt);
         _camera = _ghost.Position;
 
-        if (windowActive)
+        if (windowActive && !_screens.EscMenuOpen)
         {
             var clicked = mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released;
             _deathOverlay.Update(mouse.Position, clicked);
@@ -800,6 +832,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var local = FindLocalPlayer();
         return local is { IsDead: true };
     }
+
+    private bool IsLocalDeadForUi() => _deathPrompt || _ghostMode || IsLocalDyingOrDead();
 
     private void ProcessDeathWatch()
     {
@@ -816,23 +850,39 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _deathWatch.Remove(id);
 
             if (wasLocal && _ghostModePending)
-                ActivateGhostMode();
+            {
+                _deathPrompt = true;
+                _deathOverlay.Spectating = false;
+            }
         }
     }
 
+    private void SyncDeathMenuState()
+    {
+        var dead = _deathPrompt || _ghostMode;
+        _screens.SetDeathMenuMode(dead);
+        _deathOverlay.Spectating = _ghostMode;
+    }
+
+    private void OnSpectateRequested() => ActivateGhostMode();
+
     private void ActivateGhostMode()
     {
+        if (_ghostMode) return;
         _ghostMode = true;
         _ghostModePending = false;
+        _deathPrompt = true;
         _ghost = new GhostEntity
         {
             Position = _corpsePosition + new Vector2(0, -GhostEntity.FloatHeight),
         };
         _effects.Clear();
-        _status = "Your spirit is free. Fly with WASD. Create a new character to return.";
+        _status = "Your spirit drifts on the wind. WASD to wander — begin anew when ready.";
+        _deathOverlay.Spectating = true;
         _chat.Close(submit: false);
         _worldMap.Close();
         _windows.Character.Close();
+        SyncDeathMenuState();
     }
 
     private void BeginPlayerDeath(long playerId, Vector2 deathPos, Vector2 facing)
@@ -889,7 +939,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 _deathWatch[local.Id] = local;
 
             if (local.IsCorpse)
-                ActivateGhostMode();
+            {
+                _deathPrompt = true;
+                _deathOverlay.Spectating = false;
+            }
         }
     }
 
@@ -1007,7 +1060,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var sb = DeathbornGame.Instance.SpriteBatch;
         var mouse = Mouse.GetState().Position;
         var cursorKind = UiCursorKind.Normal;
-        Rectangle? overlayRect = Hotbar.GetSlotBounds(_hotbar.SelectedIndex);
+        Rectangle? overlayRect = IsLocalDeadForUi() ? null : Hotbar.GetSlotBounds(_hotbar.SelectedIndex);
 
         if (Hotbar.TryGetSlotIndexAt(mouse, out var hotbarIdx))
         {
@@ -1419,33 +1472,41 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         return true;
     }
 
-    private Vector2 GetAimDirection()
+    private Vector2 GetMouseAimDirection()
     {
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
             return new Vector2(0, 1);
 
+        var mouse = Mouse.GetState();
+        if (IsMouseInViewport(mouse.Position))
+        {
+            var toMouse = ScreenToWorld(mouse.Position) - local.Position;
+            if (toMouse.LengthSquared() > 4f)
+                return Vector2.Normalize(toMouse);
+        }
+
         if (_moveDir.LengthSquared() > 0.0001f)
-            return PlayerEntity.CardinalFacing(_moveDir);
+            return Vector2.Normalize(_moveDir);
 
         if (local.AimDir.LengthSquared() > 0.01f)
-            return PlayerEntity.CardinalFacing(local.AimDir);
+            return Vector2.Normalize(local.AimDir);
 
         return new Vector2(0, 1);
     }
 
-    private void UpdateLocalAimFacing(PlayerEntity local, Point mouseScreen, Point prevMouseScreen)
-    {
-        if (!IsMouseInViewport(mouseScreen) || local.IsMoving || local.IsBusy)
-            return;
+    /// <summary>Cardinal aim for 4-dir melee animations.</summary>
+    private Vector2 GetAimDirection() => PlayerEntity.CardinalFacing(GetMouseAimDirection());
 
-        if (mouseScreen == prevMouseScreen)
+    private void UpdateLocalAimFacing(PlayerEntity local, Point mouseScreen)
+    {
+        if (!IsMouseInViewport(mouseScreen))
             return;
 
         var toMouse = ScreenToWorld(mouseScreen) - local.Position;
         if (toMouse.LengthSquared() <= 4f)
             return;
 
-        local.AimDir = PlayerEntity.CardinalFacing(toMouse);
+        local.AimDir = Vector2.Normalize(toMouse);
     }
 
     private static bool IsMouseInViewport(Point p) =>
@@ -1457,32 +1518,53 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetAimDirection();
+        var dir = GetMouseAimDirection();
         local.StartAbilityLock(castLock);
-        local.MoveDir = dir;
+        local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
         var origin = local.GetProjectileSpawnPoint(dir);
-        _effects.Add(SpellProjectile.Spawn(origin, dir, local.Id, def, style));
+        AddSpellProjectile(origin, dir, local.Id, def, style);
         _screens.Net.SendCastSpell(def.Id, dir.X, dir.Y);
         _status = status;
         return true;
     }
 
-    private bool CastFireball(ProjectileDefinition? definition = null) =>
-        CastProjectileSpell(
+    private bool CastFireball(ProjectileDefinition? definition = null)
+    {
+        var ok = CastProjectileSpell(
             "fireball",
             definition ?? ProjectileDefinitions.Fireball,
             ProjectileStyle.Fire,
             Config.FireballCastLockDuration,
             "You cast Fireball.");
+        if (ok) SfxPlayer.PlayFireball();
+        return ok;
+    }
 
-    private bool CastIceShard() =>
-        CastProjectileSpell(
+    private bool CastIceShard()
+    {
+        var ok = CastProjectileSpell(
             "ice_shard",
             ProjectileDefinitions.IceShard,
             ProjectileStyle.Ice,
             Config.IceShardCastLockDuration,
             "You cast Ice Shard.");
+        if (ok) SfxPlayer.PlayIceShard();
+        return ok;
+    }
+
+    private void AddSpellProjectile(
+        Vector2 origin,
+        Vector2 dir,
+        long ownerId,
+        ProjectileDefinition def,
+        ProjectileStyle style)
+    {
+        var proj = SpellProjectile.Spawn(origin, dir, ownerId, def, style);
+        if (style == ProjectileStyle.Fire)
+            proj.OnImpact = SfxPlayer.PlayFireballImpact;
+        _effects.Add(proj);
+    }
 
     private bool CastArcBolt()
     {
@@ -1490,9 +1572,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetAimDirection();
+        var dir = GetMouseAimDirection();
         local.StartAbilityLock(Config.ArcBoltCastLockDuration);
-        local.MoveDir = dir;
+        local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
         var target = FindArcBoltTarget(local.Position, dir, local.Id);
         if (target != null)
@@ -1517,9 +1599,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetAimDirection();
+        var dir = GetMouseAimDirection();
         local.StartAbilityLock(Config.BloodBoltCastLockDuration);
-        local.MoveDir = dir;
+        local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
         var target = FindArcBoltTarget(local.Position, dir, local.Id);
         if (target != null)
@@ -1544,9 +1626,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetAimDirection();
+        var dir = GetMouseAimDirection();
         local.StartAbilityLock(Config.PoisonCloudCastLockDuration);
-        local.MoveDir = dir;
+        local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
         _effects.Add(new PoisonCloudEffect(local.Position, local.Id));
         _screens.Net.SendCastSpell("poison_cloud", dir.X, dir.Y);
@@ -1594,7 +1676,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (!TryPayAbilityCost("warrior_dash")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
-        var dir = GetAimDirection();
+        var dir = GetMouseAimDirection();
         if (!local.StartDash(dir, Config.WarriorDashDistance, Config.WarriorDashDuration)) return false;
         _effects.Add(new DashTrailEffect(local.Position, dir, local.Id, Config.WarriorDashDuration));
         _screens.Net.SendCastSpell("warrior_dash", dir.X, dir.Y);
@@ -1622,9 +1704,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (!TryPayAbilityCost("hunter_mark")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
-        var dir = GetAimDirection();
+        var dir = GetMouseAimDirection();
         local.StartAbilityLock(0.3f);
-        local.MoveDir = dir;
+        local.MoveDir = PlayerEntity.CardinalFacing(dir);
         _screens.Net.SendCastSpell("hunter_mark", dir.X, dir.Y);
         _status = "Hunter's Mark cast.";
         return true;
@@ -1665,6 +1747,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (data.PlayerId != _screens.Net.LocalCharacterId) return;
 
         _buffTracker.Apply(data.BuffId, (float)data.Duration, data.MarkTargetId);
+        if (data.BuffId is "battle_shout" or "iron_skin")
+            SfxPlayer.PlayHolySpell();
         var (name, desc, _) = BuffCatalog.Describe(data.BuffId);
         _status = $"{name}: {desc}";
     }
@@ -1693,7 +1777,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var (id, npc) in _npcs)
         {
             if (!npc.IsAttackable) continue;
-            Consider(id, npc.Position);
+            NpcHitboxes.GetWorldAabb(npc, NpcHitboxes.HitTestAnchor(npc), out var center, out _, out _);
+            Consider(id, center);
         }
 
         return best;
@@ -1707,9 +1792,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var origin = new Vector2((float)data.X, (float)data.Y);
         var spellId = data.SpellId ?? "fireball";
         if (spellId == "ice_shard")
-            _effects.Add(SpellProjectile.Spawn(origin, dir, data.OwnerId, ProjectileDefinitions.IceShard, ProjectileStyle.Ice));
+        {
+            AddSpellProjectile(origin, dir, data.OwnerId, ProjectileDefinitions.IceShard, ProjectileStyle.Ice);
+            SfxPlayer.PlayIceShard();
+        }
         else
-            _effects.Add(SpellProjectile.Spawn(origin, dir, data.OwnerId, ProjectileDefinitions.Fireball, ProjectileStyle.Fire));
+        {
+            AddSpellProjectile(origin, dir, data.OwnerId, ProjectileDefinitions.Fireball, ProjectileStyle.Fire);
+            SfxPlayer.PlayFireball();
+        }
     }
 
     private void OnSpellEffectSpawned(SpellEffectSpawnData data)
@@ -1951,6 +2042,29 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _feedback.SpawnDamage(data.TargetId, data.Damage);
         else
             _feedback.SpawnMiss(data.TargetId);
+
+        if (data.AttackerId < 0
+            && data.Ability == "lightning_bolt"
+            && _npcs.TryGetValue(data.AttackerId, out var boss))
+        {
+            _effects.Add(new ArcBoltEffect(boss.Position, target.Position, data.AttackerId, "lightning_bolt"));
+        }
+    }
+
+    private void PlayHealSound(string ability, long playerId)
+    {
+        if (playerId != _screens.Net.LocalCharacterId) return;
+
+        switch (ability)
+        {
+            case "second_wind":
+                SfxPlayer.PlayHolySpell();
+                break;
+            case "bandage":
+            case "health_potion":
+                SfxPlayer.PlayHeal();
+                break;
+        }
     }
 
     private void OnPlayerHeal(PlayerHealData data)
@@ -1960,6 +2074,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             player.SyncStats((float)data.Hp, (float)data.HpMax);
 
         _feedback.SpawnHeal(data.PlayerId, data.Amount);
+        PlayHealSound(data.Ability, data.PlayerId);
 
         if (data.PlayerId == _screens.Net.LocalCharacterId)
             _status = data.Ability switch
@@ -2607,16 +2722,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = UseIronSkin();
         else if (id == "hunter_mark")
             used = CastHunterMark();
-        else         if (id == "second_wind")
+        else if (id == "second_wind")
             used = UseSecondWind();
-        else if (id == "slash")
+        else if (id == "farm_sword" || id == "slash")
         {
             if (entry.GetValueOrDefault("fromInventory") is true && !HasLinkedInventoryItem(entry))
             {
                 _status = "You no longer have that weapon.";
                 return;
             }
-            used = TryPayAbilityCost("slash") && TryMeleeAttackInternal(GetAimDirection());
+            used = TryMeleeAttackInternal(GetAimDirection());
         }
         else if (id == "health_potion")
             used = UseHealthPotion(entry);
@@ -2761,6 +2876,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var heal = info.Heal!.Value;
         local.Stats.Hp = MathF.Min(local.Stats.HpMax, local.Stats.Hp + heal);
         _feedback.SpawnHeal(local.Id, heal);
+        SfxPlayer.PlayHeal();
         _status = $"+{heal} HP from Health Potion.";
         return true;
     }

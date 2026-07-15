@@ -24,6 +24,7 @@ public sealed class FoliageInstance
     /// <summary>Unscaled half-width of the overlap / transparency region.</summary>
     public float CanopyHalfWidth;
     public bool BlocksMovement;
+    public byte ColliderMaskId = FoliagePixelCollider.NoMaskId;
 }
 
 /// <summary>
@@ -66,6 +67,7 @@ public static class WorldFoliage
         _textures[10] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_1");
         _textures[11] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_2");
         _textures[12] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_2");
+        FoliagePixelCollider.Build(_textures[5], _textures[6], _textures[3], _textures[4]);
     }
 
     public static void Initialize(WorldMap map)
@@ -101,22 +103,36 @@ public static class WorldFoliage
         if (f.Kind == FoliageKind.Tree)
         {
             var feetY = collisionCenter.Y - PlayerEntity.CollisionCenterYOffset;
-            // Pass through canopy/leaves north of the trunk base; stem always blocks.
             if (feetY < SortY(f))
                 return false;
-
-            var center = TreeStemColliderCenter(f);
-            var hit = f.CollisionRadius + entityRadius;
-            var dx = collisionCenter.X - center.X;
-            var dy = collisionCenter.Y - center.Y;
-            return dx * dx + dy * dy <= hit * hit;
         }
 
-        var defaultCenter = ColliderCenter(f);
-        var defaultHit = f.CollisionRadius + entityRadius;
-        var ddx = collisionCenter.X - defaultCenter.X;
-        var ddy = collisionCenter.Y - defaultCenter.Y;
-        return ddx * ddx + ddy * ddy <= defaultHit * defaultHit;
+        if (FoliagePixelCollider.TryGetMask(f.ColliderMaskId, out var mask) && mask != null)
+            return FoliagePixelCollider.CircleOverlaps(f, mask, collisionCenter, entityRadius);
+
+        var center = f.Kind == FoliageKind.Tree ? TreeStemColliderCenter(f) : ColliderCenter(f);
+        var hit = f.CollisionRadius + entityRadius;
+        var dx = collisionCenter.X - center.X;
+        var dy = collisionCenter.Y - center.Y;
+        return dx * dx + dy * dy <= hit * hit;
+    }
+
+    private static Vector2 PushOutOfInstance(FoliageInstance f, Vector2 center, float entityRadius)
+    {
+        if (FoliagePixelCollider.TryGetMask(f.ColliderMaskId, out var mask) && mask != null)
+            return FoliagePixelCollider.PushOut(f, mask, center, entityRadius);
+
+        var colliderCenter = f.Kind == FoliageKind.Tree ? TreeStemColliderCenter(f) : ColliderCenter(f);
+        var dx = center.X - colliderCenter.X;
+        var dy = center.Y - colliderCenter.Y;
+        var minDist = f.CollisionRadius + entityRadius;
+        var distSq = dx * dx + dy * dy;
+        if (distSq >= minDist * minDist || distSq < 0.0001f)
+            return center;
+
+        var dist = MathF.Sqrt(distSq);
+        var push = (minDist - dist) / dist;
+        return center + new Vector2(dx * push, dy * push);
     }
 
     /// <summary>Ground contact / trunk base (north of texture bottom).</summary>
@@ -156,47 +172,60 @@ public static class WorldFoliage
     }
 
     /// <summary>
-    /// Axis-separated move blocking — no sliding push-out (Pokemon-style wall stop).
+    /// Move with push-out sliding so the player glides around pixel-accurate rock/tree stems.
     /// </summary>
     public static Vector2 ResolveMoveBlock(Vector2 fromFeet, Vector2 toFeet, float entityRadius)
     {
-        if (!FeetWouldCollide(toFeet, entityRadius))
+        var fromCenter = PlayerEntity.CollisionCenter(fromFeet);
+        var toCenter = PlayerEntity.CollisionCenter(toFeet);
+
+        if (!CenterWouldCollide(toCenter, entityRadius))
             return toFeet;
 
-        var dx = MathF.Abs(toFeet.X - fromFeet.X);
-        var dy = MathF.Abs(toFeet.Y - fromFeet.Y);
-        if (dx >= dy)
-            return TryAxisMove(fromFeet, toFeet, entityRadius, xFirst: true);
-        return TryAxisMove(fromFeet, toFeet, entityRadius, xFirst: false);
-    }
+        var resolved = ResolveCollisionCenter(toCenter, entityRadius);
+        if (!CenterWouldCollide(resolved, entityRadius))
+            return FeetFromCenter(fromFeet, resolved);
 
-    private static Vector2 TryAxisMove(
-        Vector2 fromFeet, Vector2 toFeet, float entityRadius, bool xFirst)
-    {
-        var tryX = new Vector2(toFeet.X, fromFeet.Y);
-        var tryY = new Vector2(fromFeet.X, toFeet.Y);
-        if (xFirst)
+        var slideX = ResolveCollisionCenter(new Vector2(toCenter.X, fromCenter.Y), entityRadius);
+        if (!CenterWouldCollide(slideX, entityRadius))
+            return FeetFromCenter(fromFeet, slideX);
+
+        var slideY = ResolveCollisionCenter(new Vector2(fromCenter.X, toCenter.Y), entityRadius);
+        if (!CenterWouldCollide(slideY, entityRadius))
+            return FeetFromCenter(fromFeet, slideY);
+
+        var delta = toCenter - fromCenter;
+        var len = delta.Length();
+        if (len > 0.001f)
         {
-            if (!FeetWouldCollide(tryX, entityRadius))
-                return TrySecondAxis(tryX, toFeet, entityRadius, yAxis: true);
-            if (!FeetWouldCollide(tryY, entityRadius))
-                return tryY;
+            var dir = delta / len;
+            var best = fromCenter;
+            var lo = 0f;
+            var hi = 1f;
+            for (var i = 0; i < 7; i++)
+            {
+                var mid = (lo + hi) * 0.5f;
+                var tryCenter = ResolveCollisionCenter(fromCenter + dir * (len * mid), entityRadius);
+                if (!CenterWouldCollide(tryCenter, entityRadius))
+                {
+                    best = tryCenter;
+                    lo = mid;
+                }
+                else hi = mid;
+            }
+
+            if (Vector2.DistanceSquared(best, fromCenter) > 0.01f)
+                return FeetFromCenter(fromFeet, best);
         }
-        else
-        {
-            if (!FeetWouldCollide(tryY, entityRadius))
-                return TrySecondAxis(tryY, toFeet, entityRadius, yAxis: false);
-            if (!FeetWouldCollide(tryX, entityRadius))
-                return tryX;
-        }
+
         return fromFeet;
     }
 
-    private static Vector2 TrySecondAxis(Vector2 partial, Vector2 toFeet, float entityRadius, bool yAxis)
-    {
-        var next = yAxis ? new Vector2(partial.X, toFeet.Y) : new Vector2(toFeet.X, partial.Y);
-        return FeetWouldCollide(next, entityRadius) ? partial : next;
-    }
+    private static Vector2 FeetFromCenter(Vector2 fromFeet, Vector2 resolvedCenter) =>
+        fromFeet + (resolvedCenter - PlayerEntity.CollisionCenter(fromFeet));
+
+    private static bool CenterWouldCollide(Vector2 center, float entityRadius) =>
+        FeetWouldCollide(PlayerEntity.CollisionCenterToFeet(center), entityRadius);
 
     private static bool FeetWouldCollide(Vector2 feet, float entityRadius)
     {
@@ -211,22 +240,13 @@ public static class WorldFoliage
 
     private static Vector2 ResolveCollisionCenter(Vector2 pos, float entityRadius)
     {
-        for (var iter = 0; iter < 4; iter++)
+        for (var iter = 0; iter < 6; iter++)
         {
             var pushed = false;
             foreach (var f in Instances)
             {
                 if (!InstanceBlocksCircle(f, pos, entityRadius)) continue;
-                var center = f.Kind == FoliageKind.Tree ? TreeStemColliderCenter(f) : ColliderCenter(f);
-                var dx = pos.X - center.X;
-                var dy = pos.Y - center.Y;
-                var minDist = f.CollisionRadius + entityRadius;
-                var distSq = dx * dx + dy * dy;
-                if (distSq >= minDist * minDist || distSq < 0.0001f) continue;
-                var dist = MathF.Sqrt(distSq);
-                var push = (minDist - dist) / dist;
-                pos.X += dx * push;
-                pos.Y += dy * push;
+                pos = PushOutOfInstance(f, pos, entityRadius);
                 pushed = true;
             }
             if (!pushed) break;
@@ -296,7 +316,7 @@ public static class WorldFoliage
         Vector2 camera,
         Vector2 screenCenter,
         float zoom,
-        ReadOnlySpan<Vector2> entityPositions,
+        ReadOnlySpan<Vector2> localPlayerPositions,
         float entityRadius = PlayerEntity.Radius)
     {
         var tex = TextureFor(f);
@@ -320,9 +340,9 @@ public static class WorldFoliage
             Math.Max(1, (int)MathF.Ceiling(drawH)));
 
         var alpha = 1f;
-        for (var i = 0; i < entityPositions.Length; i++)
+        for (var i = 0; i < localPlayerPositions.Length; i++)
         {
-            if (!EntityUnderFoliage(f, entityPositions[i], entityRadius)) continue;
+            if (!EntityUnderFoliage(f, localPlayerPositions[i], entityRadius)) continue;
             alpha = UnderFoliageAlpha;
             break;
         }
@@ -448,7 +468,7 @@ public static class WorldFoliage
         scale *= kind switch
         {
             FoliageKind.Tree => 2.75f,
-            FoliageKind.Bush => 1.35f,
+            FoliageKind.Bush => 1.65f,
             FoliageKind.Rock => 1.15f,
             _ => 1f,
         };
@@ -474,7 +494,8 @@ public static class WorldFoliage
                 f.CanopyTopInset = 34f;
                 f.CanopyBottomInset = 11f;
                 f.CanopyHalfWidth = 16f;
-                f.CollisionRadius = 5f * f.Scale;
+                f.CollisionRadius = 0f;
+                f.ColliderMaskId = FoliagePixelCollider.MaskIdFor(f);
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Tree:
@@ -482,7 +503,8 @@ public static class WorldFoliage
                 f.CanopyTopInset = 45f;
                 f.CanopyBottomInset = 11f;
                 f.CanopyHalfWidth = 16f;
-                f.CollisionRadius = 6f * f.Scale;
+                f.CollisionRadius = 0f;
+                f.ColliderMaskId = FoliagePixelCollider.MaskIdFor(f);
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Bush:
@@ -498,7 +520,8 @@ public static class WorldFoliage
                 f.CanopyTopInset = 0f;
                 f.CanopyBottomInset = 0f;
                 f.CanopyHalfWidth = 0f;
-                f.CollisionRadius = 8f * f.Scale;
+                f.CollisionRadius = 0f;
+                f.ColliderMaskId = FoliagePixelCollider.MaskIdFor(f);
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.WaterRock:

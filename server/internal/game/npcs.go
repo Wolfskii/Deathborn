@@ -5,7 +5,14 @@ import (
 	"math/rand"
 )
 
-const mobIDStart = int64(-2000)
+const (
+	mobIDStart         = int64(-2000)
+	mobHitPadding      = 1.12
+	playerCombatRadius = 12.0
+	mobMeleeSwingTime  = 0.45
+	mobMeleeImpactTime = 0.24 // damage on the forward swing frame
+	mobMeleeCooldown   = 2.0
+)
 
 type mob struct {
 	id          int64
@@ -23,9 +30,22 @@ type mob struct {
 	radius      float64
 	wander      bool
 	leash       float64
+	aggro       bool
+	aggroRange  float64
+	meleeDamage int
+	meleeReach  float64 // scaled px from mob center to player center at sword contact
+	hitHalfW    float64
+	hitHalfH    float64
+	hitCenterY  float64
 	dirX        float64
 	dirY        float64
 	wanderTimer float64
+	targetID    int64
+	attackT     float64
+	action      string
+	actionT     float64
+	pendingMelee bool
+	meleeImpactT float64
 }
 
 type mobManager struct {
@@ -114,23 +134,47 @@ func (w *World) spawnMobLocked(def npcDef, x, y float64) {
 		hp: def.hpMax, hpMax: def.hpMax,
 		speed: def.speed * scale, radius: def.radius * scale,
 		wander: def.wander, leash: def.leash * scale,
+		aggro: def.aggro, aggroRange: def.aggroRange * scale,
+		meleeDamage: def.meleeDamage,
+		meleeReach:  def.meleeReach * scale,
+		hitHalfW:    def.hitHalfW * scale * mobHitPadding,
+		hitHalfH:    def.hitHalfH * scale * mobHitPadding,
+		hitCenterY:  def.hitCenterY * scale,
 		dirY: 1,
 	}
 	w.mobMgr.mobs[id] = m
 }
 
-func (w *World) TickMobs(dt float64) {
+func (w *World) TickMobs(dt float64) []BossEvent {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.ensureMobsInitialized()
+	var out []BossEvent
 	for _, m := range w.mobMgr.mobs {
-		w.tickMobLocked(m, dt)
+		out = append(out, w.tickMobLocked(m, dt)...)
 	}
+	return out
 }
 
-func (w *World) tickMobLocked(m *mob, dt float64) {
+func (w *World) tickMobLocked(m *mob, dt float64) []BossEvent {
+	if m.actionT > 0 {
+		m.actionT -= dt
+		if m.actionT <= 0 {
+			m.action = ""
+		}
+	}
+	if m.attackT > 0 {
+		m.attackT -= dt
+	}
+
+	if m.aggro && m.speed > 0 && m.meleeDamage > 0 {
+		if events := w.tickMobCombatLocked(m, dt); len(events) > 0 || m.targetID != 0 {
+			return events
+		}
+	}
+
 	if !m.wander || m.speed <= 0 {
-		return
+		return nil
 	}
 
 	m.wanderTimer -= dt
@@ -162,27 +206,176 @@ func (w *World) tickMobLocked(m *mob, dt float64) {
 			m.wanderTimer = 0
 		}
 		if w.housing != nil && w.housing.Contains(nx, ny) {
-			return
+			return nil
 		}
 	}
 
 	if w.terrain != nil {
 		if !w.terrain.CanWalk(nx, ny, m.radius) {
 			m.wanderTimer = 0
-			return
+			return nil
 		}
 		nx, ny = w.terrain.ResolveMove(m.x, m.y, nx-m.x, ny-m.y)
 		if !w.terrain.CanWalk(nx, ny, m.radius) {
 			m.wanderTimer = 0
-			return
+			return nil
 		}
 	}
 
 	if m.category.blocksTowns() && w.zones != nil && w.zones.InMonsterExclusion(nx, ny) {
-		return
+		return nil
 	}
 
 	m.x, m.y = nx, ny
+	return nil
+}
+
+func (w *World) tickMobCombatLocked(m *mob, dt float64) []BossEvent {
+	target, dist := w.resolveMobTargetLocked(m)
+	if target == nil {
+		m.pendingMelee = false
+		return nil
+	}
+
+	scale := w.worldScale()
+	if dist > m.leash {
+		m.pendingMelee = false
+		w.moveMobTowardLocked(m, m.spawnX, m.spawnY, dt*0.85)
+		if math.Hypot(m.x-m.spawnX, m.y-m.spawnY) < 12*scale {
+			m.targetID = 0
+		}
+		return nil
+	}
+
+	if m.pendingMelee {
+		m.meleeImpactT -= dt
+		if m.meleeImpactT <= 0 {
+			m.pendingMelee = false
+			if w.mobMeleeContact(m, target) {
+				if ev := w.mobMeleeHitLocked(m, target); ev != nil {
+					return []BossEvent{*ev}
+				}
+			}
+		}
+		return nil
+	}
+
+	if m.actionT > 0 {
+		return nil
+	}
+
+	bodyDist := distPointToAabb(target.x, target.y, m.x, m.y+m.hitCenterY, m.hitHalfW, m.hitHalfH)
+	contact := w.mobMeleeContactDist(m)
+	swingStart := contact + 4*scale
+	if bodyDist <= swingStart {
+		if m.attackT <= 0 {
+			dx := target.x - m.x
+			dy := target.y - m.y
+			if d := math.Hypot(dx, dy); d > 0.01 {
+				m.dirX = dx / d
+				m.dirY = dy / d
+			}
+			m.action = "melee"
+			m.actionT = mobMeleeSwingTime
+			m.attackT = mobMeleeCooldown
+			m.pendingMelee = true
+			m.meleeImpactT = mobMeleeImpactTime
+		}
+		return nil
+	}
+
+	w.moveMobTowardLocked(m, target.x, target.y, dt)
+	return nil
+}
+
+func (w *World) mobMeleeContactDist(m *mob) float64 {
+	return m.meleeReach + playerCombatRadius*w.worldScale()
+}
+
+func (w *World) mobMeleeContact(m *mob, target *player) bool {
+	return distPointToAabb(target.x, target.y, m.x, m.y+m.hitCenterY, m.hitHalfW, m.hitHalfH) <= w.mobMeleeContactDist(m)
+}
+
+func (w *World) resolveMobTargetLocked(m *mob) (*player, float64) {
+	const loseAggroMul = 1.35
+
+	if m.targetID != 0 {
+		if p, ok := w.players[m.targetID]; ok && !p.dead && !w.playerInSafeHavenLocked(p) {
+			dist := math.Hypot(p.x-m.x, p.y-m.y)
+			if dist > m.aggroRange*loseAggroMul {
+				m.targetID = 0
+				m.pendingMelee = false
+			} else {
+				return p, dist
+			}
+		} else {
+			m.targetID = 0
+			m.pendingMelee = false
+		}
+	}
+
+	target, dist := w.nearestPlayerLocked(m.x, m.y, m.aggroRange)
+	if target != nil {
+		m.targetID = target.id
+	}
+	return target, dist
+}
+
+func (w *World) moveMobTowardLocked(m *mob, tx, ty float64, dt float64) {
+	dx := tx - m.x
+	dy := ty - m.y
+	dist := math.Hypot(dx, dy)
+	if dist < 1 {
+		return
+	}
+	dx /= dist
+	dy /= dist
+	m.dirX, m.dirY = dx, dy
+	step := m.speed * dt
+	if step > dist {
+		step = dist
+	}
+	nx := m.x + dx*step
+	ny := m.y + dy*step
+	if m.category.blocksTowns() {
+		if w.zones != nil && w.zones.InMonsterExclusion(nx, ny) {
+			nx, ny = w.zones.PushOutOfMonsterExclusion(nx, ny)
+		}
+		if w.housing != nil && w.housing.Contains(nx, ny) {
+			return
+		}
+	}
+	if w.terrain != nil {
+		if !w.terrain.CanWalk(nx, ny, m.radius) {
+			return
+		}
+		nx, ny = w.terrain.ResolveMove(m.x, m.y, nx-m.x, ny-m.y)
+		if !w.terrain.CanWalk(nx, ny, m.radius) {
+			return
+		}
+	} else {
+		m.x, m.y = nx, ny
+		return
+	}
+	if m.category.blocksTowns() && w.zones != nil && w.zones.InMonsterExclusion(nx, ny) {
+		return
+	}
+	m.x, m.y = nx, ny
+}
+
+func (w *World) mobMeleeHitLocked(m *mob, target *player) *BossEvent {
+	if w.playerInSafeHavenLocked(target) || m.meleeDamage <= 0 {
+		return nil
+	}
+	hp, hpMax, justDied, ok := w.applyPlayerDamageLocked(target.id, m.meleeDamage)
+	if !ok {
+		return nil
+	}
+	return &BossEvent{
+		Type: "player_hit", NpcID: m.id, PlayerID: target.id, Damage: m.meleeDamage,
+		Name: "mob_melee",
+		Hp:   hp, HpMax: hpMax, JustDied: justDied,
+	}
 }
 
 func (w *World) appendMobSnapshotsLocked(out []NpcState) []NpcState {
@@ -195,7 +388,7 @@ func (w *World) appendMobSnapshotsLocked(out []NpcState) []NpcState {
 			Category: string(m.category), Disposition: string(m.disposition),
 			SpriteID: m.spriteID,
 			X:        m.x, Y: m.y, Hp: m.hp, HpMax: m.hpMax,
-			IsBoss: false, DirX: m.dirX, DirY: m.dirY,
+			IsBoss: false, Action: m.action, DirX: m.dirX, DirY: m.dirY,
 		})
 	}
 	return out
@@ -222,9 +415,38 @@ func (w *World) validateMobHitLocked(attackerID, npcID int64, ability string) bo
 	if m.disposition == NpcFriendly {
 		return false
 	}
-	dx := a.x - m.x
-	dy := a.y - m.y
-	return dx*dx+dy*dy <= (maxR+m.radius)*(maxR+m.radius)
+	cx := m.x
+	cy := m.y + m.hitCenterY
+	if m.hitHalfW <= 0 || m.hitHalfH <= 0 {
+		dx := a.x - cx
+		dy := a.y - cy
+		return dx*dx+dy*dy <= (maxR+m.radius)*(maxR+m.radius)
+	}
+	return distSqPointToAabb(a.x, a.y, cx, cy, m.hitHalfW, m.hitHalfH) <= maxR*maxR
+}
+
+func distPointToAabb(px, py, cx, cy, halfW, halfH float64) float64 {
+	dx := math.Abs(px-cx) - halfW
+	if dx < 0 {
+		dx = 0
+	}
+	dy := math.Abs(py-cy) - halfH
+	if dy < 0 {
+		dy = 0
+	}
+	return math.Hypot(dx, dy)
+}
+
+func distSqPointToAabb(px, py, cx, cy, halfW, halfH float64) float64 {
+	dx := math.Abs(px-cx) - halfW
+	if dx < 0 {
+		dx = 0
+	}
+	dy := math.Abs(py-cy) - halfH
+	if dy < 0 {
+		dy = 0
+	}
+	return dx*dx + dy*dy
 }
 
 func (w *World) applyMobDamageLocked(npcID int64, damage int) (hp, hpMax float64, justDied bool, ok bool) {

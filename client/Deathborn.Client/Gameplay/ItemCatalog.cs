@@ -59,7 +59,7 @@ public static class ItemCatalog
         ["farm_sword"] = new()
         {
             Id = "farm_sword", Name = "Iron Sword", Kind = ItemKind.Weapon, MaxStack = 1, Cooldown = 0f,
-            Description = "A basic sword. Drag to the hotbar to slash foes.",
+            Description = "A basic sword. Assign to the hotbar and attack with Space or click.",
         },
     };
 
@@ -102,15 +102,14 @@ public static class ItemCatalog
 
         if (info.Kind == ItemKind.Weapon)
         {
-            var slash = AbilityCatalog.Get("slash");
             var weapon = new Dictionary<string, object>
             {
-                [HotbarEntry.IdKey] = "slash",
+                [HotbarEntry.IdKey] = itemId,
                 ["name"] = info.Name,
-                ["kind"] = "melee",
+                ["kind"] = "weapon",
                 ["itemId"] = itemId,
                 ["fromInventory"] = true,
-                [HotbarEntry.CooldownKey] = slash?.Cooldown ?? 0f,
+                [HotbarEntry.CooldownKey] = info.Cooldown,
             };
             if (inventorySlot >= 0)
                 weapon[HotbarEntry.InventorySlotKey] = inventorySlot;

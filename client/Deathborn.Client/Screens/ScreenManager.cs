@@ -28,6 +28,10 @@ public sealed class ScreenManager
 
     public void SetLogoutHandler(Action? handler) => _escMenu.OnLogout = handler;
 
+    public void SetNewLifeHandler(Action? handler) => _escMenu.OnNewLife = handler;
+
+    public void SetDeathMenuMode(bool enabled) => _escMenu.SetDeathMenuMode(enabled);
+
     public void SetBuildHouseEnabled(bool enabled) => _escMenu.SetBuildHouseEnabled(enabled);
 
     public void Change(IScreen screen)

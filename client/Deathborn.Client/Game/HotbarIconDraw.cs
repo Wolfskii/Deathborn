@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Deathborn.Client.Rendering;
+using Deathborn.Client.Rendering.Characters;
 
 namespace Deathborn.Client.Gameplay;
 
@@ -27,6 +28,9 @@ public static class HotbarIconDraw
         }
 
         if (AbilityIconAtlas.TryDraw(sb, spellId, bounds))
+            return;
+
+        if (TryDrawFarmWeapon(sb, spellId, bounds))
             return;
 
         if (CosmeticIconAtlas.TryDraw(sb, spellId, bounds))
@@ -73,9 +77,8 @@ public static class HotbarIconDraw
             case "second_wind":
                 DrawSecondWind(sb, bounds);
                 break;
-            case "slash":
             case "farm_sword":
-                DrawSlash(sb, bounds);
+                DrawFarmSword(sb, bounds);
                 break;
             case "health_potion":
                 DrawHealthPotion(sb, bounds);
@@ -235,8 +238,36 @@ public static class HotbarIconDraw
         DrawPrimitives.DrawLine(sb, c + new Vector2(0, -8), c + new Vector2(0, 8), new Color(0.5f, 0.95f, 0.65f), 3f);
     }
 
-    private static void DrawSlash(SpriteBatch sb, Rectangle bounds)
+    private const int WeaponIconCell = 32;
+
+    /// <summary>Down-facing sword pose — frame 1, cropped to opaque pixels (no slash VFX).</summary>
+    private static readonly Rectangle FarmSwordIconSource = new(WeaponIconCell + 3, 8, 10, 10);
+
+    private static bool TryDrawFarmWeapon(SpriteBatch sb, string? itemId, Rectangle bounds)
     {
+        var equipId = itemId switch
+        {
+            "farm_sword" => "farm-sword",
+            _ => null,
+        };
+        if (equipId == null)
+            return false;
+
+        var tex = CharacterLayerCatalog.TryGetTexture(equipId, CharacterClip.Idle)
+            ?? CharacterLayerCatalog.TryGetTexture(equipId, CharacterClip.Attack);
+        if (tex == null)
+            return false;
+
+        var dest = FitSquare(bounds, top: 4, bottom: 4, horizontalPad: 4);
+        sb.Draw(tex, dest, FarmSwordIconSource, Color.White);
+        return true;
+    }
+
+    private static void DrawFarmSword(SpriteBatch sb, Rectangle bounds)
+    {
+        if (TryDrawFarmWeapon(sb, "farm_sword", bounds))
+            return;
+
         DrawPrimitives.FillRect(sb, bounds, new Color(24, 20, 18));
         var c = new Vector2(bounds.Center.X, bounds.Center.Y);
         DrawPrimitives.DrawLine(sb, c + new Vector2(-12, 8), c + new Vector2(14, -10), new Color(0.85f, 0.88f, 0.95f), 3f);

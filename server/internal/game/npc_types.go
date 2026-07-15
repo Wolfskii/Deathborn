@@ -36,6 +36,13 @@ type npcDef struct {
 	radius      float64
 	wander      bool
 	leash       float64
+	aggro       bool
+	aggroRange  float64 // base px at 16px tile ref; scaled at spawn (32 ≈ 2 tiles)
+	meleeDamage int
+	meleeReach  float64 // sword extension beyond mob.radius at 16px tile ref
+	hitHalfW    float64 // body AABB half-width at 16px tile ref
+	hitHalfH    float64 // body AABB half-height at 16px tile ref
+	hitCenterY  float64 // Y offset from feet anchor (negative = up)
 }
 
 var npcDefs = map[string]npcDef{
@@ -43,21 +50,29 @@ var npcDefs = map[string]npcDef{
 		id: "forest_skeleton", name: "Skeleton", category: NpcCategoryMonster,
 		disposition: NpcHostile, spriteID: "skeleton", hpMax: 40, speed: 28,
 		radius: 14, wander: true, leash: 96,
+		aggro: true, aggroRange: 40, meleeDamage: 3, meleeReach: 8,
+		hitHalfW: 13, hitHalfH: 8, hitCenterY: -45,
 	},
 	"forest_slime": {
 		id: "forest_slime", name: "Slime", category: NpcCategoryMonster,
 		disposition: NpcHostile, spriteID: "slime", hpMax: 25, speed: 22,
 		radius: 12, wander: true, leash: 72,
+		aggro: true, aggroRange: 48, meleeDamage: 2, meleeReach: 6,
+		hitHalfW: 12, hitHalfH: 6, hitCenterY: -43,
 	},
 	"forest_orc": {
 		id: "forest_orc", name: "Orc", category: NpcCategoryMonster,
 		disposition: NpcHostile, spriteID: "orc", hpMax: 55, speed: 32,
 		radius: 16, wander: true, leash: 110,
+		aggro: true, aggroRange: 32, meleeDamage: 4, meleeReach: 10,
+		hitHalfW: 11, hitHalfH: 8, hitCenterY: -45,
 	},
 	"wild_bat": {
 		id: "wild_bat", name: "Bat", category: NpcCategoryWildAnimal,
 		disposition: NpcHostile, spriteID: "bat", hpMax: 18, speed: 38,
 		radius: 10, wander: true, leash: 80,
+		aggro: true, aggroRange: 56, meleeDamage: 3, meleeReach: 5,
+		hitHalfW: 11, hitHalfH: 6, hitCenterY: -50,
 	},
 	"town_guard": {
 		id: "town_guard", name: "Town Guard", category: NpcCategoryGuard,

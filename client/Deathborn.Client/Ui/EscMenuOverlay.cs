@@ -41,6 +41,7 @@ public sealed class EscMenuOverlay
     private Rectangle _skillsButton;
     private Rectangle _buildHouseButton;
     private Rectangle _logoutButton;
+    private Rectangle _newLifeButton;
     private Rectangle _scrollbarTrack;
     private Rectangle _scrollbarThumb;
 
@@ -66,8 +67,19 @@ public sealed class EscMenuOverlay
     public Action? OnOpenSkills;
     public Action? OnBuildHouse;
     public Action? OnLogout;
+    public Action? OnNewLife;
+
+    private bool _deathMenuMode;
+    private bool _showNewLifeButton;
 
     public void SetBuildHouseEnabled(bool enabled) => _buildHouseEnabled = enabled;
+
+    /// <summary>Death / spirit mode — trim live-world actions and offer a new character.</summary>
+    public void SetDeathMenuMode(bool enabled, bool showNewLife = true)
+    {
+        _deathMenuMode = enabled;
+        _showNewLifeButton = enabled && showNewLife;
+    }
 
     public void Open()
     {
@@ -127,9 +139,15 @@ public sealed class EscMenuOverlay
             if (HitVisible(_spellBookButton) && _spellBookButton.Contains(mouse.Position)) { OnOpenSpellBook?.Invoke(); Close(); }
             if (HitVisible(_inventoryButton) && _inventoryButton.Contains(mouse.Position)) { OnOpenInventory?.Invoke(); Close(); }
             if (HitVisible(_skillsButton) && _skillsButton.Contains(mouse.Position)) { OnOpenSkills?.Invoke(); Close(); }
-            if (_buildHouseEnabled && HitVisible(_buildHouseButton) && _buildHouseButton.Contains(mouse.Position))
+            if (_buildHouseEnabled && !_deathMenuMode && HitVisible(_buildHouseButton) && _buildHouseButton.Contains(mouse.Position))
             {
                 OnBuildHouse?.Invoke();
+                Close();
+            }
+
+            if (_showNewLifeButton && HitVisible(_newLifeButton) && _newLifeButton.Contains(mouse.Position))
+            {
+                OnNewLife?.Invoke();
                 Close();
             }
 
@@ -198,13 +216,14 @@ public sealed class EscMenuOverlay
             mute.Draw(sb, font, _muteBox.Contains(Mouse.GetState().Position));
 
         var mousePos = Mouse.GetState().Position;
-        DrawMenuButtonIfVisible(sb, font, _characterButton, "Character (C)", _characterButton.Contains(mousePos));
-        DrawMenuButtonIfVisible(sb, font, _spellBookButton, "Spell Book (K)", _spellBookButton.Contains(mousePos));
-        DrawMenuButtonIfVisible(sb, font, _inventoryButton, "Inventory (I)", _inventoryButton.Contains(mousePos));
-        DrawMenuButtonIfVisible(sb, font, _skillsButton, "Skills (L)", _skillsButton.Contains(mousePos));
+        DrawMenuButtonIfVisible(sb, font, _characterButton, "Character (C)", !_deathMenuMode && _characterButton.Contains(mousePos));
+        DrawMenuButtonIfVisible(sb, font, _spellBookButton, "Spell Book (K)", !_deathMenuMode && _spellBookButton.Contains(mousePos));
+        DrawMenuButtonIfVisible(sb, font, _inventoryButton, "Inventory (I)", !_deathMenuMode && _inventoryButton.Contains(mousePos));
+        DrawMenuButtonIfVisible(sb, font, _skillsButton, "Skills (L)", !_deathMenuMode && _skillsButton.Contains(mousePos));
         DrawMenuButtonIfVisible(sb, font, _buildHouseButton,
             _buildHouseEnabled ? "Build House" : "Build House (already built)",
-            _buildHouseEnabled && _buildHouseButton.Contains(mousePos), !_buildHouseEnabled);
+            _buildHouseEnabled && !_deathMenuMode && _buildHouseButton.Contains(mousePos), !_buildHouseEnabled || _deathMenuMode);
+        DrawMenuButtonIfVisible(sb, font, _newLifeButton, "Begin anew", _newLifeButton.Contains(mousePos));
         DrawMenuButtonIfVisible(sb, font, _logoutButton, "Log out", _logoutButton.Contains(mousePos));
 
         if (_infoLines is { Count: > 0 })
@@ -331,7 +350,11 @@ public sealed class EscMenuOverlay
         const int buttonH = 36;
         const int buttonGap = 10;
         var y = font.LineSpacing + 6 + sliderH + sectionGap + 20 + sectionGap;
-        y += (buttonH + buttonGap) * 5 + buttonH + sectionGap;
+        var liveButtons = _deathMenuMode ? 0 : 5;
+        y += (buttonH + buttonGap) * liveButtons;
+        if (_showNewLifeButton)
+            y += buttonH + buttonGap;
+        y += buttonH + sectionGap;
         if (_infoLines is { Count: > 0 })
             y += font.LineSpacing + 4 + _infoLines.Count * font.LineSpacing + sectionGap;
         return y;
@@ -346,16 +369,38 @@ public sealed class EscMenuOverlay
         y += sliderH + sectionGap;
         _muteBox = ContentRect(_contentColumnX, y, 20, 20);
         y += 20 + sectionGap;
-        _characterButton = ContentRect(buttonX, y, buttonW, buttonH);
-        y += buttonH + buttonGap;
-        _spellBookButton = ContentRect(buttonX, y, buttonW, buttonH);
-        y += buttonH + buttonGap;
-        _inventoryButton = ContentRect(buttonX, y, buttonW, buttonH);
-        y += buttonH + buttonGap;
-        _skillsButton = ContentRect(buttonX, y, buttonW, buttonH);
-        y += buttonH + buttonGap;
-        _buildHouseButton = ContentRect(buttonX, y, buttonW, buttonH);
-        y += buttonH + buttonGap;
+        if (!_deathMenuMode)
+        {
+            _characterButton = ContentRect(buttonX, y, buttonW, buttonH);
+            y += buttonH + buttonGap;
+            _spellBookButton = ContentRect(buttonX, y, buttonW, buttonH);
+            y += buttonH + buttonGap;
+            _inventoryButton = ContentRect(buttonX, y, buttonW, buttonH);
+            y += buttonH + buttonGap;
+            _skillsButton = ContentRect(buttonX, y, buttonW, buttonH);
+            y += buttonH + buttonGap;
+            _buildHouseButton = ContentRect(buttonX, y, buttonW, buttonH);
+            y += buttonH + buttonGap;
+        }
+        else
+        {
+            _characterButton = Rectangle.Empty;
+            _spellBookButton = Rectangle.Empty;
+            _inventoryButton = Rectangle.Empty;
+            _skillsButton = Rectangle.Empty;
+            _buildHouseButton = Rectangle.Empty;
+        }
+
+        if (_showNewLifeButton)
+        {
+            _newLifeButton = ContentRect(buttonX, y, buttonW, buttonH);
+            y += buttonH + buttonGap;
+        }
+        else
+        {
+            _newLifeButton = Rectangle.Empty;
+        }
+
         _logoutButton = ContentRect(buttonX, y, buttonW, buttonH);
         y += buttonH + sectionGap;
         _infoSectionY = y;

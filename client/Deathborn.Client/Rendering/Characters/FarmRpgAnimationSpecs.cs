@@ -19,6 +19,8 @@ internal static class FarmRpgAnimationSpecs
     public const float DeathFrameDuration = 0.14f;
 
     private static readonly Vector2 FootOrigin = new(FrameWidth / 2f, FrameHeight);
+    /// <summary>Opaque foot row sits this many px above the frame bottom origin.</summary>
+    public const float FootBottomInsetPx = 7f;
 
     public static AnimationSpecification For(CharacterClip clip) => clip switch
     {

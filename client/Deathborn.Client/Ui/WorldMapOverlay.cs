@@ -90,14 +90,11 @@ public sealed class WorldMapOverlay
             if (!npc.IsBoss && !npc.IsAttackable) continue;
             var pos = WorldToMap(npc.Position, _mapBounds, map);
             if (npc.IsBoss)
-            {
-                DrawPrimitives.FillCircle(sb, pos, 6f, new Color(0.9f, 0.32f, 0.28f, 0.95f));
-                DrawPrimitives.DrawCircleOutline(sb, pos, 6f, new Color(0.45f, 0.1f, 0.1f, 0.95f), 14, 2f);
-                WorldNpcEntity.DrawBossIcon(sb, pos, 0.7f);
-            }
+                MonsterMapIcon.Draw(sb, pos, 0.85f);
             else
             {
-                DrawPrimitives.FillCircle(sb, pos, 4f, new Color(0.9f, 0.55f, 0.28f, 0.9f));
+                DrawPrimitives.FillCircle(sb, pos, 4f, new Color(0.92f, 0.24f, 0.22f, 0.95f));
+                DrawPrimitives.DrawCircleOutline(sb, pos, 4f, new Color(0.45f, 0.08f, 0.08f, 0.95f), 12, 1.5f);
             }
         }
     }

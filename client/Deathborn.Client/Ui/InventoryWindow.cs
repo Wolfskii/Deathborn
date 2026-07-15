@@ -95,7 +95,7 @@ public sealed class InventoryWindow : UiWindow
 
             if (slot.IsEmpty) continue;
 
-            var icon = ItemCatalog.IsCosmetic(slot.ItemId)
+            var icon = ItemCatalog.IsCosmetic(slot.ItemId) || ItemCatalog.IsWeapon(slot.ItemId)
                 ? HotbarIconDraw.FitSquare(rect, top: 4, bottom: 4, horizontalPad: 4)
                 : new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2);
             HotbarIconDraw.Draw(sb, slot.ItemId, icon);

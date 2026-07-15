@@ -40,6 +40,8 @@ public sealed class CharacterVisual
 
   public void HoldDeathPose(Vector2 facingDir) => _controller.HoldDeathPose(facingDir);
 
+  public void HoldIdlePose(Vector2 facingDir) => _controller.HoldIdlePose(facingDir);
+
   public void StartAttack(Vector2 facingDir, CharacterClip clip = CharacterClip.Attack) =>
     _controller.StartAttack(facingDir, clip);
 

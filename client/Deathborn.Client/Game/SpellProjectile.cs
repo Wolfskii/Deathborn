@@ -30,6 +30,7 @@ public sealed class SpellProjectile : IWorldEffect
     private float _ignoreOwnerTimer = 0.12f;
     private float _flyAnim;
     private float _burstTimer;
+    public Action? OnImpact;
 
     public static SpellProjectile Spawn(
         Vector2 origin,
@@ -40,7 +41,6 @@ public sealed class SpellProjectile : IWorldEffect
     {
         var def = definition ?? ProjectileDefinitions.Fireball;
         var dir = direction.LengthSquared() > 0.01f ? Vector2.Normalize(direction) : new Vector2(0, 1);
-        dir = SnapDirectionCardinal(dir);
         return new SpellProjectile
         {
             Definition = def,
@@ -75,6 +75,7 @@ public sealed class SpellProjectile : IWorldEffect
         _ignoreOwnerTimer -= dt;
 
         var step = Definition.Speed * dt;
+        var previous = Position;
         Position += Direction * step;
         _traveled += step;
 
@@ -97,14 +98,11 @@ public sealed class SpellProjectile : IWorldEffect
             foreach (var (id, npc) in npcs)
             {
                 if (!npc.IsAttackable) continue;
-                var hit = Definition.Radius + npc.Radius;
-                if (Vector2.DistanceSquared(Position, npc.Position) <= hit * hit)
-                {
-                    if (reportHits && Definition.Damage > 0)
-                        onNpcHit?.Invoke(id, Definition.Damage);
-                    StartBurst();
-                    return;
-                }
+                if (!NpcHitboxes.ProjectileHits(previous, Position, Definition.Radius, npc)) continue;
+                if (reportHits && Definition.Damage > 0)
+                    onNpcHit?.Invoke(id, Definition.Damage);
+                StartBurst();
+                return;
             }
 
             foreach (var (id, player) in players)
@@ -149,6 +147,7 @@ public sealed class SpellProjectile : IWorldEffect
     {
         Phase = SpellProjectilePhase.Bursting;
         _burstTimer = 0;
+        OnImpact?.Invoke();
     }
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, float zoom)
@@ -293,7 +292,7 @@ public sealed class SpellProjectile : IWorldEffect
         if (!ProjectileSprites.TryGetMagicFlyFrame(style, (int)_flyAnim, out var flySrc))
             return false;
 
-        var angle = CardinalProjectileAngle(Direction);
+        var angle = MathF.Atan2(Direction.Y, Direction.X);
         var size = MathF.Max(14f, Definition.Radius * 2f * zoom);
         var origin = new Vector2(flySrc.Width * 0.5f, flySrc.Height * 0.5f);
         sb.Draw(
@@ -307,20 +306,5 @@ public sealed class SpellProjectile : IWorldEffect
             SpriteEffects.None,
             0f);
         return true;
-    }
-
-    /// <summary>4-way angles only — matches cardinal aim and sprite strips.</summary>
-    private static float CardinalProjectileAngle(Vector2 dir)
-    {
-        if (MathF.Abs(dir.X) >= MathF.Abs(dir.Y))
-            return dir.X >= 0 ? 0f : MathF.PI;
-        return dir.Y >= 0 ? MathF.PI * 0.5f : -MathF.PI * 0.5f;
-    }
-
-    private static Vector2 SnapDirectionCardinal(Vector2 dir)
-    {
-        if (MathF.Abs(dir.X) >= MathF.Abs(dir.Y))
-            return dir.X >= 0 ? Vector2.UnitX : -Vector2.UnitX;
-        return dir.Y >= 0 ? Vector2.UnitY : -Vector2.UnitY;
     }
 }
