@@ -1,23 +1,18 @@
 {
   "tile_size_px": 16,
   "world_tile_size": 32,
+  "plain_grass_cell": [
+    9,
+    2
+  ],
   "grass_autotile_origin": [
-    4,
-    14
+    5,
+    1
   ],
   "grass_water_land_origin": [
-    8,
-    0
+    4,
+    8
   ],
-  "grass_water_water_origin": [
-    0,
-    0
-  ],
-  "water_anim_origin": [
-    12,
-    0
-  ],
-  "water_anim_frames": 8,
   "cliff_lip_row": 17,
   "cliff_base_row": 18,
   "cliff_lip_cols": [
@@ -37,6 +32,7 @@
     "Decorations/FarmRpg/bush_1.png",
     "Decorations/FarmRpg/bush_2.png",
     "Decorations/FarmRpg/bush_3.png",
+    "Decorations/FarmRpg/clouds.png",
     "Decorations/FarmRpg/rock_1.png",
     "Decorations/FarmRpg/rock_2.png",
     "Decorations/FarmRpg/tree_maple.png",

@@ -54,6 +54,7 @@ DECORATION_FILES = {
     "Decorations/FarmRpg/rock_2.png": "Objects/Props/Summer/Stones Summer.png",
     "Decorations/FarmRpg/water_rock_1.png": "Objects/Props/Spring/props water.png",
     "Decorations/FarmRpg/water_rock_2.png": "Objects/Props/Summer/PropsWater Summer.png",
+    "Decorations/FarmRpg/clouds.png": "Objects/Props/clouds.png",
 }
 
 MGCB_BLOCK = """#begin {mgcb_path}
