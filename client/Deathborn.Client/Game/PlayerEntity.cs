@@ -12,6 +12,15 @@ public sealed class PlayerEntity
     public const float SpriteDrawScale = 1.5f;
     /// <summary>Collision circle sits slightly below the feet anchor to tighten edge blocking.</summary>
     public const float CollisionCenterYOffset = 2f;
+    private const float MinMoveDisplacementSq = 0.36f;
+
+    public static float SpriteWorldHalfWidth =>
+        Rendering.Characters.FarmRpgAnimationSpecs.FrameWidth * 0.5f *
+        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg);
+
+    public static float SpriteWorldHeight =>
+        Rendering.Characters.FarmRpgAnimationSpecs.FrameHeight *
+        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg);
     private float VisualDrawScale => CharacterAnimationCatalog.GetDrawScale(_visual.Appearance.BodyTypeId);
 
     /// <summary>World Y for Y-sorting — feet on the ground.</summary>
@@ -30,6 +39,7 @@ public sealed class PlayerEntity
     private float _abilityLockTimer;
     private float _bandageHoTTimer;
     private float _bandageAnim;
+    private float _lastFrameDisplacementSq;
     private float _whirlwindTimer;
     private bool _whirlwindHitPulse;
     private bool _isDashing;
@@ -354,8 +364,9 @@ public sealed class PlayerEntity
         !IsDead &&
         !IsHurt &&
         !IsBusy &&
-        ((IsLocal && InputDir.LengthSquared() > 0.01f) ||
-         Vector2.DistanceSquared(Position, Target) > 0.5f);
+        (IsLocal
+            ? InputDir.LengthSquared() > 0.01f && _lastFrameDisplacementSq > MinMoveDisplacementSq
+            : Vector2.DistanceSquared(Position, Target) > 0.5f);
 
     public bool IsWalking => IsMoving && !IsRunning;
 
@@ -396,6 +407,8 @@ public sealed class PlayerEntity
             return;
         }
 
+        var prevPos = Position;
+
         if (_isDashing)
         {
             _dashTimer = MathF.Max(0f, _dashTimer - dt);
@@ -430,6 +443,8 @@ public sealed class PlayerEntity
             var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
             Position = ResolvePosition(lerped, Vector2.Zero);
         }
+
+        _lastFrameDisplacementSq = Vector2.DistanceSquared(prevPos, Position);
 
         UpdateBandageVisual(dt);
 

@@ -21,6 +21,9 @@ const (
 
 type foliageCircle struct {
 	x, y, radius float64
+	// trunkSortY is the tree trunk-base line; entity feet north of this pass through canopy.
+	// Zero for rocks.
+	trunkSortY float64
 }
 
 type foliageIndex struct {
@@ -80,16 +83,48 @@ func (m *Map) buildFoliage() *foliageIndex {
 
 func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	scale := 0.78 + float64(foliageHash(tx, ty, 10)%1000)/1000.0*0.38
+	scale *= foliageScaleMul(kind)
 	variant := foliageVariant(kind, tx, ty)
-	footInset, radius := foliageCollider(kind, variant, scale)
-	// Lift the circle by its radius so its bottom edge sits at the visual foot
-	// (matches client WorldFoliage.ColliderCenter); otherwise the collider
-	// extends below the sprite image.
+
+	var centerY, radius, trunkSortY float64
+	switch kind {
+	case foliageTree:
+		var footInset float64
+		footInset, _, radius = treeColliderMetrics(variant, scale)
+		treeFootY := y - footInset*scale
+		depthBottomY := y + 3*scale
+		centerY = (treeFootY + depthBottomY) / 2
+		trunkSortY = treeFootY
+	default:
+		var footInset float64
+		footInset, radius = foliageCollider(kind, variant, scale)
+		centerY = y - footInset*scale - radius
+	}
+
 	idx.circles = append(idx.circles, foliageCircle{
-		x:      x,
-		y:      y - footInset*scale - radius,
-		radius: radius,
+		x:          x,
+		y:          centerY,
+		radius:     radius,
+		trunkSortY: trunkSortY,
 	})
+}
+
+func foliageScaleMul(kind foliageKind) float64 {
+	switch kind {
+	case foliageTree:
+		return 2.75
+	case foliageRock:
+		return 1.15
+	default:
+		return 1
+	}
+}
+
+func treeColliderMetrics(variant int, scale float64) (footInset, _ float64, radius float64) {
+	if variant == 0 {
+		return 6, 0, 5 * scale
+	}
+	return 8, 0, 6 * scale
 }
 
 func foliageVariant(kind foliageKind, tx, ty int) int {
@@ -108,13 +143,6 @@ func foliageVariant(kind foliageKind, tx, ty int) int {
 
 func foliageCollider(kind foliageKind, variant int, scale float64) (footInset, radius float64) {
 	switch kind {
-	case foliageTree:
-		if variant == 0 {
-			footInset = 23
-		} else {
-			footInset = 25
-		}
-		return footInset, 8 * scale
 	case foliageRock:
 		switch variant {
 		case 0:
@@ -142,6 +170,9 @@ func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, f
 		pushed := false
 		for i := range idx.circles {
 			f := &idx.circles[i]
+			if f.trunkSortY > 0 && y < f.trunkSortY {
+				continue
+			}
 			dx := x - f.x
 			dy := cy - f.y
 			minDist := f.radius + entityRadius

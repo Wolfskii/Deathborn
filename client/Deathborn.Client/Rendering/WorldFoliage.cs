@@ -40,6 +40,8 @@ public static class WorldFoliage
     private static float _townPad = BaseTownPad;
     private static float _spawnClearRadius = BaseSpawnClearRadius;
     private const float UnderFoliageAlpha = 0.42f;
+    /// <summary>Extra depth (unscaled px) into the ground shadow while still treated as behind.</summary>
+    private const float TreeShadowDepthInset = 3f;
 
     private static readonly List<FoliageInstance> Instances = [];
     private static Texture2D?[] _textures = new Texture2D[13];
@@ -82,20 +84,62 @@ public static class WorldFoliage
     // Lift the circle by its radius so its bottom edge sits at the visual foot;
     // otherwise half the collider sticks out below the sprite.
     public static Vector2 ColliderCenter(FoliageInstance f) =>
+        f.Kind == FoliageKind.Tree ? TreeStemColliderCenter(f) :
         new(f.Position.X, f.Position.Y - f.FootInset * f.Scale - f.CollisionRadius);
 
-    /// <summary>Ground contact / trunk base used for Y-sort (not the texture bottom).</summary>
+    private static Vector2 TreeStemColliderCenter(FoliageInstance f)
+    {
+        var stemTopY = SortY(f);
+        var stemBottomY = FoliageBottomY(f);
+        return new Vector2(f.Position.X, (stemTopY + stemBottomY) * 0.5f);
+    }
+
+    private static bool InstanceBlocksCircle(FoliageInstance f, Vector2 collisionCenter, float entityRadius)
+    {
+        if (!f.BlocksMovement) return false;
+
+        if (f.Kind == FoliageKind.Tree)
+        {
+            var feetY = collisionCenter.Y - PlayerEntity.CollisionCenterYOffset;
+            // Pass through canopy/leaves north of the trunk base; stem always blocks.
+            if (feetY < SortY(f))
+                return false;
+
+            var center = TreeStemColliderCenter(f);
+            var hit = f.CollisionRadius + entityRadius;
+            var dx = collisionCenter.X - center.X;
+            var dy = collisionCenter.Y - center.Y;
+            return dx * dx + dy * dy <= hit * hit;
+        }
+
+        var defaultCenter = ColliderCenter(f);
+        var defaultHit = f.CollisionRadius + entityRadius;
+        var ddx = collisionCenter.X - defaultCenter.X;
+        var ddy = collisionCenter.Y - defaultCenter.Y;
+        return ddx * ddx + ddy * ddy <= defaultHit * defaultHit;
+    }
+
+    /// <summary>Ground contact / trunk base (north of texture bottom).</summary>
     public static float SortY(FoliageInstance f) =>
         f.Position.Y - f.FootInset * f.Scale;
+
+    /// <summary>
+    /// World Y of the object's bottom edge for depth — compare to player feet.
+    /// Whichever bottom is higher on screen (smaller Y) is behind.
+    /// </summary>
+    public static float FoliageBottomY(FoliageInstance f) =>
+        f.Kind == FoliageKind.Tree
+            ? f.Position.Y + TreeShadowDepthInset * f.Scale
+            : f.Position.Y;
+
+    public static bool EntityIsBehind(FoliageInstance f, float entityFeetY) =>
+        entityFeetY < FoliageBottomY(f);
 
     public static bool BlocksCircle(Vector2 pos, float radius)
     {
         foreach (var f in Instances)
         {
-            if (!f.BlocksMovement) continue;
-            var center = ColliderCenter(f);
-            var hit = f.CollisionRadius + radius;
-            if (Vector2.DistanceSquared(pos, center) <= hit * hit)
+            if (InstanceBlocksCircle(f, pos, radius))
                 return true;
         }
         return false;
@@ -115,8 +159,8 @@ public static class WorldFoliage
             var pushed = false;
             foreach (var f in Instances)
             {
-                if (!f.BlocksMovement) continue;
-                var center = ColliderCenter(f);
+                if (!InstanceBlocksCircle(f, pos, entityRadius)) continue;
+                var center = f.Kind == FoliageKind.Tree ? TreeStemColliderCenter(f) : ColliderCenter(f);
                 var dx = pos.X - center.X;
                 var dy = pos.Y - center.Y;
                 var minDist = f.CollisionRadius + entityRadius;
@@ -157,17 +201,13 @@ public static class WorldFoliage
     public static bool EntityUnderFoliage(FoliageInstance f, Vector2 pos, float entityRadius)
     {
         if (f.Kind is FoliageKind.Rock or FoliageKind.WaterRock) return false;
-
-        // Only fade when the entity sorts BEHIND the foliage (feet north of the trunk base).
-        var foliageSortY = SortY(f);
-        if (pos.Y >= foliageSortY) return false;
+        if (!EntityIsBehind(f, pos.Y)) return false;
 
         var scale = f.Scale;
-        var topY = f.Position.Y - f.CanopyTopInset * scale;
-        var bottomY = f.Position.Y - f.CanopyBottomInset * scale;
-        if (pos.Y + entityRadius < topY || pos.Y - entityRadius > bottomY) return false;
+        var canopyTop = f.Position.Y - f.CanopyTopInset * scale;
+        if (pos.Y < canopyTop) return false;
 
-        var halfW = f.CanopyHalfWidth * scale + entityRadius;
+        var halfW = f.CanopyHalfWidth * scale;
         return MathF.Abs(pos.X - f.Position.X) <= halfW;
     }
 
@@ -374,25 +414,25 @@ public static class WorldFoliage
         {
             case FoliageKind.Tree when f.Variant == 0:
                 f.FootInset = 6f;
-                f.CanopyTopInset = 42f;
-                f.CanopyBottomInset = 14f;
-                f.CanopyHalfWidth = 12f;
-                f.CollisionRadius = 8f * f.Scale;
+                f.CanopyTopInset = 34f;
+                f.CanopyBottomInset = 11f;
+                f.CanopyHalfWidth = 16f;
+                f.CollisionRadius = 5f * f.Scale;
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Tree:
                 f.FootInset = 8f;
-                f.CanopyTopInset = 44f;
-                f.CanopyBottomInset = 16f;
-                f.CanopyHalfWidth = 14f;
-                f.CollisionRadius = 10f * f.Scale;
+                f.CanopyTopInset = 45f;
+                f.CanopyBottomInset = 11f;
+                f.CanopyHalfWidth = 16f;
+                f.CollisionRadius = 6f * f.Scale;
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Bush:
                 f.FootInset = 6f;
-                f.CanopyTopInset = 24f;
-                f.CanopyBottomInset = 6f;
-                f.CanopyHalfWidth = 16f;
+                f.CanopyTopInset = 26f;
+                f.CanopyBottomInset = 4f;
+                f.CanopyHalfWidth = 24f;
                 f.CollisionRadius = 0f;
                 f.BlocksMovement = false;
                 break;
