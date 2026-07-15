@@ -7,6 +7,8 @@ namespace Deathborn.Client.Gameplay;
 
 public sealed class HotbarSlot
 {
+    private const float StackCountScale = 0.55f;
+
     public string KeyLabel = "?";
     public Dictionary<string, object>? Entry;
     public bool Flash;
@@ -57,18 +59,35 @@ public sealed class HotbarSlot
             new Color(0, 0, 0, 0.62f));
         sb.DrawString(font, KeyLabel, new Vector2(bounds.X + 5, bounds.Y + 3), new Color(215, 215, 190));
 
-        if (inventory != null && Entry != null && Entry.GetValueOrDefault("fromInventory") is true)
+        if (inventory != null && Entry != null)
         {
-            var count = GetLinkedStackCount(Entry, inventory);
-            if (count > 0)
-                DrawStackCount(sb, font, bounds, count);
+            var itemId = ResolveConsumableItemId(Entry);
+            if (itemId != null)
+            {
+                var count = GetConsumableCount(Entry, inventory, itemId);
+                if (count > 0)
+                    DrawStackCount(sb, font, bounds, count);
+            }
         }
 
         if (onCooldown && CooldownTotal > 0f)
             DrawCooldownOverlay(sb, font, bounds);
     }
 
-    private static int GetLinkedStackCount(Dictionary<string, object> entry, PlayerInventory inventory)
+    private static string? ResolveConsumableItemId(Dictionary<string, object> entry)
+    {
+        var itemId = entry.GetValueOrDefault("itemId") as string;
+        if (itemId != null && ItemCatalog.IsConsumable(itemId))
+            return itemId;
+
+        var abilityId = entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        if (abilityId != null && ItemCatalog.IsConsumable(abilityId))
+            return abilityId;
+
+        return null;
+    }
+
+    private static int GetConsumableCount(Dictionary<string, object> entry, PlayerInventory inventory, string itemId)
     {
         if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
         {
@@ -81,22 +100,20 @@ public sealed class HotbarSlot
             if (slot >= 0) return inventory.CountAt(slot);
         }
 
-        var itemId = entry.GetValueOrDefault("itemId") as string
-            ?? entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
-        return itemId != null ? inventory.CountOf(itemId) : 0;
+        return inventory.CountOf(itemId);
     }
 
     private static void DrawStackCount(SpriteBatch sb, SpriteFont font, Rectangle bounds, int count)
     {
         var label = count.ToString();
-        var size = font.MeasureString(label) * 0.65f;
-        var labelX = bounds.Right - size.X - 4;
-        var labelY = bounds.Bottom - size.Y - 3;
+        var size = font.MeasureString(label) * StackCountScale;
+        var labelX = bounds.Right - size.X - 3;
+        var labelY = bounds.Bottom - size.Y - 2;
         DrawPrimitives.FillRect(sb,
             new Rectangle((int)labelX - 2, (int)labelY - 1, (int)size.X + 4, (int)size.Y + 2),
             new Color(0, 0, 0, 0.62f));
         sb.DrawString(font, label, new Vector2(labelX, labelY), new Color(245, 240, 220),
-            0f, Vector2.Zero, 0.65f, SpriteEffects.None, 0f);
+            0f, Vector2.Zero, StackCountScale, SpriteEffects.None, 0f);
     }
 
     private void DrawCooldownOverlay(SpriteBatch sb, SpriteFont font, Rectangle bounds)
@@ -145,6 +162,7 @@ public sealed class Hotbar
     ];
 
     public readonly HotbarSlot[] Slots = new HotbarSlot[10];
+    public int SelectedIndex { get; private set; }
     public event Action<int, Dictionary<string, object>?>? SlotActivated;
     public event Action<int, float>? CooldownBlocked;
 
@@ -190,16 +208,46 @@ public sealed class Hotbar
         return false;
     }
 
-    public void Update(float dt, KeyboardState kb, KeyboardState prevKb, bool acceptInput = true)
+    public void SelectSlot(int index)
+    {
+        if (index < 0) index = 9;
+        else if (index > 9) index = 0;
+        SelectedIndex = index;
+    }
+
+    public void Update(float dt, KeyboardState kb, KeyboardState prevKb, MouseState mouse, MouseState prevMouse,
+        bool acceptInput = true)
     {
         foreach (var slot in Slots) slot.Update(dt);
         if (!acceptInput) return;
 
         for (var i = 0; i < 10; i++)
         {
-            if (kb.IsKeyDown(HotbarKeys[i]) && !prevKb.IsKeyDown(HotbarKeys[i]))
+            if (!kb.IsKeyDown(HotbarKeys[i]) || prevKb.IsKeyDown(HotbarKeys[i])) continue;
+            SelectSlot(i);
+            if (ActivatesOnNumberKey(Slots[i].Entry))
                 TryActivate(i);
         }
+
+        var wheelDelta = mouse.ScrollWheelValue - prevMouse.ScrollWheelValue;
+        if (wheelDelta == 0) return;
+
+        var steps = wheelDelta / 120;
+        if (steps == 0)
+            steps = wheelDelta > 0 ? 1 : -1;
+        SelectSlot((SelectedIndex - steps + 10_000) % 10);
+    }
+
+    private static bool ActivatesOnNumberKey(Dictionary<string, object>? entry)
+    {
+        if (entry == null) return false;
+
+        var itemId = entry.GetValueOrDefault("itemId") as string;
+        if (itemId != null)
+            return ItemCatalog.IsConsumable(itemId);
+
+        // Spells/abilities assigned directly (not dragged from inventory).
+        return true;
     }
 
     public bool TryActivate(int index)

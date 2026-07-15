@@ -427,7 +427,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         UpdateProjectiles(dt);
         _feedback.Update(dt, _players, _npcs);
-        _hotbar.Update(dt, kb, _prevKb, acceptInput: !blockGameplay && !_dragDrop.IsDragging);
+        _hotbar.Update(dt, kb, _prevKb, mouse, _prevMouse,
+            acceptInput: !blockGameplay && !_dragDrop.IsDragging);
 
         if (_ghostMode && _ghost != null)
             _camera = _ghost.Position;
@@ -456,7 +457,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     TryInteractNearest();
 
                 if (kb.IsKeyDown(Keys.Space) && !_prevKb.IsKeyDown(Keys.Space))
-                    TryDefaultAttack();
+                    TryUseSelectedHotbarSlot();
 
                 if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released
                     && !IsOverHotbar(mouse.Position))
@@ -900,8 +901,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         {
             if (mouse.LeftButton == ButtonState.Pressed && prevMouse.LeftButton == ButtonState.Released)
             {
-                if (Hotbar.TryGetSlotIndexAt(mouse.Position, out var idx)
-                    && _hotbar.Slots[idx].Entry != null)
+                if (Hotbar.TryGetSlotIndexAt(mouse.Position, out var idx))
                 {
                     _pendingHotbarDragIndex = idx;
                     _hotbarDragStartMouse = mouse.Position;
@@ -929,7 +929,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 var dy = mouse.Y - _hotbarDragStartMouse.Y;
                 if (dx * dx + dy * dy <= 36
                     && Hotbar.TryGetSlotIndexAt(mouse.Position, out var idx) && idx == pending)
-                    _hotbar.TryActivate(pending);
+                    _hotbar.SelectSlot(pending);
             }
             _pendingHotbarDragIndex = null;
         }
@@ -962,6 +962,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 _ => null,
             };
             _hotbar.AssignSlot(hotbarIdx, newEntry);
+            _hotbar.SelectSlot(hotbarIdx);
 
             if (payload.Kind == DragPayloadKind.Hotbar && payload.SourceHotbarIndex >= 0)
             {
@@ -1006,18 +1007,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var sb = DeathbornGame.Instance.SpriteBatch;
         var mouse = Mouse.GetState().Position;
         var cursorKind = UiCursorKind.Normal;
-        Rectangle? hoverSlotRect = null;
+        Rectangle? overlayRect = Hotbar.GetSlotBounds(_hotbar.SelectedIndex);
 
         if (Hotbar.TryGetSlotIndexAt(mouse, out var hotbarIdx))
         {
-            hoverSlotRect = Hotbar.GetSlotBounds(hotbarIdx);
             var entry = _hotbar.Slots[hotbarIdx].Entry;
             if (entry != null)
                 cursorKind = IsEntryBlocked(entry, hotbarIdx, null) ? UiCursorKind.Blocked : UiCursorKind.Hover;
         }
         else if (_windows.Inventory.IsOpen && _windows.Inventory.TryGetSlotAt(mouse, out var invIdx, out var invRect))
         {
-            hoverSlotRect = invRect;
+            overlayRect = invRect;
             var slot = _inventory.Slots[invIdx];
             if (!slot.IsEmpty && slot.ItemId != null)
             {
@@ -1031,7 +1031,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         sb.Begin(samplerState: SamplerState.PointClamp);
-        if (hoverSlotRect is { } rect)
+        if (overlayRect is { } rect)
             UiCursorTheme.DrawSlotOverlay(sb, rect);
         UiCursorTheme.DrawCursor(sb, mouse, cursorKind);
         sb.End();
@@ -1357,7 +1357,25 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (target != null && target.IsInRange(_camera))
             PerformInteract(target);
         else
-            TryMeleeAttack(GetAimDirection());
+            TryUseSelectedHotbarSlot();
+    }
+
+    private void TryUseSelectedHotbarSlot()
+    {
+        if (_ghostMode || IsLocalDyingOrDead()) return;
+
+        var idx = _hotbar.SelectedIndex;
+        var slot = _hotbar.Slots[idx];
+        if (slot.Entry == null) return;
+
+        if (slot.IsOnCooldown)
+        {
+            OnHotbarCooldownBlocked(idx, slot.CooldownRemaining);
+            return;
+        }
+
+        slot.Flash = true;
+        TryUseEntry(idx, slot.Entry);
     }
 
     private bool TryHouseDoorInteract(Vector2? worldPos = null)
@@ -1384,14 +1402,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.Net.SendHouseEnter(doorHouse.Id);
         _status = $"Entering {doorHouse.DisplayName(_screens.Net.LocalCharacterId)}...";
         return true;
-    }
-
-    private void TryDefaultAttack() => TryMeleeAttack(GetAimDirection());
-
-    private void TryMeleeAttack(Vector2 aimDir)
-    {
-        if (!TryPayAbilityCost("slash")) return;
-        TryMeleeAttackInternal(aimDir);
     }
 
     private bool TryMeleeAttackInternal(Vector2 aimDir)
@@ -2595,6 +2605,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             used = UseSecondWind();
         else if (id == "slash")
         {
+            if (entry.GetValueOrDefault("fromInventory") is true && !HasLinkedInventoryItem(entry))
+            {
+                _status = "You no longer have that weapon.";
+                return;
+            }
             used = TryPayAbilityCost("slash") && TryMeleeAttackInternal(GetAimDirection());
         }
         else if (id == "health_potion")

@@ -5,6 +5,7 @@ public enum ItemKind
     Consumable,
     Cosmetic,
     Key,
+    Weapon,
 }
 
 public sealed class ItemInfo
@@ -55,6 +56,11 @@ public static class ItemCatalog
             Id = "house_key", Name = "Homestead Key", Kind = ItemKind.Key, MaxStack = 1, Cooldown = 0f,
             Description = "Proves ownership of a homestead plot. Drop it on death - anyone can claim the plot by picking it up.",
         },
+        ["farm_sword"] = new()
+        {
+            Id = "farm_sword", Name = "Iron Sword", Kind = ItemKind.Weapon, MaxStack = 1, Cooldown = 0f,
+            Description = "A basic sword. Drag to the hotbar to slash foes.",
+        },
     };
 
     static ItemCatalog()
@@ -69,6 +75,12 @@ public static class ItemCatalog
 
     public static bool IsCosmetic(string? id) =>
         id != null && All.TryGetValue(id, out var info) && info.Kind == ItemKind.Cosmetic;
+
+    public static bool IsWeapon(string? id) =>
+        id != null && All.TryGetValue(id, out var info) && info.Kind == ItemKind.Weapon;
+
+    public static bool IsConsumable(string? id) =>
+        id != null && All.TryGetValue(id, out var info) && info.Kind == ItemKind.Consumable;
 
     public static Dictionary<string, object> ToHotbarEntry(string itemId, int inventorySlot = -1)
     {
@@ -86,6 +98,23 @@ public static class ItemCatalog
             if (inventorySlot >= 0)
                 entry[HotbarEntry.InventorySlotKey] = inventorySlot;
             return HotbarEntry.Clone(entry);
+        }
+
+        if (info.Kind == ItemKind.Weapon)
+        {
+            var slash = AbilityCatalog.Get("slash");
+            var weapon = new Dictionary<string, object>
+            {
+                [HotbarEntry.IdKey] = "slash",
+                ["name"] = info.Name,
+                ["kind"] = "melee",
+                ["itemId"] = itemId,
+                ["fromInventory"] = true,
+                [HotbarEntry.CooldownKey] = slash?.Cooldown ?? 0f,
+            };
+            if (inventorySlot >= 0)
+                weapon[HotbarEntry.InventorySlotKey] = inventorySlot;
+            return HotbarEntry.Clone(weapon);
         }
 
         var abilityId = itemId switch

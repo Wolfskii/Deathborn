@@ -89,6 +89,7 @@ func StarterInventory() []InventoryItem {
 		{Slot: 5, ItemID: "santa_hat", Count: 1},
 		{Slot: 6, ItemID: "party_hat", Count: 1},
 		{Slot: 7, ItemID: "bucket_helmet", Count: 1},
+		{Slot: 8, ItemID: "farm_sword", Count: 1},
 	})
 }
 

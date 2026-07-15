@@ -74,6 +74,7 @@ public static class HotbarIconDraw
                 DrawSecondWind(sb, bounds);
                 break;
             case "slash":
+            case "farm_sword":
                 DrawSlash(sb, bounds);
                 break;
             case "health_potion":
