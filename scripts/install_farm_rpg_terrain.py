@@ -40,6 +40,7 @@ TERRAIN_FILES = {
     "Tiles/FarmRpg/water_fill.png": "Tileset/Water tile.png",
     "Tiles/FarmRpg/water_anim.png": "Tileset/Water Ground animations tiles.png",
     "Tiles/FarmRpg/shadow.png": "Tileset/Shadow.png",
+    "Tiles/FarmRpg/props_seasons.png": "Tileset/ALL props seasons.png",
 }
 
 DECORATION_FILES = {

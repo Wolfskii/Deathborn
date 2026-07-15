@@ -520,7 +520,10 @@ public sealed class WorldMap
         }
 
         if (HasElevation && FarmRpgTerrain.IsLoaded)
+        {
             FarmRpgTerrain.Draw(sb, this, region);
+            FarmRpgGrassProps.Draw(sb, this, region);
+        }
         else
         {
             for (var ty = minTy; ty <= maxTy; ty++)

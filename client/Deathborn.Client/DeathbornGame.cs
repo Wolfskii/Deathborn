@@ -95,6 +95,7 @@ public sealed class DeathbornGame : Game
         WaterTiles.Load(Content);
         TerrainLandTiles.Load(Content);
         FarmRpgTerrain.Load(Content);
+        FarmRpgGrassProps.Load(Content);
         WorldFoliage.Load(Content);
         WorldClouds.Load(Content);
         TinyRpgCharacterSprites.Load(Content);
