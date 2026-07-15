@@ -24,7 +24,7 @@ public sealed class FoliageInstance
     /// <summary>Unscaled half-width of the overlap / transparency region.</summary>
     public float CanopyHalfWidth;
     public bool BlocksMovement;
-    public byte ColliderMaskId = FoliagePixelCollider.NoMaskId;
+    public byte ColliderMaskId = 255;
 }
 
 /// <summary>
@@ -360,6 +360,33 @@ public static class WorldFoliage
         Span<Vector2> empty = [];
         foreach (var f in VisibleScratch)
             DrawInstance(sb, f, camera, screenCenter, zoom, empty);
+    }
+
+    /// <summary>Chroma-key green collider outlines — call when F12 debug HUD is on.</summary>
+    public static void DrawDebugColliders(SpriteBatch sb, WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        GetVisible(map, camera, screenCenter, zoom, VisibleScratch);
+        foreach (var f in VisibleScratch)
+        {
+            if (!f.BlocksMovement) continue;
+
+            if (FoliagePixelCollider.TryGetMask(f.ColliderMaskId, out var mask) && mask != null)
+            {
+                FoliagePixelCollider.DrawDebugMask(sb, f, mask, camera, screenCenter, zoom);
+                continue;
+            }
+
+            if (f.CollisionRadius <= 0f) continue;
+            var center = f.Kind == FoliageKind.Tree ? TreeStemColliderCenter(f) : ColliderCenter(f);
+            FoliagePixelCollider.DrawDebugCircle(sb, center, f.CollisionRadius, camera, screenCenter, zoom);
+        }
+    }
+
+    public static void DrawDebugPlayerCollider(
+        SpriteBatch sb, Vector2 feet, float entityRadius, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        FoliagePixelCollider.DrawDebugCircle(
+            sb, PlayerEntity.CollisionCenter(feet), entityRadius, camera, screenCenter, zoom);
     }
 
     private static Texture2D? TextureFor(FoliageInstance f) => f.Kind switch

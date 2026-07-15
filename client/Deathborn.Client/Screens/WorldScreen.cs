@@ -504,6 +504,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         [
             $"FPS: {DeathbornGame.Instance.Fps}",
             _status,
+            _debugHudVisible ? "F12: collider debug ON (green outlines)" : "F12: debug HUD",
             $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
             $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
         ];
@@ -646,6 +647,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (_ghostMode && _ghost != null)
             _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
+
+        if (_debugHudVisible)
+        {
+            WorldFoliage.DrawDebugColliders(sb, WorldMap.Realik, _camera, ScreenCenter, zoom);
+            if (FindLocalPlayer() is { InsideHouseId: <= 0 } local)
+                WorldFoliage.DrawDebugPlayerCollider(sb, local.Position, PlayerEntity.Radius, _camera, ScreenCenter, zoom);
+        }
 
         if (!_ghostMode && !IsLocalDyingOrDead())
         {

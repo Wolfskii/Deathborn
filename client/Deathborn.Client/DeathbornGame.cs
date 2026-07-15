@@ -21,6 +21,13 @@ public sealed class DeathbornGame : Game
     private ScreenManager _screens = null!;
     private KeyboardState _prevKb;
     private bool _wasActive = true;
+    private bool _borderlessFullscreen;
+    private bool _applyingGraphicsChanges;
+    private bool _reloadingGraphics;
+    private int _suppressClientSizeChanged;
+    private int _windowedWidth = Config.DefaultWidth;
+    private int _windowedHeight = Config.DefaultHeight;
+    private Point _windowedPosition;
 
     public SpriteFont Font { get; private set; } = null!;
     public int Fps => _fps.Fps;
@@ -59,6 +66,7 @@ public sealed class DeathbornGame : Game
         Window.TextInput += OnTextInput;
         _screens = new ScreenManager(this);
         ServerEndpoints.EnsureResolvedAsync().GetAwaiter().GetResult();
+        GraphicsDevice.DeviceReset += (_, _) => ReloadGraphicsAssets();
         base.Initialize();
         SyncViewport();
     }
@@ -70,14 +78,30 @@ public sealed class DeathbornGame : Game
 
     private void OnClientSizeChanged(object? sender, EventArgs e)
     {
+        if (_applyingGraphicsChanges || _borderlessFullscreen || _suppressClientSizeChanged > 0) return;
+
         var w = Window.ClientBounds.Width;
         var h = Window.ClientBounds.Height;
-        if (w <= 0 || h <= 0) return;
+        if (w < 320 || h < 240) return;
+        if (w == _graphics.PreferredBackBufferWidth && h == _graphics.PreferredBackBufferHeight)
+        {
+            SyncViewport();
+            return;
+        }
 
-        _graphics.PreferredBackBufferWidth = w;
-        _graphics.PreferredBackBufferHeight = h;
-        _graphics.ApplyChanges();
-        SyncViewport();
+        _applyingGraphicsChanges = true;
+        try
+        {
+            _graphics.PreferredBackBufferWidth = w;
+            _graphics.PreferredBackBufferHeight = h;
+            _graphics.ApplyChanges();
+            RefreshGraphicsResources();
+            SyncViewport();
+        }
+        finally
+        {
+            _applyingGraphicsChanges = false;
+        }
     }
 
     private void SyncViewport() => GameViewport.SyncFrom(GraphicsDevice);
@@ -87,6 +111,20 @@ public sealed class DeathbornGame : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         DrawPrimitives.Init(GraphicsDevice);
         Font = Content.Load<SpriteFont>("Fonts/Default");
+        LoadGraphicsAssets();
+        AudioSettings.Load();
+        MusicPlayer.ApplySavedSettings();
+        SfxPlayer.Load(Content);
+        SfxPlayer.ApplySavedSettings();
+        _screens.Change(Config.DevAutoRestore && SavedLogin.HasRemembered()
+            ? new DevReconnectScreen(_screens)
+            : new LoginScreen(_screens));
+        SyncViewport();
+        GameWindowIcon.Apply(this);
+    }
+
+    private void LoadGraphicsAssets()
+    {
         Rendering.Characters.FarmRpgCharacterSprites.Load(Content);
         AbilityIconAtlas.Load(Content);
         CosmeticIconAtlas.Load(Content);
@@ -102,15 +140,28 @@ public sealed class DeathbornGame : Game
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         FarmRpgInventoryUi.Load(Content);
-        AudioSettings.Load();
-        MusicPlayer.ApplySavedSettings();
-        SfxPlayer.Load(Content);
-        SfxPlayer.ApplySavedSettings();
-        _screens.Change(Config.DevAutoRestore && SavedLogin.HasRemembered()
-            ? new DevReconnectScreen(_screens)
-            : new LoginScreen(_screens));
-        SyncViewport();
-        GameWindowIcon.Apply(this);
+    }
+
+    private void ReloadGraphicsAssets()
+    {
+        if (_reloadingGraphics) return;
+
+        _reloadingGraphics = true;
+        try
+        {
+            Rendering.Characters.FarmRpgCharacterSprites.ClearCache();
+            SfxPlayer.ClearCache();
+            Content.Unload();
+            Font = Content.Load<SpriteFont>("Fonts/Default");
+            LoadGraphicsAssets();
+            SfxPlayer.Load(Content);
+            RefreshGraphicsResources();
+            SyncViewport();
+        }
+        finally
+        {
+            _reloadingGraphics = false;
+        }
     }
 
     protected override void Update(GameTime gameTime)
@@ -132,6 +183,9 @@ public sealed class DeathbornGame : Game
 
         _screens.Update(gameTime);
 
+        if (_suppressClientSizeChanged > 0)
+            _suppressClientSizeChanged--;
+
         _fps.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
         var textInputActive = TextField.Active != null;
@@ -152,17 +206,50 @@ public sealed class DeathbornGame : Game
 
     private void ToggleFullscreen()
     {
-        _graphics.IsFullScreen = !_graphics.IsFullScreen;
-        _graphics.SynchronizeWithVerticalRetrace = false;
-
-        if (!_graphics.IsFullScreen)
+        _applyingGraphicsChanges = true;
+        _suppressClientSizeChanged = 3;
+        try
         {
-            _graphics.PreferredBackBufferWidth = Config.DefaultWidth;
-            _graphics.PreferredBackBufferHeight = Config.DefaultHeight;
-        }
+            if (!_borderlessFullscreen)
+            {
+                _windowedWidth = Math.Max(320, _graphics.PreferredBackBufferWidth);
+                _windowedHeight = Math.Max(240, _graphics.PreferredBackBufferHeight);
+                _windowedPosition = Window.Position;
 
-        _graphics.ApplyChanges();
-        SyncViewport();
+                var display = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+                Window.AllowUserResizing = false;
+                _borderlessFullscreen = true;
+                _graphics.IsFullScreen = false;
+                _graphics.PreferredBackBufferWidth = display.Width;
+                _graphics.PreferredBackBufferHeight = display.Height;
+                _graphics.ApplyChanges();
+                Window.Position = Point.Zero;
+            }
+            else
+            {
+                _borderlessFullscreen = false;
+                Window.AllowUserResizing = true;
+                _graphics.IsFullScreen = false;
+                _graphics.PreferredBackBufferWidth = _windowedWidth;
+                _graphics.PreferredBackBufferHeight = _windowedHeight;
+                _graphics.ApplyChanges();
+                Window.Position = _windowedPosition;
+            }
+
+            RefreshGraphicsResources();
+            SyncViewport();
+        }
+        finally
+        {
+            _applyingGraphicsChanges = false;
+        }
+    }
+
+    private void RefreshGraphicsResources()
+    {
+        DrawPrimitives.Init(GraphicsDevice);
+        _spriteBatch.Dispose();
+        _spriteBatch = new SpriteBatch(GraphicsDevice);
     }
 
     protected override void Draw(GameTime gameTime)

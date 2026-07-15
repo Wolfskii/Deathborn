@@ -16,6 +16,9 @@ internal static class FoliagePixelCollider
         /// <summary>Unscaled px from sprite bottom-center to mask bottom-left.</summary>
         public required float OriginX { get; init; }
         public required byte[] Alpha { get; init; }
+        /// <summary>Local px offsets (from mask bottom-left) for debug outline.</summary>
+        public int[] EdgeX { get; init; } = [];
+        public int[] EdgeY { get; init; } = [];
 
         public bool IsOpaque(int x, int y) =>
             x >= 0 && y >= 0 && x < Width && y < Height && Alpha[y * Width + x] >= AlphaThreshold;
@@ -133,6 +136,32 @@ internal static class FoliagePixelCollider
         return center + new Vector2(bestDx * push, -bestDy * push);
     }
 
+    /// <summary>Chroma-key green (#00FF00) collider outlines — toggle with F12 debug HUD.</summary>
+    public static void DrawDebugMask(SpriteBatch sb, FoliageInstance f, Mask mask, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var scale = MathF.Max(0.01f, f.Scale);
+        var edge = MathF.Max(1f, zoom);
+        var color = Color.Lime;
+
+        for (var i = 0; i < mask.EdgeX.Length; i++)
+        {
+            var worldX = f.Position.X + (mask.EdgeX[i] - mask.OriginX + 0.5f) * scale;
+            var worldY = f.Position.Y - (mask.EdgeY[i] + 0.5f) * scale;
+            var sx = (worldX - camera.X) * zoom + screenCenter.X;
+            var sy = (worldY - camera.Y) * zoom + screenCenter.Y;
+            DrawPrimitives.FillRect(sb, new Rectangle((int)sx, (int)sy, (int)MathF.Ceiling(edge), (int)MathF.Ceiling(edge)), color);
+        }
+    }
+
+    public static void DrawDebugCircle(
+        SpriteBatch sb, Vector2 worldCenter, float worldRadius, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var screen = new Vector2(
+            (worldCenter.X - camera.X) * zoom + screenCenter.X,
+            (worldCenter.Y - camera.Y) * zoom + screenCenter.Y);
+        DrawPrimitives.DrawCircleOutline(sb, screen, worldRadius * zoom, Color.Lime, 32, MathF.Max(2f, 2f * zoom));
+    }
+
     private static Mask ExtractRect(Texture2D tex, Rectangle src)
     {
         var pixels = new Color[src.Width * src.Height];
@@ -142,13 +171,39 @@ internal static class FoliagePixelCollider
         for (var i = 0; i < pixels.Length; i++)
             alpha[i] = pixels[i].A;
 
+        var (edgeX, edgeY) = BuildEdges(src.Width, src.Height, alpha);
         return new Mask
         {
             Width = src.Width,
             Height = src.Height,
             OriginX = src.Width * 0.5f,
             Alpha = alpha,
+            EdgeX = edgeX,
+            EdgeY = edgeY,
         };
+    }
+
+    private static (int[] X, int[] Y) BuildEdges(int width, int height, byte[] alpha)
+    {
+        var edgesX = new List<int>();
+        var edgesY = new List<int>();
+        bool Opaque(int x, int y) =>
+            x >= 0 && y >= 0 && x < width && y < height && alpha[y * width + x] >= AlphaThreshold;
+
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                if (!Opaque(x, y)) continue;
+                if (x == 0 || y == 0 || x == width - 1 || y == height - 1
+                    || !Opaque(x - 1, y) || !Opaque(x + 1, y) || !Opaque(x, y - 1) || !Opaque(x, y + 1))
+                {
+                    edgesX.Add(x);
+                    edgesY.Add(y);
+                }
+            }
+        }
+        return (edgesX.ToArray(), edgesY.ToArray());
     }
 
     private static Mask ExtractStem(Texture2D tex, Rectangle spriteRect, int stemRows)

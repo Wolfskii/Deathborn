@@ -11,6 +11,8 @@ public static class FarmRpgCharacterSprites
 
     public static void Load(ContentManager content) => _content = content;
 
+    public static void ClearCache() => Cache.Clear();
+
     public static Texture2D? TryGetLayer(string? layerId, CharacterClip clip)
     {
         if (_content == null || string.IsNullOrEmpty(layerId))

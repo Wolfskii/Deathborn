@@ -24,9 +24,21 @@ public static class SfxPlayer
         // Values live in AudioSettings; nothing else to sync yet.
     }
 
+    public static void ClearCache()
+    {
+        foreach (var entry in Cache.Values)
+        {
+            foreach (var instance in entry.Pool)
+                instance.Dispose();
+        }
+        Cache.Clear();
+        TimedStops.Clear();
+    }
+
     public static void Load(ContentManager content)
     {
         _content = content;
+        ClearCache();
         Preload(GameSfx.SwordSwing);
         Preload(GameSfx.Fireball);
         Preload(GameSfx.FireballImpact);

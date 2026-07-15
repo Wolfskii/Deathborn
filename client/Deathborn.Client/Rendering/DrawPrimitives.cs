@@ -7,11 +7,12 @@ public static class DrawPrimitives
 {
   private static Texture2D? _pixel;
 
-  public static void Init(GraphicsDevice device)
-  {
-    _pixel ??= new Texture2D(device, 1, 1);
-    _pixel.SetData([Color.White]);
-  }
+    public static void Init(GraphicsDevice device)
+    {
+        _pixel?.Dispose();
+        _pixel = new Texture2D(device, 1, 1);
+        _pixel.SetData([Color.White]);
+    }
 
   public static void FillRect(SpriteBatch sb, Rectangle rect, Color color)
   {
