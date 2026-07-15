@@ -26,6 +26,8 @@ public sealed class ScreenManager
 
     public void SetBuildHouseHandler(Action? handler) => _escMenu.OnBuildHouse = handler;
 
+    public void SetLogoutHandler(Action? handler) => _escMenu.OnLogout = handler;
+
     public void SetBuildHouseEnabled(bool enabled) => _escMenu.SetBuildHouseEnabled(enabled);
 
     public void Change(IScreen screen)

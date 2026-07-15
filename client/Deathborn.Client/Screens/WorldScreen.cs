@@ -177,6 +177,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetOpenInventoryHandler(() => _windows.OpenInventory());
         _screens.SetOpenSkillsHandler(() => _windows.OpenSkills());
         _screens.SetBuildHouseHandler(TryBuildHouse);
+        _screens.SetLogoutHandler(OnLogoutRequested);
         UpdateBuildHouseEnabled();
         _fishing.Caught += OnFishCaught;
         _fishing.Cancelled += () => _status = "Fishing cancelled.";
@@ -228,6 +229,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _windows.SpellBook.AbilityClicked -= OnSpellBookAbilityClicked;
         _windows.Inventory.SlotClicked -= OnInventorySlotClicked;
         _screens.SetOpenCharacterHandler(null);
+        _screens.SetLogoutHandler(null);
         _windows.Character.Close();
         _worldMap.Close();
         _effects.Clear();
@@ -1083,7 +1085,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void OnNewLifeRequested() => _screens.Change(new CharacterCreateScreen(_screens));
 
+    private void OnLogoutRequested() => _ = LogoutAsync();
+
     private void OnReturnToLoginRequested() => _ = ReturnToLoginAsync();
+
+    private async Task LogoutAsync()
+    {
+        await _screens.Net.LogoutWorldAsync();
+        _screens.Net.ClearWorldSession();
+        _screens.Change(new LoginScreen(_screens));
+    }
 
     private async Task ReturnToLoginAsync()
     {

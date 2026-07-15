@@ -40,6 +40,7 @@ public sealed class EscMenuOverlay
     private Rectangle _inventoryButton;
     private Rectangle _skillsButton;
     private Rectangle _buildHouseButton;
+    private Rectangle _logoutButton;
     private Rectangle _scrollbarTrack;
     private Rectangle _scrollbarThumb;
 
@@ -64,6 +65,7 @@ public sealed class EscMenuOverlay
     public Action? OnOpenInventory;
     public Action? OnOpenSkills;
     public Action? OnBuildHouse;
+    public Action? OnLogout;
 
     public void SetBuildHouseEnabled(bool enabled) => _buildHouseEnabled = enabled;
 
@@ -128,6 +130,12 @@ public sealed class EscMenuOverlay
             if (_buildHouseEnabled && HitVisible(_buildHouseButton) && _buildHouseButton.Contains(mouse.Position))
             {
                 OnBuildHouse?.Invoke();
+                Close();
+            }
+
+            if (HitVisible(_logoutButton) && _logoutButton.Contains(mouse.Position))
+            {
+                OnLogout?.Invoke();
                 Close();
             }
 
@@ -197,6 +205,7 @@ public sealed class EscMenuOverlay
         DrawMenuButtonIfVisible(sb, font, _buildHouseButton,
             _buildHouseEnabled ? "Build House" : "Build House (already built)",
             _buildHouseEnabled && _buildHouseButton.Contains(mousePos), !_buildHouseEnabled);
+        DrawMenuButtonIfVisible(sb, font, _logoutButton, "Log out", _logoutButton.Contains(mousePos));
 
         if (_infoLines is { Count: > 0 })
         {
@@ -322,7 +331,7 @@ public sealed class EscMenuOverlay
         const int buttonH = 36;
         const int buttonGap = 10;
         var y = font.LineSpacing + 6 + sliderH + sectionGap + 20 + sectionGap;
-        y += (buttonH + buttonGap) * 4 + buttonH + sectionGap;
+        y += (buttonH + buttonGap) * 5 + buttonH + sectionGap;
         if (_infoLines is { Count: > 0 })
             y += font.LineSpacing + 4 + _infoLines.Count * font.LineSpacing + sectionGap;
         return y;
@@ -346,6 +355,8 @@ public sealed class EscMenuOverlay
         _skillsButton = ContentRect(buttonX, y, buttonW, buttonH);
         y += buttonH + buttonGap;
         _buildHouseButton = ContentRect(buttonX, y, buttonW, buttonH);
+        y += buttonH + buttonGap;
+        _logoutButton = ContentRect(buttonX, y, buttonW, buttonH);
         y += buttonH + sectionGap;
         _infoSectionY = y;
         if (_infoLines is { Count: > 0 })
