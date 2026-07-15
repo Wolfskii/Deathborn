@@ -1,44 +1,29 @@
 namespace Deathborn.Client;
 
 /// <summary>
-/// Per-instance audio preferences in local app data.
+/// Per-instance audio preferences in local app data (music and SFX are independent).
 /// </summary>
 public static class AudioSettings
 {
-    private const float DefaultVolume = 0.55f;
+    public const float DefaultMusicVolume = 0.55f;
+    public const float DefaultSfxVolume = 0.75f;
+
+    public static bool MusicMuted { get; private set; }
+    public static float MusicVolume { get; private set; } = DefaultMusicVolume;
+    public static bool SfxMuted { get; private set; }
+    public static float SfxVolume { get; private set; } = DefaultSfxVolume;
 
     private static string Path => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Deathborn",
         Config.DevInstance > 1 ? $"audio_settings_{Config.DevInstance}.cfg" : "audio_settings.cfg");
 
-    public static bool LoadMuted()
+    public static void Load()
     {
-        TryRead(out var muted, out _);
-        return muted;
-    }
-
-    public static float LoadVolume()
-    {
-        TryRead(out _, out var volume);
-        return volume;
-    }
-
-    public static void Save(bool muted, float volume)
-    {
-        var dir = System.IO.Path.GetDirectoryName(Path)!;
-        Directory.CreateDirectory(dir);
-        File.WriteAllLines(Path,
-        [
-            $"muted={muted.ToString().ToLowerInvariant()}",
-            $"volume={volume.ToString(System.Globalization.CultureInfo.InvariantCulture)}",
-        ]);
-    }
-
-    private static void TryRead(out bool muted, out float volume)
-    {
-        muted = false;
-        volume = DefaultVolume;
+        MusicMuted = false;
+        MusicVolume = DefaultMusicVolume;
+        SfxMuted = false;
+        SfxVolume = DefaultSfxVolume;
         if (!File.Exists(Path)) return;
 
         foreach (var line in File.ReadAllLines(Path))
@@ -47,12 +32,66 @@ public static class AudioSettings
             if (i <= 0) continue;
             var key = line[..i].Trim();
             var val = line[(i + 1)..].Trim();
-            if (key.Equals("muted", StringComparison.OrdinalIgnoreCase))
-                muted = val.Equals("true", StringComparison.OrdinalIgnoreCase);
-            else if (key.Equals("volume", StringComparison.OrdinalIgnoreCase)
-                     && float.TryParse(val, System.Globalization.NumberStyles.Float,
-                         System.Globalization.CultureInfo.InvariantCulture, out var v))
-                volume = Math.Clamp(v, 0f, 1f);
+            switch (key.ToLowerInvariant())
+            {
+                case "muted":
+                case "music_muted":
+                    MusicMuted = val.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    break;
+                case "volume":
+                case "music_volume":
+                    if (TryParseVolume(val, out var musicVol))
+                        MusicVolume = musicVol;
+                    break;
+                case "sfx_muted":
+                    SfxMuted = val.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    break;
+                case "sfx_volume":
+                    if (TryParseVolume(val, out var sfxVol))
+                        SfxVolume = sfxVol;
+                    break;
+            }
         }
+    }
+
+    public static void SetMusic(bool muted, float volume, bool save = true)
+    {
+        MusicMuted = muted;
+        MusicVolume = Math.Clamp(volume, 0f, 1f);
+        if (save) Persist();
+    }
+
+    public static void SetSfx(bool muted, float volume, bool save = true)
+    {
+        SfxMuted = muted;
+        SfxVolume = Math.Clamp(volume, 0f, 1f);
+        if (save) Persist();
+    }
+
+    private static void Persist()
+    {
+        var dir = System.IO.Path.GetDirectoryName(Path)!;
+        Directory.CreateDirectory(dir);
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        File.WriteAllLines(Path,
+        [
+            $"music_muted={MusicMuted.ToString().ToLowerInvariant()}",
+            $"music_volume={MusicVolume.ToString(inv)}",
+            $"sfx_muted={SfxMuted.ToString().ToLowerInvariant()}",
+            $"sfx_volume={SfxVolume.ToString(inv)}",
+        ]);
+    }
+
+    private static bool TryParseVolume(string val, out float volume)
+    {
+        if (float.TryParse(val, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out volume))
+        {
+            volume = Math.Clamp(volume, 0f, 1f);
+            return true;
+        }
+
+        volume = 0f;
+        return false;
     }
 }

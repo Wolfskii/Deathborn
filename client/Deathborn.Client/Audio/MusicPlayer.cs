@@ -25,8 +25,8 @@ public static class MusicPlayer
 
     public static void ApplySavedSettings()
     {
-        IsMuted = AudioSettings.LoadMuted();
-        _volume = AudioSettings.LoadVolume();
+        IsMuted = AudioSettings.MusicMuted;
+        _volume = AudioSettings.MusicVolume;
     }
 
     public static void SetMuted(bool muted, bool save = true)
@@ -37,7 +37,7 @@ public static class MusicPlayer
         ApplyVolume();
 
         if (save)
-            AudioSettings.Save(IsMuted, _volume);
+            AudioSettings.SetMusic(IsMuted, _volume);
     }
 
     public static void SetVolume(float volume, bool save = true)
@@ -48,7 +48,7 @@ public static class MusicPlayer
         ApplyVolume();
 
         if (save)
-            AudioSettings.Save(IsMuted, _volume);
+            AudioSettings.SetMusic(IsMuted, _volume);
     }
 
     private static void ApplyVolume()
