@@ -13,6 +13,7 @@ internal static class FarmRpgAnimationSpecs
     public const float WalkFrameDuration = 0.12f;
     public const float RunFrameDuration = 0.09f;
     public const float AttackFrameDuration = 0.075f;
+    public const float ShieldBashFrameDuration = 0.09f;
     public const float CastFrameDuration = 0.11f;
     public const float HurtFrameDuration = 0.09f;
     public const float DeathFrameDuration = 0.14f;
@@ -26,6 +27,7 @@ internal static class FarmRpgAnimationSpecs
         CharacterClip.Walk => Walk,
         CharacterClip.Run or CharacterClip.Roll => Run,
         CharacterClip.Attack => Attack,
+        CharacterClip.ShieldBash => ShieldBash,
         CharacterClip.Hurt => Hurt,
         CharacterClip.Death => Death,
         _ => Idle,
@@ -35,6 +37,7 @@ internal static class FarmRpgAnimationSpecs
     public static AnimationSpecification Walk => Strip(6, WalkFrameDuration);
     public static AnimationSpecification Run => Strip(8, RunFrameDuration);
     public static AnimationSpecification Attack => Strip(10, AttackFrameDuration);
+    public static AnimationSpecification ShieldBash => Strip(5, ShieldBashFrameDuration);
     public static AnimationSpecification Cast => Strip(6, CastFrameDuration);
 
     /// <summary>
@@ -47,6 +50,13 @@ internal static class FarmRpgAnimationSpecs
         facing is FacingDirection.Up or FacingDirection.Down
             ? AttackFramesVertical
             : AttackFramesDefault;
+
+    public static int FramesFor(CharacterClip clip, FacingDirection facing) => clip switch
+    {
+        CharacterClip.ShieldBash => 5,
+        CharacterClip.Attack => AttackFramesFor(facing),
+        _ => For(clip).FramesPerDirection,
+    };
     public static AnimationSpecification Hurt => Strip(4, HurtFrameDuration);
     public static AnimationSpecification Death => Strip(4, DeathFrameDuration);
 

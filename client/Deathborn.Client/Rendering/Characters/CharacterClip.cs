@@ -7,6 +7,7 @@ public enum CharacterClip
     Walk,
     Run,
     Attack,
+    ShieldBash,
     Cast,
     Hurt,
     Death,

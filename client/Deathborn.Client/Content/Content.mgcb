@@ -2928,3 +2928,227 @@
 
 #end Characters/FarmRpg/Effects/magic.png
 
+#begin Characters/FarmRpg/layers/eyes-male-black/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-black/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-male-black/shield_bash.png
+
+#begin Characters/FarmRpg/layers/eyes-male-blue/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-blue/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-male-blue/shield_bash.png
+
+#begin Characters/FarmRpg/layers/eyes-male-brown/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-brown/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-male-brown/shield_bash.png
+
+#begin Characters/FarmRpg/layers/eyes-male-green/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-male-green/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-male-green/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-josh-black/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-black/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-josh-black/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-josh-blonde/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-blonde/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-josh-blonde/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-josh-brown/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-brown/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-josh-brown/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-josh-ginger/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-josh-ginger/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-josh-ginger/shield_bash.png
+
+#begin Characters/FarmRpg/layers/outfit-farm-blue/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/outfit-farm-blue/shield_bash.png
+
+#end Characters/FarmRpg/layers/outfit-farm-blue/shield_bash.png
+
+#begin Characters/FarmRpg/layers/outfit-farm-green/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/outfit-farm-green/shield_bash.png
+
+#end Characters/FarmRpg/layers/outfit-farm-green/shield_bash.png
+
+#begin Characters/FarmRpg/layers/outfit-farm-red/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/outfit-farm-red/shield_bash.png
+
+#end Characters/FarmRpg/layers/outfit-farm-red/shield_bash.png
+
+#begin Characters/FarmRpg/layers/skin-1/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-1/shield_bash.png
+
+#end Characters/FarmRpg/layers/skin-1/shield_bash.png
+
+#begin Characters/FarmRpg/layers/skin-2/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-2/shield_bash.png
+
+#end Characters/FarmRpg/layers/skin-2/shield_bash.png
+
+#begin Characters/FarmRpg/layers/skin-3/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-3/shield_bash.png
+
+#end Characters/FarmRpg/layers/skin-3/shield_bash.png
+
+#begin Characters/FarmRpg/layers/skin-4/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/skin-4/shield_bash.png
+
+#end Characters/FarmRpg/layers/skin-4/shield_bash.png
+
+#begin Characters/FarmRpg/layers/weapon-shield/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/weapon-shield/shield_bash.png
+
+#end Characters/FarmRpg/layers/weapon-shield/shield_bash.png
+

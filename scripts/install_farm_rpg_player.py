@@ -7,6 +7,12 @@ import json
 import shutil
 from pathlib import Path
 
+try:
+    from PIL import Image, ImageDraw
+except ImportError:
+    Image = None  # type: ignore[assignment,misc]
+    ImageDraw = None  # type: ignore[assignment,misc]
+
 REPO = Path(__file__).resolve().parents[1]
 PACK = (
     REPO
@@ -22,6 +28,7 @@ CLIP_FOLDERS: dict[str, str] = {
     "run": "3. Run",
     "attack": "8. SwordAttack",
     "cast": "23. Mage",
+    "shield_bash": "13.4 Carrying - Throwing items",
     "hurt": "10. Damage",
     "death": "11. Death",
 }
@@ -46,6 +53,7 @@ LAYERS: dict[str, dict[str, str]] = {
     "weapon-sword": {"tpl": "Weapons/Sword/1.png", "clips": ["attack"]},
     "weapon-staff": {"tpl": "Healer Staff.png", "clips": ["cast"]},
     "fx-cast": {"tpl": "Fx.png", "clips": ["cast"]},
+    "weapon-shield": {"generated": True, "clips": ["shield_bash"]},
 }
 
 MAGIC_FX_SRC = PACK.parent / "Others/Arrow/Magic.png"
@@ -80,6 +88,9 @@ def resolve_src(clip: str, tpl: str) -> Path:
 
 
 def copy_layer(layer_id: str, spec: dict[str, str]) -> list[str]:
+    if spec.get("generated"):
+        return generate_layer(layer_id, spec)
+
     clips = spec.get("clips", list(CLIP_FOLDERS))
     rel_paths: list[str] = []
     for clip in clips:
@@ -89,6 +100,56 @@ def copy_layer(layer_id: str, spec: dict[str, str]) -> list[str]:
         shutil.copy2(src, dest)
         rel_paths.append(f"Characters/FarmRpg/layers/{layer_id}/{clip}.png")
     return rel_paths
+
+
+def generate_layer(layer_id: str, spec: dict[str, str]) -> list[str]:
+    clips = spec.get("clips", list(CLIP_FOLDERS))
+    rel_paths: list[str] = []
+    for clip in clips:
+        if clip == "shield_bash" and layer_id == "weapon-shield":
+            dest = OUT / "layers" / layer_id / f"{clip}.png"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            write_shield_bash_weapon(dest)
+            rel_paths.append(f"Characters/FarmRpg/layers/{layer_id}/{clip}.png")
+        else:
+            raise ValueError(f"unsupported generated layer {layer_id}/{clip}")
+    return rel_paths
+
+
+def write_shield_bash_weapon(dest: Path) -> None:
+    """Simple wood-and-iron shield strip aligned to the throwing-items bash pose."""
+    if Image is None or ImageDraw is None:
+        raise SystemExit("Pillow is required to generate weapon-shield layers (pip install pillow)")
+
+    frames_per_dir = 5
+    cell = 32
+    sheet = Image.new("RGBA", (cell * frames_per_dir * 4, cell), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(sheet)
+
+    # (cx, cy) per frame — down, up, right, left (Farm RPG direction order).
+    layouts: dict[int, list[tuple[int, int]]] = {
+        0: [(16, 15), (16, 14), (16, 20), (16, 21), (16, 16)],  # down
+        1: [(16, 11), (16, 10), (16, 8), (16, 7), (16, 12)],    # up
+        2: [(14, 17), (16, 17), (24, 17), (26, 17), (18, 17)],  # right
+        3: [(18, 17), (16, 17), (8, 17), (6, 17), (14, 17)],    # left
+    }
+
+    wood = (139, 90, 43, 255)
+    rim = (192, 192, 192, 255)
+    boss = (96, 96, 112, 255)
+
+    for direction, points in layouts.items():
+        for frame, (cx, cy) in enumerate(points):
+            col = direction * frames_per_dir + frame
+            ox = col * cell
+            w, h = (10, 12) if direction in (0, 1) else (12, 10)
+            left = ox + cx - w // 2
+            top = cy - h // 2
+            draw.rectangle((left, top, left + w - 1, top + h - 1), fill=wood, outline=rim)
+            draw.rectangle((left + 2, top + 2, left + w - 3, top + h - 3), outline=boss)
+            draw.ellipse((cx + ox - 2, cy - 2, cx + ox + 1, cy + 1), fill=boss)
+
+    sheet.save(dest)
 
 
 def write_manifest(installed: dict[str, list[str]]) -> None:
@@ -103,6 +164,7 @@ def write_manifest(installed: dict[str, list[str]]) -> None:
             "run": {"frames": 8, "folder": "3. Run"},
             "attack": {"frames": 10, "folder": "8. SwordAttack"},
             "cast": {"frames": 6, "folder": "23. Mage"},
+            "shield_bash": {"frames": 5, "folder": "13.4 Carrying - Throwing items"},
             "hurt": {"frames": 4, "folder": "10. Damage"},
             "death": {"frames": 4, "folder": "11. Death"},
         },

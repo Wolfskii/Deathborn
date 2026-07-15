@@ -27,6 +27,9 @@ public sealed class SpriteAssembler
             TryAddFarmTexture("fx-cast", clip, CharacterLayerId.SpellEffect);
         }
 
+        if (clip == CharacterClip.ShieldBash)
+            TryAddFarmTexture("weapon-shield", clip, CharacterLayerId.Shield);
+
         return _buffer.AsSpan(0, _layerCount);
     }
 

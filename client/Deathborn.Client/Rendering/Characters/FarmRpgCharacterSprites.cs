@@ -58,6 +58,7 @@ public static class FarmRpgCharacterSprites
         CharacterClip.Walk => "walk",
         CharacterClip.Run or CharacterClip.Roll => "run",
         CharacterClip.Attack => "attack",
+        CharacterClip.ShieldBash => "shield_bash",
         CharacterClip.Hurt => "hurt",
         CharacterClip.Death => "death",
         _ => "idle",

@@ -20,6 +20,7 @@ public sealed class AnimationController
   private float _attackTimer;
   private int _attackFrame;
   private FacingDirection _attackFacing = FacingDirection.Down;
+  private CharacterClip _attackClip = CharacterClip.Attack;
 
   private bool _castPlaying;
   private float _castTimer;
@@ -81,8 +82,9 @@ public sealed class AnimationController
     _deathComplete = true;
   }
 
-  public void StartAttack(Vector2 facingDir)
+  public void StartAttack(Vector2 facingDir, CharacterClip clip = CharacterClip.Attack)
   {
+    _attackClip = clip;
     _attackFacing = ResolveFacing(facingDir);
     _attackFrame = 0;
     _attackTimer = 0;
@@ -157,8 +159,8 @@ public sealed class AnimationController
 
     if (_attackPlaying)
     {
-      var attackSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Attack);
-      return new AnimationDrawState(CharacterClip.Attack, attackSpec, _attackFrame, _attackFacing);
+      var attackSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, _attackClip);
+      return new AnimationDrawState(_attackClip, attackSpec, _attackFrame, _attackFacing);
     }
 
     if (_castPlaying)
@@ -242,8 +244,8 @@ public sealed class AnimationController
 
   private void UpdateAttack(float dt)
   {
-    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Attack);
-    var frameLimit = FarmRpgAnimationSpecs.AttackFramesFor(_attackFacing);
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, _attackClip);
+    var frameLimit = FarmRpgAnimationSpecs.FramesFor(_attackClip, _attackFacing);
     _attackTimer += dt;
     while (_attackTimer >= spec.FrameDuration)
     {

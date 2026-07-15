@@ -21,7 +21,7 @@ public static class CharacterRenderer
     ReadOnlySpan<SpriteLayer> layers)
   {
     if (layers.Length == 0) return;
-    if (clip == CharacterClip.Attack && frameIndex < 0) return;
+    if (clip is CharacterClip.Attack or CharacterClip.ShieldBash && frameIndex < 0) return;
     if (clip == CharacterClip.Hurt && frameIndex < 0) return;
 
     var (src, origin, effects) = GetFrameRect(spec, frameIndex, facing);
@@ -42,7 +42,7 @@ public static class CharacterRenderer
     ReadOnlySpan<SpriteLayer> layers)
   {
     if (layers.Length == 0) return;
-    if (clip == CharacterClip.Attack && frameIndex < 0) return;
+    if (clip is CharacterClip.Attack or CharacterClip.ShieldBash && frameIndex < 0) return;
     if (clip == CharacterClip.Hurt && frameIndex < 0) return;
 
     var (src, origin, effects) = GetFrameRect(spec, frameIndex, facing);

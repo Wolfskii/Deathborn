@@ -186,7 +186,18 @@ public sealed class PlayerEntity
     public bool StartMeleeAbility(MeleeAbilityDefinition def, Vector2? facing = null)
     {
         _activeMeleeDef = def;
-        return StartAttack(facing);
+        var clip = def.Id == "shield_bash" ? CharacterClip.ShieldBash : CharacterClip.Attack;
+        return StartAttack(facing, clip);
+    }
+
+    public bool StartAttack(Vector2? facing = null, CharacterClip clip = CharacterClip.Attack)
+    {
+        if (IsBusy || IsDead) return false;
+        _meleeHitThisSwing.Clear();
+        var card = CardinalFacing(facing ?? FacingDir);
+        MoveDir = card;
+        _visual.StartAttack(card, clip);
+        return true;
     }
 
     public bool StartWhirlwind()
@@ -309,16 +320,6 @@ public sealed class PlayerEntity
             _dashHit.Add(id);
             reportHit(id, Config.WarriorDashDamage, "warrior_dash");
         }
-    }
-
-    public bool StartAttack(Vector2? facing = null)
-    {
-        if (IsBusy || IsDead) return false;
-        _meleeHitThisSwing.Clear();
-        var card = CardinalFacing(facing ?? FacingDir);
-        MoveDir = card;
-        _visual.StartAttack(card);
-        return true;
     }
 
     public void StartAbilityLock(float duration)
