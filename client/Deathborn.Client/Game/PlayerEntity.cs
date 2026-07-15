@@ -47,6 +47,8 @@ public sealed class PlayerEntity
     private float _dashDuration;
     private Vector2 _dashStart;
     private Vector2 _dashEnd;
+    private float _postDashSettle;
+    private string? _channeledAbilityId;
 
     public long Id;
     public string Name = "";
@@ -67,8 +69,22 @@ public sealed class PlayerEntity
     public bool IsAttacking => _visual.Controller.IsAttackPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
     public bool IsDashing => _isDashing;
+    public bool IsPostDashSettling => _postDashSettle > 0f;
     public bool IsWhirlwinding => _whirlwindTimer > 0f;
     public bool IsBusy => IsAttacking || IsCasting || IsDashing || IsWhirlwinding;
+
+    /// <summary>Blocks WASD movement — separate from IsBusy so channeled abilities can allow walking.</summary>
+    public bool BlocksMovement
+    {
+        get
+        {
+            if (IsAttacking || IsCasting || IsDashing) return true;
+            if (_channeledAbilityId != null &&
+                AbilityCatalog.Get(_channeledAbilityId) is { CanMoveWhileUsing: true })
+                return false;
+            return _channeledAbilityId != null;
+        }
+    }
     public bool IsHurt => _visual.Controller.IsHurtPlaying;
     public bool IsTyping
     {
@@ -176,10 +192,12 @@ public sealed class PlayerEntity
     public bool StartWhirlwind()
     {
         if (IsBusy || IsDead) return false;
+        _channeledAbilityId = "whirlwind";
         _whirlwindTimer = Config.WhirlwindDuration;
         _whirlwindHit.Clear();
         _whirlwindHitPulse = false;
-        StartAbilityLock(Config.WhirlwindDuration);
+        if (AbilityCatalog.Get("whirlwind") is not { CanMoveWhileUsing: true })
+            StartAbilityLock(Config.WhirlwindDuration);
         return true;
     }
 
@@ -189,11 +207,13 @@ public sealed class PlayerEntity
         var facing = CardinalFacing(dir);
         MoveDir = facing;
         _dashStart = Position;
-        _dashEnd = WorldFoliage.ClipSegment(Position, Position + facing * distance, Radius);
+        _dashEnd = ResolvePosition(Position, facing * distance);
         _dashDuration = duration;
         _dashTimer = duration;
         _dashHit.Clear();
         _isDashing = true;
+        _postDashSettle = 0f;
+        Target = _dashEnd;
         StartAbilityLock(duration);
         return true;
     }
@@ -363,9 +383,9 @@ public sealed class PlayerEntity
     public bool IsMoving =>
         !IsDead &&
         !IsHurt &&
-        !IsBusy &&
+        !BlocksMovement &&
         (IsLocal
-            ? InputDir.LengthSquared() > 0.01f && _lastFrameDisplacementSq > MinMoveDisplacementSq
+            ? InputDir.LengthSquared() > 0.01f
             : Vector2.DistanceSquared(Position, Target) > 0.5f);
 
     public bool IsWalking => IsMoving && !IsRunning;
@@ -400,6 +420,8 @@ public sealed class PlayerEntity
 
         if (_whirlwindTimer > 0f)
             _whirlwindTimer = MathF.Max(0f, _whirlwindTimer - dt);
+        else if (_channeledAbilityId == "whirlwind")
+            _channeledAbilityId = null;
 
         if (IsDead)
         {
@@ -409,39 +431,67 @@ public sealed class PlayerEntity
 
         var prevPos = Position;
 
+        if (_postDashSettle > 0f)
+        {
+            _postDashSettle = MathF.Max(0f, _postDashSettle - dt);
+            Position = Target;
+        }
+
         if (_isDashing)
         {
             _dashTimer = MathF.Max(0f, _dashTimer - dt);
             var t = 1f - _dashTimer / MathF.Max(0.001f, _dashDuration);
             var next = Vector2.Lerp(_dashStart, _dashEnd, t);
-            Position = ResolvePosition(next, Vector2.Zero);
+            var step = next - Position;
+            Position = ResolvePosition(Position, step);
             Target = _dashEnd;
             if (_dashTimer <= 0f)
+            {
                 _isDashing = false;
+                Position = _dashEnd;
+                Target = _dashEnd;
+                _postDashSettle = 0.15f;
+            }
         }
-        else if (IsLocal && InputDir.LengthSquared() > 0.01f && !IsBusy)
+        else if (IsLocal && InputDir.LengthSquared() > 0.01f && !BlocksMovement)
         {
             var dir = Vector2.Normalize(InputDir);
             var speed = IsRunning ? Config.RunSpeed : Config.WalkSpeed;
             var predicted = ResolvePosition(Position, dir * speed * dt);
+            var movedSq = Vector2.DistanceSquared(predicted, Position);
 
-            var err = Target - predicted;
-            var errLenSq = err.LengthSquared();
-            if (errLenSq > Config.LocalSnapDistance * Config.LocalSnapDistance)
-                Position = ResolvePosition(Target, Vector2.Zero);
-            else if (errLenSq > 2f)
+            if (movedSq < MinMoveDisplacementSq)
             {
-                predicted += err * MathHelper.Clamp(dt * Config.LocalReconcileSpeed, 0f, 0.35f);
-                Position = ResolvePosition(predicted, Vector2.Zero);
+                // Blocked — hold position; skip server reconcile to avoid wall jitter.
+                Position = predicted;
             }
             else
-                Position = predicted;
+            {
+                var err = Target - predicted;
+                var errLenSq = err.LengthSquared();
+                if (errLenSq > Config.LocalSnapDistance * Config.LocalSnapDistance)
+                    Position = ResolvePosition(Target, Vector2.Zero);
+                else if (errLenSq > 2f)
+                {
+                    predicted += err * MathHelper.Clamp(dt * Config.LocalReconcileSpeed, 0f, 0.35f);
+                    Position = ResolvePosition(predicted, Vector2.Zero);
+                }
+                else
+                    Position = predicted;
+            }
         }
         else
         {
-            var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
-            var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
-            Position = ResolvePosition(lerped, Vector2.Zero);
+            if (IsLocal && _postDashSettle > 0f)
+            {
+                Position = Target;
+            }
+            else
+            {
+                var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
+                var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
+                Position = ResolvePosition(lerped, Vector2.Zero);
+            }
         }
 
         _lastFrameDisplacementSq = Vector2.DistanceSquared(prevPos, Position);

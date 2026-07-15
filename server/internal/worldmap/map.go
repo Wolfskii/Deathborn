@@ -224,6 +224,7 @@ func (m *Map) CanWalk(x, y, radius float64) bool {
 
 // ResolveMove applies axis-separated sliding against land/water tiles and foliage.
 func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
+	fromX, fromY := x, y
 	dx, dy = m.adjustRampDelta(x, y, dx, dy)
 
 	nx, ny := x+dx, y+dy
@@ -238,7 +239,7 @@ func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
 		}
 	}
 	if m.foliage != nil {
-		x, y = m.foliage.resolvePosition(x, y, playerRadius)
+		x, y = m.foliage.resolveMoveBlock(fromX, fromY, x, y, playerRadius)
 	}
 	return x, y
 }

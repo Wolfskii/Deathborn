@@ -18,7 +18,7 @@ public sealed class WhirlwindEffect : IWorldEffect
         AbilityId = "whirlwind";
     }
 
-    public Vector2 Position { get; private set; }
+    public Vector2 Position { get; set; }
     public long OwnerId { get; }
     public string AbilityId { get; }
     public bool Alive => _timer < _duration;
@@ -34,8 +34,7 @@ public sealed class WhirlwindEffect : IWorldEffect
         Action<long, int>? onPlayerHit, Action<long, int>? onNpcHit)
     {
         _timer += dt;
-        if (players.TryGetValue(OwnerId, out var owner))
-            Position = owner.Position;
+        AbilityEffectBehavior.SyncOwnerPosition(this, players);
     }
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, float zoom)

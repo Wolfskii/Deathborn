@@ -161,6 +161,43 @@ func foliageCollider(kind foliageKind, variant int, scale float64) (footInset, r
 	}
 }
 
+func (idx *foliageIndex) resolveMoveBlock(fromX, fromY, toX, toY, entityRadius float64) (float64, float64) {
+	if idx == nil {
+		return toX, toY
+	}
+	if !idx.feetWouldCollide(toX, toY, entityRadius) {
+		return toX, toY
+	}
+	x, y := fromX, fromY
+	if !idx.feetWouldCollide(toX, fromY, entityRadius) {
+		x = toX
+	}
+	if !idx.feetWouldCollide(x, toY, entityRadius) {
+		y = toY
+	}
+	return x, y
+}
+
+func (idx *foliageIndex) feetWouldCollide(x, y, entityRadius float64) bool {
+	if idx == nil {
+		return false
+	}
+	cy := playerCollisionY(y)
+	for i := range idx.circles {
+		f := &idx.circles[i]
+		if f.trunkSortY > 0 && y < f.trunkSortY {
+			continue
+		}
+		dx := x - f.x
+		dy := cy - f.y
+		minDist := f.radius + entityRadius
+		if dx*dx+dy*dy < minDist*minDist {
+			return true
+		}
+	}
+	return false
+}
+
 func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, float64) {
 	if idx == nil {
 		return x, y

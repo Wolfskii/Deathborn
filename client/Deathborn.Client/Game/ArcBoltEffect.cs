@@ -15,7 +15,11 @@ public sealed class ArcBoltEffect : IWorldEffect
     public bool CanClash => false;
     public float HitRadius => 0;
 
-    public Vector2 Position => TargetPos;
+    public Vector2 Position
+    {
+        get => TargetPos;
+        set => TargetPos = value;
+    }
     public bool Alive { get; private set; } = true;
 
     private float _timer;

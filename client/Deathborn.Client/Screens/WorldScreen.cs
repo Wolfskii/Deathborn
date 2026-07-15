@@ -333,8 +333,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _worldMap.Close();
 
         var localEntity = FindLocalPlayer();
+        var movementBlocked = localEntity is { BlocksMovement: true };
         var abilityBusy = localEntity is { IsBusy: true };
-        var inputBlocked = chatOpen || menuOpen || abilityBusy || IsLocalDyingOrDead();
+        var inputBlocked = chatOpen || menuOpen || movementBlocked || IsLocalDyingOrDead();
 
         _buffTracker.Update(dt);
         _inventory.Update(dt);
@@ -1708,6 +1709,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var isLocal = data.PlayerId == _screens.Net.LocalCharacterId;
         if (isLocal && data.Action == PlayerActions.MeleeAttack && player.IsBusy)
             return;
+        if (isLocal && data.Action is PlayerActions.WarriorDash or PlayerActions.Whirlwind)
+            return;
 
         var dir = new Vector2((float)data.DirX, (float)data.DirY);
         if (dir.LengthSquared() < 0.01f)
@@ -2413,7 +2416,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 }
                 else
                 {
-                    p.SetTarget(pos);
+                    if (p.IsLocal && p.IsPostDashSettling)
+                    {
+                        p.Position = pos;
+                        p.Target = pos;
+                    }
+                    else if (!(p.IsLocal && p.IsDashing))
+                        p.SetTarget(pos);
                     p.InsideHouseId = s.InsideHouseId;
                     if (s.InsideHouseId > 0)
                     {

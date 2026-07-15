@@ -15,7 +15,7 @@ const (
 	SecondWindHeal    = 15
 
 	ShieldBashRange    = 56
-	WhirlwindRadius    = 52
+	WhirlwindRadius    = 76
 	WarriorDashRange   = 110
 	HunterMarkRange    = 200
 	BandageTotalHeal   = 25

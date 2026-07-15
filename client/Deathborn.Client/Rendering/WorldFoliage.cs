@@ -145,11 +145,68 @@ public static class WorldFoliage
         return false;
     }
 
+    public static bool BlocksFeet(Vector2 feet, float entityRadius) =>
+        FeetWouldCollide(feet, entityRadius);
+
     public static Vector2 ResolvePosition(Vector2 feet, float entityRadius)
     {
         var center = PlayerEntity.CollisionCenter(feet);
         var resolved = ResolveCollisionCenter(center, entityRadius);
         return feet + (resolved - center);
+    }
+
+    /// <summary>
+    /// Axis-separated move blocking — no sliding push-out (Pokemon-style wall stop).
+    /// </summary>
+    public static Vector2 ResolveMoveBlock(Vector2 fromFeet, Vector2 toFeet, float entityRadius)
+    {
+        if (!FeetWouldCollide(toFeet, entityRadius))
+            return toFeet;
+
+        var dx = MathF.Abs(toFeet.X - fromFeet.X);
+        var dy = MathF.Abs(toFeet.Y - fromFeet.Y);
+        if (dx >= dy)
+            return TryAxisMove(fromFeet, toFeet, entityRadius, xFirst: true);
+        return TryAxisMove(fromFeet, toFeet, entityRadius, xFirst: false);
+    }
+
+    private static Vector2 TryAxisMove(
+        Vector2 fromFeet, Vector2 toFeet, float entityRadius, bool xFirst)
+    {
+        var tryX = new Vector2(toFeet.X, fromFeet.Y);
+        var tryY = new Vector2(fromFeet.X, toFeet.Y);
+        if (xFirst)
+        {
+            if (!FeetWouldCollide(tryX, entityRadius))
+                return TrySecondAxis(tryX, toFeet, entityRadius, yAxis: true);
+            if (!FeetWouldCollide(tryY, entityRadius))
+                return tryY;
+        }
+        else
+        {
+            if (!FeetWouldCollide(tryY, entityRadius))
+                return TrySecondAxis(tryY, toFeet, entityRadius, yAxis: false);
+            if (!FeetWouldCollide(tryX, entityRadius))
+                return tryX;
+        }
+        return fromFeet;
+    }
+
+    private static Vector2 TrySecondAxis(Vector2 partial, Vector2 toFeet, float entityRadius, bool yAxis)
+    {
+        var next = yAxis ? new Vector2(partial.X, toFeet.Y) : new Vector2(toFeet.X, partial.Y);
+        return FeetWouldCollide(next, entityRadius) ? partial : next;
+    }
+
+    private static bool FeetWouldCollide(Vector2 feet, float entityRadius)
+    {
+        var center = PlayerEntity.CollisionCenter(feet);
+        foreach (var f in Instances)
+        {
+            if (InstanceBlocksCircle(f, center, entityRadius))
+                return true;
+        }
+        return false;
     }
 
     private static Vector2 ResolveCollisionCenter(Vector2 pos, float entityRadius)
@@ -190,10 +247,10 @@ public static class WorldFoliage
         for (var i = 0; i < steps; i++)
         {
             var next = pos + dir * stepLen;
-            var resolved = ResolvePosition(next, entityRadius);
-            if (Vector2.DistanceSquared(resolved, next) > 0.25f)
+            next = ResolveMoveBlock(pos, next, entityRadius);
+            if (Vector2.DistanceSquared(next, pos) < 0.01f)
                 return pos;
-            pos = resolved;
+            pos = next;
         }
         return pos;
     }

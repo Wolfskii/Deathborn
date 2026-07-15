@@ -8,7 +8,7 @@ public interface IWorldEffect
     bool Alive { get; }
     long OwnerId { get; }
     string AbilityId { get; }
-    Vector2 Position { get; }
+    Vector2 Position { get; set; }
     bool DrawUnderEntities { get; }
     bool CanClash { get; }
     float HitRadius { get; }

@@ -286,8 +286,10 @@ public sealed class WorldMap
     /// <summary>Authoritative terrain slide (elevation + foliage), matching server ResolveMove.</summary>
     public Vector2 ResolveMove(Vector2 feet, Vector2 delta, float entityRadius)
     {
-        var x = feet.X;
-        var y = feet.Y;
+        var fromX = feet.X;
+        var fromY = feet.Y;
+        var x = fromX;
+        var y = fromY;
         delta = AdjustRampDelta(x, y, delta);
 
         var nx = x + delta.X;
@@ -305,7 +307,7 @@ public sealed class WorldMap
                 y = ny;
         }
 
-        return WorldFoliage.ResolvePosition(new Vector2(x, y), entityRadius);
+        return WorldFoliage.ResolveMoveBlock(feet, new Vector2(x, y), entityRadius);
     }
 
     private static string CollisionPath =>
@@ -474,14 +476,19 @@ public sealed class WorldMap
             return false;
 
         if (radius <= 0f)
-            return IsWalkableTile(worldX, worldY) && !WorldFoliage.BlocksCircle(new Vector2(worldX, worldY), 0f);
+            return IsWalkableTile(worldX, worldY) && !WorldFoliage.BlocksFeet(new Vector2(worldX, worldY), 0f);
 
+        var feet = new Vector2(worldX, worldY);
         return IsWalkableTile(worldX, worldY)
             && IsWalkableTile(worldX + radius, worldY)
             && IsWalkableTile(worldX - radius, worldY)
             && IsWalkableTile(worldX, worldY + radius)
             && IsWalkableTile(worldX, worldY - radius)
-            && !WorldFoliage.BlocksCircle(new Vector2(worldX, worldY), radius);
+            && !WorldFoliage.BlocksFeet(feet, radius)
+            && !WorldFoliage.BlocksFeet(new Vector2(worldX + radius, worldY), radius)
+            && !WorldFoliage.BlocksFeet(new Vector2(worldX - radius, worldY), radius)
+            && !WorldFoliage.BlocksFeet(new Vector2(worldX, worldY + radius), radius)
+            && !WorldFoliage.BlocksFeet(new Vector2(worldX, worldY - radius), radius);
     }
 
     private bool IsWalkableTile(float worldX, float worldY)

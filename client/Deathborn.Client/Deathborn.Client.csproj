@@ -13,7 +13,8 @@
     <!-- Debug: no apphost.exe — dev-all rebuilds while clients run via `dotnet exec` DLL only. -->
     <UseAppHost Condition="'$(Configuration)' == 'Debug'">false</UseAppHost>
     <!-- MonoGame needs a full process restart; hot reload cannot patch the game loop. -->
-    <HotReloadEnabled>false</HotReloadEnabled>
+    <!-- Debug dev builds: hide known benign compiler warnings in task dev:all / hot reload output. -->
+    <NoWarn Condition="'$(Configuration)' == 'Debug'">$(NoWarn);CS9124;CS0649</NoWarn>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

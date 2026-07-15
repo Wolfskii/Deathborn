@@ -185,26 +185,26 @@ public static class TinySwordsUi
 
     /// <summary>Pre-baked 9-slice rects for 320×320 showcase sheets (buttons / parchment).</summary>
     private static readonly NineSliceSpec ButtonSlices = new(
-        topLeft: new(19, 17, 45, 47),
-        top: new(128, 17, 64, 47),
-        topRight: new(256, 17, 45, 47),
-        left: new(19, 128, 45, 64),
-        center: new(128, 128, 64, 64),
-        right: new(256, 128, 45, 64),
-        bottomLeft: new(19, 256, 45, 47),
-        bottom: new(128, 256, 64, 47),
-        bottomRight: new(256, 256, 45, 47));
+        new(19, 17, 45, 47),
+        new(128, 17, 64, 47),
+        new(256, 17, 45, 47),
+        new(19, 128, 45, 64),
+        new(128, 128, 64, 64),
+        new(256, 128, 45, 64),
+        new(19, 256, 45, 47),
+        new(128, 256, 64, 47),
+        new(256, 256, 45, 47));
 
     private static readonly NineSliceSpec PaperSlices = new(
-        topLeft: new(12, 20, 52, 44),
-        top: new(128, 20, 64, 44),
-        topRight: new(256, 20, 52, 44),
-        left: new(12, 128, 52, 64),
-        center: new(128, 128, 64, 64),
-        right: new(256, 128, 52, 64),
-        bottomLeft: new(12, 256, 52, 45),
-        bottom: new(128, 256, 64, 43),
-        bottomRight: new(256, 256, 52, 45));
+        new(12, 20, 52, 44),
+        new(128, 20, 64, 44),
+        new(256, 20, 52, 44),
+        new(12, 128, 52, 64),
+        new(128, 128, 64, 64),
+        new(256, 128, 52, 64),
+        new(12, 256, 52, 45),
+        new(128, 256, 64, 43),
+        new(256, 256, 52, 45));
 
     /// <summary>Left / middle / right cap source rects (y is relative to row; added at draw time).</summary>
     private readonly struct RibbonCapSpec(Rectangle left, Rectangle mid, Rectangle right)
@@ -237,24 +237,24 @@ public static class TinySwordsUi
         right: new(320, 0, 97, 57));
 
     private readonly struct NineSliceSpec(
-        Rectangle topLeft, Rectangle top, Rectangle topRight,
-        Rectangle left, Rectangle center, Rectangle right,
-        Rectangle bottomLeft, Rectangle bottom, Rectangle bottomRight)
+        Rectangle topLeftRect, Rectangle topRect, Rectangle topRightRect,
+        Rectangle leftRect, Rectangle centerRect, Rectangle rightRect,
+        Rectangle bottomLeftRect, Rectangle bottomRect, Rectangle bottomRightRect)
     {
-        public int BorderLeft => topLeft.Width;
-        public int BorderTop => topLeft.Height;
-        public int BorderRight => topRight.Width;
-        public int BorderBottom => bottomLeft.Height;
+        public int BorderLeft => topLeftRect.Width;
+        public int BorderTop => topLeftRect.Height;
+        public int BorderRight => topRightRect.Width;
+        public int BorderBottom => bottomLeftRect.Height;
 
-        public Rectangle TopLeft { get; } = topLeft;
-        public Rectangle Top { get; } = top;
-        public Rectangle TopRight { get; } = topRight;
-        public Rectangle Left { get; } = left;
-        public Rectangle Center { get; } = center;
-        public Rectangle Right { get; } = right;
-        public Rectangle BottomLeft { get; } = bottomLeft;
-        public Rectangle Bottom { get; } = bottom;
-        public Rectangle BottomRight { get; } = bottomRight;
+        public Rectangle TopLeft { get; } = topLeftRect;
+        public Rectangle Top { get; } = topRect;
+        public Rectangle TopRight { get; } = topRightRect;
+        public Rectangle Left { get; } = leftRect;
+        public Rectangle Center { get; } = centerRect;
+        public Rectangle Right { get; } = rightRect;
+        public Rectangle BottomLeft { get; } = bottomLeftRect;
+        public Rectangle Bottom { get; } = bottomRect;
+        public Rectangle BottomRight { get; } = bottomRightRect;
     }
 
     private static void DrawShowcase320NineSlice(
@@ -269,15 +269,15 @@ public static class TinySwordsUi
         int Cy(int row) => row * cell;
 
         var spec = new NineSliceSpec(
-            topLeft: new(Cx(0), Cy(0), b, b),
-            top: new(Cx(1), Cy(0), cell, b),
-            topRight: new(Cx(2) + cell - b, Cy(0), b, b),
-            left: new(Cx(0), Cy(1), b, cell),
-            center: new(Cx(1), Cy(1), cell, cell),
-            right: new(Cx(2) + cell - b, Cy(1), b, cell),
-            bottomLeft: new(Cx(0), Cy(2) + cell - b, b, b),
-            bottom: new(Cx(1), Cy(2) + cell - b, cell, b),
-            bottomRight: new(Cx(2) + cell - b, Cy(2) + cell - b, b, b));
+            new(Cx(0), Cy(0), b, b),
+            new(Cx(1), Cy(0), cell, b),
+            new(Cx(2) + cell - b, Cy(0), b, b),
+            new(Cx(0), Cy(1), b, cell),
+            new(Cx(1), Cy(1), cell, cell),
+            new(Cx(2) + cell - b, Cy(1), b, cell),
+            new(Cx(0), Cy(2) + cell - b, b, b),
+            new(Cx(1), Cy(2) + cell - b, cell, b),
+            new(Cx(2) + cell - b, Cy(2) + cell - b, b, b));
 
         DrawNineSlice(sb, tex, dest, spec, alpha);
     }

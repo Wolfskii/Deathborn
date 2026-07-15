@@ -97,8 +97,8 @@ public static class Config
     public const float ShieldBashRange = 56f * Ws;
 
     public const float WhirlwindCooldown = 6f;
-    public const float WhirlwindDuration = 0.55f;
-    public const float WhirlwindRadius = 52f * Ws;
+    public const float WhirlwindDuration = 3f;
+    public const float WhirlwindRadius = 38f * Ws;
 
     public const float WarriorDashCooldown = 5f;
     public const float WarriorDashDistance = 100f * Ws;

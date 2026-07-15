@@ -17,6 +17,9 @@ public sealed class AbilityInfo
     public ResourceCostKind AltCostKind { get; init; }
     public float AltCost { get; init; }
     public string? ExtraStats { get; init; }
+    /// <summary>When false (default), movement input is blocked for the ability duration.</summary>
+    public bool CanMoveWhileUsing { get; init; }
+    public AbilityEffectPlacement EffectPlacement { get; init; } = AbilityEffectPlacement.None;
 }
 
 /// <summary>All player-learned abilities (currently every implemented ability).</summary>
@@ -53,13 +56,17 @@ public static class AbilityCatalog
             ResourceCostKind costKind = ResourceCostKind.None, float cost = 0,
             float healthCost = 0,
             ResourceCostKind altKind = ResourceCostKind.None, float altCost = 0,
-            int? dmg = null, int? heal = null, float? range = null, string? extra = null) =>
+            int? dmg = null, int? heal = null, float? range = null, string? extra = null,
+            bool canMoveWhileUsing = false,
+            AbilityEffectPlacement effectPlacement = AbilityEffectPlacement.None) =>
             new()
             {
                 Id = id, Name = name, Kind = kind, Page = page, Description = desc,
                 Cooldown = cd, CostKind = costKind, Cost = cost,
                 HealthCost = healthCost, AltCostKind = altKind, AltCost = altCost,
                 Damage = dmg, Heal = heal, Range = range, ExtraStats = extra,
+                CanMoveWhileUsing = canMoveWhileUsing,
+                EffectPlacement = effectPlacement,
             };
 
         return new Dictionary<string, AbilityInfo>
@@ -74,27 +81,33 @@ public static class AbilityCatalog
             ["whirlwind"] = A("whirlwind", "Whirlwind", "melee", "Warrior",
                 "Spin and strike all nearby enemies.", Config.WhirlwindCooldown,
                 ResourceCostKind.Stamina, 28, dmg: Config.WhirlwindDamage, range: Config.WhirlwindRadius,
-                extra: "AoE"),
+                extra: "AoE", canMoveWhileUsing: true, effectPlacement: AbilityEffectPlacement.FollowOwner),
             ["warrior_dash"] = A("warrior_dash", "Charge", "melee", "Warrior",
                 "Dash forward, damaging enemies you collide with.", Config.WarriorDashCooldown,
-                ResourceCostKind.Stamina, 22, dmg: Config.WarriorDashDamage, range: Config.WarriorDashDistance),
+                ResourceCostKind.Stamina, 22, dmg: Config.WarriorDashDamage, range: Config.WarriorDashDistance,
+                effectPlacement: AbilityEffectPlacement.FollowOwner),
             ["fireball"] = A("fireball", "Fireball", "spell", "Arcane",
                 "Hurl a blazing orb that explodes on impact.", Config.FireballCooldown,
-                ResourceCostKind.Mana, 22, dmg: Config.FireballDamage, range: Config.FireballMaxRange),
+                ResourceCostKind.Mana, 22, dmg: Config.FireballDamage, range: Config.FireballMaxRange,
+                effectPlacement: AbilityEffectPlacement.Projectile),
             ["ice_shard"] = A("ice_shard", "Ice Shard", "spell", "Arcane",
                 "Launch a fast shard of ice.", Config.IceShardCooldown,
-                ResourceCostKind.Mana, 14, dmg: Config.IceShardDamage, range: Config.IceShardMaxRange),
+                ResourceCostKind.Mana, 14, dmg: Config.IceShardDamage, range: Config.IceShardMaxRange,
+                effectPlacement: AbilityEffectPlacement.Projectile),
             ["arc_bolt"] = A("arc_bolt", "Arc Bolt", "spell", "Arcane",
                 "A short-range lightning bolt in a cone.", Config.ArcBoltCooldown,
-                ResourceCostKind.Mana, 12, dmg: Config.ArcBoltDamage, range: Config.ArcBoltRange),
+                ResourceCostKind.Mana, 12, dmg: Config.ArcBoltDamage, range: Config.ArcBoltRange,
+                effectPlacement: AbilityEffectPlacement.WorldPlaced),
             ["blood_bolt"] = A("blood_bolt", "Blood Bolt", "spell", "Arcane",
                 "Sacrifice life force to unleash a devastating bolt.", Config.BloodBoltCooldown,
                 ResourceCostKind.Mana, 16, healthCost: 12,
-                dmg: Config.BloodBoltDamage, range: Config.ArcBoltRange, extra: "Costs HP + mana"),
+                dmg: Config.BloodBoltDamage, range: Config.ArcBoltRange, extra: "Costs HP + mana",
+                effectPlacement: AbilityEffectPlacement.WorldPlaced),
             ["poison_cloud"] = A("poison_cloud", "Poison Cloud", "spell", "Arcane",
                 "Release a toxic cloud around you; strains the body.", Config.PoisonCloudCooldown,
                 ResourceCostKind.Mana, 18, healthCost: 5,
-                dmg: Config.PoisonCloudDamage, range: 90f, extra: "Ground AoE | costs HP"),
+                dmg: Config.PoisonCloudDamage, range: 90f, extra: "Ground AoE | costs HP",
+                effectPlacement: AbilityEffectPlacement.WorldPlaced),
             ["battle_shout"] = A("battle_shout", "Battle Shout", "buff", "Support",
                 "Increase damage dealt for a short time.", Config.BattleShoutCooldown,
                 ResourceCostKind.Stamina, 15, extra: $"+25% dmg | {Config.BattleShoutDuration:0}s"),
