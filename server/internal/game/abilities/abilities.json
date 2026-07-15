@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "abilities": [
+    {
+      "id": "slash",
+      "kind": "melee",
+      "combat": { "damage": 5, "hitRange": 72 }
+    },
+    {
+      "id": "shield_bash",
+      "kind": "melee",
+      "combat": { "damage": 12, "hitRange": 56 }
+    },
+    {
+      "id": "whirlwind",
+      "kind": "melee",
+      "combat": { "damage": 8, "hitRange": 76 }
+    },
+    {
+      "id": "warrior_dash",
+      "kind": "melee",
+      "combat": { "damage": 10, "hitRange": 110 }
+    },
+    {
+      "id": "fireball",
+      "kind": "spell",
+      "combat": { "damage": 25, "hitRange": 560 }
+    },
+    {
+      "id": "ice_shard",
+      "kind": "spell",
+      "combat": { "damage": 18, "hitRange": 560 }
+    },
+    {
+      "id": "arc_bolt",
+      "kind": "spell",
+      "combat": { "damage": 14, "hitRange": 140 }
+    },
+    {
+      "id": "blood_bolt",
+      "kind": "spell",
+      "combat": { "damage": 22, "hitRange": 140 }
+    },
+    {
+      "id": "poison_cloud",
+      "kind": "spell",
+      "combat": { "damage": 6, "hitRange": 90 }
+    },
+    {
+      "id": "hunter_mark",
+      "kind": "utility",
+      "combat": { "hitRange": 200 }
+    },
+    {
+      "id": "second_wind",
+      "kind": "heal",
+      "combat": { "heal": 15 }
+    },
+    {
+      "id": "bandage",
+      "kind": "item",
+      "hot": { "totalHeal": 25, "ticks": 5, "intervalSec": 1.0 }
+    }
+  ]
+}

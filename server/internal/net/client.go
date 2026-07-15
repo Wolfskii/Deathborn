@@ -375,10 +375,10 @@ func (c *Client) readPump(database *db.DB) {
 			case "whirlwind":
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "whirlwind", dirX, dirY, ""))
 			case "warrior_dash":
-				c.hub.world.DashPlayer(c.characterID, dirX, dirY, game.WarriorDashRange)
+				c.hub.world.DashPlayer(c.characterID, dirX, dirY, game.AbilityHitRange("warrior_dash"))
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "warrior_dash", dirX, dirY, ""))
 			case "hunter_mark":
-				markTarget := c.hub.world.NearestEnemyInCone(c.characterID, dirX, dirY, game.HunterMarkRange, 0.25)
+				markTarget := c.hub.world.NearestEnemyInCone(c.characterID, dirX, dirY, game.AbilityHitRange("hunter_mark"), 0.25)
 				if markTarget <= 0 {
 					continue
 				}

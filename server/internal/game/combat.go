@@ -1,90 +1,45 @@
 package game
 
-const (
-	DefaultHpMax      = 100
-	SlashDamage       = 5
-	FireballDamage    = 25
-	IceShardDamage    = 18
-	ArcBoltDamage     = 14
-	BloodBoltDamage   = 22
-	PoisonCloudDamage = 6
+import "github.com/deathborn/server/internal/game/abilities"
 
-	ShieldBashDamage  = 12
-	WhirlwindDamage   = 8
-	WarriorDashDamage = 10
-	SecondWindHeal    = 15
+const DefaultHpMax = 100
 
-	ShieldBashRange    = 56
-	WhirlwindRadius    = 76
-	WarriorDashRange   = 110
-	HunterMarkRange    = 200
-	BandageTotalHeal   = 25
-	BandageHoTTicks    = 5
-	BandageHoTInterval = 1.0 // seconds between ticks
-)
+// Ability catalog accessors — data lives in abilities.json (see shared/abilities.json mirror).
 
-// DamageForAbility returns server-authoritative damage for a damaging ability id.
-func DamageForAbility(ability string) int {
-	switch ability {
-	case "slash":
-		return SlashDamage
-	case "fireball":
-		return FireballDamage
-	case "ice_shard":
-		return IceShardDamage
-	case "arc_bolt":
-		return ArcBoltDamage
-	case "blood_bolt":
-		return BloodBoltDamage
-	case "poison_cloud":
-		return PoisonCloudDamage
-	case "shield_bash":
-		return ShieldBashDamage
-	case "whirlwind":
-		return WhirlwindDamage
-	case "warrior_dash":
-		return WarriorDashDamage
-	default:
-		return 0
-	}
+func DamageForAbility(id string) int {
+	return abilities.Default().Damage(id)
 }
 
-// MaxHitRange returns the maximum distance allowed between attacker and target.
-func MaxHitRange(ability string) float64 {
-	switch ability {
-	case "slash":
-		return 72
-	case "fireball", "ice_shard":
-		return 560
-	case "arc_bolt", "blood_bolt":
-		return 140
-	case "poison_cloud":
-		return 90
-	case "shield_bash":
-		return ShieldBashRange
-	case "whirlwind":
-		return WhirlwindRadius
-	case "warrior_dash":
-		return WarriorDashRange
-	default:
-		return 0
-	}
+func MaxHitRange(id string) float64 {
+	return abilities.Default().HitRange(id)
 }
 
-// HealForAbility returns instant healing for a self-target ability/item id.
-func HealForAbility(ability string) int {
-	switch ability {
-	case "second_wind":
-		return SecondWindHeal
-	default:
-		return 0
-	}
+func HealForAbility(id string) int {
+	return abilities.Default().Heal(id)
 }
 
-// BandageHoTPerTick returns healing per bandage tick.
 func BandageHoTPerTick() int {
-	if BandageHoTTicks <= 0 {
-		return BandageTotalHeal
+	if hot, ok := abilities.Default().HoT("bandage"); ok {
+		return hot.TotalHeal / hot.Ticks
 	}
-	return BandageTotalHeal / BandageHoTTicks
+	return 0
+}
+
+func BandageHoTTicks() int {
+	if hot, ok := abilities.Default().HoT("bandage"); ok {
+		return hot.Ticks
+	}
+	return 0
+}
+
+func BandageHoTInterval() float64 {
+	if hot, ok := abilities.Default().HoT("bandage"); ok {
+		return hot.IntervalSec
+	}
+	return 0
+}
+
+// Named ranges used outside hit validation (dash distance, hunter mark cone, etc.).
+func AbilityHitRange(id string) float64 {
+	return abilities.Default().HitRange(id)
 }

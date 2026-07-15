@@ -254,9 +254,9 @@ func (w *World) StartBandageHoT(playerID int64) bool {
 	}
 	p.hot = &healOverTime{
 		ability:   "bandage",
-		interval:  BandageHoTInterval,
+		interval:  BandageHoTInterval(),
 		perTick:   BandageHoTPerTick(),
-		ticksLeft: BandageHoTTicks,
+		ticksLeft: BandageHoTTicks(),
 	}
 	return true
 }
