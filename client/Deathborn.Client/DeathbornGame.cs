@@ -100,6 +100,7 @@ public sealed class DeathbornGame : Game
         TinyRpgCharacterSprites.Load(Content);
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
+        FarmRpgInventoryUi.Load(Content);
         AudioSettings.Load();
         MusicPlayer.ApplySavedSettings();
         SfxPlayer.Load(Content);

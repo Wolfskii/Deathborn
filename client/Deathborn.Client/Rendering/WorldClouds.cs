@@ -11,43 +11,64 @@ public sealed class CloudInstance
     public Vector2 Position;
     public float Scale;
     public float DriftSpeed;
-    public Rectangle SourceRect;
-    public float CanopyTopInset;
-    public float CanopyBottomInset;
-    public float CanopyHalfWidth;
+    public Rectangle BodyRect;
+    public Rectangle ShadowRect;
 }
 
 /// <summary>
-/// Overhead Farm RPG clouds (Props/clouds.png) with slow drift and ground-shade transparency.
+/// Overhead Farm RPG clouds — body and ground shadow drawn separately; ghost tint only on body overlap.
 /// </summary>
 public static class WorldClouds
 {
     private const uint Seed = 0xC10D05;
     private const int CloudStride = 10;
     private const float UnderCloudAlpha = 0.42f;
+    private const float BodyShadowGap = 3f;
     private const int VariantCount = 4;
+    private const byte OpaqueAlpha = 48;
+    // Keep a consistent world-px : source-px ratio so tiny cloud art is not upscaled with chunky borders.
+    private const float BaseSourceScale = 3.6f;
+    private const float MaxSourceScale = 4.5f;
 
-    // Trimmed sprites from Objects/Props/clouds.png (144×96 sheet).
     private static readonly CloudInstance[] VariantTemplate =
     [
-        new() { SourceRect = new(5, 6, 39, 86), CanopyTopInset = 86, CanopyBottomInset = 8, CanopyHalfWidth = 19.5f },
-        new() { SourceRect = new(54, 13, 35, 79), CanopyTopInset = 79, CanopyBottomInset = 5, CanopyHalfWidth = 17.5f },
-        new() { SourceRect = new(97, 15, 8, 70), CanopyTopInset = 70, CanopyBottomInset = 3, CanopyHalfWidth = 4f },
-        new() { SourceRect = new(106, 7, 37, 84), CanopyTopInset = 84, CanopyBottomInset = 8, CanopyHalfWidth = 18f },
+        new() { BodyRect = new(5, 6, 39, 22), ShadowRect = new(5, 70, 39, 22) },
+        new() { BodyRect = new(54, 13, 35, 15), ShadowRect = new(54, 77, 35, 15) },
+        new() { BodyRect = new(97, 15, 8, 6), ShadowRect = new(97, 79, 8, 6) },
+        new() { BodyRect = new(106, 7, 37, 20), ShadowRect = new(106, 71, 37, 20) },
     ];
 
     private const float MinDriftSpeed = 0.4f;
 
     private static readonly float[] VariantDrift = [-0.9f, -2.8f, 1.6f, 0.75f];
+    private static readonly float[] VariantScaleMul = [1.08f, 1f, 0.78f, 1.04f];
 
     private static readonly List<CloudInstance> Instances = [];
+    private static readonly byte?[][] BodyAlphaMasks = new byte?[VariantCount][];
     private static Texture2D? _texture;
     private static bool _initialized;
 
     public static bool IsLoaded => _texture != null;
 
-    public static void Load(ContentManager content) =>
+    public static void Load(ContentManager content)
+    {
         _texture = content.Load<Texture2D>("Decorations/FarmRpg/clouds");
+        var pixels = new Color[_texture.Width * _texture.Height];
+        _texture.GetData(pixels);
+
+        for (var i = 0; i < VariantCount; i++)
+        {
+            var body = VariantTemplate[i].BodyRect;
+            var mask = new byte[body.Width * body.Height];
+            for (var y = 0; y < body.Height; y++)
+            for (var x = 0; x < body.Width; x++)
+            {
+                var px = pixels[(body.Y + y) * _texture.Width + body.X + x];
+                mask[y * body.Width + x] = px.A;
+            }
+            BodyAlphaMasks[i] = mask;
+        }
+    }
 
     public static void Initialize(WorldMap map)
     {
@@ -77,14 +98,11 @@ public static class WorldClouds
 
     public static bool EntityUnderCloud(CloudInstance c, Vector2 pos, float entityRadius)
     {
-        var scale = c.Scale;
-        var topY = c.Position.Y - c.CanopyTopInset * scale;
-        var bottomY = c.Position.Y - c.CanopyBottomInset * scale;
-        if (pos.Y + entityRadius < topY || pos.Y - entityRadius > bottomY)
-            return false;
-
-        var halfW = c.CanopyHalfWidth * scale + entityRadius;
-        return MathF.Abs(pos.X - c.Position.X) <= halfW;
+        var headY = pos.Y - entityRadius * 3.1f;
+        var chestY = pos.Y - entityRadius * 1.6f;
+        return SampleBodyOpaque(c, pos.X, headY)
+            || SampleBodyOpaque(c, pos.X, chestY)
+            || SampleBodyOpaque(c, pos.X, (headY + chestY) * 0.5f);
     }
 
     public static void GetVisible(
@@ -103,11 +121,12 @@ public static class WorldClouds
 
         foreach (var c in Instances)
         {
-            var halfW = c.SourceRect.Width * c.Scale * 0.5f;
-            var topY = c.Position.Y - c.SourceRect.Height * c.Scale;
+            GetBodyWorldBounds(c, out _, out var bodyTop, out var bodyHalfW, out var bodyBottom);
+            var shadowHalfW = c.ShadowRect.Width * c.Scale * 0.5f;
+            var halfW = MathF.Max(bodyHalfW, shadowHalfW);
             if (c.Position.X + halfW < minX || c.Position.X - halfW > maxX)
                 continue;
-            if (c.Position.Y < minY || topY > maxY)
+            if (c.Position.Y < minY || bodyTop > maxY)
                 continue;
             visible.Add(c);
         }
@@ -125,10 +144,13 @@ public static class WorldClouds
         if (_texture == null) return;
 
         var drawScale = c.Scale * zoom;
-        var screenPos = new Vector2(
-            (c.Position.X - camera.X) * zoom + screenCenter.X,
-            (c.Position.Y - camera.Y) * zoom + screenCenter.Y);
-        var origin = new Vector2(c.SourceRect.Width * 0.5f, c.SourceRect.Height);
+        var shadowOrigin = new Vector2(c.ShadowRect.Width * 0.5f, c.ShadowRect.Height);
+        var shadowScreen = WorldToScreen(c.Position, camera, screenCenter, zoom);
+        sb.Draw(_texture, shadowScreen, c.ShadowRect, Color.White, 0f, shadowOrigin, drawScale, SpriteEffects.None, 0f);
+
+        var bodyBottomWorld = GetBodyBottomWorldY(c);
+        var bodyOrigin = new Vector2(c.BodyRect.Width * 0.5f, c.BodyRect.Height);
+        var bodyScreen = WorldToScreen(new Vector2(c.Position.X, bodyBottomWorld), camera, screenCenter, zoom);
 
         var alpha = 1f;
         for (var i = 0; i < entityPositions.Length; i++)
@@ -138,7 +160,7 @@ public static class WorldClouds
             break;
         }
 
-        sb.Draw(_texture, screenPos, c.SourceRect, Color.White * alpha, 0f, origin, drawScale, SpriteEffects.None, 0f);
+        sb.Draw(_texture, bodyScreen, c.BodyRect, Color.White * alpha, 0f, bodyOrigin, drawScale, SpriteEffects.None, 0f);
     }
 
     private static readonly List<CloudInstance> VisibleScratch = [];
@@ -155,6 +177,43 @@ public static class WorldClouds
         foreach (var c in VisibleScratch)
             DrawInstance(sb, c, camera, screenCenter, zoom, entityPositions);
     }
+
+    private static float GetBodyBottomWorldY(CloudInstance c)
+    {
+        var shadowTop = c.Position.Y - c.ShadowRect.Height * c.Scale;
+        return shadowTop - BodyShadowGap;
+    }
+
+    private static void GetBodyWorldBounds(
+        CloudInstance c, out float centerX, out float topY, out float halfW, out float bottomY)
+    {
+        centerX = c.Position.X;
+        bottomY = GetBodyBottomWorldY(c);
+        var bodyH = c.BodyRect.Height * c.Scale;
+        topY = bottomY - bodyH;
+        halfW = c.BodyRect.Width * c.Scale * 0.5f;
+    }
+
+    private static bool SampleBodyOpaque(CloudInstance c, float worldX, float worldY)
+    {
+        var mask = BodyAlphaMasks[c.Variant];
+        if (mask == null) return false;
+
+        GetBodyWorldBounds(c, out var centerX, out var topY, out var halfW, out var bottomY);
+        if (worldX < centerX - halfW || worldX > centerX + halfW || worldY < topY || worldY > bottomY)
+            return false;
+
+        var scale = c.Scale;
+        var localX = (int)((worldX - centerX) / scale + c.BodyRect.Width * 0.5f);
+        var localY = (int)((worldY - topY) / scale);
+        if (localX < 0 || localY < 0 || localX >= c.BodyRect.Width || localY >= c.BodyRect.Height)
+            return false;
+
+        return mask[localY * c.BodyRect.Width + localX] >= OpaqueAlpha;
+    }
+
+    private static Vector2 WorldToScreen(Vector2 world, Vector2 camera, Vector2 screenCenter, float zoom) =>
+        new((world.X - camera.X) * zoom + screenCenter.X, (world.Y - camera.Y) * zoom + screenCenter.Y);
 
     private static void Generate(WorldMap map)
     {
@@ -179,11 +238,8 @@ public static class WorldClouds
                 var variant = (int)(Hash(tx, ty, 2) % VariantCount);
                 var template = VariantTemplate[variant];
                 var scaleJitter = (Hash(tx, ty, 3) % 1000) / 1000f;
-                var tilesWide = 4.2f + variant * 0.45f + scaleJitter * 2.4f;
-                if (variant == 2)
-                    tilesWide *= 0.55f;
-                var targetWorldW = map.TileSize * tilesWide;
-                var scale = targetWorldW / template.SourceRect.Width;
+                var scale = (BaseSourceScale + scaleJitter * 0.9f) * VariantScaleMul[variant];
+                scale = MathF.Min(scale, MaxSourceScale);
                 var drift = VariantDrift[variant];
                 var driftJitter = (Hash(tx, ty, 4) % 1000) / 1000f * 0.5f + 0.75f;
                 drift *= driftJitter;
@@ -198,10 +254,8 @@ public static class WorldClouds
                     Position = pos,
                     Scale = scale,
                     DriftSpeed = drift,
-                    SourceRect = template.SourceRect,
-                    CanopyTopInset = template.CanopyTopInset,
-                    CanopyBottomInset = template.CanopyBottomInset,
-                    CanopyHalfWidth = template.CanopyHalfWidth,
+                    BodyRect = template.BodyRect,
+                    ShadowRect = template.ShadowRect,
                 });
             }
         }

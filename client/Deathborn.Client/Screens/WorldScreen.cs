@@ -531,7 +531,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (!_ghostMode)
         {
-            _hotbar.Draw(sb, font, _inventory);
+            _hotbar.Draw(sb, font, _inventory, _hotbar.SelectedIndex);
             if (!IsLocalDyingOrDead() && !_dragDrop.IsDragging)
                 DrawHotbarTooltip(sb, font);
             if (!IsLocalDyingOrDead() && interiorHouse == null)
@@ -1032,7 +1032,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         sb.Begin(samplerState: SamplerState.PointClamp);
         if (overlayRect is { } rect)
-            UiCursorTheme.DrawSlotOverlay(sb, rect);
+        {
+            if (!(_windows.Inventory.IsOpen && _windows.Inventory.TryGetSlotAt(mouse, out _, out _))
+                && FarmRpgInventoryUi.IsLoaded)
+                FarmRpgInventoryUi.DrawHotbarSelection(sb, rect);
+            else
+                UiCursorTheme.DrawSlotOverlay(sb, rect);
+        }
         UiCursorTheme.DrawCursor(sb, mouse, cursorKind);
         sb.End();
     }
@@ -2792,7 +2798,28 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             "shield_bash", "whirlwind", "warrior_dash", "fireball", "ice_shard",
             "battle_shout", "iron_skin", "hunter_mark", "bandage", "second_wind",
         };
-        for (var i = 0; i < defaults.Length; i++)
-            _hotbar.AssignSlot(i, AbilityCatalog.ToHotbarEntry(defaults[i]));
+
+        if (TryAssignDefaultSwordHotbar())
+        {
+            _hotbar.SelectSlot(0);
+            for (var i = 1; i < defaults.Length; i++)
+                _hotbar.AssignSlot(i, AbilityCatalog.ToHotbarEntry(defaults[i]));
+        }
+        else
+        {
+            for (var i = 0; i < defaults.Length; i++)
+                _hotbar.AssignSlot(i, AbilityCatalog.ToHotbarEntry(defaults[i]));
+        }
+    }
+
+    private bool TryAssignDefaultSwordHotbar()
+    {
+        for (var i = 0; i < PlayerInventory.SlotCount; i++)
+        {
+            if (_inventory.Slots[i].ItemId != "farm_sword") continue;
+            _hotbar.AssignSlot(0, ItemCatalog.ToHotbarEntry("farm_sword", i));
+            return true;
+        }
+        return false;
     }
 }

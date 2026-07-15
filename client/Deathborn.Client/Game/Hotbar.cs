@@ -36,20 +36,28 @@ public sealed class HotbarSlot
         if (_flashT > 0.2f) { Flash = false; _flashT = 0; }
     }
 
-    public void Draw(SpriteBatch sb, SpriteFont font, Rectangle bounds, PlayerInventory? inventory = null)
+    public void Draw(SpriteBatch sb, SpriteFont font, Rectangle bounds, bool selected, PlayerInventory? inventory = null)
     {
         var onCooldown = IsOnCooldown;
         var active = Flash && !onCooldown;
-        var bg = active ? new Color(55, 70, 95) : new Color(20, 20, 26);
-        DrawPrimitives.FillRect(sb, bounds, bg);
 
-        var border = active ? new Color(190, 215, 255) : new Color(90, 95, 105);
-        DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, bounds.Width, 2), border);
-        DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Bottom - 2, bounds.Width, 2), border);
-        DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, 2, bounds.Height), border);
-        DrawPrimitives.FillRect(sb, new Rectangle(bounds.Right - 2, bounds.Y, 2, bounds.Height), border);
+        if (FarmRpgInventoryUi.IsLoaded)
+            FarmRpgInventoryUi.DrawHotbarSlot(sb, bounds, active);
+        else
+        {
+            var bg = active ? new Color(55, 70, 95) : new Color(20, 20, 26);
+            DrawPrimitives.FillRect(sb, bounds, bg);
 
-        var icon = new Rectangle(bounds.X + 1, bounds.Y + 1, bounds.Width - 2, bounds.Height - 2);
+            var border = active ? new Color(190, 215, 255) : new Color(90, 95, 105);
+            DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, bounds.Width, 2), border);
+            DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Bottom - 2, bounds.Width, 2), border);
+            DrawPrimitives.FillRect(sb, new Rectangle(bounds.X, bounds.Y, 2, bounds.Height), border);
+            DrawPrimitives.FillRect(sb, new Rectangle(bounds.Right - 2, bounds.Y, 2, bounds.Height), border);
+        }
+
+        var iconPad = FarmRpgInventoryUi.IsLoaded ? 10 : 1;
+        var icon = new Rectangle(bounds.X + iconPad, bounds.Y + iconPad,
+            bounds.Width - iconPad * 2, bounds.Height - iconPad * 2);
         var spellId = Entry?.GetValueOrDefault(HotbarEntry.IdKey) as string;
         HotbarIconDraw.Draw(sb, spellId, icon);
 
@@ -266,20 +274,23 @@ public sealed class Hotbar
 
     public void StartCooldown(int index, float seconds) => Slots[index].StartCooldown(seconds);
 
-    public void Draw(SpriteBatch sb, SpriteFont font, PlayerInventory? inventory = null)
+    public void Draw(SpriteBatch sb, SpriteFont font, PlayerInventory? inventory = null, int selectedIndex = 0)
     {
         var totalW = 10 * SlotWidth + 9 * SlotGap;
         var x0 = GameViewport.Width / 2 - totalW / 2;
         var y = GameViewport.Height - SlotHeight - 28;
+        var barRect = new Rectangle(x0 - BarPadding, y - BarPadding + 6,
+            totalW + BarPadding * 2, SlotHeight + BarPadding * 2 - 8);
 
-        DrawPrimitives.FillRect(sb,
-            new Rectangle(x0 - BarPadding, y - BarPadding, totalW + BarPadding * 2, SlotHeight + BarPadding * 2),
-            new Color(12, 15, 20, 220));
+        if (FarmRpgInventoryUi.IsLoaded)
+            FarmRpgInventoryUi.DrawHotbarBar(sb, barRect);
+        else
+            DrawPrimitives.FillRect(sb, barRect, new Color(12, 15, 20, 220));
 
         for (var i = 0; i < 10; i++)
         {
             var rect = new Rectangle(x0 + i * (SlotWidth + SlotGap), y, SlotWidth, SlotHeight);
-            Slots[i].Draw(sb, font, rect, inventory);
+            Slots[i].Draw(sb, font, rect, i == selectedIndex, inventory);
         }
     }
 }

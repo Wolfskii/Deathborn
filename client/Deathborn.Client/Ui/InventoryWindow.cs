@@ -81,6 +81,9 @@ public sealed class InventoryWindow : UiWindow
         if (_inventory == null) return;
 
         LayoutCells();
+        var gridBounds = GridBounds();
+        if (FarmRpgInventoryUi.IsLoaded)
+            FarmRpgInventoryUi.DrawInventoryPanel(sb, gridBounds);
         sb.DrawString(font, "Drag items to hotbar or drop in world", new Vector2(area.X + 8, area.Y + 2), GoldDim);
 
         for (var i = 0; i < _cellRects.Count; i++)
@@ -151,6 +154,16 @@ public sealed class InventoryWindow : UiWindow
         return false;
     }
 
+    private Rectangle GridBounds()
+    {
+        if (_cellRects.Count == 0) return Rectangle.Empty;
+        var bounds = _cellRects[0];
+        for (var i = 1; i < _cellRects.Count; i++)
+            bounds = Rectangle.Union(bounds, _cellRects[i]);
+        const int pad = 10;
+        return new Rectangle(bounds.X - pad, bounds.Y - pad, bounds.Width + pad * 2, bounds.Height + pad * 2);
+    }
+
     private void LayoutCells()
     {
         _cellRects.Clear();
@@ -172,6 +185,12 @@ public sealed class InventoryWindow : UiWindow
 
     private static void DrawCell(SpriteBatch sb, Rectangle rect, bool hover)
     {
+        if (FarmRpgInventoryUi.IsLoaded)
+        {
+            FarmRpgInventoryUi.DrawInventorySlot(sb, rect, hover);
+            return;
+        }
+
         DrawPrimitives.FillRect(sb, rect, hover ? new Color(38, 34, 28) : new Color(18, 16, 14));
         DrawBorder(sb, rect, hover ? PanelBorder : GoldDim);
     }
