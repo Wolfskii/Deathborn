@@ -1,0 +1,27 @@
+{
+  "tile_size_px": 16,
+  "world_tile_size": 32,
+  "vendor_pack": "Content/Characters/Farm RPG - Tiny Asset Pack - (All in One)/Tileset",
+  "runtime_tiles": "Content/Tiles/FarmRpg",
+  "install": "python scripts/install_farm_rpg_terrain.py",
+  "grass_autotile_origin": [5, 1],
+  "plain_grass_cell": [9, 2],
+  "grass_water_land_origin": [4, 8],
+  "water_fill": "Tiles/FarmRpg/water_fill.png",
+  "cliff_lip_row": 17,
+  "cliff_lip_cols": [16, 17, 18, 19],
+  "cliff_base_row": 18,
+  "elevation_sheets": {
+    "0": "spring",
+    "1": "spring",
+    "2": "summer",
+    "3": "fall",
+    "4": "deep_forest"
+  },
+  "autotile_mask": "NESW bits; 1 = same terrain (land mask) or same elevation (plateau mask) or water neighbour (water mask)",
+  "draw_order": [
+    "water autotile + animation",
+    "per elevation: shadow, grass top, cliff base south",
+    "foliage Y-sorted"
+  ]
+}

@@ -502,30 +502,18 @@ public sealed class WorldMap
         var maxTx = region.MaxTx;
         var minTy = region.MinTy;
         var maxTy = region.MaxTy;
-        var camera = region.Camera;
-        var screenCenter = region.ScreenCenter;
-        var zoom = region.Zoom;
 
         for (var ty = minTy; ty <= maxTy; ty++)
         for (var tx = minTx; tx <= maxTx; tx++)
         {
             if (_walkable[ty * TileWidth + tx]) continue;
             var rect = region.Rect(tx, ty);
-            if (!WaterTiles.TryDraw(sb, tx, ty, rect))
+            if (!WaterTiles.TryDraw(sb, this, tx, ty, rect))
                 DrawPrimitives.FillRect(sb, rect, WaterColor(tx, ty));
         }
 
-        for (var ty = minTy; ty <= maxTy; ty++)
-        for (var tx = minTx; tx <= maxTx; tx++)
-        {
-            if (!_walkable[ty * TileWidth + tx]) continue;
-            if (HasElevation && GetElevation(tx, ty) != 0) continue;
-            var rect = region.Rect(tx, ty);
-            WaterTiles.TryDrawShoreFoam(sb, this, tx, ty, rect, camera, screenCenter, zoom);
-        }
-
-        if (HasElevation && TinySwordsTerrain.IsLoaded)
-            TinySwordsTerrain.Draw(sb, this, region);
+        if (HasElevation && FarmRpgTerrain.IsLoaded)
+            FarmRpgTerrain.Draw(sb, this, region);
         else
         {
             for (var ty = minTy; ty <= maxTy; ty++)

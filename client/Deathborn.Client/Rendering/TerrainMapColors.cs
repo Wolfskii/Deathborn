@@ -5,21 +5,19 @@ namespace Deathborn.Client.Rendering;
 
 /// <summary>
 /// Flat fill colors for minimap / world-map overlays — one tone per elevation,
-/// sampled from Tiny Swords water + Tilemap_color1…5 center grass.
+/// sampled from Farm RPG spring/summer/fall/deep-forest grass sheets.
 /// </summary>
 public static class TerrainMapColors
 {
-    /// <summary>Water Background color.png</summary>
-    public static readonly Color Water = new(64, 168, 168);
+    public static readonly Color Water = new(72, 152, 216);
 
-    /// <summary>Tilemap_color{N} matches elevation N-1 (color1 = el 0, …).</summary>
     private static readonly Color[] LandByElevation =
     [
-        new(152, 184, 72), // 0 — shoreline / flat coast
-        new(128, 176, 80), // 1 — base land
-        new(88, 168, 96),  // 2 — plateau
-        new(128, 152, 88), // 3 — plateau
-        new(80, 152, 136), // 4 — plateau
+        new(120, 184, 72),  // 0 — shoreline / flat coast (spring)
+        new(104, 176, 64),  // 1 — base land (spring)
+        new(96, 168, 56),   // 2 — plateau (summer)
+        new(112, 152, 48),  // 3 — plateau (fall)
+        new(72, 136, 64),   // 4 — deep forest
     ];
 
     public static Color ForTile(WorldMap map, int tx, int ty)

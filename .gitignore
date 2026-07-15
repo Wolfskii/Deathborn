@@ -20,7 +20,10 @@ client/publish/
 client/.package-stage/
 client/**/.vs/
 
-# OS / editor
+# Local terrain / sprite debug exports (keep the JSON guide if needed)
+.tile_debug/*
+!.tile_debug/farmrpg_guide.json
+
 .DS_Store
 Thumbs.db
 .idea/

@@ -1,0 +1,63 @@
+{
+  "tile_size_px": 16,
+  "world_tile_size": 32,
+  "grass_autotile_origin": [
+    4,
+    14
+  ],
+  "grass_water_land_origin": [
+    8,
+    0
+  ],
+  "grass_water_water_origin": [
+    0,
+    0
+  ],
+  "water_anim_origin": [
+    12,
+    0
+  ],
+  "water_anim_frames": 8,
+  "cliff_lip_row": 17,
+  "cliff_base_row": 18,
+  "cliff_lip_cols": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "elevation_grass_sheets": [
+    "Tiles/FarmRpg/grass_elev0.png",
+    "Tiles/FarmRpg/grass_elev1.png",
+    "Tiles/FarmRpg/grass_elev2.png",
+    "Tiles/FarmRpg/grass_elev3.png",
+    "Tiles/FarmRpg/grass_elev4.png"
+  ],
+  "installed": [
+    "Decorations/FarmRpg/bush_1.png",
+    "Decorations/FarmRpg/bush_2.png",
+    "Decorations/FarmRpg/bush_3.png",
+    "Decorations/FarmRpg/rock_1.png",
+    "Decorations/FarmRpg/rock_2.png",
+    "Decorations/FarmRpg/tree_maple.png",
+    "Decorations/FarmRpg/tree_maple_anim.png",
+    "Decorations/FarmRpg/tree_pine.png",
+    "Decorations/FarmRpg/tree_pine_anim.png",
+    "Decorations/FarmRpg/water_rock_1.png",
+    "Decorations/FarmRpg/water_rock_2.png",
+    "Tiles/FarmRpg/cliff_elev0.png",
+    "Tiles/FarmRpg/cliff_elev1.png",
+    "Tiles/FarmRpg/cliff_elev2.png",
+    "Tiles/FarmRpg/cliff_elev3.png",
+    "Tiles/FarmRpg/cliff_elev4.png",
+    "Tiles/FarmRpg/grass_elev0.png",
+    "Tiles/FarmRpg/grass_elev1.png",
+    "Tiles/FarmRpg/grass_elev2.png",
+    "Tiles/FarmRpg/grass_elev3.png",
+    "Tiles/FarmRpg/grass_elev4.png",
+    "Tiles/FarmRpg/grass_water.png",
+    "Tiles/FarmRpg/shadow.png",
+    "Tiles/FarmRpg/water_anim.png",
+    "Tiles/FarmRpg/water_fill.png"
+  ]
+}

@@ -51,19 +51,19 @@ public static class WorldFoliage
 
     public static void Load(ContentManager content)
     {
-        _textures[0] = content.Load<Texture2D>("Decorations/bush_1");
-        _textures[1] = content.Load<Texture2D>("Decorations/bush_2");
-        _textures[2] = content.Load<Texture2D>("Decorations/bush_4");
-        _textures[3] = content.Load<Texture2D>("Decorations/tree_3");
-        _textures[4] = content.Load<Texture2D>("Decorations/tree_4");
-        _textures[5] = content.Load<Texture2D>("Decorations/rock_1");
-        _textures[6] = content.Load<Texture2D>("Decorations/rock_2");
-        _textures[7] = content.Load<Texture2D>("Decorations/rock_3");
-        _textures[8] = content.Load<Texture2D>("Decorations/rock_4");
-        _textures[9] = content.Load<Texture2D>("Decorations/water_rock_1");
-        _textures[10] = content.Load<Texture2D>("Decorations/water_rock_2");
-        _textures[11] = content.Load<Texture2D>("Decorations/water_rock_3");
-        _textures[12] = content.Load<Texture2D>("Decorations/water_rock_4");
+        _textures[0] = content.Load<Texture2D>("Decorations/FarmRpg/bush_1");
+        _textures[1] = content.Load<Texture2D>("Decorations/FarmRpg/bush_2");
+        _textures[2] = content.Load<Texture2D>("Decorations/FarmRpg/bush_3");
+        _textures[3] = content.Load<Texture2D>("Decorations/FarmRpg/tree_pine");
+        _textures[4] = content.Load<Texture2D>("Decorations/FarmRpg/tree_maple");
+        _textures[5] = content.Load<Texture2D>("Decorations/FarmRpg/rock_1");
+        _textures[6] = content.Load<Texture2D>("Decorations/FarmRpg/rock_2");
+        _textures[7] = content.Load<Texture2D>("Decorations/FarmRpg/rock_1");
+        _textures[8] = content.Load<Texture2D>("Decorations/FarmRpg/rock_2");
+        _textures[9] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_1");
+        _textures[10] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_1");
+        _textures[11] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_2");
+        _textures[12] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_2");
     }
 
     public static void Initialize(WorldMap map)
@@ -205,9 +205,9 @@ public static class WorldFoliage
         var tex = TextureFor(f);
         if (tex == null) return;
 
-        var (frameW, frameH, frameCount, fps) = FrameSpec(f.Kind);
+        var (frameW, frameH, frameCount, fps) = FrameSpec(f);
         var frame = AnimFrame(f, frameCount, fps);
-        var src = new Rectangle(frame * frameW, 0, frameW, frameH);
+        var src = SourceRect(f, frame, frameW, frameH);
         if (src.Right > tex.Width) src.Width = Math.Max(1, tex.Width - src.X);
         if (src.Bottom > tex.Height) src.Height = Math.Max(1, tex.Height - src.Y);
 
@@ -254,14 +254,36 @@ public static class WorldFoliage
         _ => null,
     };
 
-    private static (int frameW, int frameH, int frameCount, float fps) FrameSpec(FoliageKind kind) => kind switch
+    private static (int frameW, int frameH, int frameCount, float fps) FrameSpec(FoliageInstance f) => f.Kind switch
     {
-        FoliageKind.Bush => (128, 128, 8, 5.5f),
-        FoliageKind.Tree => (192, 192, 8, 4.5f),
-        FoliageKind.Rock => (64, 64, 1, 1f),
-        FoliageKind.WaterRock => (64, 64, 16, 7f),
-        _ => (64, 64, 1, 1f),
+        FoliageKind.Bush => (48, 32, 1, 1f),
+        FoliageKind.Tree when f.Variant == 0 => (64, 96, 1, 1f),
+        FoliageKind.Tree => (96, 96, 1, 1f),
+        FoliageKind.Rock => (16, 16, 1, 1f),
+        FoliageKind.WaterRock => (32, 32, 1, 1f),
+        _ => (16, 16, 1, 1f),
     };
+
+    private static Rectangle SourceRect(FoliageInstance f, int frame, int frameW, int frameH)
+    {
+        switch (f.Kind)
+        {
+            case FoliageKind.Bush:
+                return new Rectangle((f.Variant % 3) * 48, 0, frameW, frameH);
+            case FoliageKind.Tree when f.Variant == 0:
+                // Pine sheet: 4× 64 px variants; col 2 = large green (not 32 px cols 3–5 mash-up).
+                return new Rectangle(2 * 64, 0, frameW, frameH);
+            case FoliageKind.Tree:
+                // Maple: row 1 = mature trees (y 96–191); row 3 = white masks.
+                return new Rectangle((f.Variant % 2) * 96, 96, frameW, frameH);
+            case FoliageKind.Rock:
+                return new Rectangle((f.Variant % 8) * 16, 0, frameW, frameH);
+            case FoliageKind.WaterRock:
+                return new Rectangle((3 + f.Variant % 2) * 32, 0, frameW, frameH);
+            default:
+                return new Rectangle(0, 0, frameW, frameH);
+        }
+    }
 
     /// <summary>
     /// Trees and bushes hold still during calm spells, then sway with eased gusts.
@@ -270,33 +292,7 @@ public static class WorldFoliage
     private static int AnimFrame(FoliageInstance f, int frameCount, float baseFps)
     {
         if (frameCount <= 1) return 0;
-
-        var seed = f.AnimPhase;
-        if (f.Kind == FoliageKind.WaterRock)
-        {
-            var wave = 0.78f + 0.22f * MathF.Sin(_animTime * 0.55f + seed * 0.31f);
-            return ModFrame(_animTime * baseFps * wave + seed, frameCount);
-        }
-
-        if (f.Kind is not (FoliageKind.Bush or FoliageKind.Tree))
-            return 0;
-
-        var cycleLen = 6f + (seed % 89) * (12f / 89f);
-        var calmFrac = 0.32f + (seed % 67) * (0.40f / 67f);
-        var speedMul = 0.72f + (seed % 43) * (0.56f / 43f);
-
-        var t = _animTime + seed * 0.173f;
-        var cyclePos = t % cycleLen;
-        var calmDuration = cycleLen * calmFrac;
-        if (cyclePos < calmDuration)
-            return 0;
-
-        var gustElapsed = cyclePos - calmDuration;
-        var gustDuration = cycleLen - calmDuration;
-        var gustT = gustElapsed / gustDuration;
-        var windIntegral = (1f - MathF.Cos(gustT * MathF.PI)) / MathF.PI;
-        var floatFrame = windIntegral * gustDuration * baseFps * speedMul + seed * 0.1f;
-        return ModFrame(floatFrame, frameCount);
+        return 0;
     }
 
     private static int ModFrame(float floatFrame, int frameCount)
@@ -352,6 +348,13 @@ public static class WorldFoliage
     private static void Add(FoliageKind kind, Vector2 pos, int tx, int ty)
     {
         var scale = 0.78f + (Hash(tx, ty, 10) % 1000) / 1000f * 0.38f;
+        scale *= kind switch
+        {
+            FoliageKind.Tree => 2.75f,
+            FoliageKind.Bush => 1.35f,
+            FoliageKind.Rock => 1.15f,
+            _ => 1f,
+        };
         var variant = VariantFor(kind, tx, ty);
         var instance = new FoliageInstance
         {
@@ -370,83 +373,43 @@ public static class WorldFoliage
         switch (f.Kind)
         {
             case FoliageKind.Tree when f.Variant == 0:
-                f.FootInset = 23f;
-                f.CanopyTopInset = 168f;
-                f.CanopyBottomInset = 49f;
-                f.CanopyHalfWidth = 45f;
+                f.FootInset = 10f;
+                f.CanopyTopInset = 78f;
+                f.CanopyBottomInset = 28f;
+                f.CanopyHalfWidth = 22f;
                 f.CollisionRadius = 8f * f.Scale;
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Tree:
-                f.FootInset = 25f;
-                f.CanopyTopInset = 146f;
-                f.CanopyBottomInset = 51f;
-                f.CanopyHalfWidth = 40f;
+                f.FootInset = 14f;
+                f.CanopyTopInset = 82f;
+                f.CanopyBottomInset = 32f;
+                f.CanopyHalfWidth = 30f;
+                f.CollisionRadius = 10f * f.Scale;
+                f.BlocksMovement = true;
+                break;
+            case FoliageKind.Bush:
+                f.FootInset = 6f;
+                f.CanopyTopInset = 24f;
+                f.CanopyBottomInset = 6f;
+                f.CanopyHalfWidth = 16f;
+                f.CollisionRadius = 0f;
+                f.BlocksMovement = false;
+                break;
+            case FoliageKind.Rock:
+                f.FootInset = 4f;
+                f.CanopyTopInset = 0f;
+                f.CanopyBottomInset = 0f;
+                f.CanopyHalfWidth = 0f;
                 f.CollisionRadius = 8f * f.Scale;
                 f.BlocksMovement = true;
                 break;
-            case FoliageKind.Bush when f.Variant == 0:
-                f.FootInset = 50f;
-                f.CanopyTopInset = 95f;
-                f.CanopyBottomInset = 50f;
-                f.CanopyHalfWidth = 34f;
-                f.CollisionRadius = 0f;
-                f.BlocksMovement = false;
-                break;
-            case FoliageKind.Bush when f.Variant == 1:
-                f.FootInset = 53f;
-                f.CanopyTopInset = 86f;
-                f.CanopyBottomInset = 53f;
-                f.CanopyHalfWidth = 23f;
-                f.CollisionRadius = 0f;
-                f.BlocksMovement = false;
-                break;
-            case FoliageKind.Bush:
-                f.FootInset = 50f;
-                f.CanopyTopInset = 91f;
-                f.CanopyBottomInset = 50f;
-                f.CanopyHalfWidth = 23f;
-                f.CollisionRadius = 0f;
-                f.BlocksMovement = false;
-                break;
-            case FoliageKind.Rock when f.Variant == 0:
-                f.FootInset = 14f;
-                f.CanopyTopInset = 0f;
-                f.CanopyBottomInset = 0f;
-                f.CanopyHalfWidth = 0f;
-                f.CollisionRadius = 15f * f.Scale;
-                f.BlocksMovement = true;
-                break;
-            case FoliageKind.Rock when f.Variant == 1:
-                f.FootInset = 12f;
-                f.CanopyTopInset = 0f;
-                f.CanopyBottomInset = 0f;
-                f.CanopyHalfWidth = 0f;
-                f.CollisionRadius = 16f * f.Scale;
-                f.BlocksMovement = true;
-                break;
-            case FoliageKind.Rock when f.Variant == 2:
-                f.FootInset = 13f;
-                f.CanopyTopInset = 0f;
-                f.CanopyBottomInset = 0f;
-                f.CanopyHalfWidth = 0f;
-                f.CollisionRadius = 14f * f.Scale;
-                f.BlocksMovement = true;
-                break;
-            case FoliageKind.Rock:
-                f.FootInset = 9f;
-                f.CanopyTopInset = 0f;
-                f.CanopyBottomInset = 0f;
-                f.CanopyHalfWidth = 0f;
-                f.CollisionRadius = 15f * f.Scale;
-                f.BlocksMovement = true;
-                break;
             case FoliageKind.WaterRock:
-                f.FootInset = 17f;
+                f.FootInset = 8f;
                 f.CanopyTopInset = 0f;
                 f.CanopyBottomInset = 0f;
                 f.CanopyHalfWidth = 0f;
-                f.CollisionRadius = 12f * f.Scale;
+                f.CollisionRadius = 10f * f.Scale;
                 f.BlocksMovement = true;
                 break;
         }
