@@ -45,20 +45,15 @@ Deathborn icon art = **dark fantasy lore + bright nostalgic pixel execution**.
 
 Do **not** generate images unless the user explicitly asks. Default deliverable is the text prompt.
 
-## Workflow C — player body animations (Swordsman V2)
+## Workflow C — Farm RPG player layers
 
-Use when creating, installing, or wiring **player character** sprite sheets (not UI icon atlases).
+Use when installing or extending **player character** modular layers (not UI icon atlases).
 
-1. Read [`prompts/sprites/Player/manifest.json`](../../../prompts/sprites/Player/manifest.json) for animation ids, frame counts, and path mapping.
-2. **Body prompts:** copy `prompts/sprites/Player/<animation>/cardinals.md` or `diagonals.md` to image AI (self-contained). Attach Reference Image 1 = canonical **bald** base body.
-3. **Layer prompts:** for hair/gear/weapons use [`prompts/sprites/Player/layers/layer-prompt-template.md`](../../../prompts/sprites/Player/layers/layer-prompt-template.md) + [`layers/manifest.json`](../../../prompts/sprites/Player/layers/manifest.json).
-4. **Install body halves:** save output to `Content/Characters/Swordsman V2/_source/<animation>/cardinals.png` and `diagonals.png`.
-5. **Install layer sheets:** `Content/Characters/Swordsman V2/layers/<item-id>/<clip>.png` (register in Content.mgcb).
-6. **Merge:** `python scripts/generate_player_sprite_placeholders.py <animation> --merge-only`
-7. **Atlas (wired clips):** `python scripts/regenerate_swordsman_v2_atlas.py`
-8. See [AGENTS.md](../../../AGENTS.md) player sprite section for row order, `Facing8` mapping, layer draw order, and C# wiring.
-
-Regenerate all placeholders: `python scripts/generate_player_sprite_placeholders.py`
+1. Read [`client/Deathborn.Client/Content/Characters/FarmRpg/manifest.json`](../../../client/Deathborn.Client/Content/Characters/FarmRpg/manifest.json) for installed layer ids and clip paths.
+2. Source art lives in the vendor pack: `Content/Characters/Farm RPG - Tiny Asset Pack - (All in One)/Character/Character/PNG/`.
+3. **Install layers:** `python scripts/install_farm_rpg_player.py` — copies PNGs into `FarmRpg/layers/` and updates `Content.mgcb`.
+4. **Wire new equipment:** add `farm-*` item id to `CharacterLayerCatalog.cs` and the install script `LAYERS` dict.
+5. See [AGENTS.md](../../../AGENTS.md) Farm RPG section for clip mapping, draw order, and C# wiring.
 
 ## Workflow B — user pasted a sprite sheet
 
@@ -97,8 +92,6 @@ python scripts/slice_sprite_sheet.py sheet.png --atlas ability --chroma-key --ce
 | File | Purpose |
 |------|---------|
 | [reference.md](reference.md) | Style guide, cell maps, prompt template |
-| `prompts/sprites/Player/manifest.json` | Player animation → prompt/path/frame manifest |
-| `scripts/generate_player_sprite_placeholders.py` | Placeholder + merge cardinals/diagonals halves |
-| `scripts/regenerate_swordsman_v2_atlas.py` | Tight-frame atlas codegen for wired V2 sheets |
+| `scripts/install_farm_rpg_player.py` | Copy Farm RPG vendor layers into Content + mgcb |
 | `scripts/slice_sprite_sheet.py` | Standardize, chroma-key, slice, install |
 | `scripts/sprite_sheet_atlases.json` | Atlas layouts, install paths, default key color |

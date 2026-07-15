@@ -8,12 +8,14 @@ public readonly struct CharacterAppearance
     public HairColor HairColor { get; init; }
     public string? HairStyleId { get; init; }
 
-    public static CharacterAppearance DefaultSwordsman => new()
+    public static CharacterAppearance DefaultFarmRpg => new()
     {
-        BodyTypeId = CharacterAnimationCatalog.SwordsmanV2,
+        BodyTypeId = CharacterAnimationCatalog.FarmRpg,
         SkinTone = SkinTone.Fair,
         EyeColor = EyeColor.Brown,
         HairColor = HairColor.Brown,
-        HairStyleId = "hair-short",
+        HairStyleId = "farm-hair-josh-brown",
     };
+
+    public static CharacterAppearance DefaultPlayer => DefaultFarmRpg;
 }

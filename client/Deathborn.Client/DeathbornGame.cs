@@ -87,8 +87,7 @@ public sealed class DeathbornGame : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         DrawPrimitives.Init(GraphicsDevice);
         Font = Content.Load<SpriteFont>("Fonts/Default");
-        CharacterSprites.Load(Content);
-        Rendering.Characters.CharacterLayerCatalog.Load(Content);
+        Rendering.Characters.FarmRpgCharacterSprites.Load(Content);
         AbilityIconAtlas.Load(Content);
         CosmeticIconAtlas.Load(Content);
         UiCursorTheme.Load(Content);
@@ -102,7 +101,9 @@ public sealed class DeathbornGame : Game
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         MusicPlayer.ApplySavedSettings();
-        _screens.Change(new LoginScreen(_screens));
+        _screens.Change(Config.DevAutoRestore && SavedLogin.HasRemembered()
+            ? new DevReconnectScreen(_screens)
+            : new LoginScreen(_screens));
         SyncViewport();
         GameWindowIcon.Apply(this);
     }

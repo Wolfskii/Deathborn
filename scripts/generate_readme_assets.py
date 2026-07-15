@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build README animated GIF from in-game swordsman run sprites."""
+"""Build README animated GIF from Farm RPG player walk sprites."""
 
 from __future__ import annotations
 
@@ -8,26 +8,46 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN = ROOT / "client" / "Deathborn.Client" / "Content" / "Characters" / "Swordsman" / "Run.png"
-OUT = ROOT / "docs" / "assets" / "readme-swordsman-run.gif"
+WALK = ROOT / "client" / "Deathborn.Client" / "Content" / "Characters" / "FarmRpg" / "layers" / "skin-1" / "walk.png"
+WALK_FALLBACK = (
+    ROOT
+    / "client"
+    / "Deathborn.Client"
+    / "Content"
+    / "Characters"
+    / "Farm RPG - Tiny Asset Pack - (All in One)"
+    / "Character"
+    / "Character"
+    / "PNG"
+    / "2. Walk"
+    / "Skins"
+    / "1.png"
+)
+OUT = ROOT / "docs" / "assets" / "readme-player-run.gif"
 
-FRAME_START_X = 16
-FRAME_STRIDE = 64
-FRAME_COUNT = 8
-RUN_ROW_Y = 144  # Right-facing row (matches SwordsmanSpriteSheet DirectionRowTops).
+FRAME_WIDTH = 32
+FRAME_HEIGHT = 32
+FRAMES_PER_DIRECTION = 6
+RIGHT_DIRECTION = 2  # Down, up, right, left
 BG = (12, 10, 8)
 DISPLAY = 128
 
 
-def main() -> int:
-    if not RUN.is_file():
-        raise SystemExit(f"Missing run sheet: {RUN}")
+def resolve_walk_sheet() -> Path:
+    if WALK.is_file():
+        return WALK
+    if WALK_FALLBACK.is_file():
+        return WALK_FALLBACK
+    raise SystemExit(f"Missing Farm RPG walk sheet: {WALK} (or fallback {WALK_FALLBACK})")
 
-    sheet = Image.open(RUN).convert("RGBA")
+
+def main() -> int:
+    sheet = Image.open(resolve_walk_sheet()).convert("RGBA")
     frames: list[Image.Image] = []
-    for i in range(FRAME_COUNT):
-        x = FRAME_START_X + i * FRAME_STRIDE
-        crop = sheet.crop((x, RUN_ROW_Y, x + FRAME_STRIDE, RUN_ROW_Y + FRAME_STRIDE))
+    base_col = RIGHT_DIRECTION * FRAMES_PER_DIRECTION
+    for i in range(FRAMES_PER_DIRECTION):
+        x = (base_col + i) * FRAME_WIDTH
+        crop = sheet.crop((x, 0, x + FRAME_WIDTH, FRAME_HEIGHT))
         crop = crop.resize((DISPLAY, DISPLAY), Image.Resampling.NEAREST)
         flat = Image.new("RGB", crop.size, BG)
         flat.paste(crop, mask=crop.split()[3])

@@ -8,6 +8,15 @@ public static class Config
     public static int DevInstance { get; } =
         int.TryParse(Environment.GetEnvironmentVariable("DEATHBORN_INSTANCE"), out var n) && n > 0 ? n : 0;
 
+    /// <summary>
+    /// When true, a process restart (e.g. <c>task dev:all</c> rebuild) skips the login screen and
+    /// reconnects with saved credentials for this dev instance.
+    /// </summary>
+    public static bool DevAutoRestore { get; } =
+        DevInstance > 0
+        || string.Equals(Environment.GetEnvironmentVariable("DEATHBORN_SKIP_UPDATE"), "1", StringComparison.Ordinal)
+        || string.Equals(Environment.GetEnvironmentVariable("DEATHBORN_SKIP_UPDATE"), "true", StringComparison.OrdinalIgnoreCase);
+
     public static string HttpBase => ServerEndpoints.HttpBase;
     public static string WsBase => ServerEndpoints.WsBase;
     public const int DefaultWidth = 1280;

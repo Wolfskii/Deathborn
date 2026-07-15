@@ -15,18 +15,37 @@ OUT = Path(__file__).resolve().parent / "assets"
 
 LOGO = CLIENT / "Content" / "Images" / "Logos" / "logo_v2.png"
 BANNER = CLIENT / "Content" / "Images" / "Logos" / "Banners" / "Banner V2.png"
-RUN = CLIENT / "Content" / "Characters" / "Swordsman" / "Run.png"
+WALK = CLIENT / "Content" / "Characters" / "FarmRpg" / "layers" / "skin-1" / "walk.png"
+WALK_FALLBACK = (
+    CLIENT
+    / "Content"
+    / "Characters"
+    / "Farm RPG - Tiny Asset Pack - (All in One)"
+    / "Character"
+    / "Character"
+    / "PNG"
+    / "2. Walk"
+    / "Skins"
+    / "1.png"
+)
 
-# Matches SwordsmanSpriteSheet.cs (down-facing run row).
-FRAME_START_X = 16
-FRAME_STRIDE = 64
-FRAME_COUNT = 8
-RUN_ROW_Y = 16
+FRAME_WIDTH = 32
+FRAME_HEIGHT = 32
+FRAMES_PER_DIRECTION = 6
+RIGHT_DIRECTION = 2
 
 BG = (12, 10, 8)
 
 WIZARD_LARGE_SIZE = (164, 314)
 WIZARD_SMALL_SIZE = (55, 58)
+
+
+def resolve_walk_sheet() -> Path:
+    if WALK.is_file():
+        return WALK
+    if WALK_FALLBACK.is_file():
+        return WALK_FALLBACK
+    raise FileNotFoundError(f"Missing Farm RPG walk sheet: {WALK}")
 
 
 def save_bmp24(img: Image.Image, path: Path) -> None:
@@ -99,15 +118,22 @@ def make_wizard_small(logo: Image.Image) -> Image.Image:
 
 def extract_run_frames(run_sheet: Image.Image) -> list[Image.Image]:
     frames: list[Image.Image] = []
-    for i in range(FRAME_COUNT):
-        x = FRAME_START_X + i * FRAME_STRIDE
-        crop = run_sheet.crop((x, RUN_ROW_Y, x + FRAME_STRIDE, RUN_ROW_Y + FRAME_STRIDE))
+    base_col = RIGHT_DIRECTION * FRAMES_PER_DIRECTION
+    for i in range(FRAMES_PER_DIRECTION):
+        x = (base_col + i) * FRAME_WIDTH
+        crop = run_sheet.crop((x, 0, x + FRAME_WIDTH, FRAME_HEIGHT))
         frames.append(crop.resize((128, 128), Image.Resampling.NEAREST))
     return frames
 
 
 def main() -> int:
-    missing = [path for path in (LOGO, BANNER, RUN) if not path.is_file()]
+    try:
+        walk_path = resolve_walk_sheet()
+    except FileNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    missing = [path for path in (LOGO, BANNER) if not path.is_file()]
     if missing:
         for path in missing:
             print(f"Missing asset: {path}", file=sys.stderr)
@@ -115,13 +141,12 @@ def main() -> int:
 
     logo = Image.open(LOGO)
     banner = Image.open(BANNER)
-    run_sheet = Image.open(RUN)
+    run_sheet = Image.open(walk_path)
 
     save_bmp24(make_wizard_large(banner), OUT / "wizard_large.bmp")
     save_bmp24(make_wizard_small(logo), OUT / "wizard_small.bmp")
 
     for i, frame in enumerate(extract_run_frames(run_sheet)):
-        # Flatten onto dark panel for the installer animation.
         panel = Image.new("RGB", (160, 160), BG)
         panel.paste(frame, ((160 - frame.width) // 2, 24), frame)
         save_bmp24(panel, OUT / f"run_frame_{i:02d}.bmp")

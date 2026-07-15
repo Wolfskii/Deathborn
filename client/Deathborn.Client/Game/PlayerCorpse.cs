@@ -21,7 +21,7 @@ public sealed class PlayerCorpse
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, float zoom)
     {
-        var scale = CharacterAnimationCatalog.GetDrawScale(CharacterAppearance.DefaultSwordsman.BodyTypeId) * zoom;
+        var scale = CharacterAnimationCatalog.GetDrawScale(CharacterAppearance.DefaultPlayer.BodyTypeId) * zoom;
         _visual.Draw(sb, screenPos, Color.White, scale);
 
         var markerY = screenPos.Y + (-PlayerEntity.Radius - 28f) * zoom;

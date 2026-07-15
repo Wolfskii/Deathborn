@@ -293,7 +293,7 @@ public sealed class LoginScreen : IScreen
 
     private void OnAuthOk()
     {
-        SavedLogin.Save(_remember.Checked, _email.Text, _password.Text);
+        SavedLogin.Save(Config.DevAutoRestore || _remember.Checked, _email.Text, _password.Text);
 
         _status = "Entering world...";
         _waitingWorld = true;

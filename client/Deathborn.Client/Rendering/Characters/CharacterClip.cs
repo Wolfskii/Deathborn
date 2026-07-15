@@ -4,6 +4,7 @@ namespace Deathborn.Client.Rendering.Characters;
 public enum CharacterClip
 {
     Idle,
+    Walk,
     Run,
     Attack,
     Cast,

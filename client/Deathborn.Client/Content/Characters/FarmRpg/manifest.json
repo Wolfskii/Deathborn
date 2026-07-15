@@ -1,0 +1,169 @@
+{
+  "body_type_id": "farm_rpg",
+  "frame_size": 32,
+  "directions": 4,
+  "direction_order": [
+    "down",
+    "up",
+    "right",
+    "left"
+  ],
+  "clips": {
+    "idle": {
+      "frames": 4,
+      "folder": "1. Idle"
+    },
+    "walk": {
+      "frames": 6,
+      "folder": "2. Walk"
+    },
+    "run": {
+      "frames": 8,
+      "folder": "3. Run"
+    },
+    "attack": {
+      "frames": 10,
+      "folder": "8. SwordAttack"
+    },
+    "hurt": {
+      "frames": 4,
+      "folder": "10. Damage"
+    },
+    "death": {
+      "frames": 4,
+      "folder": "11. Death"
+    }
+  },
+  "starter_appearance": {
+    "skin_layer": "skin-1",
+    "eyes_layer": "eyes-male-brown",
+    "hair_layer": "hair-josh-brown",
+    "outfit_layer": "outfit-farm-blue",
+    "weapon_layer": "weapon-sword"
+  },
+  "installed_layers": {
+    "skin-1": [
+      "Characters/FarmRpg/layers/skin-1/idle.png",
+      "Characters/FarmRpg/layers/skin-1/walk.png",
+      "Characters/FarmRpg/layers/skin-1/run.png",
+      "Characters/FarmRpg/layers/skin-1/attack.png",
+      "Characters/FarmRpg/layers/skin-1/hurt.png",
+      "Characters/FarmRpg/layers/skin-1/death.png"
+    ],
+    "skin-2": [
+      "Characters/FarmRpg/layers/skin-2/idle.png",
+      "Characters/FarmRpg/layers/skin-2/walk.png",
+      "Characters/FarmRpg/layers/skin-2/run.png",
+      "Characters/FarmRpg/layers/skin-2/attack.png",
+      "Characters/FarmRpg/layers/skin-2/hurt.png",
+      "Characters/FarmRpg/layers/skin-2/death.png"
+    ],
+    "skin-3": [
+      "Characters/FarmRpg/layers/skin-3/idle.png",
+      "Characters/FarmRpg/layers/skin-3/walk.png",
+      "Characters/FarmRpg/layers/skin-3/run.png",
+      "Characters/FarmRpg/layers/skin-3/attack.png",
+      "Characters/FarmRpg/layers/skin-3/hurt.png",
+      "Characters/FarmRpg/layers/skin-3/death.png"
+    ],
+    "skin-4": [
+      "Characters/FarmRpg/layers/skin-4/idle.png",
+      "Characters/FarmRpg/layers/skin-4/walk.png",
+      "Characters/FarmRpg/layers/skin-4/run.png",
+      "Characters/FarmRpg/layers/skin-4/attack.png",
+      "Characters/FarmRpg/layers/skin-4/hurt.png",
+      "Characters/FarmRpg/layers/skin-4/death.png"
+    ],
+    "eyes-male-brown": [
+      "Characters/FarmRpg/layers/eyes-male-brown/idle.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/walk.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/run.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/hurt.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/death.png"
+    ],
+    "eyes-male-blue": [
+      "Characters/FarmRpg/layers/eyes-male-blue/idle.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/walk.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/run.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/hurt.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/death.png"
+    ],
+    "eyes-male-green": [
+      "Characters/FarmRpg/layers/eyes-male-green/idle.png",
+      "Characters/FarmRpg/layers/eyes-male-green/walk.png",
+      "Characters/FarmRpg/layers/eyes-male-green/run.png",
+      "Characters/FarmRpg/layers/eyes-male-green/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-green/hurt.png",
+      "Characters/FarmRpg/layers/eyes-male-green/death.png"
+    ],
+    "eyes-male-black": [
+      "Characters/FarmRpg/layers/eyes-male-black/idle.png",
+      "Characters/FarmRpg/layers/eyes-male-black/walk.png",
+      "Characters/FarmRpg/layers/eyes-male-black/run.png",
+      "Characters/FarmRpg/layers/eyes-male-black/attack.png",
+      "Characters/FarmRpg/layers/eyes-male-black/hurt.png",
+      "Characters/FarmRpg/layers/eyes-male-black/death.png"
+    ],
+    "hair-josh-brown": [
+      "Characters/FarmRpg/layers/hair-josh-brown/idle.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/walk.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/run.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/hurt.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/death.png"
+    ],
+    "hair-josh-black": [
+      "Characters/FarmRpg/layers/hair-josh-black/idle.png",
+      "Characters/FarmRpg/layers/hair-josh-black/walk.png",
+      "Characters/FarmRpg/layers/hair-josh-black/run.png",
+      "Characters/FarmRpg/layers/hair-josh-black/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-black/hurt.png",
+      "Characters/FarmRpg/layers/hair-josh-black/death.png"
+    ],
+    "hair-josh-blonde": [
+      "Characters/FarmRpg/layers/hair-josh-blonde/idle.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/walk.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/run.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/hurt.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/death.png"
+    ],
+    "hair-josh-ginger": [
+      "Characters/FarmRpg/layers/hair-josh-ginger/idle.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/walk.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/run.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/attack.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/hurt.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/death.png"
+    ],
+    "outfit-farm-blue": [
+      "Characters/FarmRpg/layers/outfit-farm-blue/idle.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/walk.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/run.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/attack.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/hurt.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/death.png"
+    ],
+    "outfit-farm-green": [
+      "Characters/FarmRpg/layers/outfit-farm-green/idle.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/walk.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/run.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/attack.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/hurt.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/death.png"
+    ],
+    "outfit-farm-red": [
+      "Characters/FarmRpg/layers/outfit-farm-red/idle.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/walk.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/run.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/attack.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/hurt.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/death.png"
+    ],
+    "weapon-sword": [
+      "Characters/FarmRpg/layers/weapon-sword/attack.png"
+    ]
+  }
+}

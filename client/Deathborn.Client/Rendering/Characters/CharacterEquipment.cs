@@ -16,10 +16,11 @@ public readonly struct CharacterEquipment
 
     public static CharacterEquipment Empty => default;
 
-    public static CharacterEquipment Starter => new()
+    public static CharacterEquipment FarmRpgStarter => new()
     {
-        ChestId = "starter-chest",
-        LegsId = "starter-legs",
-        BootsId = "starter-boots",
+        ChestId = "farm-outfit-blue",
+        WeaponId = "farm-sword",
     };
+
+    public static CharacterEquipment DefaultPlayer => FarmRpgStarter;
 }

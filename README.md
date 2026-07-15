@@ -14,7 +14,7 @@ end-to-end vertical slice. See [docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md) for th
 full phased plan toward the MVP.
 
 <p align="center">
-  <img src="docs/assets/readme-swordsman-run.gif" alt="Swordsman running sideways" width="128">
+  <img src="docs/assets/readme-player-run.gif" alt="Player character running" width="128">
 </p>
 
 <p align="center"><em>“Run like you’ve got another life — you don’t.”</em></p>

@@ -1,110 +1,67 @@
 # Deathborn — Agent Guide
 
-## Player character sprites (Swordsman V2)
+## Player character sprites (Farm RPG)
 
-Authoritative manifest: [`prompts/sprites/Player/manifest.json`](prompts/sprites/Player/manifest.json)
+**Active player pipeline** — modular Farm RPG layers only. Legacy Swordsman V1/V2 systems have been removed.
+
+Authoritative manifest: [`client/Deathborn.Client/Content/Characters/FarmRpg/manifest.json`](client/Deathborn.Client/Content/Characters/FarmRpg/manifest.json)
 
 ### Quick facts
 
-- **Body type id:** `swordsman_v2` (`CharacterAnimationCatalog.SwordsmanV2`)
-- **Prompts:** `prompts/sprites/Player/<animation>/cardinals.md` and `diagonals.md` (self-contained — master style is inlined)
-- **Base body prompt:** `prompts/sprites/Player/base-body.md` — **bald mannequin** (skin + underwear + face only; no hair/clothes)
-- **Layer manifest:** `prompts/sprites/Player/layers/manifest.json` — hair, armor, weapons as separate composited sheets
-- **AI workflow:** generate `cardinals` and `diagonals` as **separate** 4-row sheets, then merge
-- **Cell size:** 64×64 px uniform grid; background `#00FF00` chroma key
-- **Merged sheet:** 8 rows × N columns — interleaved row order below
+- **Body type id:** `farm_rpg` (`CharacterAnimationCatalog.FarmRpg`)
+- **Source pack:** `Content/Characters/Farm RPG - Tiny Asset Pack - (All in One)/` (vendor art — not loaded at runtime)
+- **Runtime layers:** `Content/Characters/FarmRpg/layers/<layer-id>/<clip>.png`
+- **Cell size:** 32×32 px; 4 directions × N frames in one horizontal strip per layer
+- **Direction order:** down, up, right, left (`FacingDirection` / `FarmRpgAnimationSpecs.DirectionIndex`)
+- **Facing:** diagonals snap to the dominant axis (4 directions only)
 
-### File layout
+### Clips
 
-| Path | Purpose |
-|------|---------|
-| `Content/Characters/Swordsman V2/_source/<animation>/cardinals.png` | Paste AI output for S, E, N, W |
-| `Content/Characters/Swordsman V2/_source/<animation>/diagonals.png` | Paste AI output for SE, NE, NW, SW |
-| `Content/Characters/Swordsman V2/<animation>.png` | Merged runtime sheet (MonoGame loads this) |
-| `Content/Characters/Swordsman V2/_source/base-body.png` | Canonical character reference (not loaded at runtime) |
+| Clip file | Game clip |
+|-----------|-----------|
+| `idle` | Idle, Cast |
+| `walk` | Walk |
+| `run` | Run, Roll |
+| `attack` | Attack |
+| `hurt` | Hurt |
+| `death` | Death |
 
-Animation folder names **match** prompt dirs and merged PNG names (`walk`, `one-handed-attack`, …).
-
-### Merged row order (0-based)
-
-| Row | Half | Compass | `Facing8` |
-|-----|------|---------|-----------|
-| 0 | cardinals | South | `Down` |
-| 1 | diagonals | South-East | `DownRight` |
-| 2 | cardinals | East | `Right` |
-| 3 | diagonals | North-East | `UpRight` |
-| 4 | cardinals | North | `Up` |
-| 5 | diagonals | North-West | `UpLeft` |
-| 6 | cardinals | West | `Left` |
-| 7 | diagonals | South-West | `DownLeft` |
-
-Row-major frame index: `row * framesPerDirection + column`.
-
-### Scripts
+### Install / refresh layers
 
 ```bash
-# Regenerate labelled placeholder halves + merged sheets (all animations)
-python scripts/generate_player_sprite_placeholders.py
-
-# One animation only
-python scripts/generate_player_sprite_placeholders.py walk
-
-# Re-merge after replacing _source PNGs from AI
-python scripts/generate_player_sprite_placeholders.py walk --merge-only
+python scripts/install_farm_rpg_player.py
 ```
 
-After replacing real art, regenerate tight-frame atlas for wired sheets:
-
-```bash
-python scripts/regenerate_swordsman_v2_atlas.py
-```
+Copies modular layers from the vendor pack into `FarmRpg/layers/` and registers PNGs in `Content.mgcb`.
 
 ### Client code map
 
 | File | Role |
 |------|------|
-| `Rendering/CharacterSprites.cs` | Loads V2 textures by clip |
-| `Rendering/Characters/SwordsmanV2AnimationSpecs.cs` | Frame counts, durations, direction row maps |
-| `Rendering/Characters/SwordsmanV2FrameAtlas.cs` | Per-frame tight rects (generated) |
-| `Rendering/Characters/CharacterRenderer.cs` | Multi-layer compositor (body + equipment) |
-| `Rendering/Characters/SpriteAssembler.cs` | Resolves layer stack + palette remaps |
-| `Rendering/Characters/CharacterLayerCatalog.cs` | Layer item → content path mapping |
-| `Rendering/Characters/CharacterColorPresets.cs` | Skin / eye / hair palette presets |
-| `Rendering/Facing8.cs` | 8-way facing resolver |
+| `Rendering/Characters/FarmRpgCharacterSprites.cs` | Loads skin/eyes/equipment layer sheets |
+| `Rendering/Characters/FarmRpgAnimationSpecs.cs` | Frame counts, durations, direction mapping |
+| `Rendering/Characters/CharacterRenderer.cs` | Layer compositor |
+| `Rendering/Characters/SpriteAssembler.cs` | Resolves layer stack per clip |
+| `Rendering/Characters/CharacterLayerCatalog.cs` | Equipment item id → Farm layer mapping |
+| `Rendering/Facing.cs` | 4-way cardinal facing (down, up, right, left) |
 
-**Currently wired:** `idle`, `walk` (also Run/Roll speed), `one-handed-attack` (Attack clip). Other merged placeholders exist in Content but are not yet loaded in `CharacterSprites.cs`.
+**Draw order (bottom → top):** Body (skin) → Eyes → Chest → Hair → Weapon.
 
-### When installing new player art
+**Appearance:** `CharacterAppearance` selects skin/eye/hair layer ids; `CharacterEquipment` selects outfit and weapon ids (`farm-*` prefix in catalog).
 
-1. Drop AI sheets into `_source/<animation>/cardinals.png` and `diagonals.png`.
-2. Run `generate_player_sprite_placeholders.py <animation> --merge-only`.
-3. Register in `Content.mgcb` if new animation (see manifest).
-4. Wire texture + spec in `CharacterSprites.cs` / `SwordsmanV2AnimationSpecs.cs`.
-5. Run `regenerate_swordsman_v2_atlas.py` and rebuild client.
+### When adding a new layer
 
-### Modular layers (hair, gear, weapons)
+1. Add the layer to `scripts/install_farm_rpg_player.py` `LAYERS` dict (or copy manually from vendor pack).
+2. Run `python scripts/install_farm_rpg_player.py`.
+3. Add item id to `CharacterLayerCatalog.cs` and `FarmRpg/manifest.json` if new equipment slot.
 
-Body sheets are a **bald mannequin**. Hair, clothing, and weapons are separate aligned sprite layers composited at runtime.
+Missing layer PNGs are skipped gracefully — partial fallback until art is installed.
 
-| Path | Purpose |
-|------|---------|
-| `prompts/sprites/Player/layers/manifest.json` | Layer catalog, draw order, palette canonical colors |
-| `prompts/sprites/Player/layers/layer-prompt-template.md` | AI prompt for one equipment/hair layer |
-| `Content/Characters/Swordsman V2/layers/<item>/<clip>.png` | Runtime layer sheets (optional until art exists) |
+### World NPCs (Tiny RPG)
 
-**Draw order (bottom → top):** Cape → BackHair → Legs → **Body** → Chest → Gloves → Boots → FrontHair → Helmet → Weapon → Shield.
+**Active NPC pipeline** — horizontal-strip sprites from the Tiny RPG Character pack.
 
-**Colors:** Body art bakes canonical skin/eye colors; hair layers bake canonical hair colors. Runtime palette swap via `CharacterColorPresets` (`SkinTone`, `EyeColor`, `HairColor` on `CharacterAppearance`).
-
-**When installing a new layer:**
-
-1. AI-generate layer halves using `layer-prompt-template.md` + body sheet as reference.
-2. Edit in Aseprite/Photoshop, merge like body animations.
-3. Save to `Content/Characters/Swordsman V2/layers/<item-id>/<clip>.png`.
-4. Register PNG in `Content.mgcb`.
-5. Add item to `CharacterLayerCatalog.cs` and `layers/manifest.json` if new.
-
-Missing layer PNGs are skipped gracefully — body-only fallback until art is installed.
+NPC sprites live under `Content/Characters/Rpg/` and load via `TinyRpgCharacterSprites.cs` — separate from the player Farm RPG system.
 
 ---
 

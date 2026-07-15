@@ -88,7 +88,7 @@ public sealed class PlayerEntity
     public static Vector2 CardinalFacing(Vector2 dir)
     {
         if (dir.LengthSquared() < 0.01f) return new Vector2(0, 1);
-        return FourDirectionRunAnimation.ResolveDirection(dir) switch
+        return FacingResolver.Resolve(dir) switch
         {
             FacingDirection.Right => Vector2.UnitX,
             FacingDirection.Left => -Vector2.UnitX,

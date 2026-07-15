@@ -8,6 +8,7 @@ public enum CharacterLayerId
     WeaponBack,
     Legs,
     Body,
+    Eyes,
     Chest,
     Gloves,
     Boots,
