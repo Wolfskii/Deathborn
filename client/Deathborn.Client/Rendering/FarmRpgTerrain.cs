@@ -184,30 +184,6 @@ public static class FarmRpgTerrain
         return 18;
     }
 
-    private static bool BordersWater(WorldMap map, int tx, int ty) =>
-        !map.IsLand(tx, ty - 1) || !map.IsLand(tx + 1, ty)
-        || !map.IsLand(tx, ty + 1) || !map.IsLand(tx - 1, ty);
-
-    private static int LandMask(WorldMap map, int tx, int ty)
-    {
-        var mask = 0;
-        if (map.IsLand(tx, ty - 1)) mask |= 8;
-        if (map.IsLand(tx + 1, ty)) mask |= 4;
-        if (map.IsLand(tx, ty + 1)) mask |= 2;
-        if (map.IsLand(tx - 1, ty)) mask |= 1;
-        return mask;
-    }
-
-    private static int ElevationMask(WorldMap map, int tx, int ty, int elev)
-    {
-        var mask = 0;
-        if (map.GetElevation(tx, ty - 1) >= elev) mask |= 8;
-        if (map.GetElevation(tx + 1, ty) >= elev) mask |= 4;
-        if (map.GetElevation(tx, ty + 1) >= elev) mask |= 2;
-        if (map.GetElevation(tx - 1, ty) >= elev) mask |= 1;
-        return mask;
-    }
-
     private static bool HasSouthDrop(WorldMap map, int tx, int ty)
     {
         if (tx < 0 || tx >= map.TileWidth || ty < 0 || ty >= map.TileHeight)
