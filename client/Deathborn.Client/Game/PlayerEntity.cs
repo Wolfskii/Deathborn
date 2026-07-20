@@ -9,11 +9,87 @@ namespace Deathborn.Client.Gameplay;
 public sealed class PlayerEntity
 {
     public const float Radius = 12f;
+    /// <summary>Extra vertical reach above the foot-anchored bottom (ellipse grows upward only).</summary>
+    private const float CollisionVerticalExtraPx = 4f;
+    public static float CollisionRadiusX => Radius;
+    public static float CollisionRadiusY => Radius + CollisionVerticalExtraPx;
     public const float SpriteDrawScale = 1.5f;
-    /// <summary>Feet anchor → collision circle center (circle bottom sits on foot pixels).</summary>
+    /// <summary>Feet anchor → collision ellipse center (bottom sits on foot pixels).</summary>
+    private const float CollisionCenterFineTuneDownPx = 2f;
     public static float CollisionCenterYOffset =>
         -Rendering.Characters.FarmRpgAnimationSpecs.FootBottomInsetPx *
-        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg) - Radius;
+        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg) - CollisionRadiusY +
+        CollisionCenterFineTuneDownPx;
+
+    public static bool EllipseContainsPoint(Vector2 center, float rx, float ry, Vector2 point)
+    {
+        var dx = (point.X - center.X) / rx;
+        var dy = (point.Y - center.Y) / ry;
+        return dx * dx + dy * dy <= 1f;
+    }
+
+    public static bool EllipseOverlapsCircle(Vector2 center, float rx, float ry, Vector2 otherCenter, float otherRadius)
+    {
+        if (EllipseContainsPoint(center, rx, ry, otherCenter))
+            return true;
+
+        var dx = otherCenter.X - center.X;
+        var dy = otherCenter.Y - center.Y;
+        var distNorm = MathF.Sqrt((dx / rx) * (dx / rx) + (dy / ry) * (dy / ry));
+        if (distNorm < 0.0001f)
+            return otherRadius >= MathF.Min(rx, ry);
+
+        var closest = center + new Vector2(dx / distNorm * rx, dy / distNorm * ry);
+        var cdx = otherCenter.X - closest.X;
+        var cdy = otherCenter.Y - closest.Y;
+        return cdx * cdx + cdy * cdy <= otherRadius * otherRadius;
+    }
+
+    public static bool EllipseOverlapsRect(
+        Vector2 center, float rx, float ry, float left, float right, float top, float bottom)
+    {
+        var closestX = Math.Clamp(center.X, left, right);
+        var closestY = Math.Clamp(center.Y, top, bottom);
+        if (EllipseContainsPoint(center, rx, ry, new Vector2(closestX, closestY)))
+            return true;
+
+        Span<(float X, float Y)> corners =
+        [
+            (left, top), (right, top), (left, bottom), (right, bottom),
+        ];
+        foreach (var (x, y) in corners)
+        {
+            if (EllipseContainsPoint(center, rx, ry, new Vector2(x, y)))
+                return true;
+        }
+        return false;
+    }
+
+    public static Vector2 PushEllipseOutOfRect(
+        Vector2 center, float rx, float ry, float left, float right, float top, float bottom)
+    {
+        var closestX = Math.Clamp(center.X, left, right);
+        var closestY = Math.Clamp(center.Y, top, bottom);
+        var dx = center.X - closestX;
+        var dy = center.Y - closestY;
+        var distSq = dx * dx + dy * dy;
+        if (!EllipseContainsPoint(center, rx, ry, new Vector2(closestX, closestY)) && distSq >= 0.0001f)
+            return center;
+
+        if (distSq < 0.0001f)
+        {
+            dx = 0f;
+            dy = 1f;
+            distSq = 1f;
+        }
+
+        var dist = MathF.Sqrt(distSq);
+        var nx = dx / dist;
+        var ny = dy / dist;
+        var effR = 1f / MathF.Sqrt((nx / rx) * (nx / rx) + (ny / ry) * (ny / ry));
+        var push = (effR - dist + 0.35f);
+        return center + new Vector2(nx * push, ny * push);
+    }
     private const float MinMoveDisplacementSq = 0.36f;
 
     public static float SpriteWorldHalfWidth =>
@@ -30,6 +106,10 @@ public sealed class PlayerEntity
 
     public static Vector2 CollisionCenter(Vector2 feetPosition) =>
         feetPosition + new Vector2(0, CollisionCenterYOffset);
+
+    /// <summary>Southern edge of the collision ellipse (used for southward shore checks).</summary>
+    public static float CollisionBottomY(float feetY) =>
+        CollisionCenter(new Vector2(0, feetY)).Y + CollisionRadiusY;
 
     public static Vector2 CollisionCenterToFeet(Vector2 center) =>
         center - new Vector2(0, CollisionCenterYOffset);
@@ -482,12 +562,15 @@ public sealed class PlayerEntity
         {
             var dir = Vector2.Normalize(InputDir);
             var speed = IsRunning ? Config.RunSpeed : Config.WalkSpeed;
-            var predicted = ResolvePosition(Position, dir * speed * dt);
+            var requested = dir * speed * dt;
+            var predicted = ResolvePosition(Position, requested);
             var movedSq = Vector2.DistanceSquared(predicted, Position);
+            var requestedSq = requested.LengthSquared();
+            var movementClipped = requestedSq > 0.01f && movedSq < requestedSq * 0.64f;
 
-            if (movedSq < MinMoveDisplacementSq)
+            if (movedSq < MinMoveDisplacementSq || movementClipped)
             {
-                // Blocked — hold position; skip server reconcile to avoid wall jitter.
+                // Blocked or foliage/terrain clipped the step — keep local contact, no reconcile pull-back.
                 Position = predicted;
             }
             else
@@ -495,11 +578,11 @@ public sealed class PlayerEntity
                 var err = Target - predicted;
                 var errLenSq = err.LengthSquared();
                 if (errLenSq > Config.LocalSnapDistance * Config.LocalSnapDistance)
-                    Position = ResolvePosition(Target, Vector2.Zero);
+                    Position = Target;
                 else if (errLenSq > 2f)
                 {
                     predicted += err * MathHelper.Clamp(dt * Config.LocalReconcileSpeed, 0f, 0.35f);
-                    Position = ResolvePosition(predicted, Vector2.Zero);
+                    Position = predicted;
                 }
                 else
                     Position = predicted;
@@ -515,7 +598,8 @@ public sealed class PlayerEntity
             {
                 var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
                 var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
-                Position = ResolvePosition(lerped, Vector2.Zero);
+                // Do not re-run foliage push-out on idle reconcile — it caused bounce-back at tree contact.
+                Position = lerped;
             }
         }
 

@@ -95,6 +95,8 @@ public sealed class WorldMap
             var (rx1, ry1, _, ok1) = RampTreadCellId(fx, fy);
             var (rx2, ry2, _, ok2) = RampTreadCellId(tx, ty);
             if (ok1 && ok2 && rx1 == rx2 && ry1 == ry2) return true;
+            // Plateau → shoreline (or other −1 elevation band) on walkable land.
+            if (IsLand(tx, ty)) return true;
         }
 
         if (dx != 0 && dy != 0)
@@ -244,10 +246,19 @@ public sealed class WorldMap
 
     private bool CanTraverseWorld(float fromX, float fromY, float toX, float toY)
     {
+        var sampleFromY = fromY;
+        var sampleToY = toY;
+        // Feet anchor sits below the ellipse bottom — use bottom edge when walking south.
+        if (toY > fromY + 0.001f)
+        {
+            sampleFromY = PlayerEntity.CollisionBottomY(fromY);
+            sampleToY = PlayerEntity.CollisionBottomY(toY);
+        }
+
         var fx = (int)(fromX / TileSize);
-        var fy = (int)(fromY / TileSize);
+        var fy = (int)(sampleFromY / TileSize);
         var tx = (int)(toX / TileSize);
-        var ty = (int)(toY / TileSize);
+        var ty = (int)(sampleToY / TileSize);
         if (fx == tx && fy == ty) return true;
 
         if (HasElevation)
@@ -473,24 +484,23 @@ public sealed class WorldMap
     {
         var feet = new Vector2(worldX, worldY);
         var center = PlayerEntity.CollisionCenter(feet);
+        var rx = PlayerEntity.CollisionRadiusX;
+        var ry = PlayerEntity.CollisionRadiusY;
+        var boundsR = MathF.Max(rx, ry);
 
-        if (center.X < radius || center.Y < radius
-            || center.X > WorldWidth - radius || center.Y > WorldHeight - radius)
+        if (center.X < boundsR || center.Y < boundsR
+            || center.X > WorldWidth - boundsR || center.Y > WorldHeight - boundsR)
             return false;
 
         if (radius <= 0f)
             return IsWalkableTile(center.X, center.Y) && !WorldFoliage.BlocksFeet(feet, 0f);
 
         return IsWalkableTile(center.X, center.Y)
-            && IsWalkableTile(center.X + radius, center.Y)
-            && IsWalkableTile(center.X - radius, center.Y)
-            && IsWalkableTile(center.X, center.Y + radius)
-            && IsWalkableTile(center.X, center.Y - radius)
-            && !WorldFoliage.BlocksFeet(feet, radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(feet.X + radius, feet.Y), radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(feet.X - radius, feet.Y), radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(feet.X, feet.Y + radius), radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(feet.X, feet.Y - radius), radius);
+            && IsWalkableTile(center.X + rx, center.Y)
+            && IsWalkableTile(center.X - rx, center.Y)
+            && IsWalkableTile(center.X, center.Y + ry)
+            && IsWalkableTile(center.X, center.Y - ry)
+            && !WorldFoliage.BlocksFeet(feet, radius);
     }
 
     private bool IsWalkableTile(float worldX, float worldY)

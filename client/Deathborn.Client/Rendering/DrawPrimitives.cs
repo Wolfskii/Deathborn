@@ -58,6 +58,19 @@ public static class DrawPrimitives
     }
   }
 
+  public static void DrawEllipseOutline(
+      SpriteBatch sb, Vector2 center, float radiusX, float radiusY, Color color, int segments = 32, float thickness = 2f)
+  {
+    for (var i = 0; i < segments; i++)
+    {
+      var a0 = i / (float)segments * MathHelper.TwoPi;
+      var a1 = (i + 1) / (float)segments * MathHelper.TwoPi;
+      var p0 = center + new Vector2(MathF.Cos(a0) * radiusX, MathF.Sin(a0) * radiusY);
+      var p1 = center + new Vector2(MathF.Cos(a1) * radiusX, MathF.Sin(a1) * radiusY);
+      DrawLine(sb, p0, p1, color, thickness);
+    }
+  }
+
   public static void DrawLine(SpriteBatch sb, Vector2 a, Vector2 b, Color color, float thickness = 2f)
   {
     var edge = b - a;
@@ -65,6 +78,18 @@ public static class DrawPrimitives
     if (len < 0.001f) return;
     var angle = MathF.Atan2(edge.Y, edge.X);
     sb.Draw(_pixel!, a, null, color, angle, Vector2.Zero, new Vector2(len, thickness), SpriteEffects.None, 0);
+  }
+
+  public static void DrawRectOutline(SpriteBatch sb, Rectangle rect, Color color, float thickness = 2f)
+  {
+    var tl = new Vector2(rect.Left, rect.Top);
+    var tr = new Vector2(rect.Right, rect.Top);
+    var br = new Vector2(rect.Right, rect.Bottom);
+    var bl = new Vector2(rect.Left, rect.Bottom);
+    DrawLine(sb, tl, tr, color, thickness);
+    DrawLine(sb, tr, br, color, thickness);
+    DrawLine(sb, br, bl, color, thickness);
+    DrawLine(sb, bl, tl, color, thickness);
   }
 
   public static void FillTriangle(SpriteBatch sb, Vector2 a, Vector2 b, Vector2 c, Color color)

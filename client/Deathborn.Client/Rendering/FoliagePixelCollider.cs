@@ -96,6 +96,33 @@ internal static class FoliagePixelCollider
         return false;
     }
 
+    public static bool EllipseOverlaps(FoliageInstance f, Mask mask, Vector2 center, float rx, float ry)
+    {
+        var scale = MathF.Max(0.01f, f.Scale);
+        var localX = (center.X - f.Position.X) / scale + mask.OriginX;
+        var localY = (f.Position.Y - center.Y) / scale;
+        var erx = rx / scale;
+        var ery = ry / scale;
+
+        var minX = (int)MathF.Floor(localX - erx);
+        var maxX = (int)MathF.Ceiling(localX + erx);
+        var minY = (int)MathF.Floor(localY - ery);
+        var maxY = (int)MathF.Ceiling(localY + ery);
+
+        for (var py = minY; py <= maxY; py++)
+        {
+            for (var px = minX; px <= maxX; px++)
+            {
+                if (!mask.IsOpaque(px, py)) continue;
+                var dx = (px + 0.5f - localX) / erx;
+                var dy = (py + 0.5f - localY) / ery;
+                if (dx * dx + dy * dy <= 1f)
+                    return true;
+            }
+        }
+        return false;
+    }
+
     public static Vector2 PushOut(FoliageInstance f, Mask mask, Vector2 center, float radius)
     {
         var scale = MathF.Max(0.01f, f.Scale);
@@ -134,6 +161,54 @@ internal static class FoliagePixelCollider
         var dist = MathF.Sqrt(bestDistSq) * scale;
         var push = (radius - dist + 0.35f) / MathF.Max(dist, 0.001f);
         return center + new Vector2(bestDx * push, -bestDy * push);
+    }
+
+    public static Vector2 PushOutEllipse(FoliageInstance f, Mask mask, Vector2 center, float rx, float ry)
+    {
+        var scale = MathF.Max(0.01f, f.Scale);
+        var localX = (center.X - f.Position.X) / scale + mask.OriginX;
+        var localY = (f.Position.Y - center.Y) / scale;
+        var erx = rx / scale;
+        var ery = ry / scale;
+
+        var minX = (int)MathF.Floor(localX - erx - 1f);
+        var maxX = (int)MathF.Ceiling(localX + erx + 1f);
+        var minY = (int)MathF.Floor(localY - ery - 1f);
+        var maxY = (int)MathF.Ceiling(localY + ery + 1f);
+
+        var bestDistSq = float.MaxValue;
+        var bestDx = 0f;
+        var bestDy = 0f;
+
+        for (var py = minY; py <= maxY; py++)
+        {
+            for (var px = minX; px <= maxX; px++)
+            {
+                if (!mask.IsOpaque(px, py)) continue;
+                var dx = (px + 0.5f - localX) / erx;
+                var dy = (py + 0.5f - localY) / ery;
+                var distSq = dx * dx + dy * dy;
+                if (distSq >= bestDistSq) continue;
+                bestDistSq = distSq;
+                bestDx = px + 0.5f - localX;
+                bestDy = py + 0.5f - localY;
+            }
+        }
+
+        if (bestDistSq >= 1f || bestDistSq < 0.0001f)
+            return center;
+
+        var nx = bestDx / erx;
+        var ny = bestDy / ery;
+        var norm = MathF.Sqrt(nx * nx + ny * ny);
+        if (norm < 0.0001f)
+            return center;
+        nx /= norm;
+        ny /= norm;
+        var effR = 1f / MathF.Sqrt((nx / erx) * (nx / erx) + (ny / ery) * (ny / ery));
+        var dist = MathF.Sqrt(bestDistSq) * MathF.Min(erx, ery);
+        var push = (effR * scale - dist + 0.35f) / MathF.Max(dist, 0.001f);
+        return center + new Vector2(nx * push, -ny * push);
     }
 
     /// <summary>Chroma-key green (#00FF00) collider outlines — toggle with F12 debug HUD.</summary>

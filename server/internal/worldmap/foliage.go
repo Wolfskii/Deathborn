@@ -24,6 +24,10 @@ type foliageCircle struct {
 	// trunkSortY is the tree trunk-base line; entity feet north of this pass through canopy.
 	// Zero for rocks.
 	trunkSortY float64
+	// Square trunk collider (trees): half-width, height, bottom Y at sprite anchor.
+	squareHalf   float64
+	squareHeight float64
+	squareBottom float64
 }
 
 type foliageIndex struct {
@@ -48,16 +52,9 @@ func (m *Map) buildFoliage() *foliageIndex {
 			}
 
 			treeRoll := foliageHash(tx, ty, 1) % 1000
-			rockRoll := foliageHash(tx, ty, 2) % 1000
-			bushRoll := foliageHash(tx, ty, 3) % 1000
 
-			switch {
-			case treeRoll < 16 && m.isInland(tx, ty):
+			if treeRoll < 16 && m.isInland(tx, ty) {
 				idx.add(foliageTree, posX, posY, tx, ty)
-			case rockRoll < 12:
-				idx.add(foliageRock, posX, posY, tx, ty)
-			case bushRoll < 28:
-				// Bushes are pass-through on the client; no server collider.
 			}
 		}
 	}
@@ -81,20 +78,24 @@ func (m *Map) buildFoliage() *foliageIndex {
 	return idx
 }
 
+const treeStemColliderRows = 11.0
+
+const treeStemColliderBottomInset = 3.0
+
 func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	scale := 0.78 + float64(foliageHash(tx, ty, 10)%1000)/1000.0*0.38
 	scale *= foliageScaleMul(kind)
 	variant := foliageVariant(kind, tx, ty)
 
 	var centerY, radius, trunkSortY float64
+	var squareHalf, squareHeight, squareBottom float64
 	switch kind {
 	case foliageTree:
 		var footInset float64
-		footInset, _, radius = treeColliderMetrics(variant, scale)
-		treeFootY := y - footInset*scale
-		depthBottomY := y + 3*scale
-		centerY = (treeFootY + depthBottomY) / 2
-		trunkSortY = treeFootY
+		footInset, _, squareHalf = treeColliderMetrics(variant, scale)
+		trunkSortY = y - footInset*scale
+		squareBottom = y - treeStemColliderBottomInset*scale
+		squareHeight = (treeStemColliderRows - treeStemColliderBottomInset) * scale
 	default:
 		var footInset float64
 		footInset, radius = foliageCollider(kind, variant, scale)
@@ -102,10 +103,13 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	}
 
 	idx.circles = append(idx.circles, foliageCircle{
-		x:          x,
-		y:          centerY,
-		radius:     radius,
-		trunkSortY: trunkSortY,
+		x:            x,
+		y:            centerY,
+		radius:       radius,
+		trunkSortY:   trunkSortY,
+		squareHalf:   squareHalf,
+		squareHeight: squareHeight,
+		squareBottom: squareBottom,
 	})
 }
 
@@ -161,24 +165,126 @@ func foliageCollider(kind foliageKind, variant int, scale float64) (footInset, r
 	}
 }
 
-func (idx *foliageIndex) resolveMoveBlock(fromX, fromY, toX, toY, entityRadius float64) (float64, float64) {
+func ellipseContainsPoint(cx, cy, rx, ry, px, py float64) bool {
+	dx := (px - cx) / rx
+	dy := (py - cy) / ry
+	return dx*dx+dy*dy <= 1
+}
+
+func ellipseOverlapsCircle(ex, ey, rx, ry, ox, oy, or float64) bool {
+	if ellipseContainsPoint(ex, ey, rx, ry, ox, oy) {
+		return true
+	}
+	dx := ox - ex
+	dy := oy - ey
+	distNorm := math.Sqrt((dx/rx)*(dx/rx) + (dy/ry)*(dy/ry))
+	if distNorm < 0.0001 {
+		return or >= math.Min(rx, ry)
+	}
+	closestX := ex + dx/distNorm*rx
+	closestY := ey + dy/distNorm*ry
+	cdx := ox - closestX
+	cdy := oy - closestY
+	return cdx*cdx+cdy*cdy < or*or
+}
+
+func ellipseOverlapsRect(ex, ey, rx, ry, left, right, top, bottom float64) bool {
+	closestX := ex
+	if closestX < left {
+		closestX = left
+	} else if closestX > right {
+		closestX = right
+	}
+	closestY := ey
+	if closestY < top {
+		closestY = top
+	} else if closestY > bottom {
+		closestY = bottom
+	}
+	if ellipseContainsPoint(ex, ey, rx, ry, closestX, closestY) {
+		return true
+	}
+	corners := [4][2]float64{{left, top}, {right, top}, {left, bottom}, {right, bottom}}
+	for i := range corners {
+		if ellipseContainsPoint(ex, ey, rx, ry, corners[i][0], corners[i][1]) {
+			return true
+		}
+	}
+	return false
+}
+
+func pushEllipseOutOfRect(ex, ey, rx, ry, left, right, top, bottom float64) (float64, float64, bool) {
+	closestX := ex
+	if closestX < left {
+		closestX = left
+	} else if closestX > right {
+		closestX = right
+	}
+	closestY := ey
+	if closestY < top {
+		closestY = top
+	} else if closestY > bottom {
+		closestY = bottom
+	}
+	dx := ex - closestX
+	dy := ey - closestY
+	if !ellipseContainsPoint(ex, ey, rx, ry, closestX, closestY) && dx*dx+dy*dy >= 0.0001 {
+		return ex, ey, false
+	}
+	if dx*dx+dy*dy < 0.0001 {
+		dx = 0
+		dy = 1
+	}
+	dist := math.Sqrt(dx*dx + dy*dy)
+	nx := dx / dist
+	ny := dy / dist
+	effR := 1 / math.Sqrt((nx/rx)*(nx/rx)+(ny/ry)*(ny/ry))
+	push := effR - dist + 0.35
+	return ex + nx*push, ey + ny*push, true
+}
+
+func (idx *foliageIndex) resolveMoveBlock(fromX, fromY, toX, toY, entityRx, entityRy float64) (float64, float64) {
 	if idx == nil {
 		return toX, toY
 	}
-	if !idx.feetWouldCollide(toX, toY, entityRadius) {
+	if !idx.feetWouldCollide(toX, toY, entityRx, entityRy) {
 		return toX, toY
 	}
-	x, y := fromX, fromY
-	if !idx.feetWouldCollide(toX, fromY, entityRadius) {
-		x = toX
+	if !idx.feetWouldCollide(toX, fromY, entityRx, entityRy) {
+		return toX, fromY
 	}
-	if !idx.feetWouldCollide(x, toY, entityRadius) {
-		y = toY
+	if !idx.feetWouldCollide(fromX, toY, entityRx, entityRy) {
+		return fromX, toY
 	}
-	return x, y
+
+	dx := toX - fromX
+	dy := toY - fromY
+	len := math.Sqrt(dx*dx + dy*dy)
+	if len <= 0.001 {
+		return fromX, fromY
+	}
+	dirX := dx / len
+	dirY := dy / len
+	bestX, bestY := fromX, fromY
+	lo, hi := 0.0, 1.0
+	for i := 0; i < 7; i++ {
+		mid := (lo + hi) * 0.5
+		tryX := fromX + dirX*len*mid
+		tryY := fromY + dirY*len*mid
+		if !idx.feetWouldCollide(tryX, tryY, entityRx, entityRy) {
+			bestX, bestY = tryX, tryY
+			lo = mid
+		} else {
+			hi = mid
+		}
+	}
+	if lo > 0.001 {
+		return bestX, bestY
+	}
+	return fromX, fromY
 }
 
-func (idx *foliageIndex) feetWouldCollide(x, y, entityRadius float64) bool {
+func (idx *foliageIndex) feetWouldCollide(x, y, entityRx, entityRy float64) bool {
 	if idx == nil {
 		return false
 	}
@@ -188,17 +294,21 @@ func (idx *foliageIndex) feetWouldCollide(x, y, entityRadius float64) bool {
 		if f.trunkSortY > 0 && y < f.trunkSortY {
 			continue
 		}
-		dx := x - f.x
-		dy := cy - f.y
-		minDist := f.radius + entityRadius
-		if dx*dx+dy*dy < minDist*minDist {
+		if f.squareHalf > 0 {
+			top := f.squareBottom - f.squareHeight
+			if ellipseOverlapsRect(x, cy, entityRx, entityRy, f.x-f.squareHalf, f.x+f.squareHalf, top, f.squareBottom) {
+				return true
+			}
+			continue
+		}
+		if ellipseOverlapsCircle(x, cy, entityRx, entityRy, f.x, f.y, f.radius) {
 			return true
 		}
 	}
 	return false
 }
 
-func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, float64) {
+func (idx *foliageIndex) resolvePosition(x, y, entityRx, entityRy float64) (float64, float64) {
 	if idx == nil {
 		return x, y
 	}
@@ -210,11 +320,23 @@ func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, f
 			if f.trunkSortY > 0 && y < f.trunkSortY {
 				continue
 			}
+			if f.squareHalf > 0 {
+				top := f.squareBottom - f.squareHeight
+				var ok bool
+				x, cy, ok = pushEllipseOutOfRect(x, cy, entityRx, entityRy, f.x-f.squareHalf, f.x+f.squareHalf, top, f.squareBottom)
+				if ok {
+					pushed = true
+				}
+				continue
+			}
+			if !ellipseOverlapsCircle(x, cy, entityRx, entityRy, f.x, f.y, f.radius) {
+				continue
+			}
 			dx := x - f.x
 			dy := cy - f.y
-			minDist := f.radius + entityRadius
+			minDist := f.radius + math.Max(entityRx, entityRy)
 			distSq := dx*dx + dy*dy
-			if distSq >= minDist*minDist || distSq < 0.0001 {
+			if distSq < 0.0001 {
 				continue
 			}
 			dist := math.Sqrt(distSq)

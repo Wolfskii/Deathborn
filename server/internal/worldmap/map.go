@@ -10,20 +10,29 @@ import (
 //go:embed swarovia_mainland_collision.bin
 var collisionData []byte
 
-const playerRadius = 12.0
+const playerRadiusX = 12.0
 
-// Match client PlayerEntity: circle bottom on foot row (FarmRpg FootBottomInsetPx × draw scale).
+const playerRadiusY = 16.0
+
+const playerCollisionVerticalExtraPx = 4.0
+
+// Match client PlayerEntity: ellipse bottom on foot row (FarmRpg FootBottomInsetPx × draw scale).
 const (
-	playerFootBottomInsetPx = 7.0
-	playerSpriteDrawScale     = 1.5 * 1.35
+	playerFootBottomInsetPx       = 7.0
+	playerSpriteDrawScale         = 1.5 * 1.35
+	playerCollisionFineTuneDownPx = 2.0
 )
 
 func playerCollisionY(feetY float64) float64 {
-	return feetY - playerFootBottomInsetPx*playerSpriteDrawScale - playerRadius
+	return feetY - playerFootBottomInsetPx*playerSpriteDrawScale - playerRadiusY + playerCollisionFineTuneDownPx
 }
 
 func feetFromCollisionY(cy float64) float64 {
-	return cy + playerFootBottomInsetPx*playerSpriteDrawScale + playerRadius
+	return cy + playerFootBottomInsetPx*playerSpriteDrawScale + playerRadiusY - playerCollisionFineTuneDownPx
+}
+
+func playerCollisionBottomY(feetY float64) float64 {
+	return playerCollisionY(feetY) + playerRadiusY
 }
 
 // Map is a tile walkability grid for the Swarovia mainland overworld.
@@ -164,12 +173,32 @@ func (m *Map) canTraverseTiles(fx, fy, tx, ty int) bool {
 	if m.elevation == nil {
 		return true
 	}
-	return m.elevation.canStep(fx, fy, tx, ty, m.TileWidth, m.TileHeight)
+	if m.elevation.canStep(fx, fy, tx, ty, m.TileWidth, m.TileHeight) {
+		return true
+	}
+	// Southward step down one elevation band on walkable land (plateau → shoreline).
+	dx := tx - fx
+	dy := ty - fy
+	if dx == 0 && dy == 1 && m.isLand(tx, ty) {
+		fe := m.elevation.at(fx, fy, m.TileWidth, m.TileHeight)
+		te := m.elevation.at(tx, ty, m.TileWidth, m.TileHeight)
+		if fe >= 0 && te >= 0 && fe == te+1 {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
-	fx, fy := m.tileAt(fromX, fromY)
-	tx, ty := m.tileAt(toX, toY)
+	sampleFromY := fromY
+	sampleToY := toY
+	if toY > fromY+0.001 {
+		sampleFromY = playerCollisionBottomY(fromY)
+		sampleToY = playerCollisionBottomY(toY)
+	}
+
+	fx, fy := m.tileAt(fromX, sampleFromY)
+	tx, ty := m.tileAt(toX, sampleToY)
 	if fx == tx && fy == ty {
 		return true
 	}
@@ -217,20 +246,21 @@ func (m *Map) adjustRampDelta(x, y, dx, dy float64) (float64, float64) {
 	return dx, slope * dx
 }
 
-// CanWalk reports whether a circle at (x,y) may stand on land. (x,y) is the feet position.
+// CanWalk reports whether the player ellipse at feet (x,y) may stand on land.
 func (m *Map) CanWalk(x, y, radius float64) bool {
 	cy := playerCollisionY(y)
-	if x < radius || cy < radius || x > m.WorldWidth-radius || cy > m.WorldHeight-radius {
+	maxR := math.Max(playerRadiusX, playerRadiusY)
+	if x < maxR || cy < maxR || x > m.WorldWidth-maxR || cy > m.WorldHeight-maxR {
 		return false
 	}
 	if radius <= 0 {
 		return m.walkTile(x, cy)
 	}
 	return m.walkTile(x, cy) &&
-		m.walkTile(x+radius, cy) &&
-		m.walkTile(x-radius, cy) &&
-		m.walkTile(x, cy+radius) &&
-		m.walkTile(x, cy-radius)
+		m.walkTile(x+playerRadiusX, cy) &&
+		m.walkTile(x-playerRadiusX, cy) &&
+		m.walkTile(x, cy+playerRadiusY) &&
+		m.walkTile(x, cy-playerRadiusY)
 }
 
 // ResolveMove applies axis-separated sliding against land/water tiles and foliage.
@@ -239,18 +269,18 @@ func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
 	dx, dy = m.adjustRampDelta(x, y, dx, dy)
 
 	nx, ny := x+dx, y+dy
-	if m.CanWalk(nx, ny, playerRadius) && m.canTraverseWorld(x, y, nx, ny) {
+	if m.CanWalk(nx, ny, playerRadiusX) && m.canTraverseWorld(x, y, nx, ny) {
 		x, y = nx, ny
 	} else {
-		if m.CanWalk(nx, y, playerRadius) && m.canTraverseWorld(x, y, nx, y) {
+		if m.CanWalk(nx, y, playerRadiusX) && m.canTraverseWorld(x, y, nx, y) {
 			x = nx
 		}
-		if m.CanWalk(x, ny, playerRadius) && m.canTraverseWorld(x, y, x, ny) {
+		if m.CanWalk(x, ny, playerRadiusX) && m.canTraverseWorld(x, y, x, ny) {
 			y = ny
 		}
 	}
 	if m.foliage != nil {
-		x, y = m.foliage.resolveMoveBlock(fromX, fromY, x, y, playerRadius)
+		x, y = m.foliage.resolveMoveBlock(fromX, fromY, x, y, playerRadiusX, playerRadiusY)
 	}
 	return x, y
 }
