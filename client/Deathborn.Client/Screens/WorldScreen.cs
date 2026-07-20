@@ -2705,7 +2705,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _housePlaceAwaitRelease = true;
         _housePlacePos = SnapHousePlacePos(local.Position);
         _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, out _housePlaceReason);
-        _status = "Homestead placement — green plot = ok. Left-click to build, right-click/Esc cancel.";
+        _status = "Homestead placement - green plot = ok. Left-click to build, right-click/Esc cancel.";
     }
 
     private void CancelHousePlacement(string? status = null)
@@ -2785,11 +2785,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void DrawHousePlacementHud(SpriteBatch sb, SpriteFont font)
     {
         var line = _housePlaceValid
-            ? "Homestead placement — green: click to build"
+            ? "Homestead placement - green: click to build"
             : (string.IsNullOrEmpty(_housePlaceReason)
-                ? "Homestead placement — red: cannot build here"
-                : $"Homestead placement — {_housePlaceReason}");
-        var size = font.MeasureString(line);
+                ? "Homestead placement - red: cannot build here"
+                : $"Homestead placement - {_housePlaceReason}");
+        var size = SpriteFontSafe.MeasureString(font, line);
         var pos = new Vector2((GameViewport.Width - size.X) * 0.5f, 18f);
         var color = _housePlaceValid ? new Color(120, 220, 140) : new Color(240, 120, 110);
         SpriteFontSafe.DrawOutlined(sb, font, line, pos, color, Color.Black);
