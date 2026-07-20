@@ -124,7 +124,12 @@ public sealed class PlayerEntity
     private float VisualDrawScale => CharacterAnimationCatalog.GetDrawScale(_visual.Appearance.BodyTypeId);
 
     /// <summary>World Y of lowest opaque body pixel (feet), excluding shadow padding below the draw anchor.</summary>
-    public float SortY => Position.Y - Rendering.Characters.FarmRpgAnimationSpecs.FootBottomInsetPx * VisualDrawScale;
+    public float SortY => SortYFromFeet(Position);
+
+    /// <summary>Same as instance <see cref="SortY"/> — used for occlusion depth to match draw order.</summary>
+    public static float SortYFromFeet(Vector2 feetPosition) =>
+        feetPosition.Y - Rendering.Characters.FarmRpgAnimationSpecs.FootBottomInsetPx *
+        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg);
 
     public static Vector2 CollisionCenter(Vector2 feetPosition) =>
         feetPosition + new Vector2(0, CollisionCenterYOffset);

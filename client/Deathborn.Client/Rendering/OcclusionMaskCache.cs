@@ -131,7 +131,15 @@ internal static class OcclusionMaskCache
             case OcclusionColliderShape.Ellipse:
             case OcclusionColliderShape.Circle:
                 mask.GetWorldEllipse(anchor, scale, out var ocCenter, out var orx, out var ory);
-                return PlayerEntity.EllipseOverlapsEllipse(center, rx, ry, ocCenter, orx, ory);
+                if (PlayerEntity.EllipseOverlapsEllipse(center, rx, ry, ocCenter, orx, ory))
+                    return true;
+                // Circle/ellipse tips are narrow — when the player first walks under from the south,
+                // draw-order already paints the bush on top while ellipse-ellipse still misses.
+                // AABB of the yellow collider keeps ghosting in sync with that handoff.
+                return PlayerEntity.EllipseOverlapsRect(
+                    center, rx, ry,
+                    ocCenter.X - orx, ocCenter.X + orx,
+                    ocCenter.Y - ory, ocCenter.Y + ory);
             default:
                 return PixelMaskOverlaps(anchor, scale, mask, center, rx, ry);
         }

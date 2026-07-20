@@ -59,6 +59,12 @@ public static class WorldFoliage
     private const float TreeStemColliderRows = 13f;
     /// <summary>Trim this many unscaled px off the collider bottom (above sprite anchor).</summary>
     private const float TreeStemColliderBottomInsetPx = 5f;
+    /// <summary>
+    /// Extra unscaled px the stem may extend north of <see cref="SortY"/>.
+    /// Feet north of SortY pass through the canopy; the solid box must not reach deep into
+    /// that band or walking down from behind traps the player inside the trunk.
+    /// </summary>
+    private const float TreeStemSortPadPx = 2f;
 
     private static readonly List<FoliageInstance> Instances = [];
     private static Texture2D?[] _textures = new Texture2D[13];
@@ -112,6 +118,14 @@ public static class WorldFoliage
         right = f.Position.X + half;
         bottom = f.Position.Y - TreeStemColliderBottomInsetPx * f.Scale;
         top = f.Position.Y - TreeStemColliderRows * f.Scale;
+        // Keep the solid trunk out of the canopy pass-through band (feet north of SortY).
+        var solidTop = SortY(f) - TreeStemSortPadPx * f.Scale;
+        if (top < solidTop)
+            top = solidTop;
+        if (bottom < top + 0.5f * f.Scale)
+            bottom = top + 0.5f * f.Scale;
+        // Shorten from the bottom only — top stays put (40% less height).
+        bottom = top + (bottom - top) * 0.6f;
     }
 
     private static bool CircleOverlapsTreeStem(FoliageInstance f, Vector2 center, float rx, float ry)
@@ -180,17 +194,14 @@ public static class WorldFoliage
             : f.Position.Y;
 
     /// <summary>
-    /// Sprite-foot depth fallback. Combined with the yellow collider southern tip in
-    /// <see cref="OcclusionZone.EffectiveDepthBottomY"/> (whichever is further south wins).
+    /// Depth bottom for occlusion — same world Y as exterior draw sorting
+    /// (<see cref="FoliageBottomY"/>), so ghosting starts when the prop paints over the player.
     /// </summary>
-    public static float OcclusionDepthBottomY(FoliageInstance f) =>
-        f.Kind == FoliageKind.Tree
-            ? SortY(f) + TreeShadowDepthInset * f.Scale
-            : SortY(f);
+    public static float OcclusionDepthBottomY(FoliageInstance f) => FoliageBottomY(f);
 
-    /// <summary>True when the player collision bottom is north of the effective occlusion depth line.</summary>
+    /// <summary>True when the player would be drawn behind this foliage (same test as ghost depth).</summary>
     public static bool EntityIsBehind(FoliageInstance f, float entityFeetY) =>
-        PlayerEntity.CollisionBottomY(entityFeetY) < OcclusionZone.EffectiveDepthBottomY(f);
+        PlayerEntity.SortYFromFeet(new Vector2(0, entityFeetY)) < OcclusionDepthBottomY(f);
 
     public static bool BlocksCircle(Vector2 pos, float radius)
     {
@@ -212,8 +223,21 @@ public static class WorldFoliage
     /// </summary>
     public static Vector2 ResolveMoveBlock(Vector2 fromFeet, Vector2 toFeet, float entityRadius)
     {
+        _ = entityRadius;
         var fromCenter = PlayerEntity.CollisionCenter(fromFeet);
         var toCenter = PlayerEntity.CollisionCenter(toFeet);
+        var rx = PlayerEntity.CollisionRadiusX;
+        var ry = PlayerEntity.CollisionRadiusY;
+
+        // Depenetrate if already inside a trunk (e.g. walked down from behind into the stem).
+        if (CenterWouldCollide(fromCenter))
+        {
+            var pushed = PushOutOfOverlappingFoliage(fromCenter, rx, ry);
+            var delta = pushed - fromCenter;
+            fromCenter = pushed;
+            toCenter += delta;
+            fromFeet = PlayerEntity.CollisionCenterToFeet(fromCenter);
+        }
 
         if (!CenterWouldCollide(toCenter))
             return toFeet;
@@ -226,11 +250,11 @@ public static class WorldFoliage
         if (!CenterWouldCollide(slideY))
             return FeetFromCenter(fromFeet, slideY);
 
-        var delta = toCenter - fromCenter;
-        var len = delta.Length();
+        var deltaMove = toCenter - fromCenter;
+        var len = deltaMove.Length();
         if (len > 0.001f)
         {
-            var dir = delta / len;
+            var dir = deltaMove / len;
             var best = fromCenter;
             var lo = 0f;
             var hi = 1f;
@@ -251,6 +275,26 @@ public static class WorldFoliage
         }
 
         return fromFeet;
+    }
+
+    private static Vector2 PushOutOfOverlappingFoliage(Vector2 center, float rx, float ry)
+    {
+        for (var iter = 0; iter < 4; iter++)
+        {
+            var moved = false;
+            foreach (var f in Instances)
+            {
+                if (!InstanceBlocksEntity(f, center, rx, ry)) continue;
+                var next = PushOutOfInstance(f, center, rx, ry);
+                if (next != center)
+                {
+                    center = next;
+                    moved = true;
+                }
+            }
+            if (!moved) break;
+        }
+        return center;
     }
 
     private static Vector2 FeetFromCenter(Vector2 fromFeet, Vector2 resolvedCenter) =>

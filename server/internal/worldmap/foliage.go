@@ -61,9 +61,12 @@ func (m *Map) buildFoliage() *foliageIndex {
 	return idx
 }
 
-const treeStemColliderRows = 11.0
+const treeStemColliderRows = 13.0
 
-const treeStemColliderBottomInset = 3.0
+const treeStemColliderBottomInset = 5.0
+
+// Stem may extend this far north of trunkSortY; deeper into the canopy is pass-through only.
+const treeStemSortPad = 2.0
 
 func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	scale := 0.78 + float64(foliageHash(tx, ty, 10)%1000)/1000.0*0.38
@@ -78,7 +81,18 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 		footInset, _, squareHalf = treeColliderMetrics(variant, scale)
 		trunkSortY = y - footInset*scale
 		squareBottom = y - treeStemColliderBottomInset*scale
-		squareHeight = (treeStemColliderRows - treeStemColliderBottomInset) * scale
+		top := y - treeStemColliderRows*scale
+		solidTop := trunkSortY - treeStemSortPad*scale
+		if top < solidTop {
+			top = solidTop
+		}
+		squareHeight = squareBottom - top
+		if squareHeight < 0.5*scale {
+			squareHeight = 0.5 * scale
+		}
+		// Shorten from the bottom only — top stays put (40% less height).
+		squareHeight *= 0.6
+		squareBottom = top + squareHeight
 	default:
 		var footInset float64
 		footInset, radius = foliageCollider(kind, variant, scale)
@@ -230,6 +244,15 @@ func (idx *foliageIndex) resolveMoveBlock(fromX, fromY, toX, toY, entityRx, enti
 	if idx == nil {
 		return toX, toY
 	}
+
+	// Depenetrate if already inside a trunk (walked down from behind into the stem).
+	if idx.feetWouldCollide(fromX, fromY, entityRx, entityRy) {
+		newX, newY := idx.resolvePosition(fromX, fromY, entityRx, entityRy)
+		toX += newX - fromX
+		toY += newY - fromY
+		fromX, fromY = newX, newY
+	}
+
 	if !idx.feetWouldCollide(toX, toY, entityRx, entityRy) {
 		return toX, toY
 	}

@@ -27,11 +27,9 @@ public readonly struct OcclusionColliderOverride
 /// <list type="bullet">
 /// <item>
 /// <see cref="IsOverheadOccluder"/> = false (trees, bushes, ground props):
-/// overlap alone is not enough. Compare player feet Y to <see cref="OcclusionDepthBottomY"/>.
-/// If the player's feet are below the object's bottom (collision bottom &gt;= depth bottom), the player is
-/// visually in front — do not ghost. If the object's bottom is lower than the player's bottom,
-/// the player is behind / under the prop — ghost when colliders overlap.
-/// Depth uses <see cref="OcclusionZone.EffectiveDepthBottomY"/> (sprite foot and yellow collider tip).
+/// ghost when the prop would paint over the player in exterior Y-sort
+/// (player <see cref="Gameplay.PlayerEntity.SortY"/> vs <see cref="OcclusionDepthBottomY"/>)
+/// and the player overlaps the occlusion collider (ellipse, or its AABB near tips).
 /// </item>
 /// <item>
 /// <see cref="IsOverheadOccluder"/> = true (clouds / aerial props):
@@ -96,51 +94,10 @@ public static class OcclusionZone
     }
 
     /// <summary>
-    /// Southern world Y of the yellow occlusion collider (ellipse/rect tip), if available.
+    /// Effective Y-sort depth for ghosting — matches exterior draw order.
+    /// Uses <see cref="IOcclusionHost.OcclusionDepthBottomY"/> (foliage feet / <c>FoliageBottomY</c>).
     /// </summary>
-    public static bool TryGetColliderSouthY(IOcclusionHost host, out float southY)
-    {
-        southY = 0f;
-        var anchor = host.OcclusionAnchor;
-        var scale = host.OcclusionScale;
-
-        if (host.OcclusionOverride.IsSet)
-        {
-            if (!TryGetWorldBounds(host, out _, out _, out _, out var bottom))
-                return false;
-            southY = bottom;
-            return true;
-        }
-
-        if (!OcclusionMaskCache.TryGetMask(host.OcclusionMaskId, out var mask) || mask == null)
-            return false;
-
-        if (mask.ColliderShape is OcclusionColliderShape.Ellipse or OcclusionColliderShape.Circle)
-        {
-            mask.GetWorldEllipse(anchor, scale, out var center, out _, out var radiusY);
-            southY = center.Y + radiusY;
-            return true;
-        }
-
-        mask.GetWorldBounds(anchor, scale, out _, out _, out _, out var boundsBottom);
-        southY = boundsBottom;
-        return true;
-    }
-
-    /// <summary>
-    /// Effective Y-sort depth bottom for ghosting: the more southern of
-    /// <see cref="IOcclusionHost.OcclusionDepthBottomY"/> and the yellow collider tip.
-    /// Bushes' visual foot (<c>SortY</c>) sits north of the yellow ellipse — using foot alone
-    /// delayed transparency until the player walked past the yellow zone.
-    /// Trees keep feet depth when the canopy ellipse sits higher up the trunk.
-    /// </summary>
-    public static float EffectiveDepthBottomY(IOcclusionHost host)
-    {
-        var depth = host.OcclusionDepthBottomY;
-        if (TryGetColliderSouthY(host, out var colliderSouth))
-            return MathF.Max(depth, colliderSouth);
-        return depth;
-    }
+    public static float EffectiveDepthBottomY(IOcclusionHost host) => host.OcclusionDepthBottomY;
 
     /// <summary>
     /// True when the player should be ghosted by this host.
@@ -153,10 +110,11 @@ public static class OcclusionZone
         float rx,
         float ry)
     {
-        // Player collision bottom vs effective object bottom (sprite foot and/or yellow tip).
-        // If the player's bottom is still south of that line, they are in front — no ghost.
+        // Same Y value as exterior draw sorting (player.SortY vs foliage FoliageBottomY):
+        // once the bush would paint over the player, start ghosting — don't wait for the
+        // narrow southern tip of the yellow ellipse to fully contain the player collider.
         if (!host.IsOverheadOccluder
-            && PlayerEntity.CollisionBottomY(feet.Y) >= EffectiveDepthBottomY(host))
+            && PlayerEntity.SortYFromFeet(feet) >= EffectiveDepthBottomY(host))
             return false;
 
         var center = PlayerEntity.CollisionCenter(feet);
