@@ -227,7 +227,7 @@ func (idx *foliageIndex) resolvePosition(x, y, entityRadius float64) (float64, f
 			break
 		}
 	}
-	return x, cy - playerCollisionYOffset
+	return x, feetFromCollisionY(cy)
 }
 
 type townRect struct {

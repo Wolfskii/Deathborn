@@ -146,6 +146,16 @@ tasks:
     cmds:
       - python scripts/generate_app_icons.py
 
+  world:export-tiled:
+    desc: Export overworld binaries to Tiled (swarovia_mainland.tmx)
+    cmds:
+      - python scripts/export_realik_to_tiled.py
+
+  world:import-tiled:
+    desc: Import edited swarovia_mainland.tmx back into world binaries
+    cmds:
+      - python scripts/import_tiled_overworld.py
+
   client:build:
     desc: Build the MonoGame client (Release) and reveal the .exe in Explorer/Finder
     dir: "{{.CLIENT_DIR}}"

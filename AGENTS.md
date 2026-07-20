@@ -98,8 +98,8 @@ Authoritative reference: [`.tile_debug/farmrpg_guide.json`](.tile_debug/farmrpg_
 
 | File | Purpose |
 |------|---------|
-| `shared/world/realik_collision.bin` | Land/water walkability (`REAL` v1) |
-| `shared/world/realik_elevation.bin` | Per-cell elevation (`ELEV` v2) |
+| `shared/world/swarovia_mainland_collision.bin` | Land/water walkability (`REAL` v1) |
+| `shared/world/swarovia_mainland_elevation.bin` | Per-cell elevation (`ELEV` v2) |
 
 Regenerate:
 
@@ -136,13 +136,50 @@ python scripts/install_farm_rpg_terrain.py
 
 ---
 
-## Tiled maps (dungeons, interiors, hand-authored rooms)
-
-**Use Tiled for instanced maps** — not the Realik overworld (that stays PNG → binary → autotile).
+## Tiled maps (dungeons + Swarovia mainland authoring)
 
 Authoritative manifest: [`client/Deathborn.Client/Content/Maps/manifest.json`](client/Deathborn.Client/Content/Maps/manifest.json)
 
-### Quick facts
+### Swarovia mainland in Tiled (painted tiles — WYSIWYG)
+
+The overworld is drawn from `Maps/overworld/swarovia_mainland.tmx` at runtime. What you paint in Tiled is what appears in-game — **no elevation autotile**.
+
+**Prerequisite:** Farm RPG terrain tiles must be installed:
+
+```bash
+python scripts/install_farm_rpg_terrain.py
+```
+
+**One-time export (seeds Ground layer from current elevation bins):**
+
+```bash
+python scripts/export_realik_to_tiled.py
+# or: task world:export-tiled
+```
+
+Opens: `client/Deathborn.Client/Content/Maps/overworld/swarovia_mainland.tmx` (1024×1024, 32 px cells). Use **Water** + **Ground** tile layers. Layer data is stored as **base64+gzip** (Tiled’s native format for large maps).
+
+Export seeds **uniform plain grass + water** from collision (no elevation shore rings or town icon circles). Pass `--reference` only if you want the art overlay with town icons for tracing.
+
+Paint on the **Ground** layer using the Farm RPG grass, water, cliff, and shoreline tilesets. The export only seeds plain grass/water fills — you hand-paint cliffs, shores, and palette changes.
+
+**Tile properties (optional, for walkability on import):**
+
+| Property | Type | Meaning |
+|----------|------|---------|
+| `walkable` | bool | Whether players can stand here |
+| `elevation` | int | Gameplay elevation (-1 water, 0 shore, 1+ land) |
+
+**After editing in Tiled:**
+
+```bash
+python scripts/import_tiled_overworld.py
+# or: task world:import-tiled
+```
+
+This writes `shared/world/swarovia_mainland_collision.bin` + `swarovia_mainland_elevation.bin` from tile properties and syncs server copies. **Restart the client** to reload the map.
+
+### Dungeons / instanced rooms
 
 - **Editor:** [Tiled Map Editor](https://www.mapeditor.org/) (`.tmx` + `.tsx` + tileset `.png`)
 - **Runtime:** MonoGame.Extended 6.x loads `.tmx` at runtime via `TiledTmxParser` (no MGCB rebuild when editing maps)
@@ -186,14 +223,18 @@ Copy `.tmx`, `.tsx`, and referenced tileset `.png` files under `Content/Maps/` (
 | `Maps/TiledMapCatalog.cs` | Loads maps from manifest via runtime `TiledTmxParser` |
 | `Maps/TiledMapInstance.cs` | Renderer wrapper + collision helpers |
 | `Maps/TiledMapMetadata.cs` | Parses `Collision` / `Objects` layers |
+| `Maps/TiledOverworldRenderer.cs` | Draws Swarovia mainland from Tiled (replaces autotile) |
 | `Maps/TiledMapPreview.cs` | F11 dev overlay |
-| `scripts/register_tiled_maps.py` | Adds map entries to `Content/Maps/manifest.json` |
+| `Game/WorldBackgroundRenderer.cs` | Overworld background — Tiled map or autotile fallback |
+| `scripts/export_realik_to_tiled.py` | Export overworld bins → painted `swarovia_mainland.tmx` |
+| `scripts/import_tiled_overworld.py` | Import Ground layer → walkability + elevation bins |
+| `scripts/register_tiled_maps.py` | Adds dungeon map entries to manifest |
 
 ### Overworld vs Tiled
 
-| | Realik overworld | Tiled instanced maps |
-|--|------------------|----------------------|
-| Authoring | Paint `realik_reference.png` | Tiled editor |
-| Data | `realik_*.bin` | `.tmx` → content pipeline |
-| Rendering | Elevation autotile | Painted tile GIDs |
-| Use for | Continent, coastlines | Dungeons, houses, arenas |
+| | Swarovia mainland | Tiled instanced maps |
+|--|-------------------|----------------------|
+| Authoring | **Tiled** `Maps/overworld/swarovia_mainland.tmx` (export/import) or legacy `realik_reference.png` | Tiled editor |
+| Data | `swarovia_mainland_*.bin` (walkability) + `swarovia_mainland.tmx` (visuals) | `.tmx` only |
+| Rendering | **Painted tiles** from `swarovia_mainland.tmx` (autotile fallback if map missing) | Painted tiles |
+| Use for | Continent terrain tiers | Dungeons, house layouts, arenas |

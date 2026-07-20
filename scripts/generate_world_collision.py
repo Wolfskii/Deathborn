@@ -10,13 +10,17 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "shared" / "world" / "realik_reference.png"
-OUT = ROOT / "shared" / "world" / "realik_collision.bin"
-PREVIEW = ROOT / "shared" / "world" / "realik_preview.png"
-SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "realik_collision.bin"
+OUT = ROOT / "shared" / "world" / "swarovia_mainland_collision.bin"
+PREVIEW = ROOT / "shared" / "world" / "swarovia_mainland_preview.png"
+SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "swarovia_mainland_collision.bin"
 
 STEP = 2
 TILE_SIZE = 32.0
 SMALL_WATER_MAX = 9  # fill water pockets with <= this many tiles
+# Town icon art leaves compact land specks and enclosed water holes on the reference map.
+TOWN_MARKER_LAND_MAX = 120
+TOWN_MARKER_DIMENSION_MAX = 14
+ENCLOSED_WATER_MAX = 120
 
 
 def is_water(r: int, g: int, b: int, a: int) -> bool:
@@ -138,6 +142,80 @@ def fill_small_water_pockets(grid: list[list[bool]], tw: int, th: int) -> int:
     return filled
 
 
+def remove_town_marker_islands(grid: list[list[bool]], tw: int, th: int) -> int:
+    """Remove compact land blobs from town icon circles on the reference art."""
+    removed = 0
+    for cells, min_tx, min_ty, max_tx, max_ty in flood_components(grid, tw, th, True):
+        w = max_tx - min_tx + 1
+        h = max_ty - min_ty + 1
+        size = len(cells)
+        aspect = max(w, h) / max(1, min(w, h))
+        if (
+            size <= TOWN_MARKER_LAND_MAX
+            and max(w, h) <= TOWN_MARKER_DIMENSION_MAX
+            and aspect <= 1.5
+        ):
+            set_cells(grid, cells, False)
+            removed += size
+    return removed
+
+
+def mark_open_water(grid: list[list[bool]], tw: int, th: int) -> list[list[bool]]:
+    """Water connected to the map border (ocean), not enclosed lakes."""
+    open_water = [[False] * tw for _ in range(th)]
+    q: deque[tuple[int, int]] = deque()
+    for ty in range(th):
+        for tx in range(tw):
+            if grid[ty][tx]:
+                continue
+            on_border = tx == 0 or ty == 0 or tx == tw - 1 or ty == th - 1
+            if on_border and not open_water[ty][tx]:
+                open_water[ty][tx] = True
+                q.append((tx, ty))
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nx, ny = x + dx, y + dy
+            if (
+                0 <= nx < tw
+                and 0 <= ny < th
+                and not grid[ny][nx]
+                and not open_water[ny][nx]
+            ):
+                open_water[ny][nx] = True
+                q.append((nx, ny))
+    return open_water
+
+
+def fill_enclosed_water_pockets(grid: list[list[bool]], tw: int, th: int) -> int:
+    """Fill water fully surrounded by land (town icon interiors on the art)."""
+    open_water = mark_open_water(grid, tw, th)
+    filled = 0
+    seen = [[False] * tw for _ in range(th)]
+    for ty in range(th):
+        for tx in range(tw):
+            if seen[ty][tx] or grid[ty][tx] or open_water[ty][tx]:
+                continue
+            q: deque[tuple[int, int]] = deque([(tx, ty)])
+            seen[ty][tx] = True
+            cells: list[tuple[int, int]] = []
+            while q:
+                x, y = q.popleft()
+                cells.append((x, y))
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < tw and 0 <= ny < th):
+                        continue
+                    if seen[ny][nx] or grid[ny][nx] or open_water[ny][nx]:
+                        continue
+                    seen[ny][nx] = True
+                    q.append((nx, ny))
+            if len(cells) <= ENCLOSED_WATER_MAX:
+                set_cells(grid, cells, True)
+                filled += len(cells)
+    return filled
+
+
 def main() -> None:
     im = Image.open(SRC).convert("RGBA")
     w, h = im.size
@@ -174,7 +252,9 @@ def main() -> None:
 
     labels_removed = remove_label_islands(grid, tw, th)
     title_removed = trim_title_letters(grid, tw, th)
+    town_removed = remove_town_marker_islands(grid, tw, th)
     water_filled = fill_small_water_pockets(grid, tw, th)
+    enclosed_filled = fill_enclosed_water_pockets(grid, tw, th)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("wb") as f:
@@ -202,7 +282,8 @@ def main() -> None:
     print(
         f"grid {tw}x{th} land={land} water={tw * th - land} "
         f"labels_removed={labels_removed} title_trim={title_removed} "
-        f"water_filled={water_filled} -> {OUT}"
+        f"town_markers_removed={town_removed} water_filled={water_filled} "
+        f"enclosed_water_filled={enclosed_filled} -> {OUT}"
     )
 
     import subprocess

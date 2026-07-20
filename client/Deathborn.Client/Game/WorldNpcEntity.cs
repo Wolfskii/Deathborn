@@ -66,7 +66,7 @@ public sealed class WorldNpcEntity
     {
         var before = Position;
         var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0f, 1f));
-        Position = WorldMap.Realik.ResolveMove(lerped, Vector2.Zero, Radius);
+        Position = WorldMap.SwaroviaMainland.ResolveMove(lerped, Vector2.Zero, Radius);
         _moving = Vector2.DistanceSquared(before, Position) > 0.05f;
         var drawFacing = GetDrawFacing();
         _anim?.Update(dt, drawFacing, _moving, Config.WalkAnimSpeed);

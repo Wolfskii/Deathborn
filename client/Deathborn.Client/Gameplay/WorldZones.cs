@@ -27,7 +27,7 @@ public sealed class WorldZone
         && world.Y >= Center.Y - HalfHeight && world.Y <= Center.Y + HalfHeight;
 }
 
-/// <summary>Static zone layout for the Realik continent (tile anchors match server).</summary>
+/// <summary>Static zone layout for the Swarovia mainland (tile anchors match server).</summary>
 public static class WorldZones
 {
     public const string WildernessId = "wilderness";

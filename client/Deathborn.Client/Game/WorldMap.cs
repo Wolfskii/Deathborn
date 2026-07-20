@@ -5,14 +5,14 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
-/// <summary>Tile walkability grid for the Realik continent (generated from reference map art).</summary>
+/// <summary>Tile walkability grid for the Swarovia mainland overworld.</summary>
 public sealed class WorldMap
 {
-    private static WorldMap? _realik;
+    private static WorldMap? _swaroviaMainland;
     private static DateTime _sourceWriteTime;
     private static DateTime _elevationSourceWriteTime;
 
-    public static WorldMap Realik => GetOrLoad();
+    public static WorldMap SwaroviaMainland => GetOrLoad();
 
     public int TileWidth { get; private init; }
     public int TileHeight { get; private init; }
@@ -311,24 +311,24 @@ public sealed class WorldMap
     }
 
     private static string CollisionPath =>
-        Path.Combine(AppContext.BaseDirectory, "Content", "World", "realik_collision.bin");
+        Path.Combine(AppContext.BaseDirectory, "Content", "World", "swarovia_mainland_collision.bin");
 
     private static string ElevationPath =>
-        Path.Combine(AppContext.BaseDirectory, "Content", "World", "realik_elevation.bin");
+        Path.Combine(AppContext.BaseDirectory, "Content", "World", "swarovia_mainland_elevation.bin");
 
     private static WorldMap GetOrLoad()
     {
         var path = CollisionPath;
         var writeTime = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
         var elevWriteTime = File.Exists(ElevationPath) ? File.GetLastWriteTimeUtc(ElevationPath) : DateTime.MinValue;
-        if (_realik != null && writeTime == _sourceWriteTime && elevWriteTime == _elevationSourceWriteTime)
-            return _realik;
+        if (_swaroviaMainland != null && writeTime == _sourceWriteTime && elevWriteTime == _elevationSourceWriteTime)
+            return _swaroviaMainland;
 
-        _realik?._mapColorTexture?.Dispose();
-        _realik = Load(path);
+        _swaroviaMainland?._mapColorTexture?.Dispose();
+        _swaroviaMainland = Load(path);
         _sourceWriteTime = writeTime;
         _elevationSourceWriteTime = elevWriteTime;
-        return _realik;
+        return _swaroviaMainland;
     }
 
     private static WorldMap Load(string path)
@@ -471,24 +471,26 @@ public sealed class WorldMap
 
     public bool IsWalkable(float worldX, float worldY, float radius = 0f)
     {
-        if (worldX < radius || worldY < radius
-            || worldX > WorldWidth - radius || worldY > WorldHeight - radius)
+        var feet = new Vector2(worldX, worldY);
+        var center = PlayerEntity.CollisionCenter(feet);
+
+        if (center.X < radius || center.Y < radius
+            || center.X > WorldWidth - radius || center.Y > WorldHeight - radius)
             return false;
 
         if (radius <= 0f)
-            return IsWalkableTile(worldX, worldY) && !WorldFoliage.BlocksFeet(new Vector2(worldX, worldY), 0f);
+            return IsWalkableTile(center.X, center.Y) && !WorldFoliage.BlocksFeet(feet, 0f);
 
-        var feet = new Vector2(worldX, worldY);
-        return IsWalkableTile(worldX, worldY)
-            && IsWalkableTile(worldX + radius, worldY)
-            && IsWalkableTile(worldX - radius, worldY)
-            && IsWalkableTile(worldX, worldY + radius)
-            && IsWalkableTile(worldX, worldY - radius)
+        return IsWalkableTile(center.X, center.Y)
+            && IsWalkableTile(center.X + radius, center.Y)
+            && IsWalkableTile(center.X - radius, center.Y)
+            && IsWalkableTile(center.X, center.Y + radius)
+            && IsWalkableTile(center.X, center.Y - radius)
             && !WorldFoliage.BlocksFeet(feet, radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(worldX + radius, worldY), radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(worldX - radius, worldY), radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(worldX, worldY + radius), radius)
-            && !WorldFoliage.BlocksFeet(new Vector2(worldX, worldY - radius), radius);
+            && !WorldFoliage.BlocksFeet(new Vector2(feet.X + radius, feet.Y), radius)
+            && !WorldFoliage.BlocksFeet(new Vector2(feet.X - radius, feet.Y), radius)
+            && !WorldFoliage.BlocksFeet(new Vector2(feet.X, feet.Y + radius), radius)
+            && !WorldFoliage.BlocksFeet(new Vector2(feet.X, feet.Y - radius), radius);
     }
 
     private bool IsWalkableTile(float worldX, float worldY)
@@ -540,6 +542,37 @@ public sealed class WorldMap
     public static Rectangle GetTileScreenRect(
         int tx, int ty, Vector2 camera, Vector2 screenCenter, float zoom, float tileSize) =>
         TileScreenRect(tx, ty, camera, screenCenter, zoom, tileSize);
+
+    /// <summary>Red edge lines on walkable tiles bordering blocked cells (F12 debug).</summary>
+    public void DrawDebugTerrainBorders(SpriteBatch sb, VisibleTileRegion region)
+    {
+        var thickness = MathF.Max(2f, 2f * region.Zoom);
+        var color = new Color(220, 48, 48);
+
+        region.ForEachTile((tx, ty) =>
+        {
+            if (!IsLand(tx, ty))
+                return;
+
+            var rect = region.Rect(tx, ty);
+            var topLeft = new Vector2(rect.Left, rect.Top);
+            var topRight = new Vector2(rect.Right, rect.Top);
+            var bottomLeft = new Vector2(rect.Left, rect.Bottom);
+            var bottomRight = new Vector2(rect.Right, rect.Bottom);
+
+            if (IsBlocked(tx, ty - 1))
+                DrawPrimitives.DrawLine(sb, topLeft, topRight, color, thickness);
+            if (IsBlocked(tx + 1, ty))
+                DrawPrimitives.DrawLine(sb, topRight, bottomRight, color, thickness);
+            if (IsBlocked(tx, ty + 1))
+                DrawPrimitives.DrawLine(sb, bottomLeft, bottomRight, color, thickness);
+            if (IsBlocked(tx - 1, ty))
+                DrawPrimitives.DrawLine(sb, topLeft, bottomLeft, color, thickness);
+        });
+    }
+
+    private bool IsBlocked(int tx, int ty) =>
+        (uint)tx >= (uint)TileWidth || (uint)ty >= (uint)TileHeight || !_walkable[ty * TileWidth + tx];
 
     /// <summary>
     /// Pixel-snapped tile bounds so neighbours share edges with no sub-pixel gaps

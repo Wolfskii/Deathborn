@@ -87,7 +87,7 @@ public sealed class SpellProjectile : IWorldEffect
         }
 
         if (Position.X < 0 || Position.Y < 0
-            || Position.X > WorldMap.Realik.WorldWidth || Position.Y > WorldMap.Realik.WorldHeight)
+            || Position.X > WorldMap.SwaroviaMainland.WorldWidth || Position.Y > WorldMap.SwaroviaMainland.WorldHeight)
         {
             StartBurst();
             return;

@@ -1,10 +1,13 @@
 {
   "maps": [
     {
-      "id": "starter_room",
-      "contentPath": "Maps/dungeons/starter_room",
-      "title": "Starter Dungeon Room",
-      "tags": ["dungeon", "dev"]
+      "id": "swarovia_mainland",
+      "contentPath": "Maps/overworld/swarovia_mainland",
+      "title": "Swarovia Mainland",
+      "tags": [
+        "overworld",
+        "authoring"
+      ]
     }
   ]
 }

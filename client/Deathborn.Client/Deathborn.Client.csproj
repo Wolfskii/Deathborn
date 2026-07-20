@@ -42,18 +42,20 @@
     <Watch Include="Content\**\*.tsx" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\..\shared\world\realik_collision.bin" Link="Content\World\realik_collision.bin" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\shared\world\realik_elevation.bin" Link="Content\World\realik_elevation.bin" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\shared\world\swarovia_mainland_collision.bin" Link="Content\World\swarovia_mainland_collision.bin" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\shared\world\swarovia_mainland_elevation.bin" Link="Content\World\swarovia_mainland_elevation.bin" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Content\Maps\manifest.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Content\Maps\**\*.tmx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Content\Maps\**\*.tsx" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Runtime Tiled loader reads tileset PNGs from disk (16 px art, stretched to 32 px cells in-game). -->
+    <Content Include="Content\Tiles\FarmRpg\*.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="..\..\shared\protocol.json" Link="Protocol\protocol.json" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Extended" Version="6.0.1" />
     <PackageReference Include="MonoGame.Extended.Content.Pipeline" Version="6.0.1" />
-    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" />
-    <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.2.1105" />
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
+    <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.4.1" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
   </ItemGroup>
 </Project>

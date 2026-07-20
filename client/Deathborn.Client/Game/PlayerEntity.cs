@@ -10,8 +10,10 @@ public sealed class PlayerEntity
 {
     public const float Radius = 12f;
     public const float SpriteDrawScale = 1.5f;
-    /// <summary>Collision circle sits slightly below the feet anchor to tighten edge blocking.</summary>
-    public const float CollisionCenterYOffset = 2f;
+    /// <summary>Feet anchor → collision circle center (circle bottom sits on foot pixels).</summary>
+    public static float CollisionCenterYOffset =>
+        -Rendering.Characters.FarmRpgAnimationSpecs.FootBottomInsetPx *
+        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg) - Radius;
     private const float MinMoveDisplacementSq = 0.36f;
 
     public static float SpriteWorldHalfWidth =>
@@ -433,7 +435,7 @@ public sealed class PlayerEntity
                 return HousingConstants.ResolveInteriorMove(feet, delta, c);
         }
 
-        return WorldMap.Realik.ResolveMove(feet, delta, Radius);
+        return WorldMap.SwaroviaMainland.ResolveMove(feet, delta, Radius);
     }
 
     public void Update(float dt)

@@ -28,7 +28,7 @@ public sealed class MinimapHud
     {
         var center = Center;
         var r = Config.MinimapScreenRadius;
-        var map = WorldMap.Realik;
+        var map = WorldMap.SwaroviaMainland;
         var worldRadius = Config.MinimapWorldRadius;
 
         DrawPrimitives.FillCircle(sb, center, r + 3f, FrameFill);

@@ -48,7 +48,7 @@ public sealed class WorldMapOverlay
         DrawBorder(sb, panel, PanelBorder, 2);
         DrawBorder(sb, new Rectangle(panel.X + 5, panel.Y + 5, panel.Width - 10, panel.Height - 10), GoldDim, 1);
 
-        WorldMap.Realik.DrawOverlay(sb, _mapBounds, playerWorldPos);
+        WorldMap.SwaroviaMainland.DrawOverlay(sb, _mapBounds, playerWorldPos);
         DrawTownMarkers(sb, font);
         DrawHouseMarkers(sb, font, homestead);
         DrawNpcMarkers(sb, npcs);
@@ -70,7 +70,7 @@ public sealed class WorldMapOverlay
     {
         if (homestead == null) return;
 
-        var map = WorldMap.Realik;
+        var map = WorldMap.SwaroviaMainland;
         var pos = WorldToMap(homestead.Center, _mapBounds, map);
         HomesteadMapIcon.Draw(sb, pos, 0.85f);
 
@@ -84,7 +84,7 @@ public sealed class WorldMapOverlay
     private void DrawNpcMarkers(SpriteBatch sb, IEnumerable<WorldNpcEntity>? npcs)
     {
         if (npcs == null) return;
-        var map = WorldMap.Realik;
+        var map = WorldMap.SwaroviaMainland;
         foreach (var npc in npcs)
         {
             if (!npc.IsBoss && !npc.IsAttackable) continue;
@@ -102,9 +102,9 @@ public sealed class WorldMapOverlay
     private void DrawTownMarkers(SpriteBatch sb, SpriteFont font)
     {
         if (WorldZones.Towns.Count == 0)
-            WorldZones.Initialize(WorldMap.Realik);
+            WorldZones.Initialize(WorldMap.SwaroviaMainland);
 
-        var map = WorldMap.Realik;
+        var map = WorldMap.SwaroviaMainland;
         foreach (var town in WorldZones.Towns)
         {
             var pos = WorldToMap(town.Center, _mapBounds, map);
@@ -126,7 +126,7 @@ public sealed class WorldMapOverlay
 
     private static Rectangle ComputeMapBounds()
     {
-        var map = WorldMap.Realik;
+        var map = WorldMap.SwaroviaMainland;
         var availW = GameViewport.Width - Margin * 2;
         var availH = GameViewport.Height - Margin * 2 - TitleSpace - 28;
         var scale = Math.Min(availW / map.WorldWidth, availH / map.WorldHeight);

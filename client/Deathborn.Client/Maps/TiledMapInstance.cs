@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using MonoGame.Extended;
 using MonoGame.Extended.Tilemaps;
 using MonoGame.Extended.Tilemaps.Rendering;
 
@@ -28,7 +29,7 @@ public sealed class TiledMapInstance : IDisposable
 
     public void Update(GameTime gameTime) => Renderer.Update(gameTime);
 
-    public void Draw(Microsoft.Xna.Framework.Graphics.SpriteBatch spriteBatch, MonoGame.Extended.OrthographicCamera camera) =>
+    public void Draw(Microsoft.Xna.Framework.Graphics.SpriteBatch spriteBatch, OrthographicCamera camera) =>
         Renderer.Draw(spriteBatch, camera);
 
     public void SetWorldAnchor(Vector2 worldCenter)

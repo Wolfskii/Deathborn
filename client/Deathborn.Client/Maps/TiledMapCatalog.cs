@@ -54,6 +54,8 @@ public static class TiledMapCatalog
                 var metadata = TiledMapMetadata.FromTilemap(map);
                 var title = entry.Title ?? map.Name;
                 _maps[entry.Id] = new TiledMapInstance(entry.Id, title, map, metadata);
+                Console.WriteLine(
+                    $"[TiledMapCatalog] Loaded '{entry.Id}' ({map.Width}x{map.Height} tiles, {tmxRelative})");
             }
             catch (Exception ex)
             {

@@ -155,9 +155,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         SyncLocalStatsFromSkills();
         DeathbornGame.Instance.IsMouseVisible = false;
 
-        WorldZones.Initialize(WorldMap.Realik);
-        WorldFoliage.Initialize(WorldMap.Realik);
-        WorldClouds.Initialize(WorldMap.Realik);
+        WorldZones.Initialize(WorldMap.SwaroviaMainland);
+        WorldFoliage.Initialize(WorldMap.SwaroviaMainland);
+        WorldClouds.Initialize(WorldMap.SwaroviaMainland);
         SeedHotbar();
         TextField.ReleaseFocus();
 
@@ -364,7 +364,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _notifications.Update(dt);
         WaterTiles.Update(dt);
         WorldFoliage.Update(dt);
-        WorldClouds.Update(dt, WorldMap.Realik);
+        WorldClouds.Update(dt, WorldMap.SwaroviaMainland);
         UpdateZonePresence(localEntity);
 
         var decorateActive = _housingDecorate.IsActive;
@@ -508,7 +508,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         [
             $"FPS: {DeathbornGame.Instance.Fps}",
             _status,
-            _debugHudVisible ? "F12: collider debug ON (green outlines)" : "F12: debug HUD",
+            _debugHudVisible ? "F12: collider debug ON (green foliage, red terrain edges)" : "F12: debug HUD",
             TiledMapPreview.IsActive
                 ? $"F11: Tiled preview ON ({TiledMapPreview.ActiveMapId})"
                 : "F11: Tiled map preview",
@@ -544,7 +544,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (interiorHouse != null)
             DrawInteriorWorld(sb, font, interiorHouse, zoom);
         else
-            DrawExteriorWorld(sb, font, zoom);
+            DrawExteriorWorld(sb, font, game, gameTime, zoom);
 
         if (TiledMapPreview.IsActive && interiorHouse == null)
             DrawTiledMapPreview(sb, game, gameTime, zoom);
@@ -630,9 +630,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
-    private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, float zoom)
+    private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, DeathbornGame game, GameTime gameTime, float zoom)
     {
-        _bg.Draw(sb, _camera, ScreenCenter, zoom);
+        _bg.Draw(sb, game.GraphicsDevice, gameTime, _camera, ScreenCenter, zoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
         HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);
 
@@ -647,7 +647,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         DrawExteriorFoliageAndPlayers(sb, font, zoom);
 
-        WorldClouds.Draw(sb, WorldMap.Realik, _camera, ScreenCenter, zoom,
+        WorldClouds.Draw(sb, WorldMap.SwaroviaMainland, _camera, ScreenCenter, zoom,
             CollectionsMarshal.AsSpan(_entityPositionScratch));
 
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
@@ -660,7 +660,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (_debugHudVisible)
         {
-            WorldFoliage.DrawDebugColliders(sb, WorldMap.Realik, _camera, ScreenCenter, zoom);
+            var map = WorldMap.SwaroviaMainland;
+            var debugTiles = new VisibleTileRegion();
+            debugTiles.Begin(map, _camera, ScreenCenter, zoom, marginTiles: 3f);
+            map.DrawDebugTerrainBorders(sb, debugTiles);
+            WorldFoliage.DrawDebugColliders(sb, map, _camera, ScreenCenter, zoom);
             if (FindLocalPlayer() is { InsideHouseId: <= 0 } local)
                 WorldFoliage.DrawDebugPlayerCollider(sb, local.Position, PlayerEntity.Radius, _camera, ScreenCenter, zoom);
         }
@@ -730,7 +734,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var localOcclusionPositions = CollectionsMarshal.AsSpan(_entityPositionScratch);
         _exteriorDrawOrder.Clear();
 
-        WorldFoliage.GetVisible(WorldMap.Realik, _camera, ScreenCenter, zoom, _visibleFoliage);
+        WorldFoliage.GetVisible(WorldMap.SwaroviaMainland, _camera, ScreenCenter, zoom, _visibleFoliage);
         for (var i = 0; i < _visibleFoliage.Count; i++)
         {
             var foliage = _visibleFoliage[i];

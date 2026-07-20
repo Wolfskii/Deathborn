@@ -1,0 +1,78 @@
+"""Import hand-painted Swarovia mainland overworld from Tiled into world binaries.
+
+Reads Content/Maps/overworld/swarovia_mainland.tmx (Water + Ground layers) and derives
+walkability from per-tile properties on the Farm RPG tilesets.
+
+Usage:
+  python scripts/import_tiled_overworld.py
+  python scripts/import_tiled_overworld.py --tmx path/to/swarovia_mainland.tmx
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from swarovia_mainland_world_io import (
+    COLLISION,
+    ELEVATION,
+    load_elevation,
+    sync_server_copies,
+    write_collision,
+    write_elevation,
+)
+from tiled_overworld_io import (
+    gameplay_from_gids,
+    load_gid_properties,
+    merge_layer_gids,
+    parse_tile_layer,
+    parse_tile_layers,
+    OVERWORLD,
+    OVERWORLD_TMX_NAME,
+)
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_TMX = OVERWORLD / OVERWORLD_TMX_NAME
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Import Swarovia mainland overworld from Tiled TMX")
+    parser.add_argument("--tmx", type=Path, default=DEFAULT_TMX, help="Path to swarovia_mainland.tmx")
+    args = parser.parse_args()
+
+    if not args.tmx.exists():
+        raise SystemExit(f"TMX not found: {args.tmx}\nRun: python scripts/export_realik_to_tiled.py")
+
+    try:
+        tw, th, layer_map = parse_tile_layers(args.tmx)
+        if "Ground" in layer_map:
+            gids = merge_layer_gids(layer_map)
+        else:
+            gids = parse_tile_layer(args.tmx)[2]
+    except ValueError:
+        tw, th, gids = parse_tile_layer(args.tmx)
+    gid_props = load_gid_properties(args.tmx)
+    walkable, elev = gameplay_from_gids(gids, gid_props)
+
+    write_collision(COLLISION, tw, th, walkable)
+    ramps = [[0] * tw for _ in range(th)]
+    write_elevation(ELEVATION, tw, th, elev, ramps)
+    sync_server_copies()
+
+    hist: dict[int, int] = {}
+    _, _, elev_out, _ = load_elevation(ELEVATION)
+    for row in elev_out:
+        for v in row:
+            hist[v] = hist.get(v, 0) + 1
+
+    walk_count = sum(1 for row in walkable for cell in row if cell)
+    print(f"Imported {tw}x{th} from {args.tmx}")
+    print(f"  -> {COLLISION}")
+    print(f"  -> {ELEVATION}")
+    print(f"  walkable tiles: {walk_count}")
+    print(f"  elevation histogram: {dict(sorted(hist.items()))}")
+    print("Restart the client to see painted tiles.")
+
+
+if __name__ == "__main__":
+    main()

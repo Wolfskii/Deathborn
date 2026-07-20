@@ -1,20 +1,21 @@
 """Generate per-tile elevation grid for Realik (Tiny Swords terrain system).
 
-Reads shared/world/realik_collision.bin and writes realik_elevation.bin (ELEV v2).
+Reads shared/world/swarovia_mainland_collision.bin and writes swarovia_mainland_elevation.bin (ELEV v2).
 See .tile_debug/tinyswords_guide.json for placement rules.
 """
 
 from __future__ import annotations
 
+import argparse
 import random
 import struct
 from collections import deque
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COLLISION = ROOT / "shared" / "world" / "realik_collision.bin"
-OUT = ROOT / "shared" / "world" / "realik_elevation.bin"
-SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "realik_elevation.bin"
+COLLISION = ROOT / "shared" / "world" / "swarovia_mainland_collision.bin"
+OUT = ROOT / "shared" / "world" / "swarovia_mainland_elevation.bin"
+SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "swarovia_mainland_elevation.bin"
 
 SEED = 0x0EA11C
 MIN_PLATEAU_CELLS = 40
@@ -472,8 +473,52 @@ def write_elevation(
                 f.write(struct.pack("<B", ramps[ty][tx]))
 
 
+def refine_painted_elevation(
+    elev: list[list[int]], walkable: list[list[bool]], tw: int, th: int
+) -> tuple[list[list[int]], list[list[int]]]:
+    """After Tiled import: fix cliff steps and place ramps without rerolling plateaus."""
+    ramps = [[RAMP_NONE] * tw for _ in range(th)]
+    sea = flood_sea(walkable, tw, th)
+    autopad(elev, ramps, tw, th)
+    collapse_cliff_base_ledges(elev, walkable, tw, th)
+    enforce_cliff_column_spacing(elev, tw, th, MIN_CLIFF_GAP_ROWS)
+    ramps = place_ramps(elev, walkable, sea, tw, th)
+    return elev, ramps
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate or refine Realik elevation grid")
+    parser.add_argument(
+        "--preserve-elev",
+        action="store_true",
+        help="Keep elevation from swarovia_mainland_elevation.bin (after Tiled import); only refine cliffs/ramps",
+    )
+    args = parser.parse_args()
+
     tw, th, tile_size, walkable = load_collision(COLLISION)
+
+    if args.preserve_elev:
+        from swarovia_mainland_world_io import load_elevation as load_elev_bins
+
+        tw, th, elev, _ = load_elev_bins(OUT)
+        if tw != len(walkable[0]) or th != len(walkable):
+            raise SystemExit("collision and elevation grid size mismatch")
+        elev, ramps = refine_painted_elevation(elev, walkable, tw, th)
+        write_elevation(OUT, tw, th, elev, ramps)
+        SERVER_COPY.parent.mkdir(parents=True, exist_ok=True)
+        SERVER_COPY.write_bytes(OUT.read_bytes())
+        ramp_count = sum(1 for row in ramps for v in row if v != RAMP_NONE)
+        hist: dict[int, int] = {}
+        for row in elev:
+            for v in row:
+                hist[v] = hist.get(v, 0) + 1
+        print(
+            f"refined painted elevation {tw}x{th} tile={tile_size} "
+            f"ramps={ramp_count} hist={dict(sorted(hist.items()))}"
+        )
+        print(f"-> {OUT}")
+        return
+
     elev = [[-1 if not walkable[ty][tx] else 1 for tx in range(tw)] for ty in range(th)]
     ramps = [[RAMP_NONE] * tw for _ in range(th)]
 

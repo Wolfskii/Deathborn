@@ -7,15 +7,26 @@ import (
 	"math"
 )
 
-//go:embed realik_collision.bin
+//go:embed swarovia_mainland_collision.bin
 var collisionData []byte
 
 const playerRadius = 12.0
-const playerCollisionYOffset = 2.0
 
-func playerCollisionY(y float64) float64 { return y + playerCollisionYOffset }
+// Match client PlayerEntity: circle bottom on foot row (FarmRpg FootBottomInsetPx × draw scale).
+const (
+	playerFootBottomInsetPx = 7.0
+	playerSpriteDrawScale     = 1.5 * 1.35
+)
 
-// Map is a tile walkability grid for the Realik continent.
+func playerCollisionY(feetY float64) float64 {
+	return feetY - playerFootBottomInsetPx*playerSpriteDrawScale - playerRadius
+}
+
+func feetFromCollisionY(cy float64) float64 {
+	return cy + playerFootBottomInsetPx*playerSpriteDrawScale + playerRadius
+}
+
+// Map is a tile walkability grid for the Swarovia mainland overworld.
 type Map struct {
 	TileWidth, TileHeight int
 	TileSize              float64

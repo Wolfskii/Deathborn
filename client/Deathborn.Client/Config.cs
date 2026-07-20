@@ -32,7 +32,7 @@ public static class Config
 
     /// <summary>Legacy design tile size; world bins may use a larger value.</summary>
     public const float LegacyTileSize = 16f;
-    /// <summary>Must match <c>realik_collision.bin</c> tile size.</summary>
+    /// <summary>Must match <c>swarovia_mainland_collision.bin</c> tile size.</summary>
     public const float WorldTileSize = 32f;
     private const float Ws = WorldTileSize / LegacyTileSize;
 

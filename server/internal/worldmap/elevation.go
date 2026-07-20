@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-//go:embed realik_elevation.bin
+//go:embed swarovia_mainland_elevation.bin
 var elevationData []byte
 
 type elevationGrid struct {
