@@ -6,6 +6,7 @@ using Deathborn.Client.Gameplay;
 using Deathborn.Client.Maps;
 using Deathborn.Client.Audio;
 using Deathborn.Client.Net;
+using Deathborn.Client.Platform;
 using Deathborn.Client.Ui;
 using Deathborn.Client.Rendering;
 
@@ -294,7 +295,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         var kb = Keyboard.GetState();
         var mouse = Mouse.GetState();
-        var windowActive = DeathbornGame.Instance.IsActive;
+        var windowActive = DeathbornGame.Instance.HasGameplayInputFocus;
 
         if (!windowActive)
         {
@@ -492,7 +493,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     && !IsOverHotbar(mouse.Position))
                     HandleLeftClick(mouse.Position);
 
-                if (windowActive && DeathbornGame.Instance.IsMouseOverClient(mouse.Position)
+                if (DeathbornGame.Instance.HasGameplayInputFocus
+                    && WindowInputFocus.IsPointerOverFocusedClient(
+                        DeathbornGame.Instance.Window, GameViewport.Width, GameViewport.Height)
                     && mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released
                     && !IsOverHotbar(mouse.Position) && !_playerContextMenu.IsOpen)
                     HandleRightClick(mouse.Position);

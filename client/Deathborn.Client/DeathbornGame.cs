@@ -111,9 +111,17 @@ public sealed class DeathbornGame : Game
         clientPosition.X >= 0 && clientPosition.Y >= 0
         && clientPosition.X < GameViewport.Width && clientPosition.Y < GameViewport.Height;
 
-    /// <summary>Left-click edge on the focused game client (not title bar / outside window).</summary>
+    /// <summary>
+    /// True when this process should accept gameplay keyboard/mouse
+    /// (MonoGame active + Win32 foreground when available).
+    /// </summary>
+    public bool HasGameplayInputFocus =>
+        IsActive && WindowInputFocus.IsForeground(Window);
+
+    /// <summary>Left-click edge on the focused game client (not another window / title bar).</summary>
     public bool IsWorldMouseClick(MouseState mouse, MouseState prevMouse) =>
-        IsActive
+        HasGameplayInputFocus
+        && WindowInputFocus.IsPointerOverFocusedClient(Window, GameViewport.Width, GameViewport.Height)
         && IsMouseOverClient(mouse.Position)
         && mouse.LeftButton == ButtonState.Pressed
         && prevMouse.LeftButton == ButtonState.Released;
