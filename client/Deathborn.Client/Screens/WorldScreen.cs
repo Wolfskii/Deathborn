@@ -405,6 +405,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         UpdateHousing(localEntity, kb, _prevKb, mouse, blockGameplay, uiCapturesMouse);
         UpdateHousePlacement(localEntity, mouse, blockGameplay, uiCapturesMouse, windowActive);
+        TryAutoDoorTransition(localEntity, blockGameplay);
         UpdateDoorTransition(dt, localEntity);
         if (fishingActive)
             _fishing.Update(dt, kb, _prevKb, mouse, _prevMouse);
@@ -979,6 +980,52 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
+    /// <summary>
+    /// Walk into exterior door (north) or interior exit (south) starts the same SFX transition as E/click.
+    /// Server auto-enter often wins the race otherwise and skips client audio entirely.
+    /// </summary>
+    private void TryAutoDoorTransition(PlayerEntity? local, bool inputBlocked)
+    {
+        if (local == null || local.IsDead || inputBlocked || _doorTransition.IsBusy)
+            return;
+
+        if (local.InsideHouseId > 0)
+        {
+            var house = InteriorHouse();
+            if (house == null) return;
+            if (!HousingConstants.IsNearInteriorExit(local.Position, house.Center)) return;
+            // Leaving: moving south (positive Y), matching server tryAutoExitHouse.
+            var dirY = local.InputDir.Y;
+            if (dirY < 0.12f) return;
+            if (_doorTransition.TryBeginExit(house.Id, local.Position))
+                _status = "Leaving homestead...";
+            return;
+        }
+
+        // Entering: in door approach / near door and moving north (negative Y).
+        var moveY = local.InputDir.Y;
+        if (moveY > -0.08f) return;
+
+        HousePlotZone? best = null;
+        var bestDist = float.MaxValue;
+        foreach (var house in WorldZones.Houses)
+        {
+            var near = HousingCollision.InDoorApproach(local.Position, house.Center)
+                || HousingConstants.IsNearDoor(local.Position, house.Center);
+            if (!near) continue;
+            var d = Vector2.DistanceSquared(local.Position, HousingConstants.DoorWorldPosition(house.Center));
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = house;
+            }
+        }
+
+        if (best == null) return;
+        if (_doorTransition.TryBeginEnter(best.Id, local.Position))
+            _status = $"Entering {best.DisplayName(_screens.Net.LocalCharacterId)}...";
+    }
+
     private bool TryHouseDoorInteract(Vector2? worldPos = null)
     {
         var local = FindLocalPlayer();
@@ -1498,7 +1545,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
-        if (_hoveredDoorHouse != null && Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(_hoveredDoorHouse.Center)) <= Config.InteractRange)
+        if (_hoveredDoorHouse != null
+            && (HousingConstants.InDoorHit(_camera, _hoveredDoorHouse.Center)
+                || HousingCollision.InDoorApproach(_camera, _hoveredDoorHouse.Center)
+                || Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(_hoveredDoorHouse.Center)) <= Config.InteractRange))
         {
             _interactPrompt = $"Walk into the door to enter {_hoveredDoorHouse.DisplayName(_screens.Net.LocalCharacterId)}";
             return;
@@ -2810,6 +2860,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 var houseChanged = p.InsideHouseId != s.InsideHouseId;
                 if (houseChanged)
                 {
+                    var wasInside = p.InsideHouseId > 0;
+                    var nowInside = s.InsideHouseId > 0;
                     p.InsideHouseId = s.InsideHouseId;
                     p.InteriorCenter = s.InsideHouseId > 0
                         ? WorldZones.HouseById(s.InsideHouseId)?.Center ?? p.InteriorCenter
@@ -2830,6 +2882,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                         p.MoveDir = new Vector2(0, -1); // face into the room from the south door
                     else if (p.InputDir.LengthSquared() > 0.0001f)
                         p.MoveDir = PlayerEntity.CardinalFacing(p.InputDir);
+
+                    // Server auto-enter/exit can beat the client transition — still play door cues.
+                    if (p.IsLocal && !_doorTransition.IsBusy && wasInside != nowInside)
+                        _doorTransition.PlayCatchUpSfx(entered: nowInside);
                 }
                 else
                 {

@@ -69,7 +69,17 @@ public static class SfxPlayer
         }
     }
 
-    public static void Preload(string path) => GetOrLoad(path);
+    public static void Preload(string path)
+    {
+        try
+        {
+            GetOrLoad(path);
+        }
+        catch
+        {
+            // Missing / unbuilt content — skip; Play will no-op for this path.
+        }
+    }
 
     /// <param name="path">Content path without extension.</param>
     /// <param name="volumeScale">Multiplier before SFX master volume (0–1).</param>
@@ -84,7 +94,16 @@ public static class SfxPlayer
     {
         if (AudioSettings.SfxMuted || _content is null) return;
 
-        var sound = GetOrLoad(path);
+        CachedSound sound;
+        try
+        {
+            sound = GetOrLoad(path);
+        }
+        catch
+        {
+            return;
+        }
+
         var instance = sound.RentInstance();
         instance.Pitch = NextPitch(sound, pitchPresets);
         instance.Volume = NextVolume(sound, volumeScale, volumePresets);
@@ -128,17 +147,28 @@ public static class SfxPlayer
     /// <summary>Play door-open and return clip duration in seconds (for transition timing).</summary>
     public static float PlayDoorOpen()
     {
-        Play(GameSfx.DoorOpen, 0.95f);
+        Play(GameSfx.DoorOpen, 1f, DoorPitches, DoorVolumes);
         return GetDuration(GameSfx.DoorOpen);
     }
 
     /// <summary>Play door-close after the view has switched.</summary>
-    public static void PlayDoorClose() => Play(GameSfx.DoorClose, 0.9f);
+    public static void PlayDoorClose() =>
+        Play(GameSfx.DoorClose, 1f, DoorPitches, DoorVolumes);
+
+    private static readonly float[] DoorPitches = [0f];
+    private static readonly float[] DoorVolumes = [1f];
 
     public static float GetDuration(string path)
     {
-        var sound = GetOrLoad(path);
-        return sound.DurationSeconds;
+        try
+        {
+            var sound = GetOrLoad(path);
+            return sound.DurationSeconds;
+        }
+        catch
+        {
+            return 0.45f;
+        }
     }
 
     public static void Stop(string path)

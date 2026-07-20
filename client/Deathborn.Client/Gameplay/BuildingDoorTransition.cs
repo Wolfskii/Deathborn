@@ -43,7 +43,7 @@ public sealed class BuildingDoorTransition
         _pendingBuildingId = buildingId;
         _frozenFeet = exteriorFeet;
         VisualInsideOverride = 0;
-        _openRemaining = MathF.Max(0.05f, SfxPlayer.PlayDoorOpen());
+        _openRemaining = MathF.Max(0.15f, SfxPlayer.PlayDoorOpen());
         return true;
     }
 
@@ -55,8 +55,20 @@ public sealed class BuildingDoorTransition
         _pendingBuildingId = currentBuildingId;
         _frozenFeet = interiorFeet;
         VisualInsideOverride = currentBuildingId;
-        _openRemaining = MathF.Max(0.05f, SfxPlayer.PlayDoorOpen());
+        _openRemaining = MathF.Max(0.15f, SfxPlayer.PlayDoorOpen());
         return true;
+    }
+
+    /// <summary>
+    /// Server already moved us in/out (auto door) before the client started a transition.
+    /// Still play open + close so the cue is never silent.
+    /// </summary>
+    public void PlayCatchUpSfx(bool entered)
+    {
+        if (IsBusy) return;
+        _ = entered;
+        SfxPlayer.PlayDoorOpen();
+        SfxPlayer.PlayDoorClose();
     }
 
     /// <summary>
@@ -74,11 +86,11 @@ public sealed class BuildingDoorTransition
                 if (_openRemaining > 0f) return false;
                 shouldSendEnter = true;
                 _phase = Phase.AwaitEnter;
-                // Keep exterior until server confirms inside.
                 return true;
 
             case Phase.AwaitEnter:
-                if (serverInsideHouseId == _pendingBuildingId)
+                // Server may have auto-entered during the open SFX — treat as confirmed.
+                if (serverInsideHouseId == _pendingBuildingId || serverInsideHouseId > 0)
                     CompleteViewSwap();
                 return false;
 
@@ -102,7 +114,7 @@ public sealed class BuildingDoorTransition
     /// <summary>True while we should hold the local feet at <see cref="FrozenFeet"/>.</summary>
     public bool ShouldFreezeFeet(long serverInsideHouseId) =>
         _phase is Phase.OpeningEnter or Phase.OpeningExit
-        || (_phase == Phase.AwaitEnter && serverInsideHouseId != _pendingBuildingId)
+        || (_phase == Phase.AwaitEnter && serverInsideHouseId <= 0)
         || (_phase == Phase.AwaitExit && serverInsideHouseId > 0);
 
     public void Cancel()

@@ -66,12 +66,25 @@ public static class HouseRenderer
     {
         foreach (var house in houses)
         {
-            var door = HousingConstants.DoorWorldPosition(house.Center);
-            var screen = WorldToScreen(door, camera, screenCenter, zoom);
-            var r = HousingConstants.DoorInteractRadius * zoom;
+            HousingConstants.DoorHitBounds(house.Center, out var left, out var right, out var top, out var bottom);
             var highlight = hovered?.Id == house.Id;
-            var color = highlight ? new Color(1f, 0.92f, 0.45f, 0.55f) : new Color(1f, 1f, 1f, 0.12f);
-            DrawPrimitives.DrawCircleOutline(sb, screen, r, color, 24, highlight ? 2.5f * zoom : 1.5f * zoom);
+            var edge = highlight
+                ? new Color(1f, 0.92f, 0.45f) * 0.9f
+                : new Color(1f, 1f, 1f) * 0.22f;
+            var fill = highlight
+                ? new Color(1f, 0.92f, 0.45f) * 0.18f
+                : new Color(1f, 1f, 1f) * 0.05f;
+            DrawPrimitives.DrawWorldRectOutline(
+                sb, left, top, right, bottom, camera, screenCenter, zoom, edge,
+                highlight ? Math.Max(2f, 2.5f * zoom) : Math.Max(1.5f, 1.5f * zoom));
+            var tl = WorldToScreen(new Vector2(left, top), camera, screenCenter, zoom);
+            var br = WorldToScreen(new Vector2(right, bottom), camera, screenCenter, zoom);
+            var rect = new Rectangle(
+                (int)MathF.Floor(tl.X),
+                (int)MathF.Floor(tl.Y),
+                Math.Max(1, (int)MathF.Ceiling(br.X - tl.X)),
+                Math.Max(1, (int)MathF.Ceiling(br.Y - tl.Y)));
+            DrawPrimitives.FillRect(sb, rect, fill);
         }
     }
 

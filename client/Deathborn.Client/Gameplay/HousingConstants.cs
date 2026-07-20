@@ -55,8 +55,31 @@ public static class HousingConstants
     public static Vector2 InteriorLocalMin => new(-InteriorHalfW, -InteriorHalfH);
     public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8 * Hs);
 
+    /// <summary>Legacy radius — prefer <see cref="DoorHitBounds"/> for click / highlight.</summary>
     public const float DoorInteractRadius = 38f * Hs;
+
+    /// <summary>Exterior door click/highlight box (world units) — tall door plate on the cottage.</summary>
+    public const float DoorHitHalfW = 11f;
+    public const float DoorHitHeight = 40f;
+    public const float DoorHitBottomPad = 6f;
+
     public const float InteriorWallInset = 16f * Hs;
+
+    /// <summary>World AABB of the exterior door plate (tall rectangle over the cottage door).</summary>
+    public static void DoorHitBounds(Vector2 center, out float left, out float right, out float top, out float bottom)
+    {
+        var door = DoorWorldPosition(center);
+        left = door.X - DoorHitHalfW;
+        right = door.X + DoorHitHalfW;
+        bottom = door.Y + DoorHitBottomPad;
+        top = bottom - DoorHitHeight;
+    }
+
+    public static bool InDoorHit(Vector2 world, Vector2 center)
+    {
+        DoorHitBounds(center, out var left, out var right, out var top, out var bottom);
+        return world.X >= left && world.X <= right && world.Y >= top && world.Y <= bottom;
+    }
 
     public static Vector2 ClampToInterior(Vector2 world, Vector2 center)
     {
@@ -74,7 +97,8 @@ public static class HousingConstants
         HousingCollision.ResolveInteriorMove(feet, delta, center);
 
     public static bool IsNearDoor(Vector2 world, Vector2 center) =>
-        Vector2.Distance(world, DoorWorldPosition(center)) <= DoorInteractRadius;
+        InDoorHit(world, center)
+        || HousingCollision.InDoorApproach(world, center);
 
     public static bool IsNearInteriorExit(Vector2 world, Vector2 center)
     {
@@ -91,8 +115,9 @@ public static class HousingConstants
         {
             var door = DoorWorldPosition(house.Center);
             var d = Vector2.DistanceSquared(world, door);
-            var inApproach = HousingCollision.InDoorApproach(world, house.Center);
-            if (d > DoorInteractRadius * DoorInteractRadius && !inApproach) continue;
+            var hit = InDoorHit(world, house.Center)
+                || HousingCollision.InDoorApproach(world, house.Center);
+            if (!hit) continue;
             if (d < bestDist)
             {
                 bestDist = d;
