@@ -3,6 +3,7 @@ namespace Deathborn.Client.Audio;
 public static class GameMusic
 {
     public const string StartingArea = "starting_area";
+    public const string LoginTheme = "Audio/Songs/The Reaper\u2019s Call";
 
     private static readonly Dictionary<string, MusicPlaylist> Playlists = new(StringComparer.Ordinal)
     {

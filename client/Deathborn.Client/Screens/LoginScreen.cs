@@ -51,8 +51,10 @@ public sealed class LoginScreen : IScreen
     private int _brazierBottomY;
     private int _viewportW;
     private int _viewportH;
-    private readonly ReapersCallLyrics _lyrics = new();
+    private readonly LiveLyricsSystem _lyrics = new();
     private readonly ClientUpdateOverlay _clientUpdate = new();
+    private Rectangle _musicToggleBounds;
+    private bool _musicToggleHovered;
 
     public LoginScreen(ScreenManager screens) => _screens = screens;
 
@@ -60,9 +62,10 @@ public sealed class LoginScreen : IScreen
     {
         var game = DeathbornGame.Instance;
         _logo ??= game.Content.Load<Texture2D>("Images/Logos/Banners/Banner V2");
-        _theme ??= game.Content.Load<Song>("Audio/Songs/The Reaper\u2019s Call");
+        _theme ??= game.Content.Load<Song>(GameMusic.LoginTheme);
+        MusicPlayer.ApplySavedSettings();
         MusicPlayer.Play(_theme);
-        _lyrics.Reset(_theme);
+        _lyrics.Bind(GameMusic.LoginTheme);
 
         Layout();
         _status = "";
@@ -122,11 +125,19 @@ public sealed class LoginScreen : IScreen
         if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released)
             _clientUpdate.Update(_mouse, clicked: true);
 
+        _musicToggleHovered = _musicToggleBounds.Contains(_mouse);
+
         if (_clientUpdate.BlocksInput)
         {
             _prevKb = kb;
             _prevMouse = mouse;
             return;
+        }
+
+        if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released
+            && _musicToggleBounds.Contains(_mouse))
+        {
+            MusicPlayer.SetMuted(!MusicPlayer.IsMuted);
         }
 
         if (_busy && !_waitingWorld)
@@ -182,6 +193,7 @@ public sealed class LoginScreen : IScreen
         _rightBrazier.Draw(sb, _rightBrazierX, _brazierBottomY);
 
         _lyrics.Draw(sb, font, GameViewport.Width, GameViewport.Height);
+        DrawMusicToggle(sb, font);
 
         DrawPanel(sb, _panel);
 
@@ -259,6 +271,46 @@ public sealed class LoginScreen : IScreen
         _leftBrazierX = _panel.X - 72;
         _rightBrazierX = _panel.Right + 72;
         _brazierBottomY = _panel.Bottom + 4;
+
+        const int toggleSize = 40;
+        _musicToggleBounds = new Rectangle(viewportWidth - toggleSize - 18, 16, toggleSize, toggleSize);
+    }
+
+    private void DrawMusicToggle(SpriteBatch sb, SpriteFont font)
+    {
+        _ = font;
+        var muted = MusicPlayer.IsMuted;
+        var fill = muted ? new Color(36, 30, 24) : new Color(48, 40, 30);
+        var border = _musicToggleHovered ? Gold : GoldDim;
+        DrawPrimitives.FillRect(sb, _musicToggleBounds, fill);
+        DrawBorder(sb, _musicToggleBounds, border, 2);
+
+        var noteColor = muted ? new Color(110, 95, 75) : Gold;
+        DrawMusicNoteIcon(sb, _musicToggleBounds, noteColor);
+
+        if (muted)
+        {
+            var pad = 8;
+            DrawPrimitives.FillRect(sb, new Rectangle(
+                _musicToggleBounds.X + pad,
+                _musicToggleBounds.Center.Y - 1,
+                _musicToggleBounds.Width - pad * 2,
+                3), StatusError);
+        }
+    }
+
+    private static void DrawMusicNoteIcon(SpriteBatch sb, Rectangle bounds, Color color)
+    {
+        var cx = bounds.Center.X;
+        var cy = bounds.Center.Y;
+        // Stem
+        DrawPrimitives.FillRect(sb, new Rectangle(cx + 4, cy - 10, 3, 18), color);
+        // Note head (ellipse-ish via small rects)
+        DrawPrimitives.FillRect(sb, new Rectangle(cx - 6, cy + 4, 12, 8), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(cx - 4, cy + 2, 10, 10), color);
+        // Flag
+        DrawPrimitives.FillRect(sb, new Rectangle(cx + 7, cy - 10, 6, 3), color);
+        DrawPrimitives.FillRect(sb, new Rectangle(cx + 10, cy - 7, 3, 5), color);
     }
 
     private static void DrawPanel(SpriteBatch sb, Rectangle panel)

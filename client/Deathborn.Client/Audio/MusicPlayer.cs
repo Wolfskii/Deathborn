@@ -57,15 +57,17 @@ public static class MusicPlayer
             MediaPlayer.Volume = IsMuted ? 0f : _volume;
     }
 
-    public static void Play(Song song, float volume = 0.55f, bool loop = true)
+    public static void Play(Song song, bool loop = true)
     {
         ClearPlaylistState();
-        _volume = volume;
         _stopRequested = false;
         _trackPlaying = true;
 
         if (_current == song && MediaPlayer.State == MediaState.Playing)
+        {
+            ApplyVolume();
             return;
+        }
 
         _current = song;
         MediaPlayer.IsRepeating = loop;
@@ -73,12 +75,11 @@ public static class MusicPlayer
         MediaPlayer.Play(song);
     }
 
-    public static void PlayPlaylist(ContentManager content, MusicPlaylist playlist, float volume = 0.55f)
+    public static void PlayPlaylist(ContentManager content, MusicPlaylist playlist)
     {
         if (playlist.Tracks.Count == 0)
             return;
 
-        _volume = volume;
         _stopRequested = false;
         _trackPlaying = true;
         _activePlaylist = playlist;

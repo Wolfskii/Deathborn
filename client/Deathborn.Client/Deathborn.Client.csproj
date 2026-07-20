@@ -49,6 +49,7 @@
     <Content Include="Content\Maps\**\*.tsx" CopyToOutputDirectory="PreserveNewest" />
     <!-- Runtime Tiled loader reads tileset PNGs from disk (16 px art, stretched to 32 px cells in-game). -->
     <Content Include="Content\Tiles\FarmRpg\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Content\Audio\Songs\*.srt" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="..\..\shared\protocol.json" Link="Protocol\protocol.json" />
   </ItemGroup>
   <ItemGroup>
