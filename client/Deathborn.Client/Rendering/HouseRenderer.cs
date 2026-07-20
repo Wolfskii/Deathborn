@@ -75,7 +75,9 @@ public static class HouseRenderer
         }
     }
 
-    /// <summary>RTS-style translucent cottage ghost under the cursor (green = valid, red = invalid).</summary>
+    /// <summary>
+    /// RTS placement ghost: per-tile green/red overlay under the plot + tinted cottage.
+    /// </summary>
     public static void DrawPlacementGhost(
         SpriteBatch sb,
         Vector2 worldCenter,
@@ -84,12 +86,31 @@ public static class HouseRenderer
         float zoom,
         bool canPlace)
     {
-        var tint = canPlace
-            ? new Color(0.35f, 1f, 0.45f, 0.55f)
-            : new Color(1f, 0.28f, 0.28f, 0.55f);
-        var outline = canPlace
-            ? new Color(0.2f, 0.85f, 0.35f, 0.9f)
-            : new Color(1f, 0.2f, 0.2f, 0.9f);
+        const float tileFillA = 0.42f;
+        const float edgeA = 0.95f;
+        var okFill = new Color(0.15f, 0.95f, 0.35f) * tileFillA;
+        var badFill = new Color(0.95f, 0.18f, 0.18f) * tileFillA;
+        var edge = canPlace
+            ? new Color(0.15f, 1f, 0.35f) * edgeA
+            : new Color(1f, 0.25f, 0.2f) * edgeA;
+        var cottageTint = canPlace
+            ? new Color(0.35f, 1f, 0.45f) * 0.7f
+            : new Color(1f, 0.3f, 0.3f) * 0.7f;
+
+        DrawPlotTileOverlay(sb, worldCenter, camera, screenCenter, zoom, okFill, badFill);
+
+        var plotTl = WorldToScreen(
+            worldCenter + new Vector2(-HousingConstants.PlotHalfW, -HousingConstants.PlotHalfH),
+            camera, screenCenter, zoom);
+        var plotBr = WorldToScreen(
+            worldCenter + new Vector2(HousingConstants.PlotHalfW, HousingConstants.PlotHalfH),
+            camera, screenCenter, zoom);
+        var plotRect = new Rectangle(
+            (int)MathF.Floor(plotTl.X),
+            (int)MathF.Floor(plotTl.Y),
+            Math.Max(1, (int)MathF.Ceiling(plotBr.X - plotTl.X)),
+            Math.Max(1, (int)MathF.Ceiling(plotBr.Y - plotTl.Y)));
+        DrawPrimitives.DrawRectOutline(sb, plotRect, edge, Math.Max(2f, 3f * zoom));
 
         var screen = WorldToScreen(worldCenter, camera, screenCenter, zoom);
         var tex = FarmRpgHouseSprites.OrangeCottage;
@@ -97,7 +118,7 @@ public static class HouseRenderer
         {
             var scale = FarmRpgHouseSprites.DisplayScale * zoom;
             var origin = FarmRpgHouseSprites.FootAnchor();
-            sb.Draw(tex, screen, null, tint, 0f, origin, scale, SpriteEffects.None, 0f);
+            sb.Draw(tex, screen, null, cottageTint, 0f, origin, scale, SpriteEffects.None, 0f);
 
             var w = tex.Width * scale;
             var h = tex.Height * scale;
@@ -106,7 +127,7 @@ public static class HouseRenderer
                 (int)(screen.Y - origin.Y * scale),
                 (int)MathF.Ceiling(w),
                 (int)MathF.Ceiling(h));
-            DrawPrimitives.DrawRectOutline(sb, rect, outline, Math.Max(2f, 2.5f * zoom));
+            DrawPrimitives.DrawRectOutline(sb, rect, edge, Math.Max(2f, 2.5f * zoom));
             return;
         }
 
@@ -117,8 +138,48 @@ public static class HouseRenderer
             (int)tl.X, (int)tl.Y,
             Math.Max(1, (int)(br.X - tl.X)),
             Math.Max(1, (int)(br.Y - tl.Y)));
-        DrawPrimitives.FillRect(sb, fallback, tint);
-        DrawPrimitives.DrawRectOutline(sb, fallback, outline, Math.Max(2f, 2.5f * zoom));
+        DrawPrimitives.FillRect(sb, fallback, cottageTint);
+        DrawPrimitives.DrawRectOutline(sb, fallback, edge, Math.Max(2f, 2.5f * zoom));
+    }
+
+    /// <summary>Draw translucent per-tile cells for the homestead plot (green walkable / red blocked).</summary>
+    private static void DrawPlotTileOverlay(
+        SpriteBatch sb,
+        Vector2 worldCenter,
+        Vector2 camera,
+        Vector2 screenCenter,
+        float zoom,
+        Color okFill,
+        Color badFill)
+    {
+        var map = WorldMap.SwaroviaMainland;
+        if (map == null) return;
+
+        var tile = map.TileSize;
+        var minX = worldCenter.X - HousingConstants.PlotHalfW;
+        var maxX = worldCenter.X + HousingConstants.PlotHalfW;
+        var minY = worldCenter.Y - HousingConstants.PlotHalfH;
+        var maxY = worldCenter.Y + HousingConstants.PlotHalfH;
+        var tx0 = (int)MathF.Floor(minX / tile);
+        var ty0 = (int)MathF.Floor(minY / tile);
+        var tx1 = (int)MathF.Floor((maxX - 0.001f) / tile);
+        var ty1 = (int)MathF.Floor((maxY - 0.001f) / tile);
+
+        for (var ty = ty0; ty <= ty1; ty++)
+        for (var tx = tx0; tx <= tx1; tx++)
+        {
+            var wx = (tx + 0.5f) * tile;
+            var wy = (ty + 0.5f) * tile;
+            var clear = map.IsWalkable(wx, wy, 4f);
+            var tl = WorldToScreen(new Vector2(tx * tile, ty * tile), camera, screenCenter, zoom);
+            var br = WorldToScreen(new Vector2((tx + 1) * tile, (ty + 1) * tile), camera, screenCenter, zoom);
+            var rect = new Rectangle(
+                (int)MathF.Floor(tl.X),
+                (int)MathF.Floor(tl.Y),
+                Math.Max(1, (int)MathF.Ceiling(br.X - tl.X)),
+                Math.Max(1, (int)MathF.Ceiling(br.Y - tl.Y)));
+            DrawPrimitives.FillRect(sb, rect, clear ? okFill : badFill);
+        }
     }
 
     private static void DrawHouseStructure(

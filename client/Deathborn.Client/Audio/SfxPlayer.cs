@@ -47,6 +47,8 @@ public static class SfxPlayer
         Preload(GameSfx.Heal);
         Preload(GameSfx.HolySpell);
         Preload(GameSfx.BushRustle);
+        Preload(GameSfx.DoorOpen);
+        Preload(GameSfx.DoorClose);
     }
 
     public static void Update(float dt)
@@ -122,6 +124,22 @@ public static class SfxPlayer
             maxDuration ?? GameSfx.BushRustleMaxDuration);
 
     public static void StopBushRustle() => Stop(GameSfx.BushRustle);
+
+    /// <summary>Play door-open and return clip duration in seconds (for transition timing).</summary>
+    public static float PlayDoorOpen()
+    {
+        Play(GameSfx.DoorOpen, 0.95f);
+        return GetDuration(GameSfx.DoorOpen);
+    }
+
+    /// <summary>Play door-close after the view has switched.</summary>
+    public static void PlayDoorClose() => Play(GameSfx.DoorClose, 0.9f);
+
+    public static float GetDuration(string path)
+    {
+        var sound = GetOrLoad(path);
+        return sound.DurationSeconds;
+    }
 
     public static void Stop(string path)
     {
@@ -222,7 +240,7 @@ public static class SfxPlayer
         for (var i = 0; i < PoolSize; i++)
             pool[i] = effect.CreateInstance();
 
-        cached = new CachedSound(pool);
+        cached = new CachedSound(pool, (float)effect.Duration.TotalSeconds);
         Cache[path] = cached;
         return cached;
     }
@@ -233,9 +251,10 @@ public static class SfxPlayer
         public float Remaining { get; set; } = remaining;
     }
 
-    private sealed class CachedSound(SoundEffectInstance[] pool)
+    private sealed class CachedSound(SoundEffectInstance[] pool, float durationSeconds)
     {
         public SoundEffectInstance[] Pool { get; } = pool;
+        public float DurationSeconds { get; } = MathF.Max(0.05f, durationSeconds);
         public float LastPitch = float.NaN;
         private int _next;
 

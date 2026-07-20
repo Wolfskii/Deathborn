@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
@@ -38,11 +39,8 @@ public static class HousePlacement
             }
         }
 
-        if (!PlotClear(center))
-        {
-            reason = "Blocked by terrain or objects.";
+        if (!PlotClear(center, out reason))
             return false;
-        }
 
         return true;
     }
@@ -62,10 +60,15 @@ public static class HousePlacement
         return false;
     }
 
-    private static bool PlotClear(Vector2 center)
+    private static bool PlotClear(Vector2 center, out string reason)
     {
+        reason = "";
         var map = WorldMap.SwaroviaMainland;
-        if (map == null) return false;
+        if (map == null)
+        {
+            reason = "Map not loaded.";
+            return false;
+        }
 
         var hw = HousingConstants.PlotHalfW * 0.85f;
         var hh = HousingConstants.PlotHalfH * 0.85f;
@@ -85,7 +88,10 @@ public static class HousePlacement
         foreach (var s in samples)
         {
             if (!map.IsWalkable(s.X, s.Y, PlayerEntity.Radius))
+            {
+                reason = DescribeBlocked(map, s);
                 return false;
+            }
         }
 
         HousingCollision.BodyBounds(center, out var left, out var right, out var top, out var bottom);
@@ -100,9 +106,30 @@ public static class HousePlacement
         foreach (var s in body)
         {
             if (!map.IsWalkable(s.X, s.Y, 4f))
+            {
+                reason = DescribeBlocked(map, s);
                 return false;
+            }
         }
 
         return true;
+    }
+
+    private static string DescribeBlocked(WorldMap map, Vector2 world)
+    {
+        if (world.X < map.TileSize || world.Y < map.TileSize
+            || world.X > map.WorldWidth - map.TileSize
+            || world.Y > map.WorldHeight - map.TileSize)
+            return "Too close to the map edge.";
+
+        var tx = (int)(world.X / map.TileSize);
+        var ty = (int)(world.Y / map.TileSize);
+        if (map.HasElevation && map.GetElevation(tx, ty) < 0)
+            return "Cannot build on water.";
+
+        if (WorldFoliage.BlocksFeet(world, PlayerEntity.Radius))
+            return "Blocked by trees or rocks.";
+
+        return "Need clear flat land (not water or cliffs).";
     }
 }

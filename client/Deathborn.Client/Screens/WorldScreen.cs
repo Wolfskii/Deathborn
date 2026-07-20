@@ -51,10 +51,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly BossTrackerOverlay _bossTracker = new();
     private readonly BossHealthBarOverlay _bossHealthBar = new();
     private readonly HousingDecorateOverlay _housingDecorate = new();
+    private readonly BuildingDoorTransition _doorTransition = new();
     private readonly FishingMinigameOverlay _fishing = new();
     private readonly List<HouseState> _houses = [];
     private HousePlotZone? _hoveredDoorHouse;
     private bool _housePlacing;
+    private bool _housePlaceAwaitRelease;
     private Vector2 _housePlacePos;
     private bool _housePlaceValid;
     private string _housePlaceReason = "";
@@ -202,6 +204,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     public void OnExit()
     {
+        _doorTransition.Cancel();
         MusicPlayer.Stop();
 
         var net = _screens.Net;
@@ -376,7 +379,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var movementBlocked = localEntity is { BlocksMovement: true };
         var abilityBusy = localEntity is { IsBusy: true };
         var inputBlocked = chatOpen || menuOpen || movementBlocked || IsLocalDyingOrDead()
-            || (_deathPrompt && !menuOpen);
+            || (_deathPrompt && !menuOpen) || _doorTransition.IsBusy;
 
         _buffTracker.Update(dt);
         _inventory.Update(dt);
@@ -402,6 +405,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         UpdateHousing(localEntity, kb, _prevKb, mouse, blockGameplay, uiCapturesMouse);
         UpdateHousePlacement(localEntity, mouse, blockGameplay, uiCapturesMouse, windowActive);
+        UpdateDoorTransition(dt, localEntity);
         if (fishingActive)
             _fishing.Update(dt, kb, _prevKb, mouse, _prevMouse);
 
@@ -648,6 +652,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 new Vector2(GameViewport.Width / 2f - 200, promptY), new Color(220, 220, 180));
         }
 
+        if (_housePlacing)
+            DrawHousePlacementHud(sb, font);
+
         if (!_ghostMode)
         {
             _hotbar.Draw(sb, font, _inventory, _hotbar.SelectedIndex);
@@ -723,8 +730,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _bg.Draw(sb, game.GraphicsDevice, gameTime, _camera, ScreenCenter, zoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
         HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);
-        if (_housePlacing)
-            HouseRenderer.DrawPlacementGhost(sb, _housePlacePos, _camera, ScreenCenter, zoom, _housePlaceValid);
 
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), zoom);
@@ -736,6 +741,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             corpse.Draw(sb, WorldToScreen(corpse.Position), zoom);
 
         DrawExteriorFoliageAndPlayers(sb, font, zoom);
+
+        if (_housePlacing)
+            HouseRenderer.DrawPlacementGhost(sb, _housePlacePos, _camera, ScreenCenter, zoom, _housePlaceValid);
 
         WorldClouds.Draw(sb, WorldMap.SwaroviaMainland, _camera, ScreenCenter, zoom,
             CollectionsMarshal.AsSpan(_entityPositionScratch));
@@ -911,7 +919,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void UpdateInteriorFade(float dt, PlayerEntity? local)
     {
-        var insideId = local?.InsideHouseId ?? 0;
+        var insideId = _doorTransition.VisualInsideOverride
+            ?? local?.InsideHouseId
+            ?? 0;
         if (insideId != _interiorHouseId)
         {
             _interiorHouseId = insideId;
@@ -925,17 +935,80 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private HousePlotZone? InteriorHouse()
     {
         var local = FindLocalPlayer();
-        if (local is not { InsideHouseId: > 0 })
+        var overrideId = _doorTransition.VisualInsideOverride;
+        long id;
+        if (overrideId.HasValue)
+            id = overrideId.Value;
+        else if (local is { InsideHouseId: > 0 })
+            id = local.InsideHouseId;
+        else
         {
             _cachedInteriorHouse = null;
             return null;
         }
 
-        var id = local.InsideHouseId;
+        if (id <= 0)
+        {
+            _cachedInteriorHouse = null;
+            return null;
+        }
+
         var house = WorldZones.Houses.FirstOrDefault(h => h.Id == id);
         if (house != null)
             _cachedInteriorHouse = house;
         return house ?? _cachedInteriorHouse;
+    }
+
+    private void UpdateDoorTransition(float dt, PlayerEntity? local)
+    {
+        if (!_doorTransition.IsBusy) return;
+
+        var serverInside = local?.InsideHouseId ?? 0;
+        _doorTransition.Update(dt, serverInside, out var sendEnter, out var sendExit);
+
+        if (sendEnter && _doorTransition.PendingBuildingId > 0)
+            _screens.Net.SendHouseEnter(_doorTransition.PendingBuildingId);
+        if (sendExit)
+            _screens.Net.SendHouseExit();
+
+        if (local != null && _doorTransition.ShouldFreezeFeet(serverInside) && _doorTransition.FrozenFeet is { } feet)
+        {
+            local.Position = feet;
+            local.Target = feet;
+        }
+    }
+
+    private bool TryHouseDoorInteract(Vector2? worldPos = null)
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+        if (_doorTransition.IsBusy) return true;
+
+        var world = worldPos ?? _camera;
+
+        if (local.InsideHouseId > 0)
+        {
+            var house = InteriorHouse();
+            if (house == null) return false;
+            if (!HousingConstants.IsNearInteriorExit(local.Position, house.Center)) return false;
+            if (!_doorTransition.TryBeginExit(house.Id, local.Position)) return false;
+            _status = "Leaving homestead...";
+            return true;
+        }
+
+        var doorHouse = HousingConstants.FindDoorAt(WorldZones.Houses, world);
+        if (doorHouse == null) return false;
+        var doorPos = HousingConstants.DoorWorldPosition(doorHouse.Center);
+        if (HousingCollision.InDoorApproach(local.Position, doorHouse.Center))
+        {
+            // Standing in the doorway approach — allow enter without extra range check.
+        }
+        else if (Vector2.Distance(local.Position, doorPos) > Config.InteractRange)
+            return false;
+
+        if (!_doorTransition.TryBeginEnter(doorHouse.Id, local.Position)) return false;
+        _status = $"Entering {doorHouse.DisplayName(_screens.Net.LocalCharacterId)}...";
+        return true;
     }
 
     private void UpdateGhostMode(float dt, KeyboardState kb, MouseState mouse, bool windowActive)
@@ -1193,7 +1266,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var cursorKind = UiCursorKind.Normal;
         Rectangle? overlayRect = IsLocalDeadForUi() ? null : Hotbar.GetSlotBounds(_hotbar.SelectedIndex);
 
-        if (Hotbar.TryGetSlotIndexAt(mouse, out var hotbarIdx))
+        if (_housePlacing)
+        {
+            cursorKind = _housePlaceValid ? UiCursorKind.Hover : UiCursorKind.Blocked;
+            overlayRect = null;
+        }
+        else if (Hotbar.TryGetSlotIndexAt(mouse, out var hotbarIdx))
         {
             var entry = _hotbar.Slots[hotbarIdx].Entry;
             if (entry != null)
@@ -1578,37 +1656,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         slot.Flash = true;
         TryUseEntry(idx, slot.Entry);
-    }
-
-    private bool TryHouseDoorInteract(Vector2? worldPos = null)
-    {
-        var local = FindLocalPlayer();
-        if (local == null) return false;
-        var world = worldPos ?? _camera;
-
-        if (local.InsideHouseId > 0)
-        {
-            var house = InteriorHouse();
-            if (house == null) return false;
-            if (!HousingConstants.IsNearInteriorExit(local.Position, house.Center)) return false;
-            _screens.Net.SendHouseExit();
-            _status = "Leaving homestead...";
-            return true;
-        }
-
-        var doorHouse = HousingConstants.FindDoorAt(WorldZones.Houses, world);
-        if (doorHouse == null) return false;
-        var doorPos = HousingConstants.DoorWorldPosition(doorHouse.Center);
-        if (HousingCollision.InDoorApproach(local.Position, doorHouse.Center))
-        {
-            // Standing in the doorway approach — allow enter without extra range check.
-        }
-        else if (Vector2.Distance(local.Position, doorPos) > Config.InteractRange)
-            return false;
-
-        _screens.Net.SendHouseEnter(doorHouse.Id);
-        _status = $"Entering {doorHouse.DisplayName(_screens.Net.LocalCharacterId)}...";
-        return true;
     }
 
     private bool TryMeleeAttackInternal(Vector2 aimDir)
@@ -2596,7 +2643,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         var local = FindLocalPlayer();
         if (local == null || local.IsDead) return;
-        if (local.InsideHouseId > 0)
+        if (local.InsideHouseId > 0 || _doorTransition.VisualInsideOverride is > 0)
         {
             _status = "Exit the house before placing a homestead.";
             return;
@@ -2604,17 +2651,19 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _housingDecorate.Deactivate();
         _housePlacing = true;
-        _housePlacePos = local.Position;
-        _housePlaceValid = false;
-        _housePlaceReason = "";
-        _status = "Place homestead — green = ok. Walk freely. Left-click place, right-click/Esc cancel.";
+        _housePlaceAwaitRelease = true;
+        _housePlacePos = SnapHousePlacePos(local.Position);
+        _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, out _housePlaceReason);
+        _status = "Homestead placement — green plot = ok. Left-click to build, right-click/Esc cancel.";
     }
 
     private void CancelHousePlacement(string? status = null)
     {
         if (!_housePlacing) return;
         _housePlacing = false;
+        _housePlaceAwaitRelease = false;
         _housePlaceValid = false;
+        _housePlaceReason = "";
         _status = status ?? "House placement cancelled.";
     }
 
@@ -2633,12 +2682,20 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
+        if (_housePlaceAwaitRelease)
+        {
+            if (mouse.LeftButton == ButtonState.Released)
+                _housePlaceAwaitRelease = false;
+        }
+
         if (windowActive && DeathbornGame.Instance.IsMouseOverClient(mouse.Position))
-            _housePlacePos = ScreenToWorld(mouse.Position);
+            _housePlacePos = SnapHousePlacePos(ScreenToWorld(mouse.Position));
 
         _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, out _housePlaceReason);
 
-        if (inputBlocked || uiCapturesMouse || !windowActive) return;
+        // Movement stays free while placing; only clicks need a clear mouse.
+        if (uiCapturesMouse || !windowActive) return;
+        if (_screens.EscMenuOpen) return;
 
         if (mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released
             && !IsOverHotbar(mouse.Position))
@@ -2647,6 +2704,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
+        if (_housePlaceAwaitRelease) return;
+        if (inputBlocked) return;
         if (!DeathbornGame.Instance.IsWorldMouseClick(mouse, _prevMouse) || IsOverHotbar(mouse.Position))
             return;
 
@@ -2660,6 +2719,29 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         _screens.Net.SendBuildHouse(_housePlacePos.X, _housePlacePos.Y);
         CancelHousePlacement("Building homestead...");
+    }
+
+    private static Vector2 SnapHousePlacePos(Vector2 world)
+    {
+        var map = WorldMap.SwaroviaMainland;
+        if (map == null) return world;
+        var tile = map.TileSize;
+        return new Vector2(
+            MathF.Floor(world.X / tile) * tile + tile * 0.5f,
+            MathF.Floor(world.Y / tile) * tile + tile * 0.5f);
+    }
+
+    private void DrawHousePlacementHud(SpriteBatch sb, SpriteFont font)
+    {
+        var line = _housePlaceValid
+            ? "Homestead placement — green: click to build"
+            : (string.IsNullOrEmpty(_housePlaceReason)
+                ? "Homestead placement — red: cannot build here"
+                : $"Homestead placement — {_housePlaceReason}");
+        var size = font.MeasureString(line);
+        var pos = new Vector2((GameViewport.Width - size.X) * 0.5f, 18f);
+        var color = _housePlaceValid ? new Color(120, 220, 140) : new Color(240, 120, 110);
+        SpriteFontSafe.DrawOutlined(sb, font, line, pos, color, Color.Black);
     }
 
     private void TryDestroyHouse()
@@ -2731,8 +2813,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     p.InteriorCenter = s.InsideHouseId > 0
                         ? WorldZones.HouseById(s.InsideHouseId)?.Center ?? p.InteriorCenter
                         : null;
-                    p.Position = pos;
-                    p.Target = pos;
+                    // Hold feet at the door while the open SFX plays so the view does not pop early.
+                    if (p.IsLocal && _doorTransition.ShouldFreezeFeet(s.InsideHouseId)
+                        && _doorTransition.FrozenFeet is { } frozen)
+                    {
+                        p.Position = frozen;
+                        p.Target = frozen;
+                    }
+                    else
+                    {
+                        p.Position = pos;
+                        p.Target = pos;
+                    }
                     if (p.InputDir.LengthSquared() > 0.0001f)
                         p.MoveDir = PlayerEntity.CardinalFacing(p.InputDir);
                 }
@@ -2745,7 +2837,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                         p.Target = pos;
                     }
                     else if (!(p.IsLocal && p.IsDashing))
-                        p.SetTarget(pos);
+                    {
+                        if (p.IsLocal && _doorTransition.ShouldFreezeFeet(s.InsideHouseId)
+                            && _doorTransition.FrozenFeet is { } frozen)
+                        {
+                            p.Position = frozen;
+                            p.Target = frozen;
+                        }
+                        else
+                            p.SetTarget(pos);
+                    }
                     p.InsideHouseId = s.InsideHouseId;
                     if (s.InsideHouseId > 0)
                     {
