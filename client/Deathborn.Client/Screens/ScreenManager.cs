@@ -68,7 +68,7 @@ public sealed class ScreenManager
         DevPerfLog.Mark("screen");
         _current?.Update(gameTime);
         if (DevPerfLog.Enabled && _current is not null)
-            DevPerfLog.Note("screen", _current.GetType().Name.Replace("Screen", "", StringComparison.Ordinal));
+            DevPerfLog.Note("ui", _current.GetType().Name.Replace("Screen", "", StringComparison.Ordinal));
     }
 
     public void Draw(GameTime gameTime)

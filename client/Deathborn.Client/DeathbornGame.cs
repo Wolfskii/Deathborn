@@ -223,6 +223,7 @@ public sealed class DeathbornGame : Game
             ToggleFullscreen();
         }
 
+        DevPerfLog.Mark("audio");
         MusicPlayer.Update();
         SfxPlayer.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
         _prevKb = kb;

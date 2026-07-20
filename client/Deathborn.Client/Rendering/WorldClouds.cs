@@ -107,6 +107,8 @@ public static class WorldClouds
     private static readonly float[] VariantScaleMul = [1.08f, 1f, 0.78f, 1.04f];
 
     private static readonly List<CloudInstance> Instances = [];
+
+    public static int InstanceCount => Instances.Count;
     private static Texture2D? _texture;
     private static bool _initialized;
 

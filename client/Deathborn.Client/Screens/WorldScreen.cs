@@ -372,9 +372,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _notifications.Update(dt);
         WaterTiles.Update(dt);
         WorldFoliage.Update(dt);
+        DevPerfLog.Mark("clouds");
         WorldClouds.Update(dt, WorldMap.SwaroviaMainland);
+        DevPerfLog.Mark("zone");
         UpdateZonePresence(localEntity);
 
+        DevPerfLog.Mark("hud");
         var decorateActive = _housingDecorate.IsActive;
         var fishingActive = _fishing.IsActive;
         var blockGameplay = inputBlocked || decorateActive || fishingActive;
@@ -388,6 +391,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (fishingActive)
             _fishing.Update(dt, kb, _prevKb, mouse, _prevMouse);
 
+        DevPerfLog.Mark("move");
         _moveDir = blockGameplay ? Vector2.Zero : ReadMoveDir(kb);
         var wantsRun = kb.IsKeyDown(Keys.LeftShift) || kb.IsKeyDown(Keys.RightShift);
         if (localEntity is { IsDead: false })
@@ -479,6 +483,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         UpdateInteriorFade(dt, localEntity);
 
+        DevPerfLog.Mark("look");
         if (!blockGameplay && windowActive && !uiCapturesMouse && !_dragDrop.IsDragging)
         {
             UpdateInteractFocus(mouse.Position);
@@ -546,11 +551,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (DevPerfLog.Enabled)
         {
-            DevPerfLog.Note("screen", "World");
             DevPerfLog.Note("players", _players.Count);
             DevPerfLog.Note("npcs", _npcs.Count);
             DevPerfLog.Note("fx", _effects.Count);
             DevPerfLog.Note("houses", _houses.Count);
+            DevPerfLog.Note("cloudsN", WorldClouds.InstanceCount);
             DevPerfLog.NoteFlag("interior", InteriorHouse() != null);
             DevPerfLog.NoteFlag("esc", menuOpen);
         }
