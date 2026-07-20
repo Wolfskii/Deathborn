@@ -295,7 +295,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         var kb = Keyboard.GetState();
         var mouse = Mouse.GetState();
-        var windowActive = DeathbornGame.Instance.HasGameplayInputFocus;
+        // Keyboard / HUD toggles: MonoGame IsActive is enough.
+        // Mouse world clicks use HasGameplayInputFocus + cursor-over checks separately
+        // (Win32 foreground can disagree with SDL's HWND and would break F12 if used here).
+        var windowActive = DeathbornGame.Instance.IsActive;
 
         if (!windowActive)
         {

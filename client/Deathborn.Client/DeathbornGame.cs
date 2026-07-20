@@ -112,8 +112,9 @@ public sealed class DeathbornGame : Game
         && clientPosition.X < GameViewport.Width && clientPosition.Y < GameViewport.Height;
 
     /// <summary>
-    /// True when this process should accept gameplay keyboard/mouse
-    /// (MonoGame active + Win32 foreground when available).
+    /// True when this process should accept gameplay mouse clicks in the world.
+    /// Stronger than <see cref="Game.IsActive"/> alone — requires Win32 foreground + cursor over client.
+    /// Do not use this to gate keyboard (F12 etc.); SDL HWND vs foreground can disagree.
     /// </summary>
     public bool HasGameplayInputFocus =>
         IsActive && WindowInputFocus.IsForeground(Window);
