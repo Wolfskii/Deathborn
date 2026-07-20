@@ -69,6 +69,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private MouseState _prevMouse;
     private bool _wasWindowActive = true;
     private bool _wasUnderBush;
+    private bool _wasMovingUnderBush;
     private float _bushRustleCooldown;
     private bool _debugHudVisible;
     private bool _localWasRunning;
@@ -538,19 +539,33 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         _bushRustleCooldown = MathF.Max(0f, _bushRustleCooldown - dt);
         var underBush = WorldFoliage.IsEntityUnderBush(local.Position);
+        var moving = local.IsMoving;
 
         if (underBush && !_wasUnderBush)
         {
-            SfxPlayer.PlayBushRustle();
-            _bushRustleCooldown = 0.4f;
+            if (moving)
+            {
+                SfxPlayer.PlayBushRustle();
+                _bushRustleCooldown = local.IsRunning ? 0.42f : 0.58f;
+            }
+            else
+            {
+                SfxPlayer.PlayBushRustle(0.5f, GameSfx.BushRustleEnterMaxDuration);
+                _bushRustleCooldown = 0.4f;
+            }
         }
-        else if (underBush && local.IsMoving && _bushRustleCooldown <= 0f)
+        else if (underBush && moving && _bushRustleCooldown <= 0f)
         {
             SfxPlayer.PlayBushRustle();
             _bushRustleCooldown = local.IsRunning ? 0.42f : 0.58f;
         }
+        else if (underBush && !moving && _wasMovingUnderBush)
+            SfxPlayer.StopBushRustle();
+        else if (!underBush && _wasUnderBush)
+            SfxPlayer.StopBushRustle();
 
         _wasUnderBush = underBush;
+        _wasMovingUnderBush = underBush && moving;
     }
 
     public void Draw(GameTime gameTime)
@@ -934,6 +949,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _ghostMode = true;
         _ghostModePending = false;
         _wasUnderBush = false;
+        _wasMovingUnderBush = false;
         _deathPrompt = true;
         _ghost = new GhostEntity
         {

@@ -67,13 +67,112 @@ internal static class OcclusionSimplifier
         };
     }
 
-    public static Result ChooseForBush(int width, int height, byte[] alpha, int minX, int maxX, int minY, int maxY, int opaqueCount) =>
-        ChooseCentroidEllipse(width, height, alpha, minX, maxX, minY, maxY, opaqueCount);
+    public static Result ChooseForBush(int width, int height, byte[] alpha, int minX, int maxX, int minY, int maxY, int opaqueCount)
+    {
+        var fitted = ChooseCentroidEllipse(width, height, alpha, minX, maxX, minY, maxY, opaqueCount);
+        if (opaqueCount <= 0 || maxX < minX)
+            return fitted;
 
-    public static Result ChooseForCloud(int width, int height, byte[] alpha, int minX, int maxX, int minY, int maxY, int opaqueCount) =>
-        ChooseCentroidEllipse(width, height, alpha, minX, maxX, minY, maxY, opaqueCount);
+        return new Result
+        {
+            Shape = OcclusionColliderShape.Ellipse,
+            CenterLocalX = fitted.CenterLocalX,
+            CenterLocalY = fitted.CenterLocalY,
+            RadiusX = MathF.Max(0.5f, fitted.RadiusX * 0.88f),
+            RadiusY = MathF.Max(0.5f, fitted.RadiusY * 0.88f),
+            BackgroundPixels = fitted.BackgroundPixels,
+            FillRatio = fitted.FillRatio,
+        };
+    }
 
-    /// <summary>General-purpose picker (trees etc.) — may choose rect when it wins on bg pixels.</summary>
+    /// <summary>
+    /// Tree leaf canopy (stem cropped, local Y=0 at canopy base) — tight AABB ellipse,
+    /// clamped so it does not spill into the trunk/roots.
+    /// </summary>
+    public static Result ChooseForTree(int width, int height, byte[] alpha, int minX, int maxX, int minY, int maxY, int opaqueCount)
+    {
+        if (opaqueCount <= 0 || maxX < minX)
+        {
+            return new Result
+            {
+                Shape = OcclusionColliderShape.Ellipse,
+                BackgroundPixels = 0,
+                FillRatio = 1f,
+            };
+        }
+
+        var cx = (minX + maxX + 1) * 0.5f;
+        var cy = (minY + maxY + 1) * 0.5f;
+        // Slightly inside opaque AABB so the debug outline hugs the leaves.
+        var rx = MathF.Max(0.5f, (maxX - minX + 1) * 0.5f * 0.86f);
+        var ry = MathF.Max(0.5f, (maxY - minY + 1) * 0.5f * 0.88f);
+
+        // Keep the ellipse bottom at/above canopy base (local Y=0 = top of stem collider).
+        var bottom = cy - ry;
+        if (bottom < 0f)
+        {
+            cy -= bottom;
+            var top = cy + ry;
+            var maxTop = maxY + 1f;
+            if (top > maxTop)
+                ry = MathF.Max(0.5f, maxTop - cy);
+        }
+
+        var ellipse = CountEllipse(width, height, alpha, cx, cy, rx, ry);
+        return new Result
+        {
+            Shape = OcclusionColliderShape.Ellipse,
+            CenterLocalX = cx,
+            CenterLocalY = cy,
+            RadiusX = rx,
+            RadiusY = ry,
+            BackgroundPixels = ellipse.Background,
+            FillRatio = ellipse.Opaque / (float)Math.Max(1, ellipse.Area),
+        };
+    }
+
+    /// <summary>Overhead clouds — shorter ellipse, center biased toward the visible puff base.</summary>
+    public static Result ChooseForCloud(int width, int height, byte[] alpha, int minX, int maxX, int minY, int maxY, int opaqueCount)
+    {
+        var fitted = ChooseCentroidEllipse(width, height, alpha, minX, maxX, minY, maxY, opaqueCount);
+        if (opaqueCount <= 0 || maxX < minX)
+            return fitted;
+
+        var bodyH = maxY - minY + 1;
+        var heightScale = bodyH >= 18 ? 0.70f : bodyH >= 14 ? 0.80f : 0.92f;
+        var sizeScale = bodyH >= 14 ? 0.92f : 1f;
+        var cx = fitted.CenterLocalX;
+        // Shorten from the top, then nudge large puffs a few px upward.
+        var cy = fitted.CenterLocalY - fitted.RadiusY * (1f - heightScale) * 0.55f;
+        if (bodyH >= 14)
+            cy += bodyH >= 18 ? 3.5f : 2.25f;
+        var rx = MathF.Max(0.5f, fitted.RadiusX * sizeScale);
+        var ry = MathF.Max(0.5f, fitted.RadiusY * heightScale * sizeScale);
+
+        // Only re-grow smaller puffs; big clouds stay intentionally tight.
+        if (bodyH < 14)
+        {
+            for (var i = 0; i < 48 && CountEllipse(width, height, alpha, cx, cy, rx, ry).MissedOpaque > 0; i++)
+            {
+                rx += 0.2f;
+                ry += 0.12f;
+            }
+        }
+
+        var ellipse = CountEllipse(width, height, alpha, cx, cy, rx, ry);
+        return new Result
+        {
+            Shape = OcclusionColliderShape.Ellipse,
+            CenterLocalX = cx,
+            CenterLocalY = cy,
+            RadiusX = rx,
+            RadiusY = ry,
+            BackgroundPixels = ellipse.Background,
+            FillRatio = ellipse.Opaque / (float)Math.Max(1, ellipse.Area),
+        };
+    }
+
+    /// <summary>General-purpose picker — may choose rect when it wins on bg pixels.</summary>
     public static Result Choose(int width, int height, byte[] alpha, int minX, int maxX, int minY, int maxY, int opaqueCount)
     {
         if (opaqueCount <= 0 || maxX < minX)

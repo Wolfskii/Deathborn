@@ -109,8 +109,39 @@ public static class SfxPlayer
     public static void PlayHolySpell() =>
         Play(GameSfx.HolySpell, 0.88f, HolyPitches, HolyVolumes);
 
-    public static void PlayBushRustle() =>
-        Play(GameSfx.BushRustle, 0.82f, BushRustlePitches, BushRustleVolumes, GameSfx.BushRustleMaxDuration);
+    public static void PlayBushRustle(float volumeScale = 1f, float? maxDuration = null) =>
+        Play(
+            GameSfx.BushRustle,
+            0.82f * volumeScale,
+            BushRustlePitches,
+            BushRustleVolumes,
+            maxDuration ?? GameSfx.BushRustleMaxDuration);
+
+    public static void StopBushRustle() => Stop(GameSfx.BushRustle);
+
+    public static void Stop(string path)
+    {
+        if (!Cache.TryGetValue(path, out var sound))
+            return;
+
+        foreach (var instance in sound.Pool)
+        {
+            if (instance.State == SoundState.Playing)
+                instance.Stop();
+        }
+
+        for (var i = TimedStops.Count - 1; i >= 0; i--)
+        {
+            var stopped = TimedStops[i].Instance;
+            foreach (var poolInst in sound.Pool)
+            {
+                if (!ReferenceEquals(stopped, poolInst))
+                    continue;
+                TimedStops.RemoveAt(i);
+                break;
+            }
+        }
+    }
 
     // ~±2 semitones in MonoGame pitch units (multiplier = 2^pitch).
     private static readonly float[] SwordSwingPitches = [-0.28f, -0.14f, 0f, 0.14f, 0.28f];

@@ -15,6 +15,8 @@ internal static class OcclusionMaskCache
         public required int Height { get; init; }
         /// <summary>Unscaled px from sprite bottom-center to mask bottom-left.</summary>
         public required float OriginX { get; init; }
+        /// <summary>Unscaled px from sprite feet up to mask local Y=0 (e.g. tree stem height).</summary>
+        public float OriginY { get; init; }
         public required byte[] Alpha { get; init; }
         public int MinLocalX { get; init; }
         public int MaxLocalX { get; init; }
@@ -37,15 +39,15 @@ internal static class OcclusionMaskCache
         {
             left = anchor.X + (MinLocalX - OriginX) * scale;
             right = anchor.X + (MaxLocalX + 1 - OriginX) * scale;
-            bottom = anchor.Y - MinLocalY * scale;
-            top = anchor.Y - (MaxLocalY + 1) * scale;
+            bottom = anchor.Y - (OriginY + MinLocalY) * scale;
+            top = anchor.Y - (OriginY + MaxLocalY + 1) * scale;
         }
 
         public void GetWorldEllipse(Vector2 anchor, float scale, out Vector2 center, out float radiusX, out float radiusY)
         {
             center = new Vector2(
                 anchor.X + (EllipseCenterLocalX - OriginX) * scale,
-                anchor.Y - EllipseCenterLocalY * scale);
+                anchor.Y - (OriginY + EllipseCenterLocalY) * scale);
             radiusX = EllipseRadiusX * scale;
             radiusY = EllipseRadiusY * scale;
         }
@@ -72,11 +74,11 @@ internal static class OcclusionMaskCache
         if (bush3 != null)
             Masks[2] = ExtractRect(bush3, new Rectangle(0, 0, 48, 32), OcclusionSimplifyMode.BushEllipse);
         if (pine != null)
-            Masks[3] = ExtractCanopy(pine, new Rectangle(64, 0, 32, 48), stemRows: 11);
+            Masks[3] = ExtractCanopy(pine, new Rectangle(64, 0, 32, 48), stemRows: 11, OcclusionSimplifyMode.TreeEllipse);
         if (maple != null)
         {
-            Masks[4] = ExtractCanopy(maple, new Rectangle(0, 48, 32, 48), stemRows: 11);
-            Masks[5] = ExtractCanopy(maple, new Rectangle(64, 48, 32, 48), stemRows: 11);
+            Masks[4] = ExtractCanopy(maple, new Rectangle(0, 48, 32, 48), stemRows: 11, OcclusionSimplifyMode.TreeEllipse);
+            Masks[5] = ExtractCanopy(maple, new Rectangle(64, 48, 32, 48), stemRows: 11, OcclusionSimplifyMode.TreeEllipse);
         }
     }
 
@@ -139,7 +141,7 @@ internal static class OcclusionMaskCache
     {
         scale = MathF.Max(0.01f, scale);
         var localX = (center.X - anchor.X) / scale + mask.OriginX;
-        var localY = (anchor.Y - center.Y) / scale;
+        var localY = (anchor.Y - center.Y) / scale - mask.OriginY;
         var erx = rx / scale;
         var ery = ry / scale;
 
@@ -209,7 +211,7 @@ internal static class OcclusionMaskCache
         for (var i = 0; i < mask.EdgeX.Length; i++)
         {
             var worldX = anchor.X + (mask.EdgeX[i] - mask.OriginX + 0.5f) * scale;
-            var worldY = anchor.Y - (mask.EdgeY[i] + 0.5f) * scale;
+            var worldY = anchor.Y - (mask.OriginY + mask.EdgeY[i] + 0.5f) * scale;
             var sx = (worldX - camera.X) * zoom + screenCenter.X;
             var sy = (worldY - camera.Y) * zoom + screenCenter.Y;
             DrawPrimitives.FillRect(
@@ -231,11 +233,28 @@ internal static class OcclusionMaskCache
         return BuildMask(src.Width, src.Height, src.Width * 0.5f, alpha, simplify);
     }
 
-    private static Mask ExtractCanopy(Texture2D tex, Rectangle spriteRect, int stemRows)
+    private static Mask ExtractCanopy(
+        Texture2D tex,
+        Rectangle spriteRect,
+        int stemRows,
+        OcclusionSimplifyMode simplify = OcclusionSimplifyMode.None)
     {
         var canopyH = Math.Max(1, spriteRect.Height - stemRows);
         var src = new Rectangle(spriteRect.X, spriteRect.Y, spriteRect.Width, canopyH);
-        return ExtractRect(tex, src);
+        var pixels = new Color[src.Width * src.Height];
+        tex.GetData(0, src, pixels, 0, pixels.Length);
+
+        var w = src.Width;
+        var h = src.Height;
+        var alpha = new byte[w * h];
+        // Local Y=0 at canopy base (top of stem); higher Y toward leaf tips.
+        for (var y = 0; y < h; y++)
+        {
+            for (var x = 0; x < w; x++)
+                alpha[(h - 1 - y) * w + x] = pixels[y * w + x].A;
+        }
+
+        return BuildMask(w, h, w * 0.5f, alpha, simplify, originY: stemRows);
     }
 
     /// <summary>Cloud body pixels with local Y=0 at the body bottom (matches draw anchor).</summary>
@@ -259,10 +278,17 @@ internal static class OcclusionMaskCache
     {
         None,
         BushEllipse,
+        TreeEllipse,
         CloudEllipse,
     }
 
-    private static Mask BuildMask(int width, int height, float originX, byte[] alpha, OcclusionSimplifyMode simplify = OcclusionSimplifyMode.None)
+    private static Mask BuildMask(
+        int width,
+        int height,
+        float originX,
+        byte[] alpha,
+        OcclusionSimplifyMode simplify = OcclusionSimplifyMode.None,
+        float originY = 0f)
     {
         var minX = width;
         var maxX = -1;
@@ -302,6 +328,8 @@ internal static class OcclusionMaskCache
             {
                 OcclusionSimplifyMode.CloudEllipse => OcclusionSimplifier.ChooseForCloud(
                     width, height, alpha, minX, maxX, minY, maxY, opaqueCount),
+                OcclusionSimplifyMode.TreeEllipse => OcclusionSimplifier.ChooseForTree(
+                    width, height, alpha, minX, maxX, minY, maxY, opaqueCount),
                 _ => OcclusionSimplifier.ChooseForBush(
                     width, height, alpha, minX, maxX, minY, maxY, opaqueCount),
             };
@@ -323,6 +351,7 @@ internal static class OcclusionMaskCache
             Width = width,
             Height = height,
             OriginX = originX,
+            OriginY = originY,
             Alpha = alpha,
             MinLocalX = minX,
             MaxLocalX = maxX,

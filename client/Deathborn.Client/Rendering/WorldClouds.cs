@@ -299,7 +299,7 @@ public static class WorldClouds
         OcclusionZone.EntityEllipseOverlaps(
             part,
             feet,
-            part.OcclusionAnchor.Y,
+            OcclusionZone.NoDepthLimit,
             PlayerEntity.CollisionRadiusX,
             PlayerEntity.CollisionRadiusY);
 

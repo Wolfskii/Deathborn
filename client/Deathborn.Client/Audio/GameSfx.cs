@@ -16,4 +16,6 @@ public static class GameSfx
     public const float HealMaxDuration = 2f;
     public const float IceShardMaxDuration = 3f;
     public const float BushRustleMaxDuration = 1.4f;
+    /// <summary>Step-in without walking — shorter tail so it does not linger.</summary>
+    public const float BushRustleEnterMaxDuration = 0.55f;
 }

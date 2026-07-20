@@ -32,6 +32,8 @@ public interface IOcclusionHost
 public static class OcclusionZone
 {
     public const byte NoMaskId = 255;
+    /// <summary>Skip foliage-style depth gate (overhead clouds).</summary>
+    public const float NoDepthLimit = float.PositiveInfinity;
 
     public static bool TryGetWorldBounds(
         IOcclusionHost host,
@@ -69,7 +71,7 @@ public static class OcclusionZone
         float ry)
     {
         var center = PlayerEntity.CollisionCenter(feet);
-        if (center.Y >= depthBottomY)
+        if (!float.IsPositiveInfinity(depthBottomY) && center.Y >= depthBottomY)
             return false;
 
         if (host.OcclusionOverride.IsSet)
