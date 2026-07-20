@@ -90,6 +90,19 @@ Hostile slimes use Farm RPG enemy art (`Content/Characters/FarmRpg/Enemies/slime
 - **Client:** `Rendering/FarmRpgSlimeSprites.cs`; size drives display scale / hit metrics
 - **Server:** `forest_slime` spawns roll a random color×size variant (HP/radius/damage scale with size)
 
+### Farm RPG player house
+
+Homestead exterior uses the **2nd bottom** Tiny House example (orange cottage) plus a wooden fence yard.
+
+- **House install:** `python scripts/install_farm_rpg_tiny_house.py`
+- **Fence install:** `python scripts/install_farm_rpg_fence.py`
+- **Interior tiles:** `python scripts/install_farm_rpg_house_tileset.py`
+- **Runtime:** `tiny_house_orange.png`, `fence_wood.png`, `tileset_house.png`
+- **Client:** `FarmRpgHouseSprites`, `FarmRpgFenceSprites`, `FarmRpgHouseInteriorTiles`, `HousingCollision`
+- **Enter:** click door when in range, or walk north into the south/right doorway
+- **Collision:** cottage body blocks movement except door approach; interior has three connected rooms with wall colliders
+- **Safe haven:** house plot bounds disable PvP; monsters cannot enter the plot
+
 ---
 
 ## Farm RPG terrain (elevated land & water)

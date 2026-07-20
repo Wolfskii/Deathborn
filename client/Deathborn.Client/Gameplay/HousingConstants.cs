@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
@@ -12,9 +13,9 @@ public static class HousingConstants
     public const float HouseHalfW = 52f * Hs;
     public const float HouseHalfH = 44f * Hs;
 
-    /// <summary>Instanced interior room (larger than exterior shell).</summary>
-    public const float InteriorHalfW = 140f * Hs;
-    public const float InteriorHalfH = 105f * Hs;
+    /// <summary>Instanced interior — three connected rooms (bedroom | hall | kitchen).</summary>
+    public const float InteriorHalfW = 210f * Hs;
+    public const float InteriorHalfH = 125f * Hs;
 
     public static readonly Vector2[] GardenCropOffsets =
     [
@@ -33,9 +34,12 @@ public static class HousingConstants
         world.X >= center.X - InteriorHalfW && world.X <= center.X + InteriorHalfW
         && world.Y >= center.Y - InteriorHalfH && world.Y <= center.Y + InteriorHalfH - 8 * Hs;
 
-    /// <summary>Exterior door on the homestead building.</summary>
-    public static Vector2 DoorWorldPosition(Vector2 center) =>
-        new(center.X, center.Y + HouseHalfH - 34 * Hs);
+    /// <summary>Exterior door on the homestead building (right-side door on Farm RPG cottage).</summary>
+    public static Vector2 DoorWorldPosition(Vector2 center)
+    {
+        var door = FarmRpgHouseSprites.DoorOffsetFromFoot() * FarmRpgHouseSprites.DisplayScale;
+        return center + door;
+    }
 
     /// <summary>Exit door inside the instanced room.</summary>
     public static Vector2 InteriorDoorWorldPosition(Vector2 center) =>
@@ -60,7 +64,7 @@ public static class HousingConstants
     }
 
     public static Vector2 ResolveInteriorMove(Vector2 feet, Vector2 delta, Vector2 center) =>
-        ClampToInterior(feet + delta, center);
+        HousingCollision.ResolveInteriorMove(feet, delta, center);
 
     public static bool IsNearDoor(Vector2 world, Vector2 center) =>
         Vector2.Distance(world, DoorWorldPosition(center)) <= DoorInteractRadius;
@@ -80,7 +84,8 @@ public static class HousingConstants
         {
             var door = DoorWorldPosition(house.Center);
             var d = Vector2.DistanceSquared(world, door);
-            if (d > DoorInteractRadius * DoorInteractRadius) continue;
+            var inApproach = HousingCollision.InDoorApproach(world, house.Center);
+            if (d > DoorInteractRadius * DoorInteractRadius && !inApproach) continue;
             if (d < bestDist)
             {
                 bestDist = d;

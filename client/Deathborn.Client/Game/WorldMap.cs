@@ -371,7 +371,11 @@ public sealed class WorldMap
             }
         }
 
-        return WorldFoliage.ResolveMoveBlock(feet, new Vector2(x, y), entityRadius);
+        return HousingCollision.ResolveMove(
+            feet,
+            WorldFoliage.ResolveMoveBlock(feet, new Vector2(x, y), entityRadius),
+            entityRadius,
+            WorldZones.Houses);
     }
 
     private void TryAxisSlide(

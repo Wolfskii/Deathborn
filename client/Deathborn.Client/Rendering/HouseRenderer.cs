@@ -4,12 +4,9 @@ using Deathborn.Client.Gameplay;
 
 namespace Deathborn.Client.Rendering;
 
-/// <summary>Draws player homestead plots, gardens, houses, and interior furniture.</summary>
+/// <summary>Draws player homestead houses and interior furniture.</summary>
 public static class HouseRenderer
 {
-    private static readonly Color Fence = new(0.42f, 0.32f, 0.22f);
-    private static readonly Color GardenSoil = new(0.38f, 0.28f, 0.16f);
-    private static readonly Color GardenCrop = new(0.28f, 0.52f, 0.24f);
     private static readonly Color Plaster = new(0.88f, 0.82f, 0.72f);
     private static readonly Color PlasterDark = new(0.72f, 0.66f, 0.58f);
     private static readonly Color Roof = new(0.55f, 0.28f, 0.22f);
@@ -25,7 +22,7 @@ public static class HouseRenderer
     {
         foreach (var house in houses)
         {
-            DrawPlot(sb, house, camera, screenCenter, zoom);
+            FarmRpgFenceSprites.DrawPlot(sb, house.Center, camera, screenCenter, zoom);
             DrawHouseStructure(sb, house.Center, camera, screenCenter, zoom);
             foreach (var item in house.Furniture)
                 DrawFurniture(sb, item, camera, screenCenter, zoom);
@@ -78,41 +75,68 @@ public static class HouseRenderer
         }
     }
 
-    private static void DrawPlot(
-        SpriteBatch sb, HousePlotZone house,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+    /// <summary>RTS-style translucent cottage ghost under the cursor (green = valid, red = invalid).</summary>
+    public static void DrawPlacementGhost(
+        SpriteBatch sb,
+        Vector2 worldCenter,
+        Vector2 camera,
+        Vector2 screenCenter,
+        float zoom,
+        bool canPlace)
     {
-        var c = house.Center;
-        var hw = HousingConstants.PlotHalfW;
-        var hh = HousingConstants.PlotHalfH;
-        var tl = WorldToScreen(c + new Vector2(-hw, -hh), camera, screenCenter, zoom);
-        var br = WorldToScreen(c + new Vector2(hw, hh), camera, screenCenter, zoom);
-        var plot = new Rectangle((int)tl.X, (int)tl.Y, (int)(br.X - tl.X), (int)(br.Y - tl.Y));
+        var tint = canPlace
+            ? new Color(0.35f, 1f, 0.45f, 0.55f)
+            : new Color(1f, 0.28f, 0.28f, 0.55f);
+        var outline = canPlace
+            ? new Color(0.2f, 0.85f, 0.35f, 0.9f)
+            : new Color(1f, 0.2f, 0.2f, 0.9f);
 
-        DrawPrimitives.FillRect(sb, plot, new Color(0.22f, 0.38f, 0.2f, 0.35f));
-        DrawBorder(sb, plot, Fence, Math.Max(1, (int)(2 * zoom)));
-
-        foreach (var offset in HousingConstants.GardenCropOffsets)
+        var screen = WorldToScreen(worldCenter, camera, screenCenter, zoom);
+        var tex = FarmRpgHouseSprites.OrangeCottage;
+        if (tex != null)
         {
-            var world = c + offset;
-            var screen = WorldToScreen(world, camera, screenCenter, zoom);
-            var w = 28f * zoom;
-            var h = 16f * zoom;
-            var soil = new Rectangle((int)(screen.X - w / 2), (int)(screen.Y - h / 2), (int)w, (int)h);
-            DrawPrimitives.FillRect(sb, soil, GardenSoil);
-            DrawPrimitives.FillRect(sb,
-                new Rectangle(soil.X + 2, soil.Y + 2, soil.Width - 4, (int)(h * 0.45f)),
-                GardenCrop);
+            var scale = FarmRpgHouseSprites.DisplayScale * zoom;
+            var origin = FarmRpgHouseSprites.FootAnchor();
+            sb.Draw(tex, screen, null, tint, 0f, origin, scale, SpriteEffects.None, 0f);
+
+            var w = tex.Width * scale;
+            var h = tex.Height * scale;
+            var rect = new Rectangle(
+                (int)(screen.X - origin.X * scale),
+                (int)(screen.Y - origin.Y * scale),
+                (int)MathF.Ceiling(w),
+                (int)MathF.Ceiling(h));
+            DrawPrimitives.DrawRectOutline(sb, rect, outline, Math.Max(2f, 2.5f * zoom));
+            return;
         }
+
+        HousingCollision.BodyBounds(worldCenter, out var left, out var right, out var top, out var bottom);
+        var tl = WorldToScreen(new Vector2(left, top), camera, screenCenter, zoom);
+        var br = WorldToScreen(new Vector2(right, bottom), camera, screenCenter, zoom);
+        var fallback = new Rectangle(
+            (int)tl.X, (int)tl.Y,
+            Math.Max(1, (int)(br.X - tl.X)),
+            Math.Max(1, (int)(br.Y - tl.Y)));
+        DrawPrimitives.FillRect(sb, fallback, tint);
+        DrawPrimitives.DrawRectOutline(sb, fallback, outline, Math.Max(2f, 2.5f * zoom));
     }
 
     private static void DrawHouseStructure(
         SpriteBatch sb, Vector2 world,
         Vector2 camera, Vector2 screenCenter, float zoom)
     {
+        var screen = WorldToScreen(world, camera, screenCenter, zoom);
+        var tex = FarmRpgHouseSprites.OrangeCottage;
+        if (tex != null)
+        {
+            var scale = FarmRpgHouseSprites.DisplayScale * zoom;
+            sb.Draw(tex, screen, null, Color.White, 0f, FarmRpgHouseSprites.FootAnchor(), scale, SpriteEffects.None, 0f);
+            return;
+        }
+
+        // Procedural fallback if Farm RPG cottage content is missing.
         var w = HousingConstants.HouseHalfW * 2f;
         var h = HousingConstants.HouseHalfH * 2f;
-        var screen = WorldToScreen(world, camera, screenCenter, zoom);
         var body = new Rectangle(
             (int)(screen.X - w * 0.5f * zoom),
             (int)(screen.Y - h * 0.35f * zoom),

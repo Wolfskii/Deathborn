@@ -27,6 +27,8 @@ public sealed class ScreenManager
 
     public void SetBuildHouseHandler(Action? handler) => _escMenu.OnBuildHouse = handler;
 
+    public void SetDestroyHouseHandler(Action? handler) => _escMenu.OnDestroyHouse = handler;
+
     public void SetLogoutHandler(Action? handler) => _escMenu.OnLogout = handler;
 
     public void SetNewLifeHandler(Action? handler) => _escMenu.OnNewLife = handler;
@@ -34,6 +36,8 @@ public sealed class ScreenManager
     public void SetDeathMenuMode(bool enabled) => _escMenu.SetDeathMenuMode(enabled);
 
     public void SetBuildHouseEnabled(bool enabled) => _escMenu.SetBuildHouseEnabled(enabled);
+
+    public void SetDestroyHouseEnabled(bool enabled) => _escMenu.SetDestroyHouseEnabled(enabled);
 
     public void Change(IScreen screen)
     {

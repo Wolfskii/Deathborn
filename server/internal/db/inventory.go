@@ -78,6 +78,26 @@ func (d *DB) GrantHouseKey(ctx context.Context, characterID, houseID int64) ([]I
 	return items, nil
 }
 
+// RevokeHouseKey removes homestead keys for the given house from a character's inventory.
+func (d *DB) RevokeHouseKey(ctx context.Context, characterID, houseID int64) ([]InventoryItem, error) {
+	items, err := d.GetCharacterInventory(ctx, characterID)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]InventoryItem, 0, len(items))
+	for _, it := range items {
+		if it.ItemID == ItemHouseKey && (houseID <= 0 || it.HouseID == houseID) {
+			continue
+		}
+		filtered = append(filtered, it)
+	}
+	filtered = normalizeInventorySlots(filtered)
+	if err := d.SaveCharacterInventory(ctx, characterID, filtered); err != nil {
+		return nil, err
+	}
+	return filtered, nil
+}
+
 // StarterInventory matches the client default loadout.
 func StarterInventory() []InventoryItem {
 	return normalizeInventorySlots([]InventoryItem{

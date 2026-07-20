@@ -312,6 +312,12 @@ public sealed class GameClient : IDisposable
         Send("build_house", x.HasValue || y.HasValue ? new { x, y } : new { });
     }
 
+    public void SendDestroyHouse()
+    {
+        if (LocalCharacterId < 0) return;
+        Send("destroy_house", new { });
+    }
+
     public void SendPlaceFurniture(string type, float x, float y)
     {
         if (LocalCharacterId < 0 || string.IsNullOrEmpty(type)) return;

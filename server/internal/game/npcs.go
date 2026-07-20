@@ -67,26 +67,28 @@ type mobSpawnPoint struct {
 }
 
 func (w *World) mobSpawnPoints() []mobSpawnPoint {
+	// Tile coords relative to current Swarovia mainland (spawn ≈ 363,184).
+	// Old 100–220 range was unwalkable water after the map retile.
 	return []mobSpawnPoint{
-		{defID: "forest_skeleton", tx: 130, ty: 210},
-		{defID: "forest_skeleton", tx: 165, ty: 175},
+		{defID: "forest_skeleton", tx: 363, ty: 114},
+		{defID: "forest_skeleton", tx: 387, ty: 119},
 		// Farm RPG slimes — color/size rolled at spawn
-		{defID: "forest_slime", tx: 95, ty: 195},
-		{defID: "forest_slime", tx: 200, ty: 230},
-		{defID: "forest_slime", tx: 118, ty: 240},
-		{defID: "forest_slime", tx: 155, ty: 195},
-		{defID: "forest_slime", tx: 210, ty: 190},
-		{defID: "forest_slime", tx: 88, ty: 220},
-		{defID: "forest_slime", tx: 175, ty: 255},
-		{defID: "forest_slime", tx: 140, ty: 165},
-		{defID: "forest_orc", tx: 145, ty: 250},
-		{defID: "forest_orc", tx: 220, ty: 160},
-		{defID: "wild_bat", tx: 110, ty: 165},
-		{defID: "wild_bat", tx: 185, ty: 205},
-		{defID: "town_guard", tx: 178, ty: 118},
-		{defID: "town_guard", tx: 192, ty: 122},
-		{defID: "town_priest", tx: 185, ty: 108},
-		{defID: "town_wizard", tx: 172, ty: 112},
+		{defID: "forest_slime", tx: 347, ty: 116},
+		{defID: "forest_slime", tx: 375, ty: 116},
+		{defID: "forest_slime", tx: 356, ty: 124},
+		{defID: "forest_slime", tx: 398, ty: 124},
+		{defID: "forest_slime", tx: 368, ty: 126},
+		{defID: "forest_slime", tx: 380, ty: 129},
+		{defID: "forest_slime", tx: 349, ty: 134},
+		{defID: "forest_slime", tx: 391, ty: 134},
+		{defID: "forest_orc", tx: 333, ty: 125},
+		{defID: "forest_orc", tx: 408, ty: 131},
+		{defID: "wild_bat", tx: 321, ty: 128},
+		{defID: "wild_bat", tx: 361, ty: 136},
+		{defID: "town_guard", tx: 354, ty: 176},
+		{defID: "town_guard", tx: 371, ty: 187},
+		{defID: "town_priest", tx: 366, ty: 176},
+		{defID: "town_wizard", tx: 359, ty: 187},
 	}
 }
 

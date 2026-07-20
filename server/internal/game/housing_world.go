@@ -66,8 +66,73 @@ func (w *World) RemoveHouseByCharacter(characterID int64) (HouseState, bool) {
 	if p == nil {
 		return HouseState{}, false
 	}
+	w.ejectPlayersFromHouse(p)
 	w.houseRev++
 	return p.state(), true
+}
+
+// DestroyPlayerHouse removes the character's homestead (or key-linked plot), ejects
+// anyone inside, and strips matching house keys from the owner's inventory.
+func (w *World) DestroyPlayerHouse(characterID int64) (HouseState, []InventoryItem, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.housing == nil {
+		return HouseState{}, nil, false
+	}
+
+	p := w.housing.ByCharacter(characterID)
+	if p == nil {
+		if owner, ok := w.players[characterID]; ok {
+			for _, it := range owner.inventory {
+				if it.ItemID == db.ItemHouseKey && it.HouseID > 0 {
+					p = w.housing.byID[it.HouseID]
+					break
+				}
+			}
+		}
+	}
+	if p == nil {
+		return HouseState{}, nil, false
+	}
+
+	removed := w.housing.RemoveByID(p.id)
+	if removed == nil {
+		return HouseState{}, nil, false
+	}
+	w.ejectPlayersFromHouse(removed)
+	w.houseRev++
+
+	var inv []InventoryItem
+	if owner, ok := w.players[characterID]; ok {
+		owner.inventory = stripHouseKeys(owner.inventory, removed.id)
+		inv = append([]InventoryItem(nil), owner.inventory...)
+	}
+	return removed.state(), inv, true
+}
+
+func (w *World) ejectPlayersFromHouse(plot *housePlot) {
+	if plot == nil {
+		return
+	}
+	for _, pl := range w.players {
+		if pl.insideHouseID != plot.id {
+			continue
+		}
+		pl.insideHouseID = 0
+		pl.x, pl.y = HouseExteriorSpawn(plot.centerX, plot.centerY)
+		pl.lockHouseTransition()
+	}
+}
+
+func stripHouseKeys(items []InventoryItem, houseID int64) []InventoryItem {
+	out := make([]InventoryItem, 0, len(items))
+	for _, it := range items {
+		if it.ItemID == db.ItemHouseKey && (houseID <= 0 || it.HouseID == houseID) {
+			continue
+		}
+		out = append(out, it)
+	}
+	return out
 }
 
 func (w *World) PlaceFurniture(characterID int64, item FurnitureItem) (HouseState, string, bool) {
@@ -95,6 +160,7 @@ func (w *World) RemoveHouseByID(houseID int64) (HouseState, bool) {
 	if p == nil {
 		return HouseState{}, false
 	}
+	w.ejectPlayersFromHouse(p)
 	w.houseRev++
 	return p.state(), true
 }
@@ -145,8 +211,8 @@ func tryAutoEnterHouse(p *player, housing *HousingIndex) {
 	if p.insideHouseID > 0 || p.dead || !canAutoHouseTransition(p) {
 		return
 	}
-	// Walk north into the exterior door from the garden side.
-	if p.dirY >= -0.12 {
+	// Approach the exterior door from the south (walk north into the doorway).
+	if p.dirY >= -0.08 {
 		return
 	}
 	if p.dirX*p.dirX+p.dirY*p.dirY < 0.01 {
@@ -155,7 +221,9 @@ func tryAutoEnterHouse(p *player, housing *HousingIndex) {
 	var best *housePlot
 	bestDist := math.MaxFloat64
 	for _, plot := range housing.byID {
-		if !NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) {
+		near := NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) ||
+			inDoorApproach(p.x, p.y, plot.centerX, plot.centerY)
+		if !near {
 			continue
 		}
 		dx, dy := HouseDoorPosition(plot.centerX, plot.centerY)
@@ -202,7 +270,8 @@ func (w *World) EnterHouse(characterID, houseID int64) (string, bool) {
 	if p.insideHouseID > 0 {
 		return "You are already inside.", false
 	}
-	if !NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) {
+	if !NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) &&
+		!inDoorApproach(p.x, p.y, plot.centerX, plot.centerY) {
 		return "Move closer to the door.", false
 	}
 	p.insideHouseID = houseID

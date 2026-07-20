@@ -12,10 +12,18 @@ const (
 	PlotHalfH          = 176.0
 	HouseHalfW         = 104.0
 	HouseHalfH         = 88.0
-	InteriorHalfW      = 280.0
-	InteriorHalfH      = 210.0
+	InteriorHalfW      = 420.0
+	InteriorHalfH      = 250.0
 	HouseMinSeparation = 440.0
+	HouseMaxPlaceDist  = 320.0
 	MaxFurniture       = 24
+
+	// Exterior cottage collision (matches client HousingCollision).
+	houseBodyHalfW      = 50.0
+	houseBodyTop        = -108.0
+	houseBodyBottom     = -4.0
+	houseDoorGapHalfW   = 20.0
+	houseDoorApproachS  = 36.0
 )
 
 // FurnitureItem is a placed interior object (world-relative coords).
@@ -148,6 +156,13 @@ func (h *HousingIndex) CanBuildAt(w *World, characterID int64, x, y float64) str
 	return ""
 }
 
+// TooFarToPlace reports whether build coords are beyond the player's placement reach.
+func TooFarToPlace(playerX, playerY, buildX, buildY float64) bool {
+	dx := buildX - playerX
+	dy := buildY - playerY
+	return dx*dx+dy*dy > HouseMaxPlaceDist*HouseMaxPlaceDist
+}
+
 func (h *HousingIndex) overlapsExisting(x, y float64) bool {
 	minDist := HouseMinSeparation * HouseMinSeparation
 	for _, p := range h.byID {
@@ -262,9 +277,13 @@ func CropTargetID(houseID int64, index int) string {
 	return fmt.Sprintf("house_%d_crop_%d", houseID, index)
 }
 
-// Door and interior layout (matches client HouseRenderer).
+// Door and interior layout (matches client FarmRpgHouseSprites orange cottage).
+// Door is on the right facade; offsets are art px × DisplayScale (1.55).
 func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY + HouseHalfH - 68
+	const displayScale = 1.55
+	const artW = 72.0
+	const artH = 86.0
+	return centerX + artW*0.22*displayScale, centerY - artH*0.12*displayScale
 }
 
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
@@ -277,7 +296,7 @@ func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
 
 func HouseExteriorSpawn(centerX, centerY float64) (float64, float64) {
 	dx, dy := HouseDoorPosition(centerX, centerY)
-	return dx, dy + 64
+	return dx, dy + 36
 }
 
 const houseTransitionCooldownSec = 1.1
@@ -328,4 +347,170 @@ func clampToInterior(x, y, centerX, centerY float64) (float64, float64) {
 		y = maxY
 	}
 	return x, y
+}
+
+func inDoorApproach(x, y, centerX, centerY float64) bool {
+	dx, _ := HouseDoorPosition(centerX, centerY)
+	bodyBottom := centerY + houseBodyBottom
+	return x >= dx-houseDoorGapHalfW && x <= dx+houseDoorGapHalfW &&
+		y >= bodyBottom-6 && y <= bodyBottom+houseDoorApproachS
+}
+
+func overlapsHouseBody(x, y, centerX, centerY float64) bool {
+	if inDoorApproach(x, y, centerX, centerY) {
+		return false
+	}
+	left := centerX - houseBodyHalfW
+	right := centerX + houseBodyHalfW
+	top := centerY + houseBodyTop
+	bottom := centerY + houseBodyBottom
+	dx, _ := HouseDoorPosition(centerX, centerY)
+	gapL := dx - houseDoorGapHalfW
+	gapR := dx + houseDoorGapHalfW
+	sill := bottom - 10
+
+	rx, ry := 12.0, 16.0
+	cy := y - 7*1.5*1.35 - ry + 2 // match worldmap playerCollisionY approx
+	if ellipseOverlapsHouseRect(x, cy, rx, ry, left, right, top, sill) {
+		return true
+	}
+	if ellipseOverlapsHouseRect(x, cy, rx, ry, left, gapL, sill, bottom) {
+		return true
+	}
+	if ellipseOverlapsHouseRect(x, cy, rx, ry, gapR, right, sill, bottom) {
+		return true
+	}
+	return false
+}
+
+func ellipseOverlapsHouseRect(ex, ey, rx, ry, left, right, top, bottom float64) bool {
+	// Closest point on rect to ellipse center, then unit-circle test.
+	cx := ex
+	if cx < left {
+		cx = left
+	} else if cx > right {
+		cx = right
+	}
+	cy := ey
+	if cy < top {
+		cy = top
+	} else if cy > bottom {
+		cy = bottom
+	}
+	nx := (cx - ex) / rx
+	ny := (cy - ey) / ry
+	return nx*nx+ny*ny <= 1
+}
+
+func (h *HousingIndex) blocksFeet(x, y float64) bool {
+	for _, p := range h.byID {
+		if overlapsHouseBody(x, y, p.centerX, p.centerY) {
+			return true
+		}
+	}
+	return false
+}
+
+// ResolveAgainstHouses slides a move so players cannot walk through cottage solids.
+func (h *HousingIndex) ResolveAgainstHouses(fromX, fromY, toX, toY float64) (float64, float64) {
+	if h == nil || len(h.byID) == 0 {
+		return toX, toY
+	}
+	if !h.blocksFeet(toX, toY) {
+		return toX, toY
+	}
+	ax, ay := toX, fromY
+	bx, by := fromX, toY
+	aOk := !h.blocksFeet(ax, ay)
+	bOk := !h.blocksFeet(bx, by)
+	if aOk && bOk {
+		da := (ax-fromX)*(ax-fromX) + (ay-fromY)*(ay-fromY)
+		db := (bx-fromX)*(bx-fromX) + (by-fromY)*(by-fromY)
+		if da >= db {
+			return ax, ay
+		}
+		return bx, by
+	}
+	if aOk {
+		return ax, ay
+	}
+	if bOk {
+		return bx, by
+	}
+	lo, hi := 0.0, 1.0
+	bestX, bestY := fromX, fromY
+	for i := 0; i < 8; i++ {
+		mid := (lo + hi) * 0.5
+		mx := fromX + (toX-fromX)*mid
+		my := fromY + (toY-fromY)*mid
+		if !h.blocksFeet(mx, my) {
+			bestX, bestY = mx, my
+			lo = mid
+		} else {
+			hi = mid
+		}
+	}
+	return bestX, bestY
+}
+
+func interiorWallRects(centerX, centerY float64) [][4]float64 {
+	const t = 18.0
+	hw := InteriorHalfW
+	hh := InteriorHalfH
+	doorX, doorY := HouseInteriorDoorPosition(centerX, centerY)
+	_ = doorY
+	exitHalf := 28.0
+	midL := centerX - hw/3
+	midR := centerX + hw/3
+	openHalf := 26.0
+	openY := centerY
+	return [][4]float64{
+		{centerX - hw, centerX + hw, centerY - hh, centerY - hh + t},
+		{centerX - hw, centerX - hw + t, centerY - hh, centerY + hh},
+		{centerX + hw - t, centerX + hw, centerY - hh, centerY + hh},
+		{centerX - hw, doorX - exitHalf, centerY + hh - t - 8, centerY + hh - 8},
+		{doorX + exitHalf, centerX + hw, centerY + hh - t - 8, centerY + hh - 8},
+		{midL - t*0.5, midL + t*0.5, centerY - hh, openY - openHalf},
+		{midL - t*0.5, midL + t*0.5, openY + openHalf, centerY + hh - 8},
+		{midR - t*0.5, midR + t*0.5, centerY - hh, openY - openHalf},
+		{midR - t*0.5, midR + t*0.5, openY + openHalf, centerY + hh - 8},
+	}
+}
+
+func feetHitWalls(x, y float64, walls [][4]float64) bool {
+	rx, ry := 12.0, 16.0
+	cy := y - 7*1.5*1.35 - ry + 2
+	for _, w := range walls {
+		if ellipseOverlapsHouseRect(x, cy, rx, ry, w[0], w[1], w[2], w[3]) {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveInteriorMove(fromX, fromY, toX, toY, centerX, centerY float64) (float64, float64) {
+	toX, toY = clampToInterior(toX, toY, centerX, centerY)
+	walls := interiorWallRects(centerX, centerY)
+	if !feetHitWalls(toX, toY, walls) {
+		return toX, toY
+	}
+	ax, ay := clampToInterior(toX, fromY, centerX, centerY)
+	bx, by := clampToInterior(fromX, toY, centerX, centerY)
+	aOk := !feetHitWalls(ax, ay, walls)
+	bOk := !feetHitWalls(bx, by, walls)
+	if aOk && bOk {
+		da := (ax-fromX)*(ax-fromX) + (ay-fromY)*(ay-fromY)
+		db := (bx-fromX)*(bx-fromX) + (by-fromY)*(by-fromY)
+		if da >= db {
+			return ax, ay
+		}
+		return bx, by
+	}
+	if aOk {
+		return ax, ay
+	}
+	if bOk {
+		return bx, by
+	}
+	return fromX, fromY
 }

@@ -127,13 +127,19 @@ func (w *World) Step(dt float64) []HealEvent {
 			dy = p.dirY * w.runSpeed * dt
 		}
 		if p.insideHouseID > 0 && w.housing != nil {
-			p.x += dx
-			p.y += dy
+			nx := p.x + dx
+			ny := p.y + dy
 			if plot := w.housing.byID[p.insideHouseID]; plot != nil {
-				p.x, p.y = clampToInterior(p.x, p.y, plot.centerX, plot.centerY)
+				p.x, p.y = resolveInteriorMove(p.x, p.y, nx, ny, plot.centerX, plot.centerY)
+			} else {
+				p.x, p.y = nx, ny
 			}
 		} else if w.terrain != nil {
+			fromX, fromY := p.x, p.y
 			p.x, p.y = w.terrain.ResolveMove(p.x, p.y, dx, dy)
+			if w.housing != nil {
+				p.x, p.y = w.housing.ResolveAgainstHouses(fromX, fromY, p.x, p.y)
+			}
 		} else {
 			p.x += dx
 			p.y += dy
@@ -197,13 +203,19 @@ func (w *World) DashPlayer(id int64, dirX, dirY, distance float64) (newX, newY f
 	dx := dirX * distance
 	dy := dirY * distance
 	if p.insideHouseID > 0 && w.housing != nil {
-		p.x += dx
-		p.y += dy
+		nx := p.x + dx
+		ny := p.y + dy
 		if plot := w.housing.byID[p.insideHouseID]; plot != nil {
-			p.x, p.y = clampToInterior(p.x, p.y, plot.centerX, plot.centerY)
+			p.x, p.y = resolveInteriorMove(p.x, p.y, nx, ny, plot.centerX, plot.centerY)
+		} else {
+			p.x, p.y = nx, ny
 		}
 	} else if w.terrain != nil {
+		fromX, fromY := p.x, p.y
 		p.x, p.y = w.terrain.ResolveMove(p.x, p.y, dx, dy)
+		if w.housing != nil {
+			p.x, p.y = w.housing.ResolveAgainstHouses(fromX, fromY, p.x, p.y)
+		}
 	} else {
 		p.x += dx
 		p.y += dy

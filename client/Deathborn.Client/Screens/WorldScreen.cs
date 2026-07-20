@@ -54,6 +54,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly FishingMinigameOverlay _fishing = new();
     private readonly List<HouseState> _houses = [];
     private HousePlotZone? _hoveredDoorHouse;
+    private bool _housePlacing;
+    private Vector2 _housePlacePos;
+    private bool _housePlaceValid;
+    private string _housePlaceReason = "";
     private Vector2? _lastInteractWorldPos;
     private string? _currentZoneId;
     private bool _zonePresenceInitialized;
@@ -185,7 +189,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetOpenSpellBookHandler(() => _windows.OpenSpellBook());
         _screens.SetOpenInventoryHandler(() => _windows.OpenInventory());
         _screens.SetOpenSkillsHandler(() => _windows.OpenSkills());
-        _screens.SetBuildHouseHandler(TryBuildHouse);
+        _screens.SetBuildHouseHandler(BeginHousePlacement);
+        _screens.SetDestroyHouseHandler(TryDestroyHouse);
         _screens.SetLogoutHandler(OnLogoutRequested);
         _screens.SetNewLifeHandler(OnNewLifeRequested);
         UpdateBuildHouseEnabled();
@@ -240,6 +245,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _windows.SpellBook.AbilityClicked -= OnSpellBookAbilityClicked;
         _windows.Inventory.SlotClicked -= OnInventorySlotClicked;
         _screens.SetOpenCharacterHandler(null);
+        _screens.SetBuildHouseHandler(null);
+        _screens.SetDestroyHouseHandler(null);
         _screens.SetLogoutHandler(null);
         _screens.SetNewLifeHandler(null);
         _screens.SetDeathMenuMode(false);
@@ -269,6 +276,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (_deathPrompt || _ghostMode)
             return false;
+
+        if (_housePlacing)
+        {
+            CancelHousePlacement();
+            return true;
+        }
 
         if (_playerContextMenu.IsOpen)
         {
@@ -388,6 +401,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         uiCapturesMouse |= contextCapturesMouse;
 
         UpdateHousing(localEntity, kb, _prevKb, mouse, blockGameplay, uiCapturesMouse);
+        UpdateHousePlacement(localEntity, mouse, blockGameplay, uiCapturesMouse, windowActive);
         if (fishingActive)
             _fishing.Update(dt, kb, _prevKb, mouse, _prevMouse);
 
@@ -490,7 +504,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             UpdatePlayerHover(mouse.Position);
             UpdateInteractPrompt();
 
-            if (!_housingDecorate.IsActive)
+            if (!_housingDecorate.IsActive && !_housePlacing)
             {
                 if (kb.IsKeyDown(Keys.E) && !_prevKb.IsKeyDown(Keys.E))
                     TryInteractNearest();
@@ -709,6 +723,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _bg.Draw(sb, game.GraphicsDevice, gameTime, _camera, ScreenCenter, zoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
         HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);
+        if (_housePlacing)
+            HouseRenderer.DrawPlacementGhost(sb, _housePlacePos, _camera, ScreenCenter, zoom, _housePlaceValid);
 
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), zoom);
@@ -1582,7 +1598,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         var doorHouse = HousingConstants.FindDoorAt(WorldZones.Houses, world);
         if (doorHouse == null) return false;
-        if (Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(doorHouse.Center)) > Config.InteractRange)
+        var doorPos = HousingConstants.DoorWorldPosition(doorHouse.Center);
+        if (HousingCollision.InDoorApproach(local.Position, doorHouse.Center))
+        {
+            // Standing in the doorway approach — allow enter without extra range check.
+        }
+        else if (Vector2.Distance(local.Position, doorPos) > Config.InteractRange)
             return false;
 
         _screens.Net.SendHouseEnter(doorHouse.Id);
@@ -2373,11 +2394,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var title = data.House.OwnerId == _screens.Net.LocalCharacterId
             ? "Your Homestead"
             : $"{data.House.OwnerName}'s Homestead";
-        _zoneBanner.ShowEnter(title, "Safe haven established — PvP off, garden ready.");
+        _zoneBanner.ShowEnter(title, "Safe haven established — fenced yard, PvP off.");
         if (data.House.OwnerId == _screens.Net.LocalCharacterId)
         {
-            _notifications.Push("Homestead Built", "Your safe haven is ready. Press H inside to decorate.", NotificationKind.Success);
-            _status = "Homestead built! You received a Homestead Key. Tend your garden and press H inside to decorate.";
+            _housePlacing = false;
+            _notifications.Push("Homestead Built", "Your fenced safe haven is ready. Press H inside to decorate.", NotificationKind.Success);
+            _status = "Homestead built! You received a Homestead Key. Press H inside to decorate.";
         }
     }
 
@@ -2388,6 +2410,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (data.OwnerId == _screens.Net.LocalCharacterId)
         {
             _housingDecorate.Deactivate();
+            CancelHousePlacement("The homestead was abandoned and removed.");
             _status = "The homestead was abandoned and removed.";
         }
     }
@@ -2511,8 +2534,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private bool LocalHasHomestead() => LocalHomestead() != null;
 
-    private void UpdateBuildHouseEnabled() =>
-        _screens.SetBuildHouseEnabled(!LocalHasHomestead());
+    private void UpdateBuildHouseEnabled()
+    {
+        var has = LocalHasHomestead();
+        _screens.SetBuildHouseEnabled(!has);
+        _screens.SetDestroyHouseEnabled(has);
+    }
 
     private void UpsertHouse(HouseState house)
     {
@@ -2555,28 +2582,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void SyncHouseInteractables()
     {
+        // Homesteads are house-only for now (no garden plot interactables).
         _interactables.RemoveAll(i => i.Id.StartsWith("house_", StringComparison.Ordinal) && i.Id.Contains("_crop_", StringComparison.Ordinal));
-
-        var localId = _screens.Net.LocalCharacterId;
-        foreach (var house in WorldZones.Houses)
-        {
-            for (var i = 0; i < HousingConstants.GardenCropOffsets.Length; i++)
-            {
-                var isOwn = house.OwnerId == localId;
-                _interactables.Add(new InteractableEntity
-                {
-                    Id = HousingConstants.CropTargetId(house.Id, i),
-                    DisplayName = isOwn ? "Garden Plot" : $"{house.OwnerName}'s Garden",
-                    Position = house.Center + HousingConstants.GardenCropOffsets[i],
-                    Kind = InteractableKind.FarmPlot,
-                    Tint = isOwn ? new Color(0.3f, 0.55f, 0.26f) : new Color(0.26f, 0.48f, 0.22f),
-                    PickRadius = 22f,
-                });
-            }
-        }
     }
 
-    private void TryBuildHouse()
+    private void BeginHousePlacement()
     {
         if (LocalHasHomestead())
         {
@@ -2585,16 +2595,85 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         var local = FindLocalPlayer();
-        if (local == null) return;
-
-        if (WorldZones.ZoneAt(local.Position) != null)
+        if (local == null || local.IsDead) return;
+        if (local.InsideHouseId > 0)
         {
-            _status = "Leave town first — build in the wilderness.";
+            _status = "Exit the house before placing a homestead.";
             return;
         }
 
-        _screens.Net.SendBuildHouse();
-        _status = "Building homestead at your location...";
+        _housingDecorate.Deactivate();
+        _housePlacing = true;
+        _housePlacePos = local.Position;
+        _housePlaceValid = false;
+        _housePlaceReason = "";
+        _status = "Place homestead — green = ok. Walk freely. Left-click place, right-click/Esc cancel.";
+    }
+
+    private void CancelHousePlacement(string? status = null)
+    {
+        if (!_housePlacing) return;
+        _housePlacing = false;
+        _housePlaceValid = false;
+        _status = status ?? "House placement cancelled.";
+    }
+
+    private void UpdateHousePlacement(
+        PlayerEntity? local,
+        MouseState mouse,
+        bool inputBlocked,
+        bool uiCapturesMouse,
+        bool windowActive)
+    {
+        if (!_housePlacing) return;
+
+        if (local == null || local.IsDead || LocalHasHomestead())
+        {
+            CancelHousePlacement("House placement cancelled.");
+            return;
+        }
+
+        if (windowActive && DeathbornGame.Instance.IsMouseOverClient(mouse.Position))
+            _housePlacePos = ScreenToWorld(mouse.Position);
+
+        _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, out _housePlaceReason);
+
+        if (inputBlocked || uiCapturesMouse || !windowActive) return;
+
+        if (mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released
+            && !IsOverHotbar(mouse.Position))
+        {
+            CancelHousePlacement();
+            return;
+        }
+
+        if (!DeathbornGame.Instance.IsWorldMouseClick(mouse, _prevMouse) || IsOverHotbar(mouse.Position))
+            return;
+
+        if (!_housePlaceValid)
+        {
+            _status = string.IsNullOrEmpty(_housePlaceReason)
+                ? "Cannot place house here."
+                : _housePlaceReason;
+            return;
+        }
+
+        _screens.Net.SendBuildHouse(_housePlacePos.X, _housePlacePos.Y);
+        CancelHousePlacement("Building homestead...");
+    }
+
+    private void TryDestroyHouse()
+    {
+        if (!LocalHasHomestead())
+        {
+            _status = "You do not have a homestead to destroy.";
+            return;
+        }
+
+        CancelHousePlacement();
+        _housingDecorate.Deactivate();
+        _screens.Net.SendDestroyHouse();
+        _status = "Destroying homestead...";
     }
 
     private void UpdateHousing(

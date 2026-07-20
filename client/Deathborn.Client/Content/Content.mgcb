@@ -4273,3 +4273,45 @@
 /build:Characters/FarmRpg/Enemies/slimes/purple_big/dead.png
 
 #end Characters/FarmRpg/Enemies/slimes/purple_big/dead.png
+
+#begin Characters/FarmRpg/Buildings/tiny_house_orange.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Buildings/tiny_house_orange.png
+
+#end Characters/FarmRpg/Buildings/tiny_house_orange.png
+
+#begin Characters/FarmRpg/Buildings/fence_wood.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Buildings/fence_wood.png
+
+#end Characters/FarmRpg/Buildings/fence_wood.png
+
+#begin Characters/FarmRpg/Buildings/tileset_house.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Buildings/tileset_house.png
+
+#end Characters/FarmRpg/Buildings/tileset_house.png

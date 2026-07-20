@@ -624,15 +624,20 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			var d BuildHouseSendData
 			_ = json.Unmarshal(env.Data, &d)
-			px, py, ok := c.hub.world.Position(c.characterID)
+			playerX, playerY, ok := c.hub.world.Position(c.characterID)
 			if !ok {
 				continue
 			}
+			px, py := playerX, playerY
 			if d.X != nil {
 				px = *d.X
 			}
 			if d.Y != nil {
 				py = *d.Y
+			}
+			if game.TooFarToPlace(playerX, playerY, px, py) {
+				c.safeSend(encode("error", MessageData{Message: "Move closer to place the house."}))
+				continue
 			}
 			name, _ := c.hub.world.PlayerName(c.characterID)
 			ctx := context.Background()
@@ -667,6 +672,26 @@ func (c *Client) readPump(database *db.DB) {
 			c.hub.world.SetPlayerInventory(c.characterID, gameInv)
 			c.safeSend(BuildInventory(gameInv))
 			c.hub.Broadcast(BuildHouseBuilt(state))
+
+		case "destroy_house":
+			if !c.spawned {
+				continue
+			}
+			state, inv, ok := c.hub.world.DestroyPlayerHouse(c.characterID)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: "You do not have a homestead to destroy."}))
+				continue
+			}
+			ctx := context.Background()
+			_ = database.DeleteHouse(ctx, state.ID)
+			if saved, err := database.RevokeHouseKey(ctx, c.characterID, state.ID); err == nil {
+				inv = game.InventoryFromDB(saved)
+				c.hub.world.SetPlayerInventory(c.characterID, inv)
+			} else if inv != nil {
+				_ = database.SaveCharacterInventory(ctx, c.characterID, game.InventoryToDB(inv))
+			}
+			c.safeSend(BuildInventory(inv))
+			c.hub.Broadcast(BuildHouseRemoved(state.ID, state.OwnerID))
 
 		case "inventory_move":
 			if !c.spawned {

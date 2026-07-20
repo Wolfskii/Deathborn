@@ -40,6 +40,7 @@ public sealed class EscMenuOverlay
     private Rectangle _inventoryButton;
     private Rectangle _skillsButton;
     private Rectangle _buildHouseButton;
+    private Rectangle _destroyHouseButton;
     private Rectangle _logoutButton;
     private Rectangle _newLifeButton;
     private Rectangle _scrollbarTrack;
@@ -58,6 +59,7 @@ public sealed class EscMenuOverlay
     private MouseState _prevMouse;
     private IReadOnlyList<string>? _infoLines;
     private bool _buildHouseEnabled = true;
+    private bool _destroyHouseEnabled;
     private readonly List<string> _footerLines = [];
 
     public bool IsOpen { get; private set; }
@@ -66,6 +68,7 @@ public sealed class EscMenuOverlay
     public Action? OnOpenInventory;
     public Action? OnOpenSkills;
     public Action? OnBuildHouse;
+    public Action? OnDestroyHouse;
     public Action? OnLogout;
     public Action? OnNewLife;
 
@@ -73,6 +76,8 @@ public sealed class EscMenuOverlay
     private bool _showNewLifeButton;
 
     public void SetBuildHouseEnabled(bool enabled) => _buildHouseEnabled = enabled;
+
+    public void SetDestroyHouseEnabled(bool enabled) => _destroyHouseEnabled = enabled;
 
     /// <summary>Death / spirit mode — trim live-world actions and offer a new character.</summary>
     public void SetDeathMenuMode(bool enabled, bool showNewLife = true)
@@ -142,6 +147,12 @@ public sealed class EscMenuOverlay
             if (_buildHouseEnabled && !_deathMenuMode && HitVisible(_buildHouseButton) && _buildHouseButton.Contains(mouse.Position))
             {
                 OnBuildHouse?.Invoke();
+                Close();
+            }
+
+            if (_destroyHouseEnabled && !_deathMenuMode && HitVisible(_destroyHouseButton) && _destroyHouseButton.Contains(mouse.Position))
+            {
+                OnDestroyHouse?.Invoke();
                 Close();
             }
 
@@ -220,9 +231,17 @@ public sealed class EscMenuOverlay
         DrawMenuButtonIfVisible(sb, font, _spellBookButton, "Spell Book (K)", !_deathMenuMode && _spellBookButton.Contains(mousePos));
         DrawMenuButtonIfVisible(sb, font, _inventoryButton, "Inventory (I)", !_deathMenuMode && _inventoryButton.Contains(mousePos));
         DrawMenuButtonIfVisible(sb, font, _skillsButton, "Skills (L)", !_deathMenuMode && _skillsButton.Contains(mousePos));
-        DrawMenuButtonIfVisible(sb, font, _buildHouseButton,
-            _buildHouseEnabled ? "Build House" : "Build House (already built)",
-            _buildHouseEnabled && !_deathMenuMode && _buildHouseButton.Contains(mousePos), !_buildHouseEnabled || _deathMenuMode);
+        if (_destroyHouseEnabled)
+        {
+            DrawMenuButtonIfVisible(sb, font, _destroyHouseButton, "Destroy House",
+                !_deathMenuMode && _destroyHouseButton.Contains(mousePos), _deathMenuMode);
+        }
+        else
+        {
+            DrawMenuButtonIfVisible(sb, font, _buildHouseButton,
+                _buildHouseEnabled ? "Build House" : "Build House (already built)",
+                _buildHouseEnabled && !_deathMenuMode && _buildHouseButton.Contains(mousePos), !_buildHouseEnabled || _deathMenuMode);
+        }
         DrawMenuButtonIfVisible(sb, font, _newLifeButton, "Begin anew", _newLifeButton.Contains(mousePos));
         DrawMenuButtonIfVisible(sb, font, _logoutButton, "Log out", _logoutButton.Contains(mousePos));
 
@@ -379,7 +398,16 @@ public sealed class EscMenuOverlay
             y += buttonH + buttonGap;
             _skillsButton = ContentRect(buttonX, y, buttonW, buttonH);
             y += buttonH + buttonGap;
-            _buildHouseButton = ContentRect(buttonX, y, buttonW, buttonH);
+            if (_destroyHouseEnabled)
+            {
+                _destroyHouseButton = ContentRect(buttonX, y, buttonW, buttonH);
+                _buildHouseButton = Rectangle.Empty;
+            }
+            else
+            {
+                _buildHouseButton = ContentRect(buttonX, y, buttonW, buttonH);
+                _destroyHouseButton = Rectangle.Empty;
+            }
             y += buttonH + buttonGap;
         }
         else
@@ -389,6 +417,7 @@ public sealed class EscMenuOverlay
             _inventoryButton = Rectangle.Empty;
             _skillsButton = Rectangle.Empty;
             _buildHouseButton = Rectangle.Empty;
+            _destroyHouseButton = Rectangle.Empty;
         }
 
         if (_showNewLifeButton)

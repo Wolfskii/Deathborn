@@ -2,25 +2,18 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Deathborn.Client;
 using Deathborn.Client.Gameplay;
-using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Rendering;
 
-/// <summary>Top-down interior room view when a player is inside a homestead.</summary>
+/// <summary>Three connected homestead rooms (bedroom | hall | kitchen) using Farm RPG house tiles.</summary>
 public static class HouseInteriorRenderer
 {
-    private const float TileWorldSize = 32f;
-
     private static readonly Color VoidFill = new(8, 6, 10);
-    private static readonly Color FloorA = new(118, 92, 64);
-    private static readonly Color FloorB = new(102, 78, 54);
-    private static readonly Color WallFill = new(82, 66, 50);
-    private static readonly Color WallTop = new(96, 78, 60);
-    private static readonly Color WallTrim = new(56, 44, 34);
     private static readonly Color DoorFill = new(72, 44, 26);
     private static readonly Color DoorFillHi = new(98, 60, 36);
     private static readonly Color DoorHighlight = new(255, 235, 115, 170);
-    private static readonly Color RugAccent = new(140, 50, 46, 90);
+    private static readonly Color FallbackFloor = new(118, 92, 64);
+    private static readonly Color FallbackWall = new(82, 66, 50);
 
     public static Rectangle InteriorScreenRect(Vector2 houseCenter, Vector2 camera, Vector2 screenCenter, float worldZoom)
     {
@@ -45,16 +38,17 @@ public static class HouseInteriorRenderer
     {
         if (worldZoom < 0.01f) worldZoom = 1f;
 
-        var floor = InteriorScreenRect(house.Center, camera, screenCenter, worldZoom);
-        if (floor.Width <= 0 || floor.Height <= 0) return;
-
-        var wall = Math.Max(8, (int)(12 * worldZoom));
-
         DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height), VoidFill);
-        DrawTiledFloor(sb, floor, worldZoom);
-        DrawCenterRug(sb, floor);
-        DrawWalls(sb, floor, wall, worldZoom, exitHighlighted);
 
+        if (FarmRpgHouseInteriorTiles.IsLoaded)
+            DrawTiledRooms(sb, house.Center, camera, screenCenter, worldZoom);
+        else
+            DrawFallbackFloor(sb, house.Center, camera, screenCenter, worldZoom);
+
+        DrawInteriorWallsOverlay(sb, house.Center, camera, screenCenter, worldZoom);
+        DrawExitDoor(sb, house.Center, camera, screenCenter, worldZoom, exitHighlighted);
+
+        var floor = InteriorScreenRect(house.Center, camera, screenCenter, worldZoom);
         if (!string.IsNullOrEmpty(title))
             DrawTitle(sb, font, SpriteFontSafe.Filter(title), floor);
 
@@ -67,61 +61,117 @@ public static class HouseInteriorRenderer
         }
     }
 
-    private static void DrawTiledFloor(SpriteBatch sb, Rectangle floor, float worldZoom)
+    private static void DrawTiledRooms(
+        SpriteBatch sb, Vector2 center, Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        DrawPrimitives.FillRect(sb, floor, FloorA);
+        var tile = Config.WorldTileSize; // 32
+        var artScale = tile / (float)FarmRpgHouseInteriorTiles.Cell;
+        var drawScale = artScale * zoom;
 
-        var tilePx = Math.Max(8, (int)MathF.Round(TileWorldSize * worldZoom));
-        for (var y = 0; y < floor.Height; y += tilePx)
+        var min = center + HousingConstants.InteriorLocalMin;
+        var max = center + HousingConstants.InteriorLocalMax;
+        var midL = center.X - HousingConstants.InteriorHalfW / 3f;
+        var midR = center.X + HousingConstants.InteriorHalfW / 3f;
+
+        for (var y = min.Y; y < max.Y; y += tile)
         {
-            for (var x = 0; x < floor.Width; x += tilePx)
+            for (var x = min.X; x < max.X; x += tile)
             {
-                var col = x / tilePx;
-                var row = y / tilePx;
-                if ((row + col) % 2 == 0) continue;
-
-                var w = Math.Min(tilePx + 1, floor.Width - x);
-                var h = Math.Min(tilePx + 1, floor.Height - y);
-                DrawPrimitives.FillRect(sb, new Rectangle(floor.X + x, floor.Y + y, w, h), FloorB);
+                var src = FloorFor(x, midL, midR, (int)((x + y) / tile));
+                var screen = screenCenter + (new Vector2(x, y) - camera) * zoom;
+                FarmRpgHouseInteriorTiles.DrawTile(sb, src, screen, drawScale, Color.White);
             }
         }
     }
 
-    private static void DrawCenterRug(SpriteBatch sb, Rectangle floor)
+    private static Rectangle FloorFor(float x, float midL, float midR, int checker)
     {
-        if (floor.Width < 48 || floor.Height < 48) return;
-        var rugW = Math.Max(16, (int)(floor.Width * 0.36f));
-        var rugH = Math.Max(12, (int)(floor.Height * 0.22f));
-        var rug = new Rectangle(floor.Center.X - rugW / 2, floor.Center.Y - rugH / 2 - 6, rugW, rugH);
-        if (rug.Width <= 0 || rug.Height <= 0) return;
-        DrawPrimitives.FillRect(sb, rug, RugAccent);
+        if (x < midL)
+            return FarmRpgHouseInteriorTiles.FloorBedroom;
+        if (x >= midR)
+            return (checker & 1) == 0
+                ? FarmRpgHouseInteriorTiles.FloorKitchen
+                : FarmRpgHouseInteriorTiles.FloorHallAlt;
+        return (checker & 1) == 0
+            ? FarmRpgHouseInteriorTiles.FloorHall
+            : FarmRpgHouseInteriorTiles.FloorHallAlt;
     }
 
-    private static void DrawWalls(SpriteBatch sb, Rectangle floor, int wall, float worldZoom, bool exitHighlighted)
+    private static void DrawInteriorWallsOverlay(
+        SpriteBatch sb, Vector2 center, Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        var topH = wall + Math.Max(2, (int)(4 * worldZoom));
-        var topRect = SafeRect(floor.X - wall, floor.Y - topH, floor.Width + wall * 2, topH);
-        DrawPrimitives.FillRect(sb, topRect, WallTop);
-        DrawBorder(sb, topRect, WallTrim, 2);
+        var walls = new List<(float L, float R, float T, float B)>(12);
+        HousingCollision.GetInteriorWalls(center, walls);
+        foreach (var w in walls)
+        {
+            var tl = screenCenter + (new Vector2(w.L, w.T) - camera) * zoom;
+            var br = screenCenter + (new Vector2(w.R, w.B) - camera) * zoom;
+            var rect = new Rectangle(
+                (int)tl.X, (int)tl.Y,
+                Math.Max(1, (int)(br.X - tl.X)),
+                Math.Max(1, (int)(br.Y - tl.Y)));
 
-        DrawPrimitives.FillRect(sb, SafeRect(floor.X - wall, floor.Y, wall, floor.Height), WallFill);
-        DrawPrimitives.FillRect(sb, SafeRect(floor.Right, floor.Y, wall, floor.Height), WallFill);
+            if (FarmRpgHouseInteriorTiles.IsLoaded)
+                FillWallWithTiles(sb, center, w, camera, screenCenter, zoom);
+            else
+                DrawPrimitives.FillRect(sb, rect, FallbackWall);
+        }
+    }
 
-        var doorW = Math.Clamp((int)(22 * worldZoom), 18, floor.Width / 3);
-        var doorH = Math.Clamp((int)(18 * worldZoom), 14, floor.Height / 2);
-        var gapX = floor.Center.X - doorW / 2;
+    private static void FillWallWithTiles(
+        SpriteBatch sb,
+        Vector2 houseCenter,
+        (float L, float R, float T, float B) wall,
+        Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var tile = Config.WorldTileSize;
+        var artScale = tile / (float)FarmRpgHouseInteriorTiles.Cell;
+        var drawScale = artScale * zoom;
+        var midX = (wall.L + wall.R) * 0.5f;
+        var (fill, trim) = WallTheme(midX, houseCenter);
 
-        var leftWallW = gapX - (floor.X - wall);
-        var rightWallX = gapX + doorW;
-        var rightWallW = (floor.Right + wall) - rightWallX;
+        for (var y = wall.T; y < wall.B - 0.5f; y += tile)
+        {
+            for (var x = wall.L; x < wall.R - 0.5f; x += tile)
+            {
+                var remainX = Math.Min(tile, wall.R - x);
+                var remainY = Math.Min(tile, wall.B - y);
+                if (remainX < tile * 0.25f || remainY < tile * 0.25f) continue;
+                var src = y <= wall.T + tile * 0.5f ? trim : fill;
+                var screen = screenCenter + (new Vector2(x, y) - camera) * zoom;
+                FarmRpgHouseInteriorTiles.DrawTile(sb, src, screen, drawScale, Color.White);
+            }
+        }
+    }
 
-        DrawPrimitives.FillRect(sb, SafeRect(floor.X - wall, floor.Bottom, leftWallW, wall), WallFill);
-        DrawPrimitives.FillRect(sb, SafeRect(rightWallX, floor.Bottom, rightWallW, wall), WallFill);
+    private static (Rectangle fill, Rectangle trim) WallTheme(float x, Vector2 center)
+    {
+        var midL = center.X - HousingConstants.InteriorHalfW / 3f;
+        var midR = center.X + HousingConstants.InteriorHalfW / 3f;
+        if (x < midL)
+            return (FarmRpgHouseInteriorTiles.WallPeach, FarmRpgHouseInteriorTiles.WallPeachTrim);
+        if (x >= midR)
+            return (FarmRpgHouseInteriorTiles.WallTeal, FarmRpgHouseInteriorTiles.WallTealTrim);
+        return (FarmRpgHouseInteriorTiles.WallWood, FarmRpgHouseInteriorTiles.WallWoodTrim);
+    }
 
-        var doorY = Math.Clamp(floor.Bottom - doorH + 2, floor.Y, floor.Bottom);
-        var doorRect = SafeRect(gapX, doorY, doorW, Math.Min(doorH, floor.Bottom - doorY + wall));
-        DrawPrimitives.FillRect(sb, doorRect, exitHighlighted ? DoorFillHi : DoorFill);
-        DrawBorder(sb, doorRect, exitHighlighted ? DoorHighlight : WallTrim, exitHighlighted ? 2 : 1);
+    private static void DrawExitDoor(
+        SpriteBatch sb, Vector2 center, Vector2 camera, Vector2 screenCenter, float zoom, bool highlighted)
+    {
+        var door = HousingConstants.InteriorDoorWorldPosition(center);
+        var doorW = 44f;
+        var doorH = 28f;
+        var tl = screenCenter + (door + new Vector2(-doorW * 0.5f, -doorH) - camera) * zoom;
+        var rect = new Rectangle((int)tl.X, (int)tl.Y, (int)(doorW * zoom), (int)(doorH * zoom));
+        DrawPrimitives.FillRect(sb, rect, highlighted ? DoorFillHi : DoorFill);
+        DrawBorder(sb, rect, highlighted ? DoorHighlight : new Color(56, 44, 34), highlighted ? 2 : 1);
+    }
+
+    private static void DrawFallbackFloor(
+        SpriteBatch sb, Vector2 center, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var floor = InteriorScreenRect(center, camera, screenCenter, zoom);
+        DrawPrimitives.FillRect(sb, floor, FallbackFloor);
     }
 
     private static void DrawTitle(SpriteBatch sb, SpriteFont font, string title, Rectangle floor)
@@ -132,9 +182,6 @@ public static class HouseInteriorRenderer
         sb.DrawString(font, title, pos + new Vector2(1, 1), new Color(0, 0, 0, 180));
         SpriteFontSafe.DrawString(sb, font, title, pos, new Color(220, 200, 150));
     }
-
-    private static Rectangle SafeRect(int x, int y, int w, int h) =>
-        new(x, y, Math.Max(0, w), Math.Max(0, h));
 
     private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color, int thickness)
     {

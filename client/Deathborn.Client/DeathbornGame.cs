@@ -161,6 +161,9 @@ public sealed class DeathbornGame : Game
         WorldClouds.Load(Content);
         TinyRpgCharacterSprites.Load(Content);
         FarmRpgSlimeSprites.Load(Content);
+        FarmRpgHouseSprites.Load(Content);
+        FarmRpgFenceSprites.Load(Content);
+        FarmRpgHouseInteriorTiles.Load(Content);
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         FarmRpgInventoryUi.Load(Content);
