@@ -7,14 +7,7 @@ vars:
   CLIENT_DIR: client
   CLIENT_PROJECT: client/Deathborn.Client/Deathborn.Client.csproj
   CLIENT_PUBLISH_DIR: client/publish
-  CLIENT_RID:
-    sh: |
-      case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*|Windows*) echo win-x64 ;;
-        Darwin)
-          case "$(uname -m)" in arm64) echo osx-arm64 ;; *) echo osx-x64 ;; esac ;;
-        *) echo linux-x64 ;;
-      esac
+  CLIENT_RID: '{{if eq OS "windows"}}win-x64{{else if eq OS "darwin"}}{{if eq ARCH "arm64"}}osx-arm64{{else}}osx-x64{{end}}{{else}}linux-x64{{end}}'
   BINARY: deathborn
   IMAGE: deathborn-server
   DEV_DATABASE_URL: postgres://deathborn:deathborn@localhost:5432/deathborn?sslmode=disable
@@ -25,6 +18,7 @@ vars:
     sh: git describe --tags --always --dirty 2>/dev/null || echo dev
   LDFLAGS: -s -w -X main.version={{.VERSION}}
   DOTNET_VERBOSITY: q
+  GIT_BASH: '{{if eq OS "windows"}}C:/Program Files/Git/bin/bash.exe{{else}}bash{{end}}'
 
 tasks:
   default:
@@ -78,14 +72,20 @@ tasks:
     cmds:
       - task: db
       - task: dev:wait-db
-      - bash scripts/dev-all.sh {{.CLIENT_COUNT}}
+      - cmd: bash scripts/dev-all.sh {{.CLIENT_COUNT}}
+        platforms: [linux, darwin]
+      - cmd: '"{{.GIT_BASH}}" scripts/dev-all.sh {{.CLIENT_COUNT}}'
+        platforms: [windows]
 
   dev:all:
     desc: "Start DB, backend, and N MonoGame clients (default 1). Usage: task dev:all -- 2"
     cmds:
       - task: db
       - task: dev:wait-db
-      - bash scripts/dev-all.sh {{.CLI_ARGS | default "1"}}
+      - cmd: bash scripts/dev-all.sh {{.CLI_ARGS | default "1"}}
+        platforms: [linux, darwin]
+      - cmd: '"{{.GIT_BASH}}" scripts/dev-all.sh {{.CLI_ARGS | default "1"}}'
+        platforms: [windows]
 
   dev:server:
     desc: Run only the Go server on the host (expects `task db` already running)
@@ -115,17 +115,20 @@ tasks:
     desc: Wait until the Dockerized Postgres accepts connections
     internal: true
     cmds:
-      - |
-        echo "Waiting for PostgreSQL..."
-        for i in $(seq 1 30); do
-          if docker compose --profile local exec -T db pg_isready -U deathborn -d deathborn >/dev/null 2>&1; then
-            echo "PostgreSQL is ready."
-            exit 0
-          fi
-          sleep 1
-        done
-        echo "PostgreSQL did not become ready in time. Is Docker running?"
-        exit 1
+      - cmd: powershell -NoProfile -File scripts/dev-wait-db.ps1
+        platforms: [windows]
+      - cmd: |
+          echo "Waiting for PostgreSQL..."
+          for i in $(seq 1 30); do
+            if docker compose --profile local exec -T db pg_isready -U deathborn -d deathborn >/dev/null 2>&1; then
+              echo "PostgreSQL is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "PostgreSQL did not become ready in time. Is Docker running?"
+          exit 1
+        platforms: [linux, darwin]
 
   db:
     desc: Start only PostgreSQL in Docker

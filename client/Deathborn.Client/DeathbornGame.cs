@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Deathborn.Client.Audio;
+using Deathborn.Client.Maps;
 using Deathborn.Client.Net;
 using Deathborn.Client.Platform;
 using Deathborn.Client.Rendering;
@@ -140,6 +141,7 @@ public sealed class DeathbornGame : Game
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         FarmRpgInventoryUi.Load(Content);
+        TiledMapCatalog.Load(Content, GraphicsDevice);
     }
 
     private void ReloadGraphicsAssets()
@@ -150,6 +152,7 @@ public sealed class DeathbornGame : Game
         try
         {
             Rendering.Characters.FarmRpgCharacterSprites.ClearCache();
+            TiledMapCatalog.Clear();
             SfxPlayer.ClearCache();
             Content.Unload();
             Font = Content.Load<SpriteFont>("Fonts/Default");

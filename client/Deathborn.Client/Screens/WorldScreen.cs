@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Deathborn.Client.Gameplay;
+using Deathborn.Client.Maps;
 using Deathborn.Client.Audio;
 using Deathborn.Client.Net;
 using Deathborn.Client.Ui;
@@ -312,6 +313,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (windowActive && kb.IsKeyDown(Keys.F12) && !_prevKb.IsKeyDown(Keys.F12))
             _debugHudVisible = !_debugHudVisible;
 
+        if (windowActive && kb.IsKeyDown(Keys.F11) && !_prevKb.IsKeyDown(Keys.F11))
+            TiledMapPreview.Toggle();
+
         if (windowActive && InputKeys.EnterPressed(kb, _prevKb) && !_chat.IsOpen && !_windows.Friends.IsPmFocused)
             _chat.Open();
 
@@ -505,6 +509,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             $"FPS: {DeathbornGame.Instance.Fps}",
             _status,
             _debugHudVisible ? "F12: collider debug ON (green outlines)" : "F12: debug HUD",
+            TiledMapPreview.IsActive
+                ? $"F11: Tiled preview ON ({TiledMapPreview.ActiveMapId})"
+                : "F11: Tiled map preview",
             $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
             $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
         ];
@@ -538,6 +545,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             DrawInteriorWorld(sb, font, interiorHouse, zoom);
         else
             DrawExteriorWorld(sb, font, zoom);
+
+        if (TiledMapPreview.IsActive && interiorHouse == null)
+            DrawTiledMapPreview(sb, game, gameTime, zoom);
 
         if (_debugHudVisible)
         {
@@ -660,6 +670,21 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _bossTracker.Draw(sb, font, _camera, _npcs.Values.Where(n => n.IsBoss));
             _bossHealthBar.Draw(sb, font, _camera, _npcs.Values.Where(n => n.IsBoss));
         }
+    }
+
+    private void DrawTiledMapPreview(SpriteBatch sb, DeathbornGame game, GameTime gameTime, float zoom)
+    {
+        var map = TiledMapCatalog.TryGet(TiledMapPreview.ActiveMapId);
+        var local = FindLocalPlayer();
+        if (map == null || local == null)
+            return;
+
+        map.SetWorldAnchor(local.Position);
+        map.Update(gameTime);
+
+        sb.End();
+        TiledMapPreview.Draw(sb, game.GraphicsDevice, map, _camera, zoom);
+        sb.Begin(samplerState: SamplerState.PointClamp);
     }
 
     private void DrawInteriorWorld(SpriteBatch sb, SpriteFont font, HousePlotZone house, float zoom)

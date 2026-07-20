@@ -16,6 +16,8 @@
     <!-- Debug dev builds: hide known benign compiler warnings in task dev:all / hot reload output. -->
     <NoWarn Condition="'$(Configuration)' == 'Debug'">$(NoWarn);CS9124;CS0649</NoWarn>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
+    <!-- Copies MonoGame.Extended.Content.Pipeline.dll for MGCB Editor references. -->
+    <MonoGameExtendedPipelineReferencePath>$(MSBuildThisFileDirectory)pipeline-references</MonoGameExtendedPipelineReferencePath>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico">
@@ -36,13 +38,20 @@
     <Watch Include="Content\**\*.ogg" />
     <Watch Include="Content\**\*.wav" />
     <Watch Include="Content\**\*.spritefont" />
+    <Watch Include="Content\**\*.tmx" />
+    <Watch Include="Content\**\*.tsx" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\shared\world\realik_collision.bin" Link="Content\World\realik_collision.bin" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\shared\world\realik_elevation.bin" Link="Content\World\realik_elevation.bin" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Content\Maps\manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Content\Maps\**\*.tmx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Content\Maps\**\*.tsx" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="..\..\shared\protocol.json" Link="Protocol\protocol.json" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="MonoGame.Extended" Version="6.0.1" />
+    <PackageReference Include="MonoGame.Extended.Content.Pipeline" Version="6.0.1" />
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.2.1105" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.10" />

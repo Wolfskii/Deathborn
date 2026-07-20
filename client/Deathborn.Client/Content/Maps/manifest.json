@@ -1,0 +1,10 @@
+{
+  "maps": [
+    {
+      "id": "starter_room",
+      "contentPath": "Maps/dungeons/starter_room",
+      "title": "Starter Dungeon Room",
+      "tags": ["dungeon", "dev"]
+    }
+  ]
+}

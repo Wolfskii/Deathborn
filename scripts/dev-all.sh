@@ -44,6 +44,30 @@ COOLDOWN_UNTIL=0
 # Paths excluded from change detection (build artifacts, not source).
 FIND_PRUNE=( ! -path '*/obj/*' ! -path '*/bin/*' ! -path '*/.git/*' )
 
+resolve_python() {
+  local candidates=(python3 python)
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) candidates=(py python3 python) ;;
+  esac
+  local cmd
+  for cmd in "${candidates[@]}"; do
+    if command -v "$cmd" >/dev/null 2>&1 && "$cmd" -c "import sys" >/dev/null 2>&1; then
+      echo "$cmd"
+      return 0
+    fi
+  done
+  return 1
+}
+
+refresh_app_icons() {
+  local py
+  if ! py=$(resolve_python); then
+    echo "Python not found — skipping app icon refresh."
+    return 0
+  fi
+  "$py" "$ROOT/scripts/generate_app_icons.py"
+}
+
 touch_build_stamp() {
   mkdir -p "$CLIENT_OUT"
   touch "$BUILD_STAMP"
@@ -117,7 +141,7 @@ client_sources_changed() {
   fi
   if [ -f "$ROOT/client/Deathborn.Client/Content/Images/Logos/logo_v2.png" ] && \
      [ "$ROOT/client/Deathborn.Client/Content/Images/Logos/logo_v2.png" -nt "$BUILD_STAMP" ]; then
-    python "$ROOT/scripts/generate_app_icons.py"
+    refresh_app_icons
     return 0
   fi
   if [ -n "$(find "$ROOT/shared/world" -name '*.bin' -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
@@ -192,7 +216,7 @@ cd "$CLIENT_DIR"
 dotnet tool restore
 
 echo "Refreshing app icons..."
-python "$ROOT/scripts/generate_app_icons.py"
+refresh_app_icons
 
 echo "Stopping any stray Deathborn.Client.exe from prior runs..."
 case "$(uname -s)" in
