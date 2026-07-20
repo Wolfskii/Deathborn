@@ -140,6 +140,7 @@ func (g *elevationGrid) canStep(fx, fy, tx, ty, tw, th int) bool {
 }
 
 // rampTreadCellID maps a tile to its stair only when it is a tread sprite cell (landing or top).
+// O(1): check this cell and the ramp immediately south — never search the full grid.
 func (g *elevationGrid) rampTreadCellID(tx, ty, tw, th int) (landingX, landingY, kind int, ok bool) {
 	rampHere := int(g.rampAt(tx, ty, tw, th))
 	if rampHere != 0 {
@@ -155,6 +156,10 @@ func (g *elevationGrid) rampTreadCellID(tx, ty, tw, th int) (landingX, landingY,
 }
 
 // rampEngagedAtWorld is true on the green tread band or valid stair entry/approach tiles.
+//
+// PERF: Used to iterate every ramp cell on the map (1024×1024) on each call. Movement
+// resolution hits this path often; that full-grid scan caused multi-frame client hitch storms
+// (move phase ~55–75ms). Stairs only engage nearby tiles — keep the search to ±2 around feet.
 func (g *elevationGrid) rampEngagedAtWorld(wx, wy, tileSize float64, tw, th int) (landingX, landingY, kind int, ok bool) {
 	if rx, ry, k, hit := g.rampTreadAtWorld(wx, wy, tileSize, tw, th); hit {
 		return rx, ry, k, true
@@ -164,7 +169,6 @@ func (g *elevationGrid) rampEngagedAtWorld(wx, wy, tileSize float64, tw, th int)
 	ty := int(wy / tileSize)
 	lx := (wx - float64(tx)*tileSize) / tileSize
 
-	// Ramps only engage adjacent tiles — never scan the full map.
 	minRx := tx - 2
 	if minRx < 0 {
 		minRx = 0
@@ -225,6 +229,8 @@ func (g *elevationGrid) rampEngagedAtWorld(wx, wy, tileSize float64, tw, th int)
 }
 
 // rampTreadAtWorld checks world position against the green tread band inside the stair sprites.
+// PERF: Same as rampEngagedAtWorld — previously scanned the entire ramp grid; now only the
+// cell underfoot and the ramp one tile south can own the tread.
 func (g *elevationGrid) rampTreadAtWorld(wx, wy, tileSize float64, tw, th int) (landingX, landingY, kind int, ok bool) {
 	tx := int(wx / tileSize)
 	ty := int(wy / tileSize)

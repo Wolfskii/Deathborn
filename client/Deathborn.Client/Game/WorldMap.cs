@@ -117,6 +117,8 @@ public sealed class WorldMap
         return false;
     }
 
+    // O(1): a tread cell is either the ramp tile itself or the cell immediately north of it.
+    // Do not search the map — ResolveMove / CanTraverse call these many times per frame.
     private (int rx, int ry, int kind, bool ok) RampTreadCellId(int tx, int ty)
     {
         // A tread cell sits on ramp (tx,ty) or on the north edge of ramp (tx, ty+1).
@@ -134,6 +136,9 @@ public sealed class WorldMap
         return (0, 0, 0, false);
     }
 
+    // PERF: Previously looped every tile in the elevation grid (1024×1024 ≈ 1M GetRamp calls)
+    // on each engagement check. Walking called this several times per ResolveMove → ~55–75ms
+    // "move=" FPS dips (fps-dips.log). Stairs only touch nearby tiles, so scan ±2 around the feet.
     private (int rx, int ry, int kind, bool ok) RampEngagedAtWorld(float worldX, float worldY)
     {
         var (rx, ry, kind, hit) = RampTreadAtWorld(worldX, worldY);
@@ -143,7 +148,6 @@ public sealed class WorldMap
         var ty = (int)(worldY / TileSize);
         var lx = (worldX - tx * TileSize) / TileSize;
 
-        // Ramps only engage adjacent tiles — never scan the full 1024² map.
         var minRx = Math.Max(0, tx - 2);
         var maxRx = Math.Min(TileWidth - 1, tx + 2);
         var minRy = Math.Max(0, ty - 2);
@@ -173,12 +177,13 @@ public sealed class WorldMap
         return (0, 0, 0, false);
     }
 
+    // PERF: Same bug as RampEngagedAtWorld — used to scan the full ramp grid every call.
+    // A world point can only lie on the tread of the cell underfoot or the ramp one tile south.
     private (int rx, int ry, int kind, bool ok) RampTreadAtWorld(float worldX, float worldY)
     {
         var tx = (int)(worldX / TileSize);
         var ty = (int)(worldY / TileSize);
 
-        // Only the current tile and the ramp immediately south can own this tread.
         if ((uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight)
         {
             var ramp = GetRamp(tx, ty);

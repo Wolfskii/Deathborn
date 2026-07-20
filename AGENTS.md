@@ -136,6 +136,28 @@ python scripts/install_farm_rpg_terrain.py
 
 ---
 
+## Performance pitfalls (FPS / movement)
+
+Dev log: `client/Deathborn.Client/bin/Debug/net8.0/logs/fps-dips.log` (phase marks: `poll`, `move`, `clouds`, …).
+
+### Never full-scan the 1024×1024 elevation / ramp grid on the move hot path
+
+**Bug (fixed):** `RampTreadAtWorld`, `RampEngagedAtWorld`, and `RampTreadCellId` (client `Game/WorldMap.cs`; server `server/internal/worldmap/elevation.go`) used to iterate **every** ramp/elevation cell. Walking called them several times per `ResolveMove` → ~55–75ms `move=` dips and ~15 FPS while idle frames were ~3ms.
+
+**Rule:** Stair/ramp queries must be **O(1)** or a tiny neighborhood (±2 tiles around the feet). A tread belongs only to the cell underfoot or the ramp one tile south — never `for` over `TileWidth × TileHeight`.
+
+Keep client and server ramp logic in sync when changing engagement rules.
+
+### Other move-path gotchas already hit
+
+| Mistake | Symptom | Fix location |
+|---------|---------|--------------|
+| `File.GetLastWriteTimeUtc` every `SwaroviaMainland` access | Update stalls | `WorldMap` — cache after load; use `ReloadFromDisk()` for manual reload |
+| Rebuild full tiled overworld RT every water anim tick (~0.2s) | Draw/update spikes | `TiledOverworldRenderer` — cache Ground; draw Water live |
+| Sync `AutoFlush` / IDE-watched FPS log on game thread | Hitch storms from logging itself | `DevPerfLog` — async queue writer |
+
+---
+
 ## Tiled maps (dungeons + Swarovia mainland authoring)
 
 Authoritative manifest: [`client/Deathborn.Client/Content/Maps/manifest.json`](client/Deathborn.Client/Content/Maps/manifest.json)
