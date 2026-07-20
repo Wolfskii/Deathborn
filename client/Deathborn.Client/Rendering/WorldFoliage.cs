@@ -32,8 +32,8 @@ public sealed class FoliageInstance : IOcclusionHost
     byte IOcclusionHost.OcclusionMaskId => OcclusionMaskId;
     OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
     bool IOcclusionHost.IsOverheadOccluder => IsOverheadOccluder;
-    /// <summary>Sprite / sort feet — not the canopy ellipse bottom (see <see cref="WorldFoliage.FoliageBottomY"/>).</summary>
-    float IOcclusionHost.OcclusionDepthBottomY => WorldFoliage.FoliageBottomY(this);
+    /// <summary>Sprite / visual feet for Y-sort depth (see <see cref="WorldFoliage.OcclusionDepthBottomY"/>).</summary>
+    float IOcclusionHost.OcclusionDepthBottomY => WorldFoliage.OcclusionDepthBottomY(this);
 
     /// <summary>Replace sprite-derived ghost zone with a custom unscaled rect from bottom-center.</summary>
     public void SetOcclusionOverride(float left, float right, float top, float bottom) =>
@@ -56,9 +56,9 @@ public static class WorldFoliage
     /// <summary>Extra depth (unscaled px) into the ground shadow while still treated as behind.</summary>
     private const float TreeShadowDepthInset = 3f;
     /// <summary>Unscaled stem rows used for the square trunk collider (matches old pixel-mask height).</summary>
-    private const float TreeStemColliderRows = 11f;
+    private const float TreeStemColliderRows = 13f;
     /// <summary>Trim this many unscaled px off the collider bottom (above sprite anchor).</summary>
-    private const float TreeStemColliderBottomInsetPx = 3f;
+    private const float TreeStemColliderBottomInsetPx = 5f;
 
     private static readonly List<FoliageInstance> Instances = [];
     private static Texture2D?[] _textures = new Texture2D[13];
@@ -171,18 +171,26 @@ public static class WorldFoliage
         f.Position.Y - f.FootInset * f.Scale;
 
     /// <summary>
-    /// World Y of the foliage feet used for occlusion depth and draw sorting vs the player.
-    /// Player feet with a smaller Y are behind this object (may ghost when under the canopy);
-    /// player feet with a larger Y are in front (no ghost). Trees add a small shadow inset.
+    /// World Y of the foliage feet used for draw sorting vs the player.
+    /// Trees push slightly into the ground shadow so you stay "behind" a bit longer.
     /// </summary>
     public static float FoliageBottomY(FoliageInstance f) =>
         f.Kind == FoliageKind.Tree
             ? f.Position.Y + TreeShadowDepthInset * f.Scale
             : f.Position.Y;
 
-    /// <summary>True when <paramref name="entityFeetY"/> is north of the foliage feet (behind in Y-sort).</summary>
+    /// <summary>
+    /// Sprite-foot depth fallback. Combined with the yellow collider southern tip in
+    /// <see cref="OcclusionZone.EffectiveDepthBottomY"/> (whichever is further south wins).
+    /// </summary>
+    public static float OcclusionDepthBottomY(FoliageInstance f) =>
+        f.Kind == FoliageKind.Tree
+            ? SortY(f) + TreeShadowDepthInset * f.Scale
+            : SortY(f);
+
+    /// <summary>True when the player collision bottom is north of the effective occlusion depth line.</summary>
     public static bool EntityIsBehind(FoliageInstance f, float entityFeetY) =>
-        entityFeetY < FoliageBottomY(f);
+        PlayerEntity.CollisionBottomY(entityFeetY) < OcclusionZone.EffectiveDepthBottomY(f);
 
     public static bool BlocksCircle(Vector2 pos, float radius)
     {

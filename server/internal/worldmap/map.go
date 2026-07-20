@@ -204,12 +204,18 @@ func (m *Map) canTraverseTiles(fx, fy, tx, ty int) bool {
 func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
 	sampleFromY := fromY
 	sampleToY := toY
+	// Match client: feet sit south of the ellipse. Horizontal moves must sample the
+	// southern ellipse edge or sideways sliding fails after pressing a south shore
+	// (feet on water tile, ellipse still on land).
 	if toY > fromY+0.001 {
 		sampleFromY = playerCollisionBottomY(fromY)
 		sampleToY = playerCollisionBottomY(toY)
 	} else if toY < fromY-0.001 {
 		sampleFromY = playerCollisionTopY(fromY)
 		sampleToY = playerCollisionTopY(toY)
+	} else {
+		sampleFromY = playerCollisionBottomY(fromY)
+		sampleToY = playerCollisionBottomY(toY)
 	}
 
 	fx, fy := m.tileAt(fromX, sampleFromY)

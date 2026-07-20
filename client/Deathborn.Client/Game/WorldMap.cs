@@ -250,7 +250,10 @@ public sealed class WorldMap
     {
         var sampleFromY = fromY;
         var sampleToY = toY;
-        // Feet anchor sits below the ellipse — sample the relevant ellipse edge for vertical moves.
+        // Feet anchor sits south of the ellipse. Sample the contact edge used for walkability
+        // so tile elevation checks match IsWalkable — otherwise after pressing a south shore
+        // the feet can sit on a water tile while the ellipse is still on land, and sideways
+        // CanTraverse (using raw feet Y) falsely blocks as an invisible wall.
         if (toY > fromY + 0.001f)
         {
             sampleFromY = PlayerEntity.CollisionBottomY(fromY);
@@ -260,6 +263,11 @@ public sealed class WorldMap
         {
             sampleFromY = PlayerEntity.CollisionTopY(fromY);
             sampleToY = PlayerEntity.CollisionTopY(toY);
+        }
+        else
+        {
+            sampleFromY = PlayerEntity.CollisionBottomY(fromY);
+            sampleToY = PlayerEntity.CollisionBottomY(toY);
         }
 
         var fx = (int)(fromX / TileSize);

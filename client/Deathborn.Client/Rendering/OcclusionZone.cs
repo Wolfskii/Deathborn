@@ -28,9 +28,10 @@ public readonly struct OcclusionColliderOverride
 /// <item>
 /// <see cref="IsOverheadOccluder"/> = false (trees, bushes, ground props):
 /// overlap alone is not enough. Compare player feet Y to <see cref="OcclusionDepthBottomY"/>.
-/// If the player's feet are below the object's bottom (feet.Y &gt;= depth bottom), the player is
-/// visually in front — do not ghost. If the object's bottom is lower than the player's feet,
+/// If the player's feet are below the object's bottom (collision bottom &gt;= depth bottom), the player is
+/// visually in front — do not ghost. If the object's bottom is lower than the player's bottom,
 /// the player is behind / under the prop — ghost when colliders overlap.
+/// Depth uses <see cref="OcclusionZone.EffectiveDepthBottomY"/> (sprite foot and yellow collider tip).
 /// </item>
 /// <item>
 /// <see cref="IsOverheadOccluder"/> = true (clouds / aerial props):
@@ -54,8 +55,9 @@ public interface IOcclusionHost
     bool IsOverheadOccluder { get; }
 
     /// <summary>
-    /// World Y of the object's sprite feet / sort bottom (not the top of the leaf ellipse).
-    /// Compared to player feet when <see cref="IsOverheadOccluder"/> is false.
+    /// World Y of the object's visual feet / sort bottom (not the southern tip of the
+    /// yellow occlusion ellipse). Compared to the player's collision bottom when
+    /// <see cref="IsOverheadOccluder"/> is false.
     /// Unused for overhead occluders.
     /// </summary>
     float OcclusionDepthBottomY { get; }
@@ -94,6 +96,53 @@ public static class OcclusionZone
     }
 
     /// <summary>
+    /// Southern world Y of the yellow occlusion collider (ellipse/rect tip), if available.
+    /// </summary>
+    public static bool TryGetColliderSouthY(IOcclusionHost host, out float southY)
+    {
+        southY = 0f;
+        var anchor = host.OcclusionAnchor;
+        var scale = host.OcclusionScale;
+
+        if (host.OcclusionOverride.IsSet)
+        {
+            if (!TryGetWorldBounds(host, out _, out _, out _, out var bottom))
+                return false;
+            southY = bottom;
+            return true;
+        }
+
+        if (!OcclusionMaskCache.TryGetMask(host.OcclusionMaskId, out var mask) || mask == null)
+            return false;
+
+        if (mask.ColliderShape is OcclusionColliderShape.Ellipse or OcclusionColliderShape.Circle)
+        {
+            mask.GetWorldEllipse(anchor, scale, out var center, out _, out var radiusY);
+            southY = center.Y + radiusY;
+            return true;
+        }
+
+        mask.GetWorldBounds(anchor, scale, out _, out _, out _, out var boundsBottom);
+        southY = boundsBottom;
+        return true;
+    }
+
+    /// <summary>
+    /// Effective Y-sort depth bottom for ghosting: the more southern of
+    /// <see cref="IOcclusionHost.OcclusionDepthBottomY"/> and the yellow collider tip.
+    /// Bushes' visual foot (<c>SortY</c>) sits north of the yellow ellipse — using foot alone
+    /// delayed transparency until the player walked past the yellow zone.
+    /// Trees keep feet depth when the canopy ellipse sits higher up the trunk.
+    /// </summary>
+    public static float EffectiveDepthBottomY(IOcclusionHost host)
+    {
+        var depth = host.OcclusionDepthBottomY;
+        if (TryGetColliderSouthY(host, out var colliderSouth))
+            return MathF.Max(depth, colliderSouth);
+        return depth;
+    }
+
+    /// <summary>
     /// True when the player should be ghosted by this host.
     /// Requires collider overlap, and for ground props also Y-sort depth
     /// (see <see cref="IOcclusionHost"/>).
@@ -104,10 +153,10 @@ public static class OcclusionZone
         float rx,
         float ry)
     {
-        // Ground props (trees/bushes): player feet at or below the object's depth bottom
-        // means the player is standing in front of it in top-down Y-sort — no ghost.
-        // Overhead props (clouds): IsOverheadOccluder skips this and uses overlap only.
-        if (!host.IsOverheadOccluder && feet.Y >= host.OcclusionDepthBottomY)
+        // Player collision bottom vs effective object bottom (sprite foot and/or yellow tip).
+        // If the player's bottom is still south of that line, they are in front — no ghost.
+        if (!host.IsOverheadOccluder
+            && PlayerEntity.CollisionBottomY(feet.Y) >= EffectiveDepthBottomY(host))
             return false;
 
         var center = PlayerEntity.CollisionCenter(feet);
