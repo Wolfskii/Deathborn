@@ -24,6 +24,8 @@ import (
 )
 
 const tickHz = 60
+const snapshotEveryTicks = 3 // 20 Hz snapshots; sim stays at 60 Hz
+const staticRefreshTicks = 120 // re-send houses/drops at least every 2s
 
 // version is set at build time via -ldflags "-X main.version=...". It defaults
 // to "dev" for local `go run`.
@@ -78,7 +80,8 @@ func main() {
 		hub.Run(ctx)
 	}()
 
-	// Simulation loop: advance the world and broadcast a snapshot each tick.
+	// Simulation loop: advance the world every tick; broadcast snapshots at 20 Hz.
+	var lastHouseRev, lastDropRev uint64 = ^uint64(0), ^uint64(0)
 	go game.RunLoop(ctx, world, tickHz, func(tick uint64, heals []game.HealEvent, dt float64) {
 		hub.ProcessExpiredWorldDrops()
 		hub.ProcessBossEvents(world.TickBosses(dt))
@@ -90,7 +93,21 @@ func main() {
 		for _, b := range world.TickBuffs(dt) {
 			hub.Broadcast(gnet.BuildPlayerBuff(b.PlayerID, b.BuffID, b.Remaining, b.Duration, b.MarkTargetID))
 		}
-		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot(), world.NpcSnapshot(), world.HouseSnapshot(), world.DropSnapshot(), world.WorldEventSnapshot()))
+		if tick%snapshotEveryTicks != 0 {
+			return
+		}
+
+		var houses []game.HouseState
+		if hr := world.HouseRevision(); hr != lastHouseRev || tick%staticRefreshTicks == 0 {
+			houses = world.HouseSnapshot()
+			lastHouseRev = hr
+		}
+		var drops []game.WorldItemDropState
+		if dr := world.DropRevision(); dr != lastDropRev || tick%staticRefreshTicks == 0 {
+			drops = world.DropSnapshot()
+			lastDropRev = dr
+		}
+		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot(), world.NpcSnapshot(), houses, drops, world.WorldEventSnapshot()))
 	})
 
 	authH := auth.NewHandler(database, cfg.JWTSecret)

@@ -27,6 +27,8 @@ type World struct {
 	mobMgr   *mobManager
 	housing  *HousingIndex
 	drops    *WorldDropIndex
+	houseRev uint64
+	dropRev  uint64
 }
 
 func NewWorld(terrain *worldmap.Map) *World {

@@ -125,6 +125,11 @@ func (w *World) LoadWorldDrops(rows []db.WorldItemDrop) {
 		w.drops = NewWorldDropIndex()
 	}
 	w.drops.LoadFromDB(rows)
+	w.dropRev++
+}
+
+func (w *World) DropRevision() uint64 {
+	return w.dropRev
 }
 
 func (w *World) DropSnapshot() []WorldItemDropState {
@@ -146,6 +151,7 @@ func (w *World) RegisterDrop(row db.WorldItemDrop) WorldItemDropState {
 		drop.droppedAt = time.Now()
 	}
 	w.drops.Add(drop)
+	w.dropRev++
 	return drop.state()
 }
 
@@ -183,6 +189,7 @@ func (w *World) RemoveDrop(id int64) (WorldItemDropState, bool) {
 	if drop == nil {
 		return WorldItemDropState{}, false
 	}
+	w.dropRev++
 	return drop.state(), true
 }
 

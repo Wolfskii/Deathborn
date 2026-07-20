@@ -22,7 +22,7 @@ public sealed class WorldBackgroundRenderer
 
         if (TiledMapCatalog.TryGet(TiledOverworldRenderer.MapId) is { } painted)
         {
-            TiledOverworldRenderer.Draw(sb, painted, gameTime, _tiles);
+            TiledOverworldRenderer.Draw(sb, graphicsDevice, painted, gameTime, _tiles);
             return;
         }
 

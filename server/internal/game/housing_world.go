@@ -11,6 +11,11 @@ func (w *World) LoadHouses(houses []db.House) {
 		w.housing = NewHousingIndex()
 	}
 	w.housing.LoadFromDB(houses)
+	w.houseRev++
+}
+
+func (w *World) HouseRevision() uint64 {
+	return w.houseRev
 }
 
 func (w *World) HouseSnapshot() []HouseState {
@@ -47,6 +52,7 @@ func (w *World) RegisterHouse(row db.House) HouseState {
 		w.housing = NewHousingIndex()
 	}
 	w.housing.Add(plot)
+	w.houseRev++
 	return plot.state()
 }
 
@@ -60,6 +66,7 @@ func (w *World) RemoveHouseByCharacter(characterID int64) (HouseState, bool) {
 	if p == nil {
 		return HouseState{}, false
 	}
+	w.houseRev++
 	return p.state(), true
 }
 
@@ -73,6 +80,7 @@ func (w *World) PlaceFurniture(characterID int64, item FurnitureItem) (HouseStat
 		return HouseState{}, msg, false
 	}
 	w.housing.AddFurniture(characterID, item)
+	w.houseRev++
 	p := w.housing.ByCharacter(characterID)
 	return p.state(), "", true
 }
@@ -87,6 +95,7 @@ func (w *World) RemoveHouseByID(houseID int64) (HouseState, bool) {
 	if p == nil {
 		return HouseState{}, false
 	}
+	w.houseRev++
 	return p.state(), true
 }
 
@@ -100,6 +109,7 @@ func (w *World) TransferHouse(houseID, newCharacterID int64, newOwnerName string
 	if p == nil {
 		return HouseState{}, false
 	}
+	w.houseRev++
 	return p.state(), true
 }
 

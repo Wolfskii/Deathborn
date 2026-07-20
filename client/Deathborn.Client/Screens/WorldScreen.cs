@@ -1832,7 +1832,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         // Skip cast SFX / status toast when restoring a paused buff after login.
         var isFresh = remaining >= duration - 0.5;
         if (!isFresh) return;
-        if (data.BuffId is "battle_shout" or "iron_skin")
+        if (data.BuffId == "battle_shout")
+            SfxPlayer.PlayBattleShout();
+        else if (data.BuffId == "iron_skin")
             SfxPlayer.PlayHolySpell();
         var (name, desc, _) = BuffCatalog.Describe(data.BuffId);
         _status = $"{name}: {desc}";
@@ -2234,14 +2236,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (snap.WorldEvent != null)
             ApplyWorldEvent(snap.WorldEvent);
 
-        _houses.Clear();
         if (snap.Houses != null)
         {
+            _houses.Clear();
             _houses.AddRange(snap.Houses);
             ApplyHouseList();
         }
 
-        SyncWorldItemInteractables(snap.WorldItems);
+        if (snap.WorldItems != null)
+            SyncWorldItemInteractables(snap.WorldItems);
 
         var seen = new HashSet<long>();
         foreach (var s in snap.Npcs ?? [])
@@ -2518,10 +2521,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
-    private void SyncWorldItemInteractables(List<WorldItemDropState>? drops)
+    private void SyncWorldItemInteractables(List<WorldItemDropState> drops)
     {
         _interactables.RemoveAll(i => i.Kind == InteractableKind.GroundItem);
-        if (drops == null) return;
 
         foreach (var drop in drops)
             AddWorldItemInteractable(drop);
