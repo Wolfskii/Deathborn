@@ -164,12 +164,30 @@ public static class SfxPlayer
         if (presets.Length == 0)
             presets = SwordSwingPitches;
 
-        var basePitch = presets[sound.VariationIndex % presets.Length];
-        var jitter = (Random.Shared.NextSingle() - 0.5f) * 0.08f;
-        var pitch = basePitch + jitter;
+        var min = presets[0];
+        var max = presets[0];
+        for (var i = 1; i < presets.Length; i++)
+        {
+            min = MathF.Min(min, presets[i]);
+            max = MathF.Max(max, presets[i]);
+        }
 
-        if (MathF.Abs(pitch - sound.LastPitch) < 0.05f)
-            pitch += pitch >= sound.LastPitch ? 0.10f : -0.10f;
+        // Random pitch in the preset range (not a sequential climb through the table).
+        var pitch = min + Random.Shared.NextSingle() * (max - min);
+        pitch += (Random.Shared.NextSingle() - 0.5f) * 0.04f;
+
+        // Nudge away from the previous play so rapid hits don't sound identical.
+        if (!float.IsNaN(sound.LastPitch) && MathF.Abs(pitch - sound.LastPitch) < 0.06f)
+        {
+            var roomUp = max - sound.LastPitch;
+            var roomDown = sound.LastPitch - min;
+            if (roomUp >= roomDown && roomUp > 0.06f)
+                pitch = sound.LastPitch + 0.08f + Random.Shared.NextSingle() * MathF.Min(0.12f, roomUp);
+            else if (roomDown > 0.06f)
+                pitch = sound.LastPitch - 0.08f - Random.Shared.NextSingle() * MathF.Min(0.12f, roomDown);
+            else
+                pitch = sound.LastPitch + (Random.Shared.NextSingle() < 0.5f ? -0.1f : 0.1f);
+        }
 
         pitch = Math.Clamp(pitch, -0.45f, 0.45f);
         sound.LastPitch = pitch;
@@ -181,8 +199,7 @@ public static class SfxPlayer
         if (presets.Length == 0)
             return Math.Clamp(volumeScale, 0f, 1f) * AudioSettings.SfxVolume;
 
-        var preset = presets[sound.VariationIndex % presets.Length];
-        sound.VariationIndex++;
+        var preset = presets[Random.Shared.Next(presets.Length)];
         return Math.Clamp(volumeScale * preset, 0f, 1f) * AudioSettings.SfxVolume;
     }
 
@@ -213,7 +230,6 @@ public static class SfxPlayer
     private sealed class CachedSound(SoundEffectInstance[] pool)
     {
         public SoundEffectInstance[] Pool { get; } = pool;
-        public int VariationIndex;
         public float LastPitch = float.NaN;
         private int _next;
 
