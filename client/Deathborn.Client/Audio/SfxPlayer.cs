@@ -40,6 +40,7 @@ public static class SfxPlayer
         _content = content;
         ClearCache();
         Preload(GameSfx.SwordSwing);
+        Preload(GameSfx.BattleShout);
         Preload(GameSfx.Fireball);
         Preload(GameSfx.FireballImpact);
         Preload(GameSfx.IceShard);
@@ -109,6 +110,9 @@ public static class SfxPlayer
     public static void PlayHolySpell() =>
         Play(GameSfx.HolySpell, 0.88f, HolyPitches, HolyVolumes);
 
+    public static void PlayBattleShout() =>
+        Play(GameSfx.BattleShout, 0.95f, BattleShoutPitches, BattleShoutVolumes, GameSfx.BattleShoutMaxDuration);
+
     public static void PlayBushRustle(float volumeScale = 1f, float? maxDuration = null) =>
         Play(
             GameSfx.BushRustle,
@@ -156,6 +160,8 @@ public static class SfxPlayer
     private static readonly float[] HealVolumes = [0.88f, 1f, 0.94f];
     private static readonly float[] HolyPitches = [-0.06f, 0f, 0.08f];
     private static readonly float[] HolyVolumes = [0.9f, 1f, 0.96f];
+    private static readonly float[] BattleShoutPitches = [-0.12f, -0.04f, 0.04f, 0.12f];
+    private static readonly float[] BattleShoutVolumes = [0.9f, 1f, 0.95f, 1.05f];
     private static readonly float[] BushRustlePitches = [-0.18f, -0.06f, 0.06f, 0.14f];
     private static readonly float[] BushRustleVolumes = [0.85f, 0.95f, 1f, 0.9f];
 

@@ -4,6 +4,7 @@ namespace Deathborn.Client.Audio;
 public static class GameSfx
 {
     public const string SwordSwing = "Audio/Sfx/Battle/sword-swing-sfx";
+    public const string BattleShout = "Audio/Sfx/Battle/battle-shout-sfx";
     public const string Fireball = "Audio/Sfx/Battle/fireball-sfx";
     public const string FireballImpact = "Audio/Sfx/Battle/fireball-impact-sfx";
     public const string IceShard = "Audio/Sfx/Battle/ice-shard-sfx";
@@ -15,6 +16,7 @@ public static class GameSfx
     /// <summary>Source files have long silent tails — stop playback early.</summary>
     public const float HealMaxDuration = 2f;
     public const float IceShardMaxDuration = 3f;
+    public const float BattleShoutMaxDuration = 1.6f;
     public const float BushRustleMaxDuration = 1.4f;
     /// <summary>Step-in without walking — shorter tail so it does not linger.</summary>
     public const float BushRustleEnterMaxDuration = 0.55f;

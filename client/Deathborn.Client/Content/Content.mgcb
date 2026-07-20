@@ -59,6 +59,14 @@
 
 #end Audio/Sfx/Battle/sword-swing-sfx.mp3
 
+#begin Audio/Sfx/Battle/battle-shout-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Battle/battle-shout-sfx.mp3
+
+#end Audio/Sfx/Battle/battle-shout-sfx.mp3
+
 #begin Audio/Sfx/Battle/fireball-sfx.mp3
 /importer:Mp3Importer
 /processor:SoundEffectProcessor
