@@ -68,6 +68,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private KeyboardState _prevKb;
     private MouseState _prevMouse;
     private bool _wasWindowActive = true;
+    private bool _wasUnderBush;
+    private float _bushRustleCooldown;
     private bool _debugHudVisible;
     private bool _localWasRunning;
     private int? _pendingHotbarDragIndex;
@@ -446,6 +448,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 ReportAbilityHitNpc(localEntity.Id, targetId, damage, ability));
         }
 
+        if (localEntity is { IsDead: false } && InteriorHouse() == null && !_ghostMode)
+            UpdateBushRustleSfx(localEntity, dt);
+
         UpdateProjectiles(dt);
         _feedback.Update(dt, _players, _npcs);
         _hotbar.Update(dt, kb, _prevKb, mouse, _prevMouse,
@@ -482,11 +487,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 if (kb.IsKeyDown(Keys.Space) && !_prevKb.IsKeyDown(Keys.Space))
                     TryUseSelectedHotbarSlot();
 
-                if (mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released
+                if (DeathbornGame.Instance.IsWorldMouseClick(mouse, _prevMouse)
                     && !IsOverHotbar(mouse.Position))
                     HandleLeftClick(mouse.Position);
 
-                if (mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released
+                if (windowActive && DeathbornGame.Instance.IsMouseOverClient(mouse.Position)
+                    && mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released
                     && !IsOverHotbar(mouse.Position) && !_playerContextMenu.IsOpen)
                     HandleRightClick(mouse.Position);
             }
@@ -527,6 +533,25 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private Vector2 _lastSentDir;
     private bool _lastSentRunning;
+
+    private void UpdateBushRustleSfx(PlayerEntity local, float dt)
+    {
+        _bushRustleCooldown = MathF.Max(0f, _bushRustleCooldown - dt);
+        var underBush = WorldFoliage.IsEntityUnderBush(local.Position);
+
+        if (underBush && !_wasUnderBush)
+        {
+            SfxPlayer.PlayBushRustle();
+            _bushRustleCooldown = 0.4f;
+        }
+        else if (underBush && local.IsMoving && _bushRustleCooldown <= 0f)
+        {
+            SfxPlayer.PlayBushRustle();
+            _bushRustleCooldown = local.IsRunning ? 0.42f : 0.58f;
+        }
+
+        _wasUnderBush = underBush;
+    }
 
     public void Draw(GameTime gameTime)
     {
@@ -908,6 +933,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_ghostMode) return;
         _ghostMode = true;
         _ghostModePending = false;
+        _wasUnderBush = false;
         _deathPrompt = true;
         _ghost = new GhostEntity
         {

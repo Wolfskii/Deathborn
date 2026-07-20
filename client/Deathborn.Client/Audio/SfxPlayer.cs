@@ -45,6 +45,7 @@ public static class SfxPlayer
         Preload(GameSfx.IceShard);
         Preload(GameSfx.Heal);
         Preload(GameSfx.HolySpell);
+        Preload(GameSfx.BushRustle);
     }
 
     public static void Update(float dt)
@@ -108,6 +109,9 @@ public static class SfxPlayer
     public static void PlayHolySpell() =>
         Play(GameSfx.HolySpell, 0.88f, HolyPitches, HolyVolumes);
 
+    public static void PlayBushRustle() =>
+        Play(GameSfx.BushRustle, 0.82f, BushRustlePitches, BushRustleVolumes, GameSfx.BushRustleMaxDuration);
+
     // ~±2 semitones in MonoGame pitch units (multiplier = 2^pitch).
     private static readonly float[] SwordSwingPitches = [-0.28f, -0.14f, 0f, 0.14f, 0.28f];
     private static readonly float[] SwordSwingVolumes = [0.88f, 0.96f, 1f, 1.05f, 0.92f];
@@ -121,6 +125,8 @@ public static class SfxPlayer
     private static readonly float[] HealVolumes = [0.88f, 1f, 0.94f];
     private static readonly float[] HolyPitches = [-0.06f, 0f, 0.08f];
     private static readonly float[] HolyVolumes = [0.9f, 1f, 0.96f];
+    private static readonly float[] BushRustlePitches = [-0.18f, -0.06f, 0.06f, 0.14f];
+    private static readonly float[] BushRustleVolumes = [0.85f, 0.95f, 1f, 0.9f];
 
     private static float NextPitch(CachedSound sound, ReadOnlySpan<float> presets)
     {

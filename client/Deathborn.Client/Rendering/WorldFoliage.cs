@@ -289,6 +289,16 @@ public static class WorldFoliage
             PlayerEntity.CollisionRadiusY);
     }
 
+    public static bool IsEntityUnderBush(Vector2 feet, float entityRadius = PlayerEntity.Radius)
+    {
+        foreach (var f in Instances)
+        {
+            if (f.Kind != FoliageKind.Bush) continue;
+            if (EntityUnderFoliage(f, feet, entityRadius)) return true;
+        }
+        return false;
+    }
+
     public static void GetVisible(
         WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom, List<FoliageInstance> visible)
     {

@@ -10,7 +10,10 @@ public static class GameSfx
     public const string Heal = "Audio/Sfx/Heal/heal-sfx";
     public const string HolySpell = "Audio/Sfx/Heal/holy-spell-sfx";
 
+    public const string BushRustle = "Audio/Sfx/World/bush-rustling-sfx";
+
     /// <summary>Source files have long silent tails — stop playback early.</summary>
     public const float HealMaxDuration = 2f;
     public const float IceShardMaxDuration = 3f;
+    public const float BushRustleMaxDuration = 1.4f;
 }

@@ -107,6 +107,17 @@ public sealed class DeathbornGame : Game
 
     private void SyncViewport() => GameViewport.SyncFrom(GraphicsDevice);
 
+    public bool IsMouseOverClient(Point clientPosition) =>
+        clientPosition.X >= 0 && clientPosition.Y >= 0
+        && clientPosition.X < GameViewport.Width && clientPosition.Y < GameViewport.Height;
+
+    /// <summary>Left-click edge on the focused game client (not title bar / outside window).</summary>
+    public bool IsWorldMouseClick(MouseState mouse, MouseState prevMouse) =>
+        IsActive
+        && IsMouseOverClient(mouse.Position)
+        && mouse.LeftButton == ButtonState.Pressed
+        && prevMouse.LeftButton == ButtonState.Released;
+
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);

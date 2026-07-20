@@ -99,6 +99,14 @@
 
 #end Audio/Sfx/Heal/holy-spell-sfx.mp3
 
+#begin Audio/Sfx/World/bush-rustling-sfx.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/World/bush-rustling-sfx.mp3
+
+#end Audio/Sfx/World/bush-rustling-sfx.mp3
+
 #begin Icons/ability_sheet.png
 /importer:TextureImporter
 /processor:TextureProcessor
