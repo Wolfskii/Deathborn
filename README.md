@@ -228,8 +228,8 @@ This repo uses [Task](https://taskfile.dev) (`Taskfile.yml`). Run `task` to list
 
 | Command | What it does |
 | --- | --- |
-| `task dev` | **Local dev:** Postgres (Docker) + Go server + MonoGame client on host |
-| `task dev:server` | Backend only — Go server on host |
+| `task dev` | **Local dev:** Postgres (Docker) + Go server (Air live-reload) + MonoGame client on host |
+| `task dev:server` | Backend only — Go server with Air (rebuilds on `.go` / migration changes) |
 | `task dev:client` | Frontend only — MonoGame client (server must be running) |
 | `task up` / `task stop` | Full stack in Docker only (no local client) |
 | `task client:package` | Native installer/package for this OS |

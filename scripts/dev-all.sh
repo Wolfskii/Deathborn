@@ -3,6 +3,7 @@
 # Used by: task dev / task dev:all [-- CLIENT_COUNT]
 #
 # Client reload: poll for source changes, stop all game windows, rebuild, restart.
+# Server reload: Air watches server/*.go (+ migrations) and rebuilds in place.
 # Uses a build stamp (not the DLL mtime) and ignores obj/bin so generated files
 # don't retrigger an infinite rebuild loop on Windows.
 set -e
@@ -31,15 +32,29 @@ export PORT="${DEV_PORT}"
 export LISTEN_HOST="${LISTEN_HOST:-127.0.0.1}"
 export DEATHBORN_SKIP_UPDATE="${DEATHBORN_SKIP_UPDATE:-1}"
 
-SERVER_BIN="${ROOT}/bin/deathborn"
-case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*) SERVER_BIN="${SERVER_BIN}.exe" ;;
-esac
-
 SERVER_PID=""
 CLIENT_PIDS=()
 BUILDING=0
 COOLDOWN_UNTIL=0
+
+ensure_air() {
+  if command -v air >/dev/null 2>&1; then
+    return 0
+  fi
+  local gobin
+  gobin="$(go env GOPATH)/bin"
+  export PATH="${gobin}:${PATH}"
+  if command -v air >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "Installing air (Go live reload)..."
+  go install github.com/air-verse/air@latest
+  export PATH="$(go env GOPATH)/bin:${PATH}"
+  if ! command -v air >/dev/null 2>&1; then
+    echo "air not found after install. Add $(go env GOPATH)/bin to your PATH." >&2
+    exit 1
+  fi
+}
 
 # Paths excluded from change detection (build artifacts, not source).
 FIND_PRUNE=( ! -path '*/obj/*' ! -path '*/bin/*' ! -path '*/.git/*' )
@@ -188,18 +203,17 @@ case "$(uname -s)" in
   *) trap cleanup EXIT INT TERM ;;
 esac
 
-echo "Starting Go server on ${LISTEN_HOST}:${DEV_PORT}..."
-mkdir -p "${ROOT}/bin"
+echo "Starting Go server with Air live-reload on ${LISTEN_HOST}:${DEV_PORT}..."
+ensure_air
 (
   cd "$SERVER_DIR"
-  go build -o "$SERVER_BIN" ./cmd/deathborn
-  exec "$SERVER_BIN"
+  exec air -c .air.toml
 ) &
 SERVER_PID=$!
 
 echo "Waiting for server health check..."
 ready=0
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
   if curl -sf "http://127.0.0.1:${DEV_PORT}/health" >/dev/null 2>&1; then
     echo "Server is ready."
     ready=1

@@ -88,7 +88,7 @@ tasks:
         platforms: [windows]
 
   dev:server:
-    desc: Run only the Go server on the host (expects `task db` already running)
+    desc: Run Go server with Air live-reload (rebuilds on .go/.sql changes)
     deps: [db, dev:wait-db]
     dir: "{{.SERVER_DIR}}"
     env:
@@ -97,8 +97,10 @@ tasks:
       PORT: "{{.DEV_PORT}}"
       LISTEN_HOST: "127.0.0.1"
     cmds:
-      - go build -o ../bin/{{.BINARY}} ./cmd/deathborn
-      - ../bin/{{.BINARY}}
+      - cmd: bash ../scripts/dev-server.sh
+        platforms: [linux, darwin]
+      - cmd: '"{{.GIT_BASH}}" ../scripts/dev-server.sh'
+        platforms: [windows]
 
   dev:client:
     desc: Run only the MonoGame client; dotnet watch restarts the game on code changes
