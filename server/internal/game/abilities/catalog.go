@@ -1,3 +1,5 @@
+// Package abilities is the embedded ability registry.
+// Authoritative file: shared/abilities.json — sync with: python scripts/sync_shared_embeds.py
 package abilities
 
 import (
@@ -6,6 +8,7 @@ import (
 	"fmt"
 )
 
+//go:generate py -3 ../../../../scripts/sync_shared_embeds.py
 //go:embed abilities.json
 var embeddedJSON []byte
 

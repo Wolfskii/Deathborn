@@ -1,5 +1,5 @@
 // Package protocol defines the client/server compatibility contract.
-// Keep server/internal/protocol/protocol.json in sync with shared/protocol.json.
+// Authoritative file: shared/protocol.json — sync with: python scripts/sync_shared_embeds.py
 package protocol
 
 import (
@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+//go:generate py -3 ../../../../scripts/sync_shared_embeds.py
 //go:embed protocol.json
 var specBytes []byte
 

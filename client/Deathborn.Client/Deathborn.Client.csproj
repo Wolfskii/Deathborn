@@ -51,6 +51,9 @@
     <Content Include="Content\Tiles\FarmRpg\*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Content\Audio\Songs\*.srt" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="..\..\shared\protocol.json" Link="Protocol\protocol.json" />
+    <EmbeddedResource Include="..\..\shared\abilities.json">
+      <LogicalName>Deathborn.Client.Gameplay.abilities.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Extended" Version="6.0.1" />

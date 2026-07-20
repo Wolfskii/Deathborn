@@ -4,7 +4,8 @@ import "github.com/deathborn/server/internal/game/abilities"
 
 const DefaultHpMax = 100
 
-// Ability catalog accessors — data lives in abilities.json (see shared/abilities.json mirror).
+// Ability catalog accessors — authoritative data in shared/abilities.json
+// (copied into this module via scripts/sync_shared_embeds.py).
 
 func DamageForAbility(id string) int {
 	return abilities.Default().Damage(id)

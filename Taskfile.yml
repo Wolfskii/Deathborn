@@ -89,7 +89,7 @@ tasks:
 
   dev:server:
     desc: Run Go server with Air live-reload (rebuilds on .go/.sql changes)
-    deps: [db, dev:wait-db]
+    deps: [db, dev:wait-db, sync:shared]
     dir: "{{.SERVER_DIR}}"
     env:
       DATABASE_URL: "{{.DEV_DATABASE_URL}}"
@@ -305,11 +305,20 @@ tasks:
       - dotnet restore Deathborn.Client.sln
 
   # --- Build ---
+  sync:shared:
+    desc: Copy shared/*.json into Go embed paths (abilities + protocol)
+    cmds:
+      - cmd: py -3 scripts/sync_shared_embeds.py
+        platforms: [windows]
+      - cmd: python3 scripts/sync_shared_embeds.py
+        platforms: [linux, darwin]
+
   build:
     desc: Build the server binary into ./bin (version-stamped)
     dir: "{{.SERVER_DIR}}"
     env:
       CGO_ENABLED: "0"
+    deps: [sync:shared]
     cmds:
       - go build -ldflags "{{.LDFLAGS}}" -o ../bin/{{.BINARY}} ./cmd/deathborn
     generates:

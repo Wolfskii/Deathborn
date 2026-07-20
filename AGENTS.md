@@ -1,5 +1,23 @@
 # Deathborn — Agent Guide
 
+## Shared combat / protocol data (single source of truth)
+
+Authoritative JSON lives under [`shared/`](shared/):
+
+| File | Purpose |
+|------|---------|
+| `shared/abilities.json` | Damage, hitRange, heal, HoT — used by **server** and **client** |
+| `shared/protocol.json` | Wire protocol version gates |
+
+**Do not** duplicate combat numbers in `Config.cs` or a second abilities file. Edit `shared/abilities.json` only.
+
+- **Client:** embeds `shared/abilities.json` via `Deathborn.Client.csproj`; read through `SharedAbilities` / `Config.*Damage` / `Config.*Range` wrappers.
+- **Server:** Go `//go:embed` cannot use `..` paths, so `scripts/sync_shared_embeds.py` copies into `server/internal/game/abilities/` and `server/internal/protocol/`. Run `task sync:shared` (also a dependency of `task build` / `task dev:server`). A unit test fails if the embed copy is stale.
+
+Client-only presentation (cooldowns, names, VFX timing) may stay in `AbilityCatalog` / `Config` consts.
+
+---
+
 ## Player character sprites (Farm RPG)
 
 **Active player pipeline** — modular Farm RPG layers only. Legacy Swordsman V1/V2 systems have been removed.

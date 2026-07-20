@@ -1,3 +1,4 @@
+using Deathborn.Client.Gameplay;
 using Deathborn.Client.Net;
 
 namespace Deathborn.Client;
@@ -56,20 +57,21 @@ public static class Config
     public const float RunAnimSpeed = 1.35f;
 
     public const float FireballSpeed = 340f * Ws;
-    public const float FireballMaxRange = 520f * Ws;
+    /// <summary>Projectile / hit range from <c>shared/abilities.json</c>.</summary>
+    public static float FireballMaxRange => SharedAbilities.HitRange("fireball");
     public const float FireballRadius = 10f * Ws;
     public const float FireballBurstDuration = 0.35f;
     public const float FireballCooldown = 3f;
     public const float FireballCastLockDuration = 0.35f;
 
     public const float IceShardSpeed = 420f * Ws;
-    public const float IceShardMaxRange = 480f * Ws;
+    public static float IceShardMaxRange => SharedAbilities.HitRange("ice_shard");
     public const float IceShardRadius = 8f * Ws;
     public const float IceShardBurstDuration = 0.3f;
     public const float IceShardCooldown = 2.5f;
     public const float IceShardCastLockDuration = 0.28f;
 
-    public const float ArcBoltRange = 120f * Ws;
+    public static float ArcBoltRange => SharedAbilities.HitRange("arc_bolt");
     public const float ArcBoltCooldown = 2f;
     public const float ArcBoltCastLockDuration = 0.25f;
 
@@ -78,33 +80,37 @@ public static class Config
     public const float BloodBoltCooldown = 4f;
     public const float BloodBoltCastLockDuration = 0.3f;
 
-    public const int BandageTotalHeal = 25;
-    public const float BandageDuration = 5f;
+    public static int BandageTotalHeal =>
+        SharedAbilities.TryGetHoT("bandage", out var total, out _, out _) ? total : 25;
+    public static float BandageDuration =>
+        SharedAbilities.TryGetHoT("bandage", out _, out var ticks, out var interval)
+            ? ticks * interval
+            : 5f;
     public const float BandageCooldown = 10f;
 
-    public const int SlashDamage = 5;
-    public const int FireballDamage = 25;
-    public const int IceShardDamage = 18;
-    public const int ArcBoltDamage = 14;
-    public const int PoisonCloudDamage = 6;
-    public const int BloodBoltDamage = 22;
+    public static int SlashDamage => SharedAbilities.Damage("slash");
+    public static int FireballDamage => SharedAbilities.Damage("fireball");
+    public static int IceShardDamage => SharedAbilities.Damage("ice_shard");
+    public static int ArcBoltDamage => SharedAbilities.Damage("arc_bolt");
+    public static int PoisonCloudDamage => SharedAbilities.Damage("poison_cloud");
+    public static int BloodBoltDamage => SharedAbilities.Damage("blood_bolt");
 
-    public const int ShieldBashDamage = 12;
-    public const int WhirlwindDamage = 8;
-    public const int WarriorDashDamage = 10;
-    public const int SecondWindHeal = 15;
+    public static int ShieldBashDamage => SharedAbilities.Damage("shield_bash");
+    public static int WhirlwindDamage => SharedAbilities.Damage("whirlwind");
+    public static int WarriorDashDamage => SharedAbilities.Damage("warrior_dash");
+    public static int SecondWindHeal => SharedAbilities.Heal("second_wind");
 
     public const float ShieldBashCooldown = 4f;
     public const float ShieldBashCastLock = 0.35f;
-    public const float ShieldBashRange = 56f * Ws;
+    public static float ShieldBashRange => SharedAbilities.HitRange("shield_bash");
 
     public const float WhirlwindCooldown = 6f;
     public const float WhirlwindDuration = 3f;
-    public const float WhirlwindRadius = 38f * Ws;
+    public static float WhirlwindRadius => SharedAbilities.HitRange("whirlwind");
 
     public const float WarriorDashCooldown = 5f;
-    /// <summary>Travel distance — must match server abilities.json warrior_dash hitRange (used as dash length).</summary>
-    public const float WarriorDashDistance = 100f * Ws;
+    /// <summary>Charge travel distance — <c>shared/abilities.json</c> warrior_dash hitRange.</summary>
+    public static float WarriorDashDistance => SharedAbilities.HitRange("warrior_dash");
     public const float WarriorDashDuration = 0.22f;
 
     public const float BattleShoutCooldown = 12f;
@@ -118,7 +124,7 @@ public static class Config
     public const float HunterMarkCooldown = 8f;
     /// <summary>Buff length in seconds (15 minutes).</summary>
     public const float HunterMarkDuration = 15f * 60f;
-    public const float HunterMarkRange = 200f * Ws;
+    public static float HunterMarkRange => SharedAbilities.HitRange("hunter_mark");
 
     public const float SecondWindCooldown = 15f;
 
