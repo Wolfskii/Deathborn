@@ -506,7 +506,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         [
             $"FPS: {DeathbornGame.Instance.Fps}",
             _status,
-            _debugHudVisible ? "F12: collider debug ON (green foliage, red terrain edges)" : "F12: debug HUD",
+            _debugHudVisible ? "F12: collider debug ON (green solid, yellow ghost, red terrain)" : "F12: debug HUD",
             TiledMapPreview.IsActive
                 ? $"F11: Tiled preview ON ({TiledMapPreview.ActiveMapId})"
                 : "F11: Tiled map preview",
@@ -663,6 +663,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             debugTiles.Begin(map, _camera, ScreenCenter, zoom, marginTiles: 3f);
             map.DrawDebugTerrainBorders(sb, debugTiles);
             WorldFoliage.DrawDebugColliders(sb, map, _camera, ScreenCenter, zoom);
+            WorldFoliage.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, zoom);
+            WorldClouds.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, zoom);
             if (FindLocalPlayer() is { InsideHouseId: <= 0 } local)
                 WorldFoliage.DrawDebugPlayerCollider(sb, local.Position, PlayerEntity.Radius, _camera, ScreenCenter, zoom);
         }

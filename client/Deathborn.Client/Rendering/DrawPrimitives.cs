@@ -92,6 +92,34 @@ public static class DrawPrimitives
     DrawLine(sb, bl, tl, color, thickness);
   }
 
+  /// <summary>World-space axis-aligned rect → screen outline (F12 debug).</summary>
+  public static void DrawWorldRectOutline(
+      SpriteBatch sb,
+      float left,
+      float top,
+      float right,
+      float bottom,
+      Vector2 camera,
+      Vector2 screenCenter,
+      float zoom,
+      Color color,
+      float thickness = 2f)
+  {
+    var screenLeft = (left - camera.X) * zoom + screenCenter.X;
+    var screenTop = (top - camera.Y) * zoom + screenCenter.Y;
+    var screenRight = (right - camera.X) * zoom + screenCenter.X;
+    var screenBottom = (bottom - camera.Y) * zoom + screenCenter.Y;
+    DrawRectOutline(
+        sb,
+        new Rectangle(
+            (int)screenLeft,
+            (int)screenTop,
+            Math.Max(1, (int)MathF.Ceiling(screenRight - screenLeft)),
+            Math.Max(1, (int)MathF.Ceiling(screenBottom - screenTop))),
+        color,
+        thickness);
+  }
+
   public static void FillTriangle(SpriteBatch sb, Vector2 a, Vector2 b, Vector2 c, Color color)
   {
     var minX = (int)MathF.Floor(MathF.Min(a.X, MathF.Min(b.X, c.X)));

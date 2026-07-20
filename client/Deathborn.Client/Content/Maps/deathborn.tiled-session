@@ -1,9 +1,9 @@
 {
-    "activeFile": "",
+    "activeFile": "overworld/swarovia_mainland.tmx",
     "expandedProjectPaths": [
-        ".",
         "dungeons",
-        "overworld"
+        "overworld",
+        "."
     ],
     "fileStates": {
         "dungeons/dungeon_floor.tsx": {
@@ -14,8 +14,8 @@
             "scale": 0.0625,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 22696,
-                "y": 3472
+                "x": 22680,
+                "y": 3456
             }
         },
         "overworld/farmrpg_cliff_elev0.tsx": {
@@ -57,17 +57,33 @@
             "scaleInDock": 1
         },
         "overworld/farmrpg_grass_water.tsx": {
+            "scaleInDock": 3,
             "scaleInEditor": 1
         },
         "overworld/farmrpg_water.tsx": {
             "scaleInDock": 1
         },
+        "overworld/realik.tmx": {
+            "expandedGroupLayers": [
+                4
+            ],
+            "scale": 0.0625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 8544,
+                "y": 5568
+            }
+        },
+        "overworld/realik_terrain.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
         "overworld/swarovia_mainland.tmx": {
-            "scale": 0.75,
+            "scale": 0.015625,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 25264.666666666664,
-                "y": 24936
+                "x": 21568,
+                "y": 27712
             }
         }
     },
@@ -75,18 +91,23 @@
     "map.lastUsedFormat": "tmx",
     "map.width": 1024,
     "openFiles": [
+        "overworld/Mainland.tmx",
+        "overworld/realik.tmx",
+        "overworld/swarovia_mainland.tmx"
     ],
     "project": "deathborn.tiled-project",
     "recentFiles": [
+        "overworld/Mainland.tmx",
+        "overworld/realik.tmx",
+        "overworld/swarovia_mainland.tmx",
         "overworld/farmrpg_grass_water.tsx",
         "overworld/farmrpg_cliff_elev0.tsx",
         "overworld/farmrpg_cliff_elev1.tsx",
         "overworld/farmrpg_grass_elev1.tsx",
         "overworld/farmrpg_grass_elev3.tsx",
         "overworld/farmrpg_grass_elev0.tsx",
+        "overworld/realik_terrain.tsx",
         "dungeons/dungeon_floor.tsx",
-        "overworld/farmrpg_grass_elev2.tsx",
-        "overworld/farmrpg_cliff_elev3.tsx",
-        "overworld/farmrpg_cliff_elev2.tsx"
+        "overworld/farmrpg_grass_elev2.tsx"
     ]
 }

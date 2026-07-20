@@ -7,7 +7,7 @@ namespace Deathborn.Client.Rendering;
 
 public enum FoliageKind { Bush, Tree, Rock, WaterRock }
 
-public sealed class FoliageInstance
+public sealed class FoliageInstance : IOcclusionHost
 {
     public FoliageKind Kind;
     public Vector2 Position;
@@ -17,14 +17,19 @@ public sealed class FoliageInstance
     public int AnimPhase;
     /// <summary>Unscaled pixels from sprite bottom to the visual foot (opaque base).</summary>
     public float FootInset;
-    /// <summary>Unscaled pixels from sprite bottom to canopy/foliage top row.</summary>
-    public float CanopyTopInset;
-    /// <summary>Unscaled pixels from sprite bottom to where canopy ends (trunk begins on trees).</summary>
-    public float CanopyBottomInset;
-    /// <summary>Unscaled half-width of the overlap / transparency region.</summary>
-    public float CanopyHalfWidth;
     public bool BlocksMovement;
     public byte ColliderMaskId = 255;
+    public byte OcclusionMaskId = OcclusionZone.NoMaskId;
+    public OcclusionColliderOverride OcclusionOverride;
+
+    Vector2 IOcclusionHost.OcclusionAnchor => Position;
+    float IOcclusionHost.OcclusionScale => Scale;
+    byte IOcclusionHost.OcclusionMaskId => OcclusionMaskId;
+    OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
+
+    /// <summary>Replace sprite-derived ghost zone with a custom unscaled rect from bottom-center.</summary>
+    public void SetOcclusionOverride(float left, float right, float top, float bottom) =>
+        OcclusionOverride = OcclusionColliderOverride.FromLocalRect(left, right, top, bottom);
 }
 
 /// <summary>
@@ -71,6 +76,7 @@ public static class WorldFoliage
         _textures[11] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_2");
         _textures[12] = content.Load<Texture2D>("Decorations/FarmRpg/water_rock_2");
         FoliagePixelCollider.Build(_textures[5], _textures[6], _textures[3], _textures[4]);
+        OcclusionMaskCache.Build(_textures[0], _textures[1], _textures[2], _textures[3], _textures[4]);
     }
 
     public static void Initialize(WorldMap map)
@@ -269,17 +275,18 @@ public static class WorldFoliage
         return pos;
     }
 
-    public static bool EntityUnderFoliage(FoliageInstance f, Vector2 pos, float entityRadius)
+    public static bool EntityUnderFoliage(FoliageInstance f, Vector2 feet, float entityRadius)
     {
+        _ = entityRadius;
         if (f.Kind is FoliageKind.Rock or FoliageKind.WaterRock) return false;
-        if (!EntityIsBehind(f, pos.Y)) return false;
+        if (f.OcclusionMaskId == OcclusionZone.NoMaskId && !f.OcclusionOverride.IsSet) return false;
 
-        var scale = f.Scale;
-        var canopyTop = f.Position.Y - f.CanopyTopInset * scale;
-        if (pos.Y < canopyTop) return false;
-
-        var halfW = f.CanopyHalfWidth * scale;
-        return MathF.Abs(pos.X - f.Position.X) <= halfW;
+        return OcclusionZone.EntityEllipseOverlaps(
+            f,
+            feet,
+            FoliageBottomY(f),
+            PlayerEntity.CollisionRadiusX,
+            PlayerEntity.CollisionRadiusY);
     }
 
     public static void GetVisible(
@@ -392,6 +399,20 @@ public static class WorldFoliage
 
             if (f.CollisionRadius <= 0f) continue;
             FoliagePixelCollider.DrawDebugCircle(sb, ColliderCenter(f), f.CollisionRadius, camera, screenCenter, zoom);
+        }
+    }
+
+    private static readonly Color OcclusionDebugColor = new(240, 210, 48);
+
+    /// <summary>Yellow canopy/bush fade zones — where the player walks under and art ghosts (F12).</summary>
+    public static void DrawDebugOcclusionZones(SpriteBatch sb, WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        GetVisible(map, camera, screenCenter, zoom, VisibleScratch);
+        foreach (var f in VisibleScratch)
+        {
+            if (f.Kind is FoliageKind.Rock or FoliageKind.WaterRock) continue;
+            if (f.OcclusionMaskId == OcclusionZone.NoMaskId && !f.OcclusionOverride.IsSet) continue;
+            OcclusionZone.DrawDebug(sb, f, camera, screenCenter, zoom, OcclusionDebugColor);
         }
     }
 
@@ -524,45 +545,35 @@ public static class WorldFoliage
         {
             case FoliageKind.Tree when f.Variant == 0:
                 f.FootInset = 6f;
-                f.CanopyTopInset = 34f;
-                f.CanopyBottomInset = 11f;
-                f.CanopyHalfWidth = 16f;
                 f.CollisionRadius = 5f * f.Scale;
                 f.ColliderMaskId = FoliagePixelCollider.NoMaskId;
+                f.OcclusionMaskId = OcclusionMaskCache.MaskIdFor(f);
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Tree:
                 f.FootInset = 8f;
-                f.CanopyTopInset = 45f;
-                f.CanopyBottomInset = 11f;
-                f.CanopyHalfWidth = 16f;
                 f.CollisionRadius = 6f * f.Scale;
                 f.ColliderMaskId = FoliagePixelCollider.NoMaskId;
+                f.OcclusionMaskId = OcclusionMaskCache.MaskIdFor(f);
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Bush:
                 f.FootInset = 6f;
-                f.CanopyTopInset = 26f;
-                f.CanopyBottomInset = 4f;
-                f.CanopyHalfWidth = 24f;
                 f.CollisionRadius = 0f;
+                f.OcclusionMaskId = OcclusionMaskCache.MaskIdFor(f);
                 f.BlocksMovement = false;
                 break;
             case FoliageKind.Rock:
                 f.FootInset = 4f;
-                f.CanopyTopInset = 0f;
-                f.CanopyBottomInset = 0f;
-                f.CanopyHalfWidth = 0f;
                 f.CollisionRadius = 0f;
                 f.ColliderMaskId = FoliagePixelCollider.MaskIdFor(f);
+                f.OcclusionMaskId = OcclusionZone.NoMaskId;
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.WaterRock:
                 f.FootInset = 8f;
-                f.CanopyTopInset = 0f;
-                f.CanopyBottomInset = 0f;
-                f.CanopyHalfWidth = 0f;
                 f.CollisionRadius = 10f * f.Scale;
+                f.OcclusionMaskId = OcclusionZone.NoMaskId;
                 f.BlocksMovement = true;
                 break;
         }

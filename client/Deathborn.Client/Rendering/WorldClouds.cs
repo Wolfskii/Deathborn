@@ -14,6 +14,13 @@ public sealed class CloudInstance
     public Rectangle BodyRect;
     public Rectangle ShadowRect;
     public List<CloudSatellite> Satellites = [];
+    public OcclusionColliderOverride OcclusionOverride;
+
+    public void SetOcclusionOverride(float left, float right, float top, float bottom) =>
+        OcclusionOverride = OcclusionColliderOverride.FromLocalRect(left, right, top, bottom);
+
+    public CloudOcclusionPart ToOcclusionPart() =>
+        new(Position, Variant, Scale, ShadowRect, OcclusionOverride);
 }
 
 public sealed class CloudSatellite
@@ -23,6 +30,42 @@ public sealed class CloudSatellite
     public float Scale;
     public Rectangle BodyRect;
     public Rectangle ShadowRect;
+    public OcclusionColliderOverride OcclusionOverride;
+
+    public void SetOcclusionOverride(float left, float right, float top, float bottom) =>
+        OcclusionOverride = OcclusionColliderOverride.FromLocalRect(left, right, top, bottom);
+
+    public CloudOcclusionPart ToOcclusionPart(Vector2 shadowAnchor) =>
+        new(shadowAnchor, Variant, Scale, ShadowRect, OcclusionOverride);
+}
+
+/// <summary>One cloud body (primary or satellite) as an <see cref="IOcclusionHost"/>.</summary>
+public readonly struct CloudOcclusionPart : IOcclusionHost
+{
+    public CloudOcclusionPart(
+        Vector2 shadowAnchor,
+        int variant,
+        float scale,
+        Rectangle shadowRect,
+        OcclusionColliderOverride occlusionOverride = default)
+    {
+        ShadowAnchor = shadowAnchor;
+        Variant = variant;
+        Scale = scale;
+        ShadowRect = shadowRect;
+        OcclusionOverride = occlusionOverride;
+    }
+
+    public Vector2 ShadowAnchor { get; }
+    public int Variant { get; }
+    public float Scale { get; }
+    public Rectangle ShadowRect { get; }
+    public OcclusionColliderOverride OcclusionOverride { get; }
+
+    public Vector2 OcclusionAnchor => new(ShadowAnchor.X, WorldClouds.GetBodyBottomWorldY(ShadowAnchor, ShadowRect, Scale));
+    float IOcclusionHost.OcclusionScale => Scale;
+    byte IOcclusionHost.OcclusionMaskId => OcclusionMaskCache.CloudMaskIdFor(Variant);
+    OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
 }
 
 /// <summary>
@@ -37,7 +80,6 @@ public static class WorldClouds
     private const int VariantCount = 4;
     private const int TinyVariant = 2;
     private static readonly int[] PrimaryVariants = [0, 1, 3];
-    private const byte OpaqueAlpha = 48;
     // Keep a consistent world-px : source-px ratio so tiny cloud art is not upscaled with chunky borders.
     private const float BaseSourceScale = 5.4f;
     private const float MaxSourceScale = 6.75f;
@@ -57,30 +99,21 @@ public static class WorldClouds
     private static readonly float[] VariantScaleMul = [1.08f, 1f, 0.78f, 1.04f];
 
     private static readonly List<CloudInstance> Instances = [];
-    private static readonly byte[][] BodyAlphaMasks = new byte[VariantCount][];
     private static Texture2D? _texture;
     private static bool _initialized;
 
     public static bool IsLoaded => _texture != null;
 
+    public static float GetBodyBottomWorldY(Vector2 shadowAnchor, Rectangle shadowRect, float scale) =>
+        shadowAnchor.Y - shadowRect.Height * scale - BodyShadowGap;
+
     public static void Load(ContentManager content)
     {
         _texture = content.Load<Texture2D>("Decorations/FarmRpg/clouds");
-        var pixels = new Color[_texture.Width * _texture.Height];
-        _texture.GetData(pixels);
-
+        Span<Rectangle> bodies = stackalloc Rectangle[VariantCount];
         for (var i = 0; i < VariantCount; i++)
-        {
-            var body = VariantTemplate[i].BodyRect;
-            var mask = new byte[body.Width * body.Height];
-            for (var y = 0; y < body.Height; y++)
-            for (var x = 0; x < body.Width; x++)
-            {
-                var px = pixels[(body.Y + y) * _texture.Width + body.X + x];
-                mask[y * body.Width + x] = px.A;
-            }
-            BodyAlphaMasks[i] = mask;
-        }
+            bodies[i] = VariantTemplate[i].BodyRect;
+        OcclusionMaskCache.BuildClouds(_texture, bodies);
     }
 
     public static void Initialize(WorldMap map)
@@ -111,12 +144,13 @@ public static class WorldClouds
 
     public static bool EntityUnderCloud(CloudInstance c, Vector2 pos, float entityRadius)
     {
-        if (EntityUnderCloudPart(c.Variant, c.Position, c.Scale, c.BodyRect, c.ShadowRect, pos, entityRadius))
+        _ = entityRadius;
+        if (EntityUnderOcclusionPart(c.ToOcclusionPart(), pos))
             return true;
 
         foreach (var sat in c.Satellites)
         {
-            if (EntityUnderCloudPart(sat.Variant, c.Position + sat.Offset, sat.Scale, sat.BodyRect, sat.ShadowRect, pos, entityRadius))
+            if (EntityUnderOcclusionPart(sat.ToOcclusionPart(c.Position + sat.Offset), pos))
                 return true;
         }
 
@@ -176,29 +210,26 @@ public static class WorldClouds
         if (_texture == null) return;
 
         DrawCloudPart(sb, c.Position, c.Variant, c.Scale, c.BodyRect, c.ShadowRect,
-            BodyAlphaForPart(c.Variant, c.Position, c.Scale, c.BodyRect, c.ShadowRect, localPlayerPositions, entityRadius),
+            BodyAlphaForPart(c.ToOcclusionPart(), localPlayerPositions, entityRadius),
             camera, screenCenter, zoom);
         foreach (var sat in c.Satellites)
         {
             var satPos = c.Position + sat.Offset;
             DrawCloudPart(sb, satPos, sat.Variant, sat.Scale, sat.BodyRect, sat.ShadowRect,
-                BodyAlphaForPart(sat.Variant, satPos, sat.Scale, sat.BodyRect, sat.ShadowRect, localPlayerPositions, entityRadius),
+                BodyAlphaForPart(sat.ToOcclusionPart(satPos), localPlayerPositions, entityRadius),
                 camera, screenCenter, zoom);
         }
     }
 
     private static float BodyAlphaForPart(
-        int variant,
-        Vector2 anchorPos,
-        float scale,
-        Rectangle bodyRect,
-        Rectangle shadowRect,
+        CloudOcclusionPart part,
         ReadOnlySpan<Vector2> localPlayerPositions,
         float entityRadius)
     {
+        _ = entityRadius;
         for (var i = 0; i < localPlayerPositions.Length; i++)
         {
-            if (!EntityUnderCloudPart(variant, anchorPos, scale, bodyRect, shadowRect, localPlayerPositions[i], entityRadius))
+            if (!EntityUnderOcclusionPart(part, localPlayerPositions[i]))
                 continue;
             return UnderCloudAlpha;
         }
@@ -246,11 +277,31 @@ public static class WorldClouds
             DrawInstance(sb, c, camera, screenCenter, zoom, localPlayerPositions);
     }
 
-    private static float GetBodyBottomWorldY(Vector2 anchorPos, Rectangle shadowRect, float scale)
+    private static readonly Color OcclusionDebugColor = new(240, 210, 48);
+
+    /// <summary>Yellow opaque-pixel outlines — matches under-cloud ghost tint (F12).</summary>
+    public static void DrawDebugOcclusionZones(
+        SpriteBatch sb, WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        var shadowTop = anchorPos.Y - shadowRect.Height * scale;
-        return shadowTop - BodyShadowGap;
+        GetVisible(map, camera, screenCenter, zoom, VisibleScratch);
+        foreach (var c in VisibleScratch)
+        {
+            OcclusionZone.DrawDebug(sb, c.ToOcclusionPart(), camera, screenCenter, zoom, OcclusionDebugColor);
+            foreach (var sat in c.Satellites)
+            {
+                var satPos = c.Position + sat.Offset;
+                OcclusionZone.DrawDebug(sb, sat.ToOcclusionPart(satPos), camera, screenCenter, zoom, OcclusionDebugColor);
+            }
+        }
     }
+
+    private static bool EntityUnderOcclusionPart(CloudOcclusionPart part, Vector2 feet) =>
+        OcclusionZone.EntityEllipseOverlaps(
+            part,
+            feet,
+            part.OcclusionAnchor.Y,
+            PlayerEntity.CollisionRadiusX,
+            PlayerEntity.CollisionRadiusY);
 
     private static void GetBodyWorldBounds(
         int variant,
@@ -263,52 +314,12 @@ public static class WorldClouds
         out float halfW,
         out float bottomY)
     {
+        _ = variant;
         centerX = anchorPos.X;
         bottomY = GetBodyBottomWorldY(anchorPos, shadowRect, scale);
         var bodyH = bodyRect.Height * scale;
         topY = bottomY - bodyH;
         halfW = bodyRect.Width * scale * 0.5f;
-    }
-
-    private static bool EntityUnderCloudPart(
-        int variant,
-        Vector2 anchorPos,
-        float scale,
-        Rectangle bodyRect,
-        Rectangle shadowRect,
-        Vector2 pos,
-        float entityRadius)
-    {
-        var headY = pos.Y - entityRadius * 3.1f;
-        var chestY = pos.Y - entityRadius * 1.6f;
-        return SampleBodyOpaque(variant, anchorPos, scale, bodyRect, shadowRect, pos.X, headY)
-            || SampleBodyOpaque(variant, anchorPos, scale, bodyRect, shadowRect, pos.X, chestY)
-            || SampleBodyOpaque(variant, anchorPos, scale, bodyRect, shadowRect, pos.X, (headY + chestY) * 0.5f);
-    }
-
-    private static bool SampleBodyOpaque(
-        int variant,
-        Vector2 anchorPos,
-        float scale,
-        Rectangle bodyRect,
-        Rectangle shadowRect,
-        float worldX,
-        float worldY)
-    {
-        var mask = BodyAlphaMasks[variant];
-        if (mask == null) return false;
-
-        GetBodyWorldBounds(variant, anchorPos, scale, bodyRect, shadowRect,
-            out var centerX, out var topY, out var halfW, out var bottomY);
-        if (worldX < centerX - halfW || worldX > centerX + halfW || worldY < topY || worldY > bottomY)
-            return false;
-
-        var localX = (int)((worldX - centerX) / scale + bodyRect.Width * 0.5f);
-        var localY = (int)((worldY - topY) / scale);
-        if (localX < 0 || localY < 0 || localX >= bodyRect.Width || localY >= bodyRect.Height)
-            return false;
-
-        return mask[localY * bodyRect.Width + localX] >= OpaqueAlpha;
     }
 
     private static Vector2 WorldToScreen(Vector2 world, Vector2 camera, Vector2 screenCenter, float zoom) =>
