@@ -24,11 +24,12 @@ public static class NpcHitboxes
         var scale = WorldScale;
         var pad = NpcCatalog.Get(npc.DefId).HitPadding;
 
-        if (TinyRpgCharacterSprites.TryGetBodyHitMetrics(npc.SpriteId, out var metrics))
+        if (FarmRpgSlimeSprites.TryGetBodyHitMetrics(npc.SpriteId, out var slimeMetrics)
+            || TinyRpgCharacterSprites.TryGetBodyHitMetrics(npc.SpriteId, out slimeMetrics))
         {
-            center = footAnchor + new Vector2(0, metrics.CenterOffsetFromAnchorY * scale);
-            halfW = metrics.HalfWidth * scale * pad;
-            halfH = metrics.HalfHeight * scale * pad;
+            center = footAnchor + new Vector2(0, slimeMetrics.CenterOffsetFromAnchorY * scale);
+            halfW = slimeMetrics.HalfWidth * scale * pad;
+            halfH = slimeMetrics.HalfHeight * scale * pad;
             return;
         }
 

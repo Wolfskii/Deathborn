@@ -81,6 +81,15 @@ Missing layer PNGs are skipped gracefully — partial fallback until art is inst
 
 NPC sprites live under `Content/Characters/Rpg/` and load via `TinyRpgCharacterSprites.cs` — separate from the player Farm RPG system.
 
+### Farm RPG slimes
+
+Hostile slimes use Farm RPG enemy art (`Content/Characters/FarmRpg/Enemies/slimes/`).
+
+- **Sprite ids:** `slime_{color}_{size}` — colors `blue|black|golden|green|pink|purple`, sizes `small|normal|big`
+- **Install:** `python scripts/install_farm_rpg_slimes.py`
+- **Client:** `Rendering/FarmRpgSlimeSprites.cs`; size drives display scale / hit metrics
+- **Server:** `forest_slime` spawns roll a random color×size variant (HP/radius/damage scale with size)
+
 ---
 
 ## Farm RPG terrain (elevated land & water)

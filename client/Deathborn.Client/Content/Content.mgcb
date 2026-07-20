@@ -3265,3 +3265,1011 @@
 
 #end Tiles/FarmRpg/props_seasons.png
 
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_small/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_small/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_small/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_small/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_small/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_small/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_small/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_small/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_small/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_small/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_small/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_small/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_normal/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_normal/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_normal/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_normal/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_normal/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_normal/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_normal/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_normal/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_normal/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_normal/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_normal/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_normal/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_big/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_big/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_big/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_big/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_big/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_big/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_big/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_big/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_big/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/blue_big/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/blue_big/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/blue_big/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_small/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_small/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_small/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_small/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_small/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_small/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_small/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_small/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_small/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_small/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_small/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_small/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_normal/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_normal/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_normal/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_normal/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_normal/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_normal/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_normal/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_normal/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_normal/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_normal/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_normal/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_normal/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_big/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_big/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_big/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_big/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_big/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_big/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_big/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_big/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_big/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/black_big/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/black_big/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/black_big/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_small/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_small/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_small/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_small/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_small/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_small/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_small/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_small/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_small/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_small/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_small/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_small/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_normal/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_normal/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_normal/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_normal/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_normal/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_normal/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_normal/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_normal/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_normal/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_normal/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_normal/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_normal/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_big/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_big/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_big/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_big/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_big/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_big/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_big/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_big/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_big/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/golden_big/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/golden_big/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/golden_big/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_small/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_small/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_small/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_small/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_small/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_small/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_small/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_small/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_small/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_small/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_small/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_small/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_normal/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_normal/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_normal/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_normal/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_normal/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_normal/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_normal/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_normal/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_normal/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_normal/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_normal/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_normal/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_big/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_big/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_big/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_big/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_big/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_big/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_big/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_big/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_big/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/green_big/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/green_big/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/green_big/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_small/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_small/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_small/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_small/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_small/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_small/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_small/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_small/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_small/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_small/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_small/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_small/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_normal/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_normal/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_normal/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_normal/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_normal/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_normal/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_normal/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_normal/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_normal/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_normal/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_normal/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_normal/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_big/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_big/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_big/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_big/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_big/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_big/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_big/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_big/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_big/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/pink_big/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/pink_big/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/pink_big/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_small/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_small/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_small/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_small/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_small/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_small/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_small/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_small/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_small/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_small/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_small/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_small/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_normal/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_normal/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_normal/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_normal/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_normal/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_normal/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_normal/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_normal/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_normal/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_normal/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_normal/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_normal/dead.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_big/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_big/idle.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_big/idle.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_big/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_big/walk.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_big/walk.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_big/damage.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_big/damage.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_big/damage.png
+
+#begin Characters/FarmRpg/Enemies/slimes/purple_big/dead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/Enemies/slimes/purple_big/dead.png
+
+#end Characters/FarmRpg/Enemies/slimes/purple_big/dead.png

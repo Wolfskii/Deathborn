@@ -55,10 +55,10 @@ var npcDefs = map[string]npcDef{
 	},
 	"forest_slime": {
 		id: "forest_slime", name: "Slime", category: NpcCategoryMonster,
-		disposition: NpcHostile, spriteID: "slime", hpMax: 25, speed: 22,
+		disposition: NpcHostile, spriteID: "slime_green_normal", hpMax: 25, speed: 22,
 		radius: 12, wander: true, leash: 72,
 		aggro: true, aggroRange: 48, meleeDamage: 2, meleeReach: 6,
-		hitHalfW: 12, hitHalfH: 6, hitCenterY: -43,
+		hitHalfW: 8, hitHalfH: 6, hitCenterY: -12,
 	},
 	"forest_orc": {
 		id: "forest_orc", name: "Orc", category: NpcCategoryMonster,

@@ -25,14 +25,23 @@ public sealed class WorldNpcEntity
     public bool IsBoss;
 
     public float SortY => UsesSprite
-        ? TinyRpgCharacterSprites.GetFootSortY(SpriteId, Position, DisplayScale)
+        ? (UsesFarmSlime
+            ? FarmRpgSlimeSprites.GetFootSortY(SpriteId, Position, DisplayScale)
+            : TinyRpgCharacterSprites.GetFootSortY(SpriteId, Position, DisplayScale))
         : Position.Y + Radius;
-    public float Radius => NpcCatalog.Get(DefId).Radius;
-    public float DisplayScale => NpcCatalog.Get(DefId).DisplayScale;
+    public float Radius => FarmRpgSlimeSprites.TryGetVisuals(SpriteId, out var slime)
+        ? slime.Radius
+        : NpcCatalog.Get(DefId).Radius;
+    public float DisplayScale => FarmRpgSlimeSprites.TryGetVisuals(SpriteId, out var slime)
+        ? slime.DisplayScale
+        : NpcCatalog.Get(DefId).DisplayScale;
     public bool IsAttackable => NpcCategoryRules.IsAttackable(Disposition);
-    public bool UsesSprite => !IsBoss && !string.IsNullOrEmpty(SpriteId) && TinyRpgCharacterSprites.Get(SpriteId) != null;
+    public bool UsesFarmSlime => !IsBoss && FarmRpgSlimeSprites.Get(SpriteId) != null;
+    public bool UsesSprite => !IsBoss && !string.IsNullOrEmpty(SpriteId)
+        && (UsesFarmSlime || TinyRpgCharacterSprites.Get(SpriteId) != null);
 
     private TinyRpgStripAnimation? _anim;
+    private FarmRpgSlimeAnimation? _slimeAnim;
     private string _animSpriteId = "";
     private bool _moving;
 
@@ -52,13 +61,17 @@ public sealed class WorldNpcEntity
         var prevAction = Action;
         Action = s.Action ?? "";
         if (Action == "melee" && prevAction != "melee")
+        {
             _anim?.BeginMeleeAttack();
+            _slimeAnim?.BeginMeleeAttack();
+        }
         if (MathF.Abs((float)s.DirX) > 0.01f || MathF.Abs((float)s.DirY) > 0.01f)
             Facing = Vector2.Normalize(new Vector2((float)s.DirX, (float)s.DirY));
         if (!string.Equals(_animSpriteId, SpriteId, StringComparison.OrdinalIgnoreCase))
         {
             _animSpriteId = SpriteId;
-            _anim = TinyRpgCharacterSprites.Get(SpriteId)?.Clone();
+            _slimeAnim = FarmRpgSlimeSprites.Get(SpriteId)?.Clone();
+            _anim = _slimeAnim == null ? TinyRpgCharacterSprites.Get(SpriteId)?.Clone() : null;
         }
     }
 
@@ -69,6 +82,7 @@ public sealed class WorldNpcEntity
         Position = WorldMap.SwaroviaMainland.ResolveMove(lerped, Vector2.Zero, Radius);
         _moving = Vector2.DistanceSquared(before, Position) > 0.05f;
         var drawFacing = GetDrawFacing();
+        _slimeAnim?.Update(dt, drawFacing, _moving, Config.WalkAnimSpeed);
         _anim?.Update(dt, drawFacing, _moving, Config.WalkAnimSpeed);
         if (AbilityFlash > 0) AbilityFlash -= dt;
         if (!string.IsNullOrEmpty(Action))
@@ -89,10 +103,16 @@ public sealed class WorldNpcEntity
 
     public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
     {
-        if (UsesSprite && _anim != null)
+        if (UsesSprite)
         {
             var scale = DisplayScale * zoom;
-            _anim.Draw(sb, screenPos, Color.White, scale, GetDrawFacing());
+            var facing = GetDrawFacing();
+            if (_slimeAnim != null)
+                _slimeAnim.Draw(sb, screenPos, Color.White, scale, facing);
+            else if (_anim != null)
+                _anim.Draw(sb, screenPos, Color.White, scale, facing);
+            else
+                DrawBossProcedural(sb, screenPos, zoom);
         }
         else
         {
@@ -107,7 +127,10 @@ public sealed class WorldNpcEntity
         if (UsesSprite)
         {
             var scale = DisplayScale * zoom;
-            return screenPos.Y + TinyRpgCharacterSprites.GetHeadTopOffsetFromAnchor(SpriteId) * scale;
+            var headOffset = UsesFarmSlime
+                ? FarmRpgSlimeSprites.GetHeadTopOffsetFromAnchor(SpriteId)
+                : TinyRpgCharacterSprites.GetHeadTopOffsetFromAnchor(SpriteId);
+            return screenPos.Y + headOffset * scale;
         }
 
         var r = Radius * zoom;

@@ -70,8 +70,15 @@ func (w *World) mobSpawnPoints() []mobSpawnPoint {
 	return []mobSpawnPoint{
 		{defID: "forest_skeleton", tx: 130, ty: 210},
 		{defID: "forest_skeleton", tx: 165, ty: 175},
+		// Farm RPG slimes — color/size rolled at spawn
 		{defID: "forest_slime", tx: 95, ty: 195},
 		{defID: "forest_slime", tx: 200, ty: 230},
+		{defID: "forest_slime", tx: 118, ty: 240},
+		{defID: "forest_slime", tx: 155, ty: 195},
+		{defID: "forest_slime", tx: 210, ty: 190},
+		{defID: "forest_slime", tx: 88, ty: 220},
+		{defID: "forest_slime", tx: 175, ty: 255},
+		{defID: "forest_slime", tx: 140, ty: 165},
 		{defID: "forest_orc", tx: 145, ty: 250},
 		{defID: "forest_orc", tx: 220, ty: 160},
 		{defID: "wild_bat", tx: 110, ty: 165},
@@ -127,22 +134,95 @@ func (w *World) spawnMobLocked(def npcDef, x, y float64) {
 	id := w.mobMgr.nextID
 	w.mobMgr.nextID--
 	scale := w.worldScale()
+
+	spriteID := def.spriteID
+	name := def.name
+	hpMax := def.hpMax
+	radius := def.radius
+	hitHalfW := def.hitHalfW
+	hitHalfH := def.hitHalfH
+	hitCenterY := def.hitCenterY
+	meleeDamage := def.meleeDamage
+
+	if def.id == "forest_slime" {
+		variant := rollFarmRpgSlimeVariant()
+		spriteID = variant.spriteID
+		name = variant.name
+		hpMax = def.hpMax * variant.hpMul
+		radius = def.radius * variant.radiusMul
+		hitHalfW = def.hitHalfW * variant.hitMul
+		hitHalfH = def.hitHalfH * variant.hitMul
+		hitCenterY = def.hitCenterY * variant.hitMul
+		meleeDamage = int(math.Max(1, math.Round(float64(def.meleeDamage)*variant.damageMul)))
+	}
+
 	m := &mob{
-		id: id, defID: def.id, name: def.name,
-		category: def.category, disposition: def.disposition, spriteID: def.spriteID,
+		id: id, defID: def.id, name: name,
+		category: def.category, disposition: def.disposition, spriteID: spriteID,
 		x: x, y: y, spawnX: x, spawnY: y,
-		hp: def.hpMax, hpMax: def.hpMax,
-		speed: def.speed * scale, radius: def.radius * scale,
+		hp: hpMax, hpMax: hpMax,
+		speed: def.speed * scale, radius: radius * scale,
 		wander: def.wander, leash: def.leash * scale,
 		aggro: def.aggro, aggroRange: def.aggroRange * scale,
-		meleeDamage: def.meleeDamage,
+		meleeDamage: meleeDamage,
 		meleeReach:  def.meleeReach * scale,
-		hitHalfW:    def.hitHalfW * scale * mobHitPadding,
-		hitHalfH:    def.hitHalfH * scale * mobHitPadding,
-		hitCenterY:  def.hitCenterY * scale,
+		hitHalfW:    hitHalfW * scale * mobHitPadding,
+		hitHalfH:    hitHalfH * scale * mobHitPadding,
+		hitCenterY:  hitCenterY * scale,
 		dirY: 1,
 	}
 	w.mobMgr.mobs[id] = m
+}
+
+var farmRpgSlimeColors = []string{"blue", "black", "golden", "green", "pink", "purple"}
+var farmRpgSlimeSizes = []string{"small", "normal", "big"}
+
+type farmRpgSlimeVariant struct {
+	spriteID  string
+	name      string
+	hpMul     float64
+	radiusMul float64
+	hitMul    float64
+	damageMul float64
+}
+
+func rollFarmRpgSlimeVariant() farmRpgSlimeVariant {
+	color := farmRpgSlimeColors[rand.Intn(len(farmRpgSlimeColors))]
+	size := farmRpgSlimeSizes[rand.Intn(len(farmRpgSlimeSizes))]
+	v := farmRpgSlimeVariant{
+		spriteID: "slime_" + color + "_" + size,
+		name:     farmRpgSlimeColorTitle(color) + " Slime",
+	}
+	switch size {
+	case "small":
+		v.hpMul, v.radiusMul, v.hitMul, v.damageMul = 0.7, 0.75, 0.75, 0.75
+		v.name = "Small " + v.name
+	case "big":
+		v.hpMul, v.radiusMul, v.hitMul, v.damageMul = 1.55, 1.35, 1.35, 1.4
+		v.name = "Big " + v.name
+	default:
+		v.hpMul, v.radiusMul, v.hitMul, v.damageMul = 1, 1, 1, 1
+	}
+	return v
+}
+
+func farmRpgSlimeColorTitle(color string) string {
+	switch color {
+	case "blue":
+		return "Blue"
+	case "black":
+		return "Black"
+	case "golden":
+		return "Golden"
+	case "green":
+		return "Green"
+	case "pink":
+		return "Pink"
+	case "purple":
+		return "Purple"
+	default:
+		return "Slime"
+	}
 }
 
 func (w *World) TickMobs(dt float64) []BossEvent {
