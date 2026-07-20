@@ -35,6 +35,10 @@ func playerCollisionBottomY(feetY float64) float64 {
 	return playerCollisionY(feetY) + playerRadiusY
 }
 
+func playerCollisionTopY(feetY float64) float64 {
+	return playerCollisionY(feetY) - playerRadiusY
+}
+
 // Map is a tile walkability grid for the Swarovia mainland overworld.
 type Map struct {
 	TileWidth, TileHeight int
@@ -186,6 +190,14 @@ func (m *Map) canTraverseTiles(fx, fy, tx, ty int) bool {
 			return true
 		}
 	}
+	// Northward step up one elevation band on walkable land (shoreline → plateau).
+	if dx == 0 && dy == -1 && m.isLand(tx, ty) {
+		fe := m.elevation.at(fx, fy, m.TileWidth, m.TileHeight)
+		te := m.elevation.at(tx, ty, m.TileWidth, m.TileHeight)
+		if fe >= 0 && te >= 0 && te == fe+1 {
+			return true
+		}
+	}
 	return false
 }
 
@@ -195,6 +207,9 @@ func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
 	if toY > fromY+0.001 {
 		sampleFromY = playerCollisionBottomY(fromY)
 		sampleToY = playerCollisionBottomY(toY)
+	} else if toY < fromY-0.001 {
+		sampleFromY = playerCollisionTopY(fromY)
+		sampleToY = playerCollisionTopY(toY)
 	}
 
 	fx, fy := m.tileAt(fromX, sampleFromY)

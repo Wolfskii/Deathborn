@@ -5,7 +5,6 @@ import "math"
 const (
 	foliageSeed        = 0xB00B5
 	foliageLandStride  = 2
-	foliageWaterStride = 3
 	foliageTownPad     = 56.0
 	foliageSpawnClear  = 160.0
 )
@@ -56,22 +55,6 @@ func (m *Map) buildFoliage() *foliageIndex {
 			if treeRoll < 16 && m.isInland(tx, ty) {
 				idx.add(foliageTree, posX, posY, tx, ty)
 			}
-		}
-	}
-
-	for ty := 0; ty < m.TileHeight; ty += foliageWaterStride {
-		for tx := 0; tx < m.TileWidth; tx += foliageWaterStride {
-			if m.isLand(tx, ty) {
-				continue
-			}
-			posX, posY := m.jitteredPosition(tx, ty)
-			if m.inTown(towns, townPad, posX, posY) {
-				continue
-			}
-			if foliageHash(tx, ty, 4)%1000 >= 22 {
-				continue
-			}
-			idx.add(foliageWaterRock, posX, posY, tx, ty)
 		}
 	}
 

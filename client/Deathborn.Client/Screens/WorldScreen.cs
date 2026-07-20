@@ -398,10 +398,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     localEntity.Stats.Stamina - Config.RunStaminaDrainPerSecond * dt);
             }
 
-            if (_moveDir.LengthSquared() > 0.0001f && !IsMouseInViewport(mouse.Position))
+            if (_moveDir.LengthSquared() > 0.0001f)
                 localEntity.AimDir = _moveDir;
-            else if (windowActive && !inputBlocked)
-                UpdateLocalAimFacing(localEntity, mouse.Position);
         }
 
         if (blockGameplay || IsLocalDyingOrDead())
@@ -1238,7 +1236,19 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (kb.IsKeyDown(Keys.S) || kb.IsKeyDown(Keys.Down)) dir.Y += 1;
         if (kb.IsKeyDown(Keys.A) || kb.IsKeyDown(Keys.Left)) dir.X -= 1;
         if (kb.IsKeyDown(Keys.D) || kb.IsKeyDown(Keys.Right)) dir.X += 1;
-        return dir.LengthSquared() > 1 ? Vector2.Normalize(dir) : dir;
+        if (dir.LengthSquared() > 0.0001f)
+            return dir.LengthSquared() > 1 ? Vector2.Normalize(dir) : dir;
+
+        var pad = GamePad.GetState(PlayerIndex.One);
+        if (pad.IsConnected)
+        {
+            var stick = pad.ThumbSticks.Left;
+            const float deadzone = 0.2f;
+            if (stick.LengthSquared() > deadzone * deadzone)
+                return Vector2.Normalize(new Vector2(stick.X, -stick.Y));
+        }
+
+        return Vector2.Zero;
     }
 
     private static string MovementLabel(PlayerEntity? local)
@@ -1509,45 +1519,21 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         return true;
     }
 
-    private Vector2 GetMouseAimDirection()
+    /// <summary>Facing/attack direction from movement keys, stick, or last held direction.</summary>
+    private Vector2 GetInputAimDirection()
     {
-        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
-            return new Vector2(0, 1);
-
-        var mouse = Mouse.GetState();
-        if (IsMouseInViewport(mouse.Position))
-        {
-            var toMouse = ScreenToWorld(mouse.Position) - local.Position;
-            if (toMouse.LengthSquared() > 4f)
-                return Vector2.Normalize(toMouse);
-        }
-
         if (_moveDir.LengthSquared() > 0.0001f)
             return Vector2.Normalize(_moveDir);
 
-        if (local.AimDir.LengthSquared() > 0.01f)
+        if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)
+            && local.AimDir.LengthSquared() > 0.01f)
             return Vector2.Normalize(local.AimDir);
 
         return new Vector2(0, 1);
     }
 
     /// <summary>Cardinal aim for 4-dir melee animations.</summary>
-    private Vector2 GetAimDirection() => PlayerEntity.CardinalFacing(GetMouseAimDirection());
-
-    private void UpdateLocalAimFacing(PlayerEntity local, Point mouseScreen)
-    {
-        if (!IsMouseInViewport(mouseScreen))
-            return;
-
-        var toMouse = ScreenToWorld(mouseScreen) - local.Position;
-        if (toMouse.LengthSquared() <= 4f)
-            return;
-
-        local.AimDir = Vector2.Normalize(toMouse);
-    }
-
-    private static bool IsMouseInViewport(Point p) =>
-        p.X >= 0 && p.Y >= 0 && p.X < GameViewport.Width && p.Y < GameViewport.Height;
+    private Vector2 GetAimDirection() => PlayerEntity.CardinalFacing(GetInputAimDirection());
 
     private bool CastProjectileSpell(string abilityId, ProjectileDefinition def, ProjectileStyle style, float castLock, string status)
     {
@@ -1555,7 +1541,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetMouseAimDirection();
+        var dir = GetInputAimDirection();
         local.StartAbilityLock(castLock);
         local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
@@ -1609,7 +1595,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetMouseAimDirection();
+        var dir = GetInputAimDirection();
         local.StartAbilityLock(Config.ArcBoltCastLockDuration);
         local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
@@ -1636,7 +1622,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetMouseAimDirection();
+        var dir = GetInputAimDirection();
         local.StartAbilityLock(Config.BloodBoltCastLockDuration);
         local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
@@ -1663,7 +1649,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetMouseAimDirection();
+        var dir = GetInputAimDirection();
         local.StartAbilityLock(Config.PoisonCloudCastLockDuration);
         local.MoveDir = PlayerEntity.CardinalFacing(dir);
 
@@ -1713,7 +1699,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (!TryPayAbilityCost("warrior_dash")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
-        var dir = GetMouseAimDirection();
+        var dir = GetInputAimDirection();
         if (!local.StartDash(dir, Config.WarriorDashDistance, Config.WarriorDashDuration)) return false;
         _effects.Add(new DashTrailEffect(local.Position, dir, local.Id, Config.WarriorDashDuration));
         _screens.Net.SendCastSpell("warrior_dash", dir.X, dir.Y);
@@ -1741,7 +1727,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (!TryPayAbilityCost("hunter_mark")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
-        var dir = GetMouseAimDirection();
+        var dir = GetInputAimDirection();
         local.StartAbilityLock(0.3f);
         local.MoveDir = PlayerEntity.CardinalFacing(dir);
         _screens.Net.SendCastSpell("hunter_mark", dir.X, dir.Y);

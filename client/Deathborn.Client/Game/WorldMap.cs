@@ -88,6 +88,8 @@ public sealed class WorldMap
             var (rx1, ry1, _, ok1) = RampTreadCellId(fx, fy);
             var (rx2, ry2, _, ok2) = RampTreadCellId(tx, ty);
             if (ok1 && ok2 && rx1 == rx2 && ry1 == ry2) return true;
+            // Shoreline → plateau on walkable land (reverse of south descent).
+            if (IsLand(tx, ty)) return true;
         }
         if (dx == 0 && dy == 1 && fe == te + 1)
         {
@@ -248,11 +250,16 @@ public sealed class WorldMap
     {
         var sampleFromY = fromY;
         var sampleToY = toY;
-        // Feet anchor sits below the ellipse bottom — use bottom edge when walking south.
+        // Feet anchor sits below the ellipse — sample the relevant ellipse edge for vertical moves.
         if (toY > fromY + 0.001f)
         {
             sampleFromY = PlayerEntity.CollisionBottomY(fromY);
             sampleToY = PlayerEntity.CollisionBottomY(toY);
+        }
+        else if (toY < fromY - 0.001f)
+        {
+            sampleFromY = PlayerEntity.CollisionTopY(fromY);
+            sampleToY = PlayerEntity.CollisionTopY(toY);
         }
 
         var fx = (int)(fromX / TileSize);

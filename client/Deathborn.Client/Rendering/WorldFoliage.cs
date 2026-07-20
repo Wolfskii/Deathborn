@@ -35,7 +35,6 @@ public static class WorldFoliage
 {
     private const uint Seed = 0xB00B5;
     private const int LandStride = 2;
-    private const int WaterStride = 3;
     private const float BaseTownPad = 56f;
     private const float BaseSpawnClearRadius = 160f;
     private static float _townPad = BaseTownPad;
@@ -492,20 +491,6 @@ public static class WorldFoliage
                     Add(FoliageKind.Tree, pos, tx, ty);
                 else if (bushRoll < 28)
                     Add(FoliageKind.Bush, pos, tx, ty);
-            }
-        }
-
-        for (var ty = 0; ty < th; ty += WaterStride)
-        {
-            for (var tx = 0; tx < tw; tx += WaterStride)
-            {
-                if (map.IsLand(tx, ty)) continue;
-
-                var pos = JitteredPosition(map, tx, ty);
-                if (InTown(pos)) continue;
-                if (Hash(tx, ty, 4) % 1000 >= 22) continue;
-
-                Add(FoliageKind.WaterRock, pos, tx, ty);
             }
         }
     }

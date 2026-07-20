@@ -111,6 +111,10 @@ public sealed class PlayerEntity
     public static float CollisionBottomY(float feetY) =>
         CollisionCenter(new Vector2(0, feetY)).Y + CollisionRadiusY;
 
+    /// <summary>Northern edge of the collision ellipse (used for northward shore checks).</summary>
+    public static float CollisionTopY(float feetY) =>
+        CollisionCenter(new Vector2(0, feetY)).Y - CollisionRadiusY;
+
     public static Vector2 CollisionCenterToFeet(Vector2 center) =>
         center - new Vector2(0, CollisionCenterYOffset);
 
@@ -147,6 +151,7 @@ public sealed class PlayerEntity
     public Vector2 MoveDir;
     public Vector2 InputDir;
     /// <summary>Mouse-facing while idle (local player only).</summary>
+    /// <summary>Last movement/attack facing from WASD, arrows, or gamepad stick.</summary>
     public Vector2 AimDir;
     /// <summary>Local sprint held (Shift) with enough stamina.</summary>
     public bool IsRunning;
