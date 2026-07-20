@@ -20,8 +20,15 @@ internal static class OcclusionMaskCache
         public int MaxLocalX { get; init; }
         public int MinLocalY { get; init; }
         public int MaxLocalY { get; init; }
+        public OcclusionColliderShape ColliderShape { get; init; }
+        public float EllipseCenterLocalX { get; init; }
+        public float EllipseCenterLocalY { get; init; }
+        public float EllipseRadiusX { get; init; }
+        public float EllipseRadiusY { get; init; }
         public int[] EdgeX { get; init; } = [];
         public int[] EdgeY { get; init; } = [];
+
+        public bool UsesSimplifiedCollider => ColliderShape is not OcclusionColliderShape.PixelMask;
 
         public bool IsOpaque(int x, int y) =>
             x >= 0 && y >= 0 && x < Width && y < Height && Alpha[y * Width + x] >= AlphaThreshold;
@@ -32,6 +39,15 @@ internal static class OcclusionMaskCache
             right = anchor.X + (MaxLocalX + 1 - OriginX) * scale;
             bottom = anchor.Y - MinLocalY * scale;
             top = anchor.Y - (MaxLocalY + 1) * scale;
+        }
+
+        public void GetWorldEllipse(Vector2 anchor, float scale, out Vector2 center, out float radiusX, out float radiusY)
+        {
+            center = new Vector2(
+                anchor.X + (EllipseCenterLocalX - OriginX) * scale,
+                anchor.Y - EllipseCenterLocalY * scale);
+            radiusX = EllipseRadiusX * scale;
+            radiusY = EllipseRadiusY * scale;
         }
     }
 
@@ -50,11 +66,11 @@ internal static class OcclusionMaskCache
             Masks[i] = null;
 
         if (bush1 != null)
-            Masks[0] = ExtractRect(bush1, new Rectangle(0, 0, 48, 32));
+            Masks[0] = ExtractRect(bush1, new Rectangle(0, 0, 48, 32), OcclusionSimplifyMode.BushEllipse);
         if (bush2 != null)
-            Masks[1] = ExtractRect(bush2, new Rectangle(48, 0, 48, 32));
+            Masks[1] = ExtractRect(bush2, new Rectangle(48, 0, 48, 32), OcclusionSimplifyMode.BushEllipse);
         if (bush3 != null)
-            Masks[2] = ExtractRect(bush3, new Rectangle(0, 0, 48, 32));
+            Masks[2] = ExtractRect(bush3, new Rectangle(0, 0, 48, 32), OcclusionSimplifyMode.BushEllipse);
         if (pine != null)
             Masks[3] = ExtractCanopy(pine, new Rectangle(64, 0, 32, 48), stemRows: 11);
         if (maple != null)
@@ -96,7 +112,30 @@ internal static class OcclusionMaskCache
         return mask != null;
     }
 
-    public static bool EllipseOverlaps(Vector2 anchor, float scale, Mask mask, Vector2 center, float rx, float ry)
+    public static bool ColliderOverlaps(Vector2 anchor, float scale, Mask mask, Vector2 center, float rx, float ry)
+    {
+        if (mask.UsesSimplifiedCollider)
+            return SimplifiedOverlaps(anchor, scale, mask, center, rx, ry);
+        return PixelMaskOverlaps(anchor, scale, mask, center, rx, ry);
+    }
+
+    public static bool SimplifiedOverlaps(Vector2 anchor, float scale, Mask mask, Vector2 center, float rx, float ry)
+    {
+        switch (mask.ColliderShape)
+        {
+            case OcclusionColliderShape.Rect:
+                mask.GetWorldBounds(anchor, scale, out var left, out var right, out var top, out var bottom);
+                return PlayerEntity.EllipseOverlapsRect(center, rx, ry, left, right, top, bottom);
+            case OcclusionColliderShape.Ellipse:
+            case OcclusionColliderShape.Circle:
+                mask.GetWorldEllipse(anchor, scale, out var ocCenter, out var orx, out var ory);
+                return PlayerEntity.EllipseOverlapsEllipse(center, rx, ry, ocCenter, orx, ory);
+            default:
+                return PixelMaskOverlaps(anchor, scale, mask, center, rx, ry);
+        }
+    }
+
+    public static bool PixelMaskOverlaps(Vector2 anchor, float scale, Mask mask, Vector2 center, float rx, float ry)
     {
         scale = MathF.Max(0.01f, scale);
         var localX = (center.X - anchor.X) / scale + mask.OriginX;
@@ -121,6 +160,38 @@ internal static class OcclusionMaskCache
             }
         }
         return false;
+    }
+
+    public static void DrawDebugCollider(
+        SpriteBatch sb,
+        Vector2 anchor,
+        float scale,
+        Mask mask,
+        Vector2 camera,
+        Vector2 screenCenter,
+        float zoom,
+        Color color)
+    {
+        var thickness = MathF.Max(2f, 2f * zoom);
+        if (mask.UsesSimplifiedCollider)
+        {
+            switch (mask.ColliderShape)
+            {
+                case OcclusionColliderShape.Rect:
+                    mask.GetWorldBounds(anchor, scale, out var left, out var right, out var top, out var bottom);
+                    DrawPrimitives.DrawWorldRectOutline(
+                        sb, left, top, right, bottom, camera, screenCenter, zoom, color, thickness);
+                    return;
+                case OcclusionColliderShape.Ellipse:
+                case OcclusionColliderShape.Circle:
+                    mask.GetWorldEllipse(anchor, scale, out var center, out var rx, out var ry);
+                    DrawPrimitives.DrawWorldEllipseOutline(
+                        sb, center, rx, ry, camera, screenCenter, zoom, color, thickness);
+                    return;
+            }
+        }
+
+        DrawDebugEdges(sb, anchor, scale, mask, camera, screenCenter, zoom, color);
     }
 
     public static void DrawDebugEdges(
@@ -148,7 +219,7 @@ internal static class OcclusionMaskCache
         }
     }
 
-    private static Mask ExtractRect(Texture2D tex, Rectangle src)
+    private static Mask ExtractRect(Texture2D tex, Rectangle src, OcclusionSimplifyMode simplify = OcclusionSimplifyMode.None)
     {
         var pixels = new Color[src.Width * src.Height];
         tex.GetData(0, src, pixels, 0, pixels.Length);
@@ -157,7 +228,7 @@ internal static class OcclusionMaskCache
         for (var i = 0; i < pixels.Length; i++)
             alpha[i] = pixels[i].A;
 
-        return BuildMask(src.Width, src.Height, src.Width * 0.5f, alpha);
+        return BuildMask(src.Width, src.Height, src.Width * 0.5f, alpha, simplify);
     }
 
     private static Mask ExtractCanopy(Texture2D tex, Rectangle spriteRect, int stemRows)
@@ -181,21 +252,30 @@ internal static class OcclusionMaskCache
                 alpha[(h - 1 - y) * w + x] = px.A;
             }
         }
-        return BuildMask(w, h, w * 0.5f, alpha);
+        return BuildMask(w, h, w * 0.5f, alpha, OcclusionSimplifyMode.CloudEllipse);
     }
 
-    private static Mask BuildMask(int width, int height, float originX, byte[] alpha)
+    private enum OcclusionSimplifyMode
+    {
+        None,
+        BushEllipse,
+        CloudEllipse,
+    }
+
+    private static Mask BuildMask(int width, int height, float originX, byte[] alpha, OcclusionSimplifyMode simplify = OcclusionSimplifyMode.None)
     {
         var minX = width;
         var maxX = -1;
         var minY = height;
         var maxY = -1;
+        var opaqueCount = 0;
 
         for (var y = 0; y < height; y++)
         {
             for (var x = 0; x < width; x++)
             {
                 if (alpha[y * width + x] < AlphaThreshold) continue;
+                opaqueCount++;
                 minX = Math.Min(minX, x);
                 maxX = Math.Max(maxX, x);
                 minY = Math.Min(minY, y);
@@ -208,7 +288,36 @@ internal static class OcclusionMaskCache
             minX = maxX = minY = maxY = 0;
         }
 
-        var (edgeX, edgeY) = BuildEdges(width, height, alpha);
+        OcclusionColliderShape shape = OcclusionColliderShape.PixelMask;
+        float ellipseCx = 0f;
+        float ellipseCy = 0f;
+        float ellipseRx = 0f;
+        float ellipseRy = 0f;
+        int[] edgeX;
+        int[] edgeY;
+
+        if (simplify != OcclusionSimplifyMode.None && opaqueCount > 0)
+        {
+            var simplified = simplify switch
+            {
+                OcclusionSimplifyMode.CloudEllipse => OcclusionSimplifier.ChooseForCloud(
+                    width, height, alpha, minX, maxX, minY, maxY, opaqueCount),
+                _ => OcclusionSimplifier.ChooseForBush(
+                    width, height, alpha, minX, maxX, minY, maxY, opaqueCount),
+            };
+            shape = simplified.Shape;
+            ellipseCx = simplified.CenterLocalX;
+            ellipseCy = simplified.CenterLocalY;
+            ellipseRx = simplified.RadiusX;
+            ellipseRy = simplified.RadiusY;
+            edgeX = [];
+            edgeY = [];
+        }
+        else
+        {
+            (edgeX, edgeY) = BuildEdges(width, height, alpha);
+        }
+
         return new Mask
         {
             Width = width,
@@ -219,6 +328,11 @@ internal static class OcclusionMaskCache
             MaxLocalX = maxX,
             MinLocalY = minY,
             MaxLocalY = maxY,
+            ColliderShape = shape,
+            EllipseCenterLocalX = ellipseCx,
+            EllipseCenterLocalY = ellipseCy,
+            EllipseRadiusX = ellipseRx,
+            EllipseRadiusY = ellipseRy,
             EdgeX = edgeX,
             EdgeY = edgeY,
         };

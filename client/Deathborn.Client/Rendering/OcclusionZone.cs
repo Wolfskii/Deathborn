@@ -82,7 +82,7 @@ public static class OcclusionZone
         if (!OcclusionMaskCache.TryGetMask(host.OcclusionMaskId, out var mask) || mask == null)
             return false;
 
-        return OcclusionMaskCache.EllipseOverlaps(host.OcclusionAnchor, host.OcclusionScale, mask, center, rx, ry);
+        return OcclusionMaskCache.ColliderOverlaps(host.OcclusionAnchor, host.OcclusionScale, mask, center, rx, ry);
     }
 
     public static void DrawDebug(
@@ -105,6 +105,6 @@ public static class OcclusionZone
         }
 
         if (OcclusionMaskCache.TryGetMask(host.OcclusionMaskId, out var mask) && mask != null)
-            OcclusionMaskCache.DrawDebugEdges(sb, host.OcclusionAnchor, host.OcclusionScale, mask, camera, screenCenter, zoom, color);
+            OcclusionMaskCache.DrawDebugCollider(sb, host.OcclusionAnchor, host.OcclusionScale, mask, camera, screenCenter, zoom, color);
     }
 }

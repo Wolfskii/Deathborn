@@ -65,6 +65,28 @@ public sealed class PlayerEntity
         return false;
     }
 
+    public static bool EllipseOverlapsEllipse(
+        Vector2 centerA, float rxA, float ryA, Vector2 centerB, float rxB, float ryB)
+    {
+        if (EllipseContainsPoint(centerB, rxB, ryB, centerA) || EllipseContainsPoint(centerA, rxA, ryA, centerB))
+            return true;
+
+        for (var i = 0; i < 8; i++)
+        {
+            var angle = i * MathHelper.PiOver2 * 0.5f;
+            var cos = MathF.Cos(angle);
+            var sin = MathF.Sin(angle);
+            var onA = centerA + new Vector2(cos * rxA, sin * ryA);
+            if (EllipseContainsPoint(centerB, rxB, ryB, onA))
+                return true;
+            var onB = centerB + new Vector2(cos * rxB, sin * ryB);
+            if (EllipseContainsPoint(centerA, rxA, ryA, onB))
+                return true;
+        }
+
+        return false;
+    }
+
     public static Vector2 PushEllipseOutOfRect(
         Vector2 center, float rx, float ry, float left, float right, float top, float bottom)
     {

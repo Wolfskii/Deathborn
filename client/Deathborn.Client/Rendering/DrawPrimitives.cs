@@ -120,6 +120,30 @@ public static class DrawPrimitives
         thickness);
   }
 
+  public static void DrawWorldEllipseOutline(
+      SpriteBatch sb,
+      Vector2 worldCenter,
+      float worldRadiusX,
+      float worldRadiusY,
+      Vector2 camera,
+      Vector2 screenCenter,
+      float zoom,
+      Color color,
+      float thickness = 2f)
+  {
+    var screen = new Vector2(
+        (worldCenter.X - camera.X) * zoom + screenCenter.X,
+        (worldCenter.Y - camera.Y) * zoom + screenCenter.Y);
+    DrawEllipseOutline(
+        sb,
+        screen,
+        worldRadiusX * zoom,
+        worldRadiusY * zoom,
+        color,
+        32,
+        thickness);
+  }
+
   public static void FillTriangle(SpriteBatch sb, Vector2 a, Vector2 b, Vector2 c, Color color)
   {
     var minX = (int)MathF.Floor(MathF.Min(a.X, MathF.Min(b.X, c.X)));
