@@ -10,10 +10,15 @@ namespace Deathborn.Client.Ui;
 /// <summary>Draggable panel listing active buffs with countdown and descriptions.</summary>
 public sealed class BuffBarOverlay
 {
-    private const int TitleHeight = 22;
-    private const int RowHeight = 36;
-    private const int Pad = 6;
-    private const int Width = 220;
+    private const int TitleHeight = 24;
+    private const int RowHeight = 54;
+    private const int RowGap = 6;
+    private const int Pad = 8;
+    private const int RowInnerPad = 8;
+    private const int AccentWidth = 4;
+    private const int BarHeight = 3;
+    private const int BarGapAbove = 6;
+    private const int Width = 248;
 
     private bool _dragging;
     private Point _dragOffset;
@@ -62,38 +67,65 @@ public sealed class BuffBarOverlay
 
         var titleBar = new Rectangle(_bounds.X, _bounds.Y, _bounds.Width, TitleHeight);
         DrawPrimitives.FillRect(sb, titleBar, new Color(32, 36, 48, 230));
-        sb.DrawString(font, "Buffs", new Vector2(_bounds.X + 8, _bounds.Y + 4), new Color(200, 205, 220));
+        sb.DrawString(font, "Buffs", new Vector2(_bounds.X + 8, _bounds.Y + 5), new Color(200, 205, 220));
 
         var y = _bounds.Y + TitleHeight + Pad;
         foreach (var buff in tracker.Active)
         {
-            var row = new Rectangle(_bounds.X + Pad, y, _bounds.Width - Pad * 2, RowHeight - 4);
+            var row = new Rectangle(_bounds.X + Pad, y, _bounds.Width - Pad * 2, RowHeight);
             var (name, desc, tint) = BuffCatalog.Describe(buff.Id);
+
             DrawPrimitives.FillRect(sb, row, new Color(24, 26, 32, 200));
-            DrawPrimitives.FillRect(sb, new Rectangle(row.X, row.Y, 4, row.Height), tint);
+            DrawPrimitives.FillRect(sb, new Rectangle(row.X, row.Y, AccentWidth, row.Height), tint);
 
-            sb.DrawString(font, name, new Vector2(row.X + 10, row.Y + 2), Color.White);
-            sb.DrawString(font, desc, new Vector2(row.X + 10, row.Y + 16), new Color(170, 175, 185));
+            var textLeft = row.X + AccentWidth + RowInnerPad;
+            var textTop = row.Y + RowInnerPad;
+            var time = FormatRemaining(buff.Remaining);
+            var timeSize = font.MeasureString(time);
+            var timeX = row.Right - RowInnerPad - timeSize.X;
 
-            var time = buff.Remaining >= 1f ? $"{buff.Remaining:0}s" : $"{buff.Remaining:0.0}s";
-            var size = font.MeasureString(time);
-            sb.DrawString(font, time, new Vector2(row.Right - size.X - 4, row.Y + 10), new Color(240, 220, 140));
+            sb.DrawString(font, name, new Vector2(textLeft, textTop), Color.White);
+            sb.DrawString(font, time, new Vector2(timeX, textTop), new Color(240, 220, 140));
 
-            var pct = buff.Duration > 0f ? buff.Remaining / buff.Duration : 0f;
-            var bar = new Rectangle(row.X + 10, row.Bottom - 4, row.Width - 20, 3);
+            var descY = textTop + font.LineSpacing + 2;
+            sb.DrawString(font, desc, new Vector2(textLeft, descY), new Color(170, 175, 185));
+
+            var barY = row.Bottom - RowInnerPad - BarHeight;
+            // Keep the timer bar below description text (not through it).
+            var minBarY = descY + font.LineSpacing + BarGapAbove;
+            if (barY < minBarY)
+                barY = minBarY;
+
+            var bar = new Rectangle(textLeft, barY, row.Right - RowInnerPad - textLeft, BarHeight);
             DrawPrimitives.FillRect(sb, bar, new Color(40, 42, 50));
-            var fillW = (int)((bar.Width - 1) * MathHelper.Clamp(pct, 0f, 1f));
+            var pct = buff.Duration > 0f ? buff.Remaining / buff.Duration : 0f;
+            var fillW = (int)(bar.Width * MathHelper.Clamp(pct, 0f, 1f));
             if (fillW > 0)
                 DrawPrimitives.FillRect(sb, new Rectangle(bar.X, bar.Y, fillW, bar.Height), tint * 0.85f);
 
-            y += RowHeight;
+            y += RowHeight + RowGap;
         }
+    }
+
+    /// <summary>Minutes:seconds for long buffs (e.g. 9:45); bare seconds under one minute.</summary>
+    private static string FormatRemaining(float seconds)
+    {
+        seconds = MathF.Max(0f, seconds);
+        if (seconds >= 60f)
+        {
+            var total = (int)MathF.Floor(seconds);
+            var m = total / 60;
+            var s = total % 60;
+            return $"{m}:{s:00}";
+        }
+
+        return seconds >= 1f ? $"{seconds:0}s" : $"{seconds:0.0}s";
     }
 
     private void ResizeForBuffCount(int count)
     {
         if (count <= 0) return;
-        var h = TitleHeight + Pad + count * RowHeight + Pad;
+        var h = TitleHeight + Pad + count * RowHeight + Math.Max(0, count - 1) * RowGap + Pad;
         _bounds = new Rectangle(_bounds.X, _bounds.Y, Width, h);
     }
 

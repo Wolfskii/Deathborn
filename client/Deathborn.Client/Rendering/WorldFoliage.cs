@@ -53,8 +53,6 @@ public static class WorldFoliage
     private static float _townPad = BaseTownPad;
     private static float _spawnClearRadius = BaseSpawnClearRadius;
     private const float UnderFoliageAlpha = 0.42f;
-    /// <summary>Extra depth (unscaled px) into the ground shadow while still treated as behind.</summary>
-    private const float TreeShadowDepthInset = 3f;
     /// <summary>Unscaled stem rows used for the square trunk collider (matches old pixel-mask height).</summary>
     private const float TreeStemColliderRows = 13f;
     /// <summary>Trim this many unscaled px off the collider bottom (above sprite anchor).</summary>
@@ -185,17 +183,13 @@ public static class WorldFoliage
         f.Position.Y - f.FootInset * f.Scale;
 
     /// <summary>
-    /// World Y of the foliage feet used for draw sorting vs the player.
-    /// Trees push slightly into the ground shadow so you stay "behind" a bit longer.
+    /// Exterior draw-order Y vs players — visual foot only.
+    /// Do not push south into the shadow: that made trunks paint over players standing in front.
     /// </summary>
-    public static float FoliageBottomY(FoliageInstance f) =>
-        f.Kind == FoliageKind.Tree
-            ? f.Position.Y + TreeShadowDepthInset * f.Scale
-            : f.Position.Y;
+    public static float FoliageBottomY(FoliageInstance f) => SortY(f);
 
     /// <summary>
-    /// Depth bottom for occlusion — same world Y as exterior draw sorting
-    /// (<see cref="FoliageBottomY"/>), so ghosting starts when the prop paints over the player.
+    /// Depth bottom for occlusion — same as exterior draw sorting so ghosting matches paint order.
     /// </summary>
     public static float OcclusionDepthBottomY(FoliageInstance f) => FoliageBottomY(f);
 

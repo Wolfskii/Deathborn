@@ -107,13 +107,16 @@ public static class Config
     public const float WarriorDashDuration = 0.22f;
 
     public const float BattleShoutCooldown = 12f;
-    public const float BattleShoutDuration = 8f;
+    /// <summary>Buff length in seconds (8 minutes).</summary>
+    public const float BattleShoutDuration = 8f * 60f;
 
     public const float IronSkinCooldown = 14f;
-    public const float IronSkinDuration = 10f;
+    /// <summary>Buff length in seconds (10 minutes).</summary>
+    public const float IronSkinDuration = 10f * 60f;
 
     public const float HunterMarkCooldown = 8f;
-    public const float HunterMarkDuration = 900f;
+    /// <summary>Buff length in seconds (15 minutes).</summary>
+    public const float HunterMarkDuration = 15f * 60f;
     public const float HunterMarkRange = 200f * Ws;
 
     public const float SecondWindCooldown = 15f;

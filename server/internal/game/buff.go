@@ -7,9 +7,9 @@ const (
 	BuffIronSkin    = "iron_skin"
 	BuffHunterMark  = "hunter_mark"
 
-	BattleShoutDuration = 8.0
-	IronSkinDuration    = 10.0
-	HunterMarkDuration  = 900.0
+	BattleShoutDuration = 8.0 * 60.0  // 8 minutes
+	IronSkinDuration    = 10.0 * 60.0 // 10 minutes
+	HunterMarkDuration  = 15.0 * 60.0 // 15 minutes
 
 	BattleShoutDamageBonus = 0.25
 	IronSkinDamageReduce   = 0.30
