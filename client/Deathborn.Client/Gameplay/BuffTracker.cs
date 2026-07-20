@@ -15,18 +15,21 @@ public sealed class BuffTracker
 
     public IReadOnlyList<ActiveBuff> Active => _buffs;
 
-    public void Apply(string buffId, float duration, long markTargetId = 0)
+    public void Apply(string buffId, float remaining, float duration, long markTargetId = 0)
     {
-        if (duration <= 0f)
+        if (remaining <= 0f)
         {
             Remove(buffId);
             return;
         }
 
+        if (duration < remaining)
+            duration = remaining;
+
         foreach (var b in _buffs)
         {
             if (b.Id != buffId) continue;
-            b.Remaining = duration;
+            b.Remaining = remaining;
             b.Duration = duration;
             b.MarkTargetId = markTargetId;
             return;
@@ -35,13 +38,15 @@ public sealed class BuffTracker
         _buffs.Add(new ActiveBuff
         {
             Id = buffId,
-            Remaining = duration,
+            Remaining = remaining,
             Duration = duration,
             MarkTargetId = markTargetId,
         });
     }
 
     public void Remove(string buffId) => _buffs.RemoveAll(b => b.Id == buffId);
+
+    public void Clear() => _buffs.Clear();
 
     public void Update(float dt)
     {

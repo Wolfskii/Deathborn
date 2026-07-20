@@ -112,18 +112,16 @@ public sealed class DeathbornGame : Game
         && clientPosition.X < GameViewport.Width && clientPosition.Y < GameViewport.Height;
 
     /// <summary>
-    /// True when this process should accept gameplay mouse clicks in the world.
-    /// Stronger than <see cref="Game.IsActive"/> alone — requires Win32 foreground + cursor over client.
-    /// Do not use this to gate keyboard (F12 etc.); SDL HWND vs foreground can disagree.
+    /// True when MonoGame considers the game focused. Prefer this for keyboard.
+    /// Mouse world clicks also use <see cref="WindowInputFocus.IsPointerOverClient"/>.
     /// </summary>
-    public bool HasGameplayInputFocus =>
-        IsActive && WindowInputFocus.IsForeground(Window);
+    public bool HasGameplayInputFocus => IsActive;
 
     /// <summary>Left-click edge on the focused game client (not another window / title bar).</summary>
     public bool IsWorldMouseClick(MouseState mouse, MouseState prevMouse) =>
-        HasGameplayInputFocus
-        && WindowInputFocus.IsPointerOverFocusedClient(Window, GameViewport.Width, GameViewport.Height)
+        IsActive
         && IsMouseOverClient(mouse.Position)
+        && WindowInputFocus.IsPointerOverClient(Window, GameViewport.Width, GameViewport.Height)
         && mouse.LeftButton == ButtonState.Pressed
         && prevMouse.LeftButton == ButtonState.Released;
 

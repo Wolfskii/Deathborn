@@ -173,8 +173,34 @@ func (c *Client) spawn(ch db.Character) {
 		TotalXp:     ch.TotalXP,
 		Inventory:   gameInv,
 	}))
+	if savedBuffs, err := c.hub.db.GetCharacterActiveBuffs(ctx, ch.ID); err == nil && len(savedBuffs) > 0 {
+		restored := c.hub.world.RestorePlayerBuffs(ch.ID, dbBuffsToGame(savedBuffs))
+		for _, ev := range restored {
+			c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Remaining, ev.Duration, ev.MarkTargetID))
+		}
+	}
 	c.hub.SetOnline(c.accountID, ch.ID)
 	c.hub.syncFriendsToAccount(c.accountID)
+}
+
+func dbBuffsToGame(saved []db.SavedBuff) []game.SavedBuff {
+	out := make([]game.SavedBuff, 0, len(saved))
+	for _, s := range saved {
+		out = append(out, game.SavedBuff{
+			ID: s.ID, Remain: s.Remain, Duration: s.Duration, MarkTargetID: s.MarkTargetID,
+		})
+	}
+	return out
+}
+
+func gameBuffsToDB(saved []game.SavedBuff) []db.SavedBuff {
+	out := make([]db.SavedBuff, 0, len(saved))
+	for _, s := range saved {
+		out = append(out, db.SavedBuff{
+			ID: s.ID, Remain: s.Remain, Duration: s.Duration, MarkTargetID: s.MarkTargetID,
+		})
+	}
+	return out
 }
 
 func dbSkillsToSet(m map[string]int64) skills.Set {
@@ -215,6 +241,7 @@ func (c *Client) persistSpawnedState(database *db.DB) {
 			cosmetics[game.CosmeticSlotHead] = head
 		}
 		_ = database.SaveCharacterCosmetics(ctx, c.characterID, cosmetics)
+		_ = database.SaveCharacterActiveBuffs(ctx, c.characterID, gameBuffsToDB(c.hub.world.BuffsForSave(c.characterID)))
 		log.Printf("saved account_id=%d character_id=%d pos=(%.0f,%.0f)",
 			c.accountID, c.characterID, x, y)
 		return
@@ -379,7 +406,7 @@ func (c *Client) readPump(database *db.DB) {
 				if !ok {
 					continue
 				}
-				c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Duration, ev.MarkTargetID))
+				c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Remaining, ev.Duration, ev.MarkTargetID))
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "hunter_mark", dirX, dirY, formatTargetID(markTarget)))
 			case "shield_bash":
 				dirX, dirY = cardinalDir(dirX, dirY)
@@ -564,7 +591,7 @@ func (c *Client) readPump(database *db.DB) {
 				if !ok {
 					continue
 				}
-				c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Duration, ev.MarkTargetID))
+				c.hub.Broadcast(BuildPlayerBuff(ev.PlayerID, ev.BuffID, ev.Remaining, ev.Duration, ev.MarkTargetID))
 				action := "battle_shout"
 				if d.Ability == game.BuffIronSkin {
 					action = "iron_skin"

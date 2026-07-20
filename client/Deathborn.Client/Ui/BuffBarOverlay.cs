@@ -81,11 +81,10 @@ public sealed class BuffBarOverlay
             var textLeft = row.X + AccentWidth + RowInnerPad;
             var textTop = row.Y + RowInnerPad;
             var time = FormatRemaining(buff.Remaining);
-            var timeSize = font.MeasureString(time);
-            var timeX = row.Right - RowInnerPad - timeSize.X;
+            var timeRight = row.Right - RowInnerPad;
 
             sb.DrawString(font, name, new Vector2(textLeft, textTop), Color.White);
-            sb.DrawString(font, time, new Vector2(timeX, textTop), new Color(240, 220, 140));
+            DrawFixedWidthTimer(sb, font, time, timeRight, textTop, new Color(240, 220, 140));
 
             var descY = textTop + font.LineSpacing + 2;
             sb.DrawString(font, desc, new Vector2(textLeft, descY), new Color(170, 175, 185));
@@ -120,6 +119,45 @@ public sealed class BuffBarOverlay
         }
 
         return seconds >= 1f ? $"{seconds:0}s" : $"{seconds:0.0}s";
+    }
+
+    /// <summary>
+    /// Draw timer glyphs in fixed-width cells anchored to the right so proportional
+    /// digit widths (and 9:59 → 10:00) don't shift the label horizontally.
+    /// </summary>
+    private static void DrawFixedWidthTimer(
+        SpriteBatch sb, SpriteFont font, string time, float rightX, float y, Color color)
+    {
+        EnsureDigitMetrics(font);
+        var x = rightX;
+        for (var i = time.Length - 1; i >= 0; i--)
+        {
+            var ch = time[i];
+            var cell = ch is ':' or '.' or 's' ? _specialWidth : _digitWidth;
+            x -= cell;
+            var glyph = ch.ToString();
+            var gw = font.MeasureString(glyph).X;
+            sb.DrawString(font, glyph, new Vector2(x + (cell - gw) * 0.5f, y), color);
+        }
+    }
+
+    private static float _digitWidth;
+    private static float _specialWidth;
+    private static SpriteFont? _metricsFont;
+
+    private static void EnsureDigitMetrics(SpriteFont font)
+    {
+        if (ReferenceEquals(_metricsFont, font) && _digitWidth > 0f)
+            return;
+
+        _metricsFont = font;
+        _digitWidth = 0f;
+        for (var d = 0; d <= 9; d++)
+            _digitWidth = MathF.Max(_digitWidth, font.MeasureString(d.ToString()).X);
+        _digitWidth = MathF.Ceiling(_digitWidth);
+        _specialWidth = MathF.Ceiling(MathF.Max(
+            font.MeasureString(":").X,
+            MathF.Max(font.MeasureString(".").X, font.MeasureString("s").X)));
     }
 
     private void ResizeForBuffCount(int count)

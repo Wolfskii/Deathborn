@@ -496,8 +496,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     && !IsOverHotbar(mouse.Position))
                     HandleLeftClick(mouse.Position);
 
-                if (DeathbornGame.Instance.HasGameplayInputFocus
-                    && WindowInputFocus.IsPointerOverFocusedClient(
+                if (windowActive
+                    && DeathbornGame.Instance.IsMouseOverClient(mouse.Position)
+                    && WindowInputFocus.IsPointerOverClient(
                         DeathbornGame.Instance.Window, GameViewport.Width, GameViewport.Height)
                     && mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released
                     && !IsOverHotbar(mouse.Position) && !_playerContextMenu.IsOpen)
@@ -1814,12 +1815,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
+        var remaining = data.Remaining > 0 ? data.Remaining : data.Duration;
+        var duration = data.Duration >= remaining ? data.Duration : remaining;
+
         if (data.BuffId == "hunter_mark" && data.MarkTargetId > 0)
-            _hunterMarks[data.MarkTargetId] = (float)data.Duration;
+            _hunterMarks[data.MarkTargetId] = (float)remaining;
 
         if (data.PlayerId != _screens.Net.LocalCharacterId) return;
 
-        _buffTracker.Apply(data.BuffId, (float)data.Duration, data.MarkTargetId);
+        _buffTracker.Apply(data.BuffId, (float)remaining, (float)duration, data.MarkTargetId);
+        // Skip cast SFX / status toast when restoring a paused buff after login.
+        var isFresh = remaining >= duration - 0.5;
+        if (!isFresh) return;
         if (data.BuffId is "battle_shout" or "iron_skin")
             SfxPlayer.PlayHolySpell();
         var (name, desc, _) = BuffCatalog.Describe(data.BuffId);
@@ -2659,6 +2666,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_disconnectMode || _ghostMode)
             return;
         _disconnectMode = true;
+        _buffTracker.Clear();
+        _hunterMarks.Clear();
         var msg = _screens.Net.DisconnectMessage;
         if (string.IsNullOrWhiteSpace(msg))
             msg = "Connection to the server was lost.";

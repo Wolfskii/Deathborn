@@ -104,7 +104,7 @@ func decodeSkills(raw []byte) map[string]int64 {
 
 func (d *DB) MarkCharacterDead(ctx context.Context, id int64) error {
 	_, err := d.Pool.Exec(ctx,
-		`UPDATE characters SET alive = FALSE WHERE id = $1 AND alive = TRUE`,
+		`UPDATE characters SET alive = FALSE, active_buffs = '[]'::jsonb WHERE id = $1 AND alive = TRUE`,
 		id,
 	)
 	return err

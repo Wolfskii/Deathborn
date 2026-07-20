@@ -554,6 +554,10 @@ public sealed class PlayerBuffData
     [JsonPropertyName("duration")]
     public double Duration { get; set; }
 
+    /// <summary>Time left. When 0 on apply, clients use Duration as remaining.</summary>
+    [JsonPropertyName("remaining")]
+    public double Remaining { get; set; }
+
     [JsonPropertyName("markTargetId")]
     public long MarkTargetId { get; set; }
 }

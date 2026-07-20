@@ -4,9 +4,10 @@ using Microsoft.Xna.Framework;
 namespace Deathborn.Client.Platform;
 
 /// <summary>
-/// Reliable focus / cursor-over checks. MonoGame's <see cref="Game.IsActive"/> and
-/// <c>Mouse.GetState()</c> can stay "inside" the client after focus moves to another window,
-/// which would otherwise fire world click actions (e.g. sword swing).
+/// Cursor-over-client checks. MonoGame's <c>Mouse.GetState()</c> can keep an in-window
+/// position after the cursor leaves, so world clicks must also verify the OS hit-test
+/// window. Do not require <c>GetForegroundWindow</c> — SDL's HWND often differs from the
+/// foreground window even while the game is focused (that broke F12 / hotbar clicks).
 /// </summary>
 internal static class WindowInputFocus
 {
@@ -20,9 +21,6 @@ internal static class WindowInputFocus
     }
 
     [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out PointApi lpPoint);
 
     [DllImport("user32.dll")]
@@ -34,40 +32,17 @@ internal static class WindowInputFocus
     [DllImport("user32.dll")]
     private static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
 
-    /// <summary>True when this game window (or an owned child) is the Win32 foreground window.</summary>
-    public static bool IsForeground(GameWindow window)
-    {
-        if (!OperatingSystem.IsWindows())
-            return true;
-
-        var hwnd = window.Handle;
-        if (hwnd == IntPtr.Zero)
-            return false;
-
-        var fg = GetForegroundWindow();
-        if (fg == IntPtr.Zero)
-            return false;
-        if (fg == hwnd)
-            return true;
-
-        // SDL may use a parent/child HWND tree for the same window.
-        return SameRoot(fg, hwnd);
-    }
-
     /// <summary>
     /// True when the OS cursor is over our client area and that pixel belongs to our window
-    /// (not another overlapping window), and we hold foreground focus.
+    /// (not another overlapping app).
     /// </summary>
-    public static bool IsPointerOverFocusedClient(GameWindow window, int clientWidth, int clientHeight)
+    public static bool IsPointerOverClient(GameWindow window, int clientWidth, int clientHeight)
     {
         if (!OperatingSystem.IsWindows())
             return true;
 
         var hwnd = window.Handle;
         if (hwnd == IntPtr.Zero || clientWidth <= 0 || clientHeight <= 0)
-            return false;
-
-        if (!IsForeground(window))
             return false;
 
         if (!GetCursorPos(out var screen))

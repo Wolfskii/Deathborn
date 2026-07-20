@@ -206,10 +206,12 @@ type PlayerHealData struct {
 }
 
 // PlayerBuffData is broadcast when a buff is applied or expires (duration 0 = expired).
+// Remaining is time left; when omitted/0 on apply, clients treat Duration as remaining.
 type PlayerBuffData struct {
 	PlayerID     int64   `json:"playerId"`
 	BuffID       string  `json:"buffId"`
 	Duration     float64 `json:"duration"`
+	Remaining    float64 `json:"remaining,omitempty"`
 	MarkTargetID int64   `json:"markTargetId,omitempty"`
 }
 
@@ -363,11 +365,13 @@ func BuildPlayerHeal(playerID int64, amount int, ability string, hp, hpMax float
 }
 
 // BuildPlayerBuff serializes a buff apply/expire event for broadcast.
-func BuildPlayerBuff(playerID int64, buffID string, duration float64, markTargetID int64) []byte {
+// remaining is time left; duration is the full length. Expire with both 0.
+func BuildPlayerBuff(playerID int64, buffID string, remaining, duration float64, markTargetID int64) []byte {
 	return encode("player_buff", PlayerBuffData{
 		PlayerID:     playerID,
 		BuffID:       buffID,
 		Duration:     duration,
+		Remaining:    remaining,
 		MarkTargetID: markTargetID,
 	})
 }

@@ -88,7 +88,7 @@ func main() {
 			hub.Broadcast(gnet.BuildPlayerHeal(h.PlayerID, h.Amount, h.Ability, h.Hp, h.HpMax))
 		}
 		for _, b := range world.TickBuffs(dt) {
-			hub.Broadcast(gnet.BuildPlayerBuff(b.PlayerID, b.BuffID, b.Duration, b.MarkTargetID))
+			hub.Broadcast(gnet.BuildPlayerBuff(b.PlayerID, b.BuffID, b.Remaining, b.Duration, b.MarkTargetID))
 		}
 		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot(), world.NpcSnapshot(), world.HouseSnapshot(), world.DropSnapshot(), world.WorldEventSnapshot()))
 	})
