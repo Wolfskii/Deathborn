@@ -344,17 +344,24 @@ public sealed class WorldMap
 
     private static WorldMap GetOrLoad()
     {
+        if (_swaroviaMainland != null)
+            return _swaroviaMainland;
+
         var path = CollisionPath;
         var writeTime = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
         var elevWriteTime = File.Exists(ElevationPath) ? File.GetLastWriteTimeUtc(ElevationPath) : DateTime.MinValue;
-        if (_swaroviaMainland != null && writeTime == _sourceWriteTime && elevWriteTime == _elevationSourceWriteTime)
-            return _swaroviaMainland;
-
-        _swaroviaMainland?._mapColorTexture?.Dispose();
         _swaroviaMainland = Load(path);
         _sourceWriteTime = writeTime;
         _elevationSourceWriteTime = elevWriteTime;
         return _swaroviaMainland;
+    }
+
+    /// <summary>Reload collision/elevation bins from disk (editor / after import). Not called per frame.</summary>
+    public static void ReloadFromDisk()
+    {
+        _swaroviaMainland?._mapColorTexture?.Dispose();
+        _swaroviaMainland = null;
+        _ = GetOrLoad();
     }
 
     private static WorldMap Load(string path)

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -7,6 +8,7 @@ namespace Deathborn.Client.Diagnostics;
 /// <summary>
 /// File logger for hitch diagnosis — enabled only when launched via <c>task dev:all</c>
 /// (<see cref="Config.DevInstance"/> &gt; 0). Writes when a frame takes ≥ 1/30s.
+/// Disk I/O is queued off the game thread so AutoFlush cannot stall Update/Draw.
 /// </summary>
 public static class DevPerfLog
 {
@@ -17,15 +19,19 @@ public static class DevPerfLog
     private static readonly Stopwatch PhaseWatch = new();
     private static readonly double[] RecentMs = new double[RecentFrames];
     private static readonly Dictionary<string, string> Notes = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, double> PhaseMs = new(StringComparer.Ordinal);
+    private static readonly ConcurrentQueue<string> PendingLines = new();
     private static readonly object Gate = new();
 
     private static StreamWriter? _writer;
     private static string? _logPath;
     private static bool _announced;
+    private static bool _writerPumpStarted;
     private static int _recentIdx;
     private static int _recentFilled;
     private static double _updateMs;
     private static double _drawMs;
+    private static string? _phaseName;
     private static int _gc0;
     private static int _gc1;
     private static int _gc2;
@@ -42,6 +48,8 @@ public static class DevPerfLog
 
         EnsureWriter();
         Notes.Clear();
+        PhaseMs.Clear();
+        _phaseName = null;
         _updateMs = 0;
         _drawMs = 0;
         FrameWatch.Restart();
@@ -51,10 +59,28 @@ public static class DevPerfLog
         _gc2 = GC.CollectionCount(2);
     }
 
+    /// <summary>Close the previous named phase (if any) and start a new one within Update.</summary>
+    public static void Mark(string phase)
+    {
+        if (!Enabled) return;
+
+        var elapsed = PhaseWatch.Elapsed.TotalMilliseconds;
+        if (_phaseName != null)
+            PhaseMs[_phaseName] = elapsed;
+        _phaseName = phase;
+        PhaseWatch.Restart();
+    }
+
     public static void EndUpdate()
     {
         if (!Enabled) return;
-        _updateMs = PhaseWatch.Elapsed.TotalMilliseconds;
+
+        var elapsed = PhaseWatch.Elapsed.TotalMilliseconds;
+        if (_phaseName != null)
+            PhaseMs[_phaseName] = elapsed;
+        _phaseName = null;
+
+        _updateMs = FrameWatch.Elapsed.TotalMilliseconds;
         PhaseWatch.Restart();
     }
 
@@ -87,7 +113,7 @@ public static class DevPerfLog
         var dGc2 = GC.CollectionCount(2) - _gc2;
         var instFps = frameMs > 0.001 ? 1000.0 / frameMs : 0;
 
-        var sb = new StringBuilder(256);
+        var sb = new StringBuilder(320);
         sb.Append(DateTime.Now.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture));
         sb.Append(" DIP frame=");
         sb.Append(frameMs.ToString("0.0", CultureInfo.InvariantCulture));
@@ -112,12 +138,19 @@ public static class DevPerfLog
             _suppressedSinceLastWrite = 0;
         }
 
+        foreach (var (key, value) in PhaseMs)
+        {
+            sb.Append(' ').Append(key).Append('=');
+            sb.Append(value.ToString("0.0", CultureInfo.InvariantCulture));
+            sb.Append("ms");
+        }
+
         foreach (var (key, value) in Notes)
         {
             sb.Append(' ').Append(key).Append('=').Append(value);
         }
 
-        WriteLine(sb.ToString());
+        PendingLines.Enqueue(sb.ToString());
         _lastDipTick = now;
     }
 
@@ -150,11 +183,11 @@ public static class DevPerfLog
 
     private static void EnsureWriter()
     {
-        if (_writer != null) return;
+        if (_writerPumpStarted) return;
 
         lock (Gate)
         {
-            if (_writer != null) return;
+            if (_writerPumpStarted) return;
 
             var dir = Path.Combine(AppContext.BaseDirectory, "logs");
             Directory.CreateDirectory(dir);
@@ -162,11 +195,17 @@ public static class DevPerfLog
             _logPath = Path.Combine(dir, instance > 1 ? $"fps-dips-{instance}.log" : "fps-dips.log");
             _writer = new StreamWriter(new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
             {
-                AutoFlush = true,
+                AutoFlush = false,
             };
 
             _writer.WriteLine();
-            _writer.WriteLine($"=== FPS dip log started {DateTime.Now:yyyy-MM-dd HH:mm:ss} instance={instance} threshold={DipThresholdMs:0.0}ms ===");
+            _writer.WriteLine(
+                $"=== FPS dip log started {DateTime.Now:yyyy-MM-dd HH:mm:ss} instance={instance} threshold={DipThresholdMs.ToString("0.0", CultureInfo.InvariantCulture)}ms ===");
+            _writer.Flush();
+
+            _writerPumpStarted = true;
+            var writer = _writer;
+            _ = Task.Run(() => WriterPump(writer));
 
             if (!_announced)
             {
@@ -176,11 +215,30 @@ public static class DevPerfLog
         }
     }
 
-    private static void WriteLine(string line)
+    private static async Task WriterPump(StreamWriter writer)
     {
-        lock (Gate)
+        var batch = new List<string>(16);
+        while (true)
         {
-            _writer?.WriteLine(line);
+            try
+            {
+                while (PendingLines.TryDequeue(out var line))
+                    batch.Add(line);
+
+                if (batch.Count > 0)
+                {
+                    foreach (var line in batch)
+                        writer.WriteLine(line);
+                    writer.Flush();
+                    batch.Clear();
+                }
+
+                await Task.Delay(100).ConfigureAwait(false);
+            }
+            catch
+            {
+                await Task.Delay(500).ConfigureAwait(false);
+            }
         }
     }
 }

@@ -118,7 +118,10 @@ public sealed class DeathbornGame : Game
     /// </summary>
     public bool HasGameplayInputFocus => IsActive;
 
-    /// <summary>Left-click edge on the focused game client (not another window / title bar).</summary>
+    /// <summary>
+    /// Left-click edge on the focused game client. Requires MonoGame focus, cursor in the
+    /// client bounds, and OS hit-test over this process (blocks clicks into other apps).
+    /// </summary>
     public bool IsWorldMouseClick(MouseState mouse, MouseState prevMouse) =>
         IsActive
         && IsMouseOverClient(mouse.Position)

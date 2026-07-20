@@ -61,8 +61,11 @@ public sealed class ScreenManager
 
     public void Update(GameTime gameTime)
     {
+        DevPerfLog.Mark("poll");
         Net.Poll();
+        DevPerfLog.Mark("esc");
         _escMenu.Update(gameTime);
+        DevPerfLog.Mark("screen");
         _current?.Update(gameTime);
         if (DevPerfLog.Enabled && _current is not null)
             DevPerfLog.Note("screen", _current.GetType().Name.Replace("Screen", "", StringComparison.Ordinal));

@@ -9,20 +9,18 @@ namespace Deathborn.Client.Maps;
 /// <summary>
 /// Draws the authored Swarovia mainland Tiled map (WYSIWYG tiles, no elevation autotile).
 /// Farm RPG art is 16 px; world cells are 32 px — stretch each tile to the screen cell rect.
-/// Visible tiles are baked into a padded render-target so scrolling is mostly one blit.
+/// Static Ground tiles are baked into a padded render-target; animated Water is drawn live.
 /// </summary>
 public static class TiledOverworldRenderer
 {
     public const string MapId = "swarovia_mainland";
 
     private const int CachePadTiles = 8;
-    private const float AnimRebuildSeconds = 0.2f;
-
-    private static readonly string[] LayerDrawOrder = ["Water", "Ground"];
+    private const string WaterLayer = "Water";
+    private const string GroundLayer = "Ground";
 
     private static RenderTarget2D? _cache;
     private static int _cacheMinTx, _cacheMaxTx, _cacheMinTy, _cacheMaxTy;
-    private static float _animAge;
     /// <summary>Set when the tile cache was rebuilt this frame (cleared by DevPerfLog consumers).</summary>
     public static string? LastRebuildReason { get; private set; }
 
@@ -37,13 +35,15 @@ public static class TiledOverworldRenderer
     {
         LastRebuildReason = null;
         map.Update(gameTime);
-        _animAge += (float)gameTime.ElapsedGameTime.TotalSeconds;
 
         if (NeedsRebuild(region, out var reason))
         {
             LastRebuildReason = reason;
-            RebuildCache(spriteBatch, graphicsDevice, map, region);
+            RebuildGroundCache(spriteBatch, graphicsDevice, map, region);
         }
+
+        // Animated water — live each frame (avoids rebuilding the RT every 0.2s).
+        DrawLayerScreen(spriteBatch, map, WaterLayer, region);
 
         if (_cache == null)
             return;
@@ -61,11 +61,6 @@ public static class TiledOverworldRenderer
             reason = "cold";
             return true;
         }
-        if (_animAge >= AnimRebuildSeconds)
-        {
-            reason = "anim";
-            return true;
-        }
         if (region.MinTx < _cacheMinTx || region.MaxTx > _cacheMaxTx ||
             region.MinTy < _cacheMinTy || region.MaxTy > _cacheMaxTy)
         {
@@ -77,7 +72,7 @@ public static class TiledOverworldRenderer
         return false;
     }
 
-    private static void RebuildCache(
+    private static void RebuildGroundCache(
         SpriteBatch spriteBatch,
         GraphicsDevice graphicsDevice,
         TiledMapInstance map,
@@ -116,38 +111,7 @@ public static class TiledOverworldRenderer
         graphicsDevice.Clear(Color.Transparent);
         spriteBatch.Begin(samplerState: SamplerState.PointClamp);
 
-        var tilemap = map.Map;
-        var tileRegion = new Rectangle(minTx, minTy, tileW, tileH);
-
-        foreach (var layerName in LayerDrawOrder)
-        {
-            if (!tilemap.Layers.TryGetValue(layerName, out var layer) || layer is not TilemapTileLayer tileLayer)
-                continue;
-            if (!layer.IsVisible)
-                continue;
-
-            var tint = layer.TintColor.HasValue
-                ? layer.TintColor.Value * layer.Opacity
-                : Color.White * layer.Opacity;
-
-            foreach (var entry in tileLayer.GetTilesInRegion(tileRegion))
-            {
-                var localId = entry.Tile.GetLocalId(tilemap.Tilesets, out var tileset);
-                if (tileset == null)
-                    continue;
-
-                tileset.GetRenderSource(localId, out var texture, out var sourceRect);
-                if (texture == null)
-                    continue;
-
-                var dest = new Rectangle(
-                    (entry.X - minTx) * tileSize,
-                    (entry.Y - minTy) * tileSize,
-                    tileSize,
-                    tileSize);
-                spriteBatch.Draw(texture, dest, sourceRect, tint);
-            }
-        }
+        DrawLayerToCache(spriteBatch, map, GroundLayer, minTx, minTy, maxTx, maxTy, tileSize);
 
         spriteBatch.End();
         graphicsDevice.SetRenderTargets(prevTargets);
@@ -157,6 +121,80 @@ public static class TiledOverworldRenderer
         _cacheMaxTx = maxTx;
         _cacheMinTy = minTy;
         _cacheMaxTy = maxTy;
-        _animAge = 0f;
+    }
+
+    private static void DrawLayerToCache(
+        SpriteBatch spriteBatch,
+        TiledMapInstance map,
+        string layerName,
+        int minTx,
+        int minTy,
+        int maxTx,
+        int maxTy,
+        int tileSize)
+    {
+        var tilemap = map.Map;
+        if (!tilemap.Layers.TryGetValue(layerName, out var layer) || layer is not TilemapTileLayer tileLayer)
+            return;
+        if (!layer.IsVisible)
+            return;
+
+        var tint = layer.TintColor.HasValue
+            ? layer.TintColor.Value * layer.Opacity
+            : Color.White * layer.Opacity;
+
+        var tileRegion = new Rectangle(minTx, minTy, maxTx - minTx + 1, maxTy - minTy + 1);
+        foreach (var entry in tileLayer.GetTilesInRegion(tileRegion))
+        {
+            var localId = entry.Tile.GetLocalId(tilemap.Tilesets, out var tileset);
+            if (tileset == null)
+                continue;
+
+            tileset.GetRenderSource(localId, out var texture, out var sourceRect);
+            if (texture == null)
+                continue;
+
+            var dest = new Rectangle(
+                (entry.X - minTx) * tileSize,
+                (entry.Y - minTy) * tileSize,
+                tileSize,
+                tileSize);
+            spriteBatch.Draw(texture, dest, sourceRect, tint);
+        }
+    }
+
+    private static void DrawLayerScreen(
+        SpriteBatch spriteBatch,
+        TiledMapInstance map,
+        string layerName,
+        VisibleTileRegion region)
+    {
+        var tilemap = map.Map;
+        if (!tilemap.Layers.TryGetValue(layerName, out var layer) || layer is not TilemapTileLayer tileLayer)
+            return;
+        if (!layer.IsVisible)
+            return;
+
+        var tint = layer.TintColor.HasValue
+            ? layer.TintColor.Value * layer.Opacity
+            : Color.White * layer.Opacity;
+
+        var tileRegion = new Rectangle(
+            region.MinTx,
+            region.MinTy,
+            region.MaxTx - region.MinTx + 1,
+            region.MaxTy - region.MinTy + 1);
+        foreach (var entry in tileLayer.GetTilesInRegion(tileRegion))
+        {
+            var localId = entry.Tile.GetLocalId(tilemap.Tilesets, out var tileset);
+            if (tileset == null)
+                continue;
+
+            tileset.GetRenderSource(localId, out var texture, out var sourceRect);
+            if (texture == null)
+                continue;
+
+            spriteBatch.Draw(texture, region.Rect(entry.X, entry.Y), sourceRect, tint);
+        }
     }
 }
