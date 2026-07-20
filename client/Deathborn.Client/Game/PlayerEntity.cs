@@ -45,24 +45,24 @@ public sealed class PlayerEntity
         return cdx * cdx + cdy * cdy <= otherRadius * otherRadius;
     }
 
+    /// <summary>
+    /// True ellipse–AABB test: transform the rect into unit-circle space (÷ rx/ry), then
+    /// closest-point. Euclidean clamp alone misses diagonal overlaps when rx ≠ ry — that let
+    /// the player clip tree stems / red tile corners while F12 still looked intersected.
+    /// </summary>
     public static bool EllipseOverlapsRect(
         Vector2 center, float rx, float ry, float left, float right, float top, float bottom)
     {
-        var closestX = Math.Clamp(center.X, left, right);
-        var closestY = Math.Clamp(center.Y, top, bottom);
-        if (EllipseContainsPoint(center, rx, ry, new Vector2(closestX, closestY)))
-            return true;
+        if (rx < 0.0001f || ry < 0.0001f)
+            return false;
 
-        Span<(float X, float Y)> corners =
-        [
-            (left, top), (right, top), (left, bottom), (right, bottom),
-        ];
-        foreach (var (x, y) in corners)
-        {
-            if (EllipseContainsPoint(center, rx, ry, new Vector2(x, y)))
-                return true;
-        }
-        return false;
+        var lx = (left - center.X) / rx;
+        var rxn = (right - center.X) / rx;
+        var ty = (top - center.Y) / ry;
+        var by = (bottom - center.Y) / ry;
+        var cx = Math.Clamp(0f, Math.Min(lx, rxn), Math.Max(lx, rxn));
+        var cy = Math.Clamp(0f, Math.Min(ty, by), Math.Max(ty, by));
+        return cx * cx + cy * cy <= 1f;
     }
 
     public static bool EllipseOverlapsEllipse(
@@ -90,18 +90,34 @@ public sealed class PlayerEntity
     public static Vector2 PushEllipseOutOfRect(
         Vector2 center, float rx, float ry, float left, float right, float top, float bottom)
     {
+        if (!EllipseOverlapsRect(center, rx, ry, left, right, top, bottom))
+            return center;
+
         var closestX = Math.Clamp(center.X, left, right);
         var closestY = Math.Clamp(center.Y, top, bottom);
         var dx = center.X - closestX;
         var dy = center.Y - closestY;
         var distSq = dx * dx + dy * dy;
-        if (!EllipseContainsPoint(center, rx, ry, new Vector2(closestX, closestY)) && distSq >= 0.0001f)
-            return center;
 
         if (distSq < 0.0001f)
         {
-            dx = 0f;
-            dy = 1f;
+            // Center inside AABB — escape along the shallowest edge (world distance, not +rx/+ry).
+            var pushLeft = center.X - left;
+            var pushRight = right - center.X;
+            var pushUp = center.Y - top;
+            var pushDown = bottom - center.Y;
+            var best = pushLeft;
+            dx = -1f;
+            dy = 0f;
+            if (pushRight < best) { best = pushRight; dx = 1f; dy = 0f; }
+            if (pushUp < best) { best = pushUp; dx = 0f; dy = -1f; }
+            if (pushDown < best) { dx = 0f; dy = 1f; }
+            // Prefer north over south when nearly tied — south flings past thin tree stems.
+            if (MathF.Abs(pushUp - pushDown) < 0.5f && pushUp <= pushLeft && pushUp <= pushRight)
+            {
+                dx = 0f;
+                dy = -1f;
+            }
             distSq = 1f;
         }
 
@@ -109,7 +125,7 @@ public sealed class PlayerEntity
         var nx = dx / dist;
         var ny = dy / dist;
         var effR = 1f / MathF.Sqrt((nx / rx) * (nx / rx) + (ny / ry) * (ny / ry));
-        var push = (effR - dist + 0.35f);
+        var push = effR - dist + 0.35f;
         return center + new Vector2(nx * push, ny * push);
     }
     private const float MinMoveDisplacementSq = 0.36f;

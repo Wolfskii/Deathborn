@@ -156,6 +156,18 @@ Keep client and server ramp logic in sync when changing engagement rules.
 | Rebuild full tiled overworld RT every water anim tick (~0.2s) | Draw/update spikes | `TiledOverworldRenderer` — cache Ground; draw Water live |
 | Sync `AutoFlush` / IDE-watched FPS log on game thread | Hitch storms from logging itself | `DevPerfLog` — async queue writer |
 
+### Ellipse vs tiles / props (corners)
+
+Player collider is an **upward ellipse** (rx=12, ry=16), not a circle. F12: red = land/water tile edges; green = player ellipse + prop stems.
+
+**Do not** use 5-point axial samples for terrain walkability — diagonal body can sit past a convex red corner while center ± tips stay on land. Test **ellipse vs each blocked tile AABB** in the ellipse’s tile neighborhood (`EllipseClearOfBlockedTiles` / server `ellipseClearOfBlockedTiles`).
+
+**Do not** use Euclidean clamp for `EllipseOverlapsRect` when `rx ≠ ry` — transform into unit-circle space first (`÷ rx/ry`, then closest-point). Wrong tests cause tree-stem corner clips and inconsistent push-out.
+
+**ResolveMove:** try **both** axis slide orders (X→Y and Y→X), pick farther result; if still jammed, binary-clamp along the intended path. Keep client (`WorldMap` / `WorldFoliage`) and server (`map.go` / `foliage.go`) in sync.
+
+**Thin foliage stems (trees):** Never accept a move or axis slide from endpoint clearance alone. A thin green stem AABB is shorter than one frame of run speed — `from` north of the trunk and `to` south both look free → player teleports past the tree. Always **sweep the path** (~2px steps) / binary-clamp to first contact (`PathClear` / `pathClear`). Soft depenetrate must be distance-capped and must **not** shift the destination by the same delta.
+
 ---
 
 ## Tiled maps (dungeons + Swarovia mainland authoring)

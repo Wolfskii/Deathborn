@@ -268,6 +268,8 @@ func (m *Map) adjustRampDelta(x, y, dx, dy float64) (float64, float64) {
 }
 
 // CanWalk reports whether the player ellipse at feet (x,y) may stand on land.
+// Uses full ellipse vs blocked tile AABBs (not 5 axial samples) so convex corners
+// cannot clip past the land/water edge.
 func (m *Map) CanWalk(x, y, radius float64) bool {
 	cy := playerCollisionY(y)
 	maxR := math.Max(playerRadiusX, playerRadiusY)
@@ -277,11 +279,39 @@ func (m *Map) CanWalk(x, y, radius float64) bool {
 	if radius <= 0 {
 		return m.walkTile(x, cy)
 	}
-	return m.walkTile(x, cy) &&
-		m.walkTile(x+playerRadiusX, cy) &&
-		m.walkTile(x-playerRadiusX, cy) &&
-		m.walkTile(x, cy+playerRadiusY) &&
-		m.walkTile(x, cy-playerRadiusY)
+	return m.ellipseClearOfBlockedTiles(x, cy, playerRadiusX, playerRadiusY)
+}
+
+func (m *Map) ellipseClearOfBlockedTiles(cx, cy, rx, ry float64) bool {
+	minTx := int(math.Floor((cx - rx) / m.TileSize))
+	maxTx := int(math.Floor((cx + rx) / m.TileSize))
+	minTy := int(math.Floor((cy - ry) / m.TileSize))
+	maxTy := int(math.Floor((cy + ry) / m.TileSize))
+	if minTx < 0 {
+		minTx = 0
+	}
+	if minTy < 0 {
+		minTy = 0
+	}
+	if maxTx >= m.TileWidth {
+		maxTx = m.TileWidth - 1
+	}
+	if maxTy >= m.TileHeight {
+		maxTy = m.TileHeight - 1
+	}
+	for ty := minTy; ty <= maxTy; ty++ {
+		for tx := minTx; tx <= maxTx; tx++ {
+			if m.walkable[ty*m.TileWidth+tx] {
+				continue
+			}
+			left := float64(tx) * m.TileSize
+			top := float64(ty) * m.TileSize
+			if ellipseOverlapsRect(cx, cy, rx, ry, left, left+m.TileSize, top, top+m.TileSize) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // ResolveMove applies axis-separated sliding against land/water tiles and foliage.
@@ -293,15 +323,58 @@ func (m *Map) ResolveMove(x, y, dx, dy float64) (float64, float64) {
 	if m.CanWalk(nx, ny, playerRadiusX) && m.canTraverseWorld(x, y, nx, ny) {
 		x, y = nx, ny
 	} else {
-		if m.CanWalk(nx, y, playerRadiusX) && m.canTraverseWorld(x, y, nx, y) {
-			x = nx
+		ax, ay := m.tryAxisSlide(fromX, fromY, nx, ny, true)
+		bx, by := m.tryAxisSlide(fromX, fromY, nx, ny, false)
+		da := (ax-fromX)*(ax-fromX) + (ay-fromY)*(ay-fromY)
+		db := (bx-fromX)*(bx-fromX) + (by-fromY)*(by-fromY)
+		if da >= db {
+			x, y = ax, ay
+		} else {
+			x, y = bx, by
 		}
-		if m.CanWalk(x, ny, playerRadiusX) && m.canTraverseWorld(x, y, x, ny) {
-			y = ny
+		if (x-fromX)*(x-fromX)+(y-fromY)*(y-fromY) < 0.0001 && dx*dx+dy*dy > 0.0001 {
+			x, y = m.binaryClampMove(fromX, fromY, nx, ny)
 		}
 	}
 	if m.foliage != nil {
 		x, y = m.foliage.resolveMoveBlock(fromX, fromY, x, y, playerRadiusX, playerRadiusY)
+	}
+	return x, y
+}
+
+func (m *Map) tryAxisSlide(fromX, fromY, nx, ny float64, xFirst bool) (float64, float64) {
+	x, y := fromX, fromY
+	if xFirst {
+		if m.CanWalk(nx, fromY, playerRadiusX) && m.canTraverseWorld(fromX, fromY, nx, fromY) {
+			x = nx
+		}
+		if m.CanWalk(x, ny, playerRadiusX) && m.canTraverseWorld(x, fromY, x, ny) {
+			y = ny
+		}
+	} else {
+		if m.CanWalk(fromX, ny, playerRadiusX) && m.canTraverseWorld(fromX, fromY, fromX, ny) {
+			y = ny
+		}
+		if m.CanWalk(nx, y, playerRadiusX) && m.canTraverseWorld(fromX, y, nx, y) {
+			x = nx
+		}
+	}
+	return x, y
+}
+
+func (m *Map) binaryClampMove(fromX, fromY, toX, toY float64) (float64, float64) {
+	x, y := fromX, fromY
+	lo, hi := 0.0, 1.0
+	for i := 0; i < 8; i++ {
+		mid := (lo + hi) * 0.5
+		mx := fromX + (toX-fromX)*mid
+		my := fromY + (toY-fromY)*mid
+		if m.CanWalk(mx, my, playerRadiusX) && m.canTraverseWorld(fromX, fromY, mx, my) {
+			x, y = mx, my
+			lo = mid
+		} else {
+			hi = mid
+		}
 	}
 	return x, y
 }

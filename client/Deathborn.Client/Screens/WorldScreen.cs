@@ -816,7 +816,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             var foliage = _visibleFoliage[i];
             _exteriorDrawOrder.Add(new ExteriorDrawable
             {
-                SortY = WorldFoliage.FoliageBottomY(foliage),
+                SortY = WorldFoliage.OcclusionDepthBottomY(foliage),
                 Kind = ExteriorDrawableKind.Foliage,
                 Index = i,
             });

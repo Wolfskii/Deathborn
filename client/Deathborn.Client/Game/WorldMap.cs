@@ -355,13 +355,68 @@ public sealed class WorldMap
         }
         else
         {
-            if (IsWalkable(nx, y, entityRadius) && CanTraverseWorld(x, y, nx, y))
-                x = nx;
-            if (IsWalkable(x, ny, entityRadius) && CanTraverseWorld(x, y, x, ny))
-                y = ny;
+            // Both axis orders — single X-then-Y wedges into convex corners and sticks.
+            TryAxisSlide(fromX, fromY, nx, ny, entityRadius, xFirst: true, out var ax, out var ay);
+            TryAxisSlide(fromX, fromY, nx, ny, entityRadius, xFirst: false, out var bx, out var by);
+            var da = (ax - fromX) * (ax - fromX) + (ay - fromY) * (ay - fromY);
+            var db = (bx - fromX) * (bx - fromX) + (by - fromY) * (by - fromY);
+            if (da >= db) { x = ax; y = ay; }
+            else { x = bx; y = by; }
+
+            // Still jammed against a corner: binary-search to the last legal point on the path.
+            if ((x - fromX) * (x - fromX) + (y - fromY) * (y - fromY) < 0.0001f
+                && delta.LengthSquared() > 0.0001f)
+            {
+                BinaryClampMove(fromX, fromY, nx, ny, entityRadius, out x, out y);
+            }
         }
 
         return WorldFoliage.ResolveMoveBlock(feet, new Vector2(x, y), entityRadius);
+    }
+
+    private void TryAxisSlide(
+        float fromX, float fromY, float nx, float ny, float entityRadius, bool xFirst,
+        out float x, out float y)
+    {
+        x = fromX;
+        y = fromY;
+        if (xFirst)
+        {
+            if (IsWalkable(nx, fromY, entityRadius) && CanTraverseWorld(fromX, fromY, nx, fromY))
+                x = nx;
+            if (IsWalkable(x, ny, entityRadius) && CanTraverseWorld(x, fromY, x, ny))
+                y = ny;
+        }
+        else
+        {
+            if (IsWalkable(fromX, ny, entityRadius) && CanTraverseWorld(fromX, fromY, fromX, ny))
+                y = ny;
+            if (IsWalkable(nx, y, entityRadius) && CanTraverseWorld(fromX, y, nx, y))
+                x = nx;
+        }
+    }
+
+    private void BinaryClampMove(
+        float fromX, float fromY, float toX, float toY, float entityRadius,
+        out float x, out float y)
+    {
+        x = fromX;
+        y = fromY;
+        var lo = 0f;
+        var hi = 1f;
+        for (var i = 0; i < 8; i++)
+        {
+            var mid = (lo + hi) * 0.5f;
+            var mx = fromX + (toX - fromX) * mid;
+            var my = fromY + (toY - fromY) * mid;
+            if (IsWalkable(mx, my, entityRadius) && CanTraverseWorld(fromX, fromY, mx, my))
+            {
+                x = mx;
+                y = my;
+                lo = mid;
+            }
+            else hi = mid;
+        }
     }
 
     private static string CollisionPath =>
@@ -545,12 +600,35 @@ public sealed class WorldMap
         if (radius <= 0f)
             return IsWalkableTile(center.X, center.Y) && !WorldFoliage.BlocksFeet(feet, 0f);
 
-        return IsWalkableTile(center.X, center.Y)
-            && IsWalkableTile(center.X + rx, center.Y)
-            && IsWalkableTile(center.X - rx, center.Y)
-            && IsWalkableTile(center.X, center.Y + ry)
-            && IsWalkableTile(center.X, center.Y - ry)
-            && !WorldFoliage.BlocksFeet(feet, radius);
+        // Full ellipse vs blocked tiles — not just 5 axial samples. Samples miss convex corners
+        // so the green F12 ellipse could sit past the red land/water edge.
+        if (!EllipseClearOfBlockedTiles(center, rx, ry))
+            return false;
+
+        return !WorldFoliage.BlocksFeet(feet, radius);
+    }
+
+    /// <summary>
+    /// True when no blocked tile's AABB overlaps the player ellipse (tiny tile neighborhood).
+    /// </summary>
+    private bool EllipseClearOfBlockedTiles(Vector2 center, float rx, float ry)
+    {
+        var minTx = Math.Max(0, (int)MathF.Floor((center.X - rx) / TileSize));
+        var maxTx = Math.Min(TileWidth - 1, (int)MathF.Floor((center.X + rx) / TileSize));
+        var minTy = Math.Max(0, (int)MathF.Floor((center.Y - ry) / TileSize));
+        var maxTy = Math.Min(TileHeight - 1, (int)MathF.Floor((center.Y + ry) / TileSize));
+
+        for (var ty = minTy; ty <= maxTy; ty++)
+        for (var tx = minTx; tx <= maxTx; tx++)
+        {
+            if (_walkable[ty * TileWidth + tx]) continue;
+            var left = tx * TileSize;
+            var top = ty * TileSize;
+            if (PlayerEntity.EllipseOverlapsRect(center, rx, ry, left, left + TileSize, top, top + TileSize))
+                return false;
+        }
+
+        return true;
     }
 
     private bool IsWalkableTile(float worldX, float worldY)

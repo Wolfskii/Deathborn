@@ -235,13 +235,34 @@ public static class WorldFoliage
     /// <summary>
     /// Exterior draw-order Y vs players — visual foot only.
     /// Do not push south into the shadow: that made trunks paint over players standing in front.
+    /// Bushes use <see cref="OcclusionDepthBottomY"/> in the exterior sort list instead.
     /// </summary>
     public static float FoliageBottomY(FoliageInstance f) => SortY(f);
 
     /// <summary>
-    /// Depth bottom for occlusion — same as exterior draw sorting so ghosting matches paint order.
+    /// Depth for ghosting + exterior Y-sort. Trees use visual feet; bushes use the yellow
+    /// occlusion collider's southern tip so transparency starts when the player ellipse
+    /// crosses that line — not several pixels later at FootInset.
     /// </summary>
-    public static float OcclusionDepthBottomY(FoliageInstance f) => FoliageBottomY(f);
+    public static float OcclusionDepthBottomY(FoliageInstance f)
+    {
+        if (f.Kind == FoliageKind.Bush
+            && OcclusionMaskCache.TryGetMask(f.OcclusionMaskId, out var mask)
+            && mask != null)
+        {
+            if (mask.UsesSimplifiedCollider
+                && mask.ColliderShape is OcclusionColliderShape.Ellipse or OcclusionColliderShape.Circle)
+            {
+                mask.GetWorldEllipse(f.Position, f.Scale, out var center, out _, out var radiusY);
+                return center.Y + radiusY;
+            }
+
+            if (OcclusionZone.TryGetWorldBounds(f, out _, out _, out _, out var bottom))
+                return bottom;
+        }
+
+        return FoliageBottomY(f);
+    }
 
     /// <summary>True when the player would be drawn behind this foliage (same test as ghost depth).</summary>
     public static bool EntityIsBehind(FoliageInstance f, float entityFeetY) =>
@@ -260,6 +281,9 @@ public static class WorldFoliage
 
     /// <summary>
     /// Move with axis slide + segment clamp. Stops at contact — never push-out (no bounceback).
+    /// Tries both slide orders so tree/rock corners do not wedge the ellipse.
+    /// Always sweeps the path: thin stem AABBs are shorter than a frame of movement, so
+    /// endpoint-only tests teleport through (from north of trunk → south in one step).
     /// </summary>
     public static Vector2 ResolveMoveBlock(Vector2 fromFeet, Vector2 toFeet, float entityRadius)
     {
@@ -269,52 +293,103 @@ public static class WorldFoliage
         var rx = PlayerEntity.CollisionRadiusX;
         var ry = PlayerEntity.CollisionRadiusY;
 
-        // Depenetrate if already inside a trunk (e.g. walked down from behind into the stem).
+        // Soft depenetrate if already inside (e.g. spawned in trunk). Cap distance — never
+        // fling the player to the far side of a thin stem.
         if (CenterWouldCollide(fromCenter))
         {
             var pushed = PushOutOfOverlappingFoliage(fromCenter, rx, ry);
             var delta = pushed - fromCenter;
-            fromCenter = pushed;
-            toCenter += delta;
-            fromFeet = PlayerEntity.CollisionCenterToFeet(fromCenter);
+            if (delta.LengthSquared() > 0.0001f)
+            {
+                // Keep push small; prefer not amplifying the intended move.
+                var maxPush = MathF.Max(rx, ry) + 4f;
+                if (delta.LengthSquared() > maxPush * maxPush)
+                    delta = Vector2.Normalize(delta) * maxPush;
+                fromCenter += delta;
+                fromFeet = PlayerEntity.CollisionCenterToFeet(fromCenter);
+                // Do not shift toCenter by the same delta — that recreated south-side teleports.
+            }
         }
 
-        if (!CenterWouldCollide(toCenter))
+        if (PathClear(fromCenter, toCenter))
             return toFeet;
 
-        var slideX = new Vector2(toCenter.X, fromCenter.Y);
-        if (!CenterWouldCollide(slideX))
-            return FeetFromCenter(fromFeet, slideX);
+        TryFoliageSlide(fromCenter, toCenter, xFirst: true, out var a);
+        TryFoliageSlide(fromCenter, toCenter, xFirst: false, out var b);
+        var pathClamp = BinaryClampPath(fromCenter, toCenter);
+        var da = (a - fromCenter).LengthSquared();
+        var db = (b - fromCenter).LengthSquared();
+        var dp = (pathClamp - fromCenter).LengthSquared();
+        var best = pathClamp;
+        var bestD = dp;
+        if (da > bestD) { best = a; bestD = da; }
+        if (db > bestD) { best = b; bestD = db; }
 
-        var slideY = new Vector2(fromCenter.X, toCenter.Y);
-        if (!CenterWouldCollide(slideY))
-            return FeetFromCenter(fromFeet, slideY);
-
-        var deltaMove = toCenter - fromCenter;
-        var len = deltaMove.Length();
-        if (len > 0.001f)
-        {
-            var dir = deltaMove / len;
-            var best = fromCenter;
-            var lo = 0f;
-            var hi = 1f;
-            for (var i = 0; i < 7; i++)
-            {
-                var mid = (lo + hi) * 0.5f;
-                var tryCenter = fromCenter + dir * (len * mid);
-                if (!CenterWouldCollide(tryCenter))
-                {
-                    best = tryCenter;
-                    lo = mid;
-                }
-                else hi = mid;
-            }
-
-            if (lo > 0.001f)
-                return FeetFromCenter(fromFeet, best);
-        }
+        if (bestD > 0.0001f)
+            return FeetFromCenter(fromFeet, best);
 
         return fromFeet;
+    }
+
+    /// <summary>
+    /// True when every sample along from→to is free. Step size ≤2px so thin tree stems cannot be skipped.
+    /// </summary>
+    private static bool PathClear(Vector2 from, Vector2 to)
+    {
+        if (CenterWouldCollide(from) || CenterWouldCollide(to))
+            return false;
+
+        var dist = Vector2.Distance(from, to);
+        if (dist < 0.001f)
+            return true;
+
+        var steps = Math.Max(2, (int)MathF.Ceiling(dist / 2f));
+        for (var i = 1; i < steps; i++)
+        {
+            var p = Vector2.Lerp(from, to, i / (float)steps);
+            if (CenterWouldCollide(p))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static Vector2 BinaryClampPath(Vector2 from, Vector2 to)
+    {
+        if (!CenterWouldCollide(from) && PathClear(from, to))
+            return to;
+
+        var best = from;
+        var lo = 0f;
+        var hi = 1f;
+        for (var i = 0; i < 8; i++)
+        {
+            var mid = (lo + hi) * 0.5f;
+            var tryCenter = Vector2.Lerp(from, to, mid);
+            if (!CenterWouldCollide(tryCenter) && PathClear(from, tryCenter))
+            {
+                best = tryCenter;
+                lo = mid;
+            }
+            else hi = mid;
+        }
+
+        return best;
+    }
+
+    private static void TryFoliageSlide(Vector2 fromCenter, Vector2 toCenter, bool xFirst, out Vector2 result)
+    {
+        result = fromCenter;
+        if (xFirst)
+        {
+            result = BinaryClampPath(fromCenter, new Vector2(toCenter.X, fromCenter.Y));
+            result = BinaryClampPath(result, new Vector2(result.X, toCenter.Y));
+        }
+        else
+        {
+            result = BinaryClampPath(fromCenter, new Vector2(fromCenter.X, toCenter.Y));
+            result = BinaryClampPath(result, new Vector2(toCenter.X, result.Y));
+        }
     }
 
     private static Vector2 PushOutOfOverlappingFoliage(Vector2 center, float rx, float ry)

@@ -226,31 +226,41 @@ func ellipseOverlapsCircle(ex, ey, rx, ry, ox, oy, or float64) bool {
 }
 
 func ellipseOverlapsRect(ex, ey, rx, ry, left, right, top, bottom float64) bool {
-	closestX := ex
-	if closestX < left {
-		closestX = left
-	} else if closestX > right {
-		closestX = right
+	if rx < 0.0001 || ry < 0.0001 {
+		return false
 	}
-	closestY := ey
-	if closestY < top {
-		closestY = top
-	} else if closestY > bottom {
-		closestY = bottom
+	// Unit-circle space closest-point (correct for rx ≠ ry). Euclidean clamp misses diagonals.
+	lx := (left - ex) / rx
+	rxn := (right - ex) / rx
+	ty := (top - ey) / ry
+	by := (bottom - ey) / ry
+	minX, maxX := lx, rxn
+	if minX > maxX {
+		minX, maxX = maxX, minX
 	}
-	if ellipseContainsPoint(ex, ey, rx, ry, closestX, closestY) {
-		return true
+	minY, maxY := ty, by
+	if minY > maxY {
+		minY, maxY = maxY, minY
 	}
-	corners := [4][2]float64{{left, top}, {right, top}, {left, bottom}, {right, bottom}}
-	for i := range corners {
-		if ellipseContainsPoint(ex, ey, rx, ry, corners[i][0], corners[i][1]) {
-			return true
-		}
+	cx := 0.0
+	if cx < minX {
+		cx = minX
+	} else if cx > maxX {
+		cx = maxX
 	}
-	return false
+	cy := 0.0
+	if cy < minY {
+		cy = minY
+	} else if cy > maxY {
+		cy = maxY
+	}
+	return cx*cx+cy*cy <= 1
 }
 
 func pushEllipseOutOfRect(ex, ey, rx, ry, left, right, top, bottom float64) (float64, float64, bool) {
+	if !ellipseOverlapsRect(ex, ey, rx, ry, left, right, top, bottom) {
+		return ex, ey, false
+	}
 	closestX := ex
 	if closestX < left {
 		closestX = left
@@ -265,12 +275,28 @@ func pushEllipseOutOfRect(ex, ey, rx, ry, left, right, top, bottom float64) (flo
 	}
 	dx := ex - closestX
 	dy := ey - closestY
-	if !ellipseContainsPoint(ex, ey, rx, ry, closestX, closestY) && dx*dx+dy*dy >= 0.0001 {
-		return ex, ey, false
-	}
 	if dx*dx+dy*dy < 0.0001 {
-		dx = 0
-		dy = 1
+		pushLeft := ex - left
+		pushRight := right - ex
+		pushUp := ey - top
+		pushDown := bottom - ey
+		best := pushLeft
+		dx, dy = -1, 0
+		if pushRight < best {
+			best = pushRight
+			dx, dy = 1, 0
+		}
+		if pushUp < best {
+			best = pushUp
+			dx, dy = 0, -1
+		}
+		if pushDown < best {
+			dx, dy = 0, 1
+		}
+		// Prefer north when nearly tied — south flings past thin tree stems.
+		if math.Abs(pushUp-pushDown) < 0.5 && pushUp <= pushLeft && pushUp <= pushRight {
+			dx, dy = 0, -1
+		}
 	}
 	dist := math.Sqrt(dx*dx + dy*dy)
 	nx := dx / dist
@@ -285,49 +311,112 @@ func (idx *foliageIndex) resolveMoveBlock(fromX, fromY, toX, toY, entityRx, enti
 		return toX, toY
 	}
 
-	// Depenetrate if already inside a trunk (walked down from behind into the stem).
+	// Soft depenetrate if already inside. Cap distance — never fling past a thin stem.
 	if idx.feetWouldCollide(fromX, fromY, entityRx, entityRy) {
 		newX, newY := idx.resolvePosition(fromX, fromY, entityRx, entityRy)
-		toX += newX - fromX
-		toY += newY - fromY
+		dx := newX - fromX
+		dy := newY - fromY
+		maxPush := math.Max(entityRx, entityRy) + 4
+		distSq := dx*dx + dy*dy
+		if distSq > maxPush*maxPush && distSq > 0.0001 {
+			scale := maxPush / math.Sqrt(distSq)
+			dx *= scale
+			dy *= scale
+			newX = fromX + dx
+			newY = fromY + dy
+		}
 		fromX, fromY = newX, newY
+		// Do not shift to by the same delta (that recreated south-side teleports).
 	}
 
-	if !idx.feetWouldCollide(toX, toY, entityRx, entityRy) {
+	fromCy := playerCollisionY(fromY)
+	toCy := playerCollisionY(toY)
+	if idx.pathClear(fromX, fromCy, toX, toCy, entityRx, entityRy) {
 		return toX, toY
 	}
-	if !idx.feetWouldCollide(toX, fromY, entityRx, entityRy) {
-		return toX, fromY
-	}
-	if !idx.feetWouldCollide(fromX, toY, entityRx, entityRy) {
-		return fromX, toY
-	}
 
-	dx := toX - fromX
-	dy := toY - fromY
-	len := math.Sqrt(dx*dx + dy*dy)
-	if len <= 0.001 {
-		return fromX, fromY
+	ax, ay := idx.tryFoliageSlide(fromX, fromY, toX, toY, entityRx, entityRy, true)
+	bx, by := idx.tryFoliageSlide(fromX, fromY, toX, toY, entityRx, entityRy, false)
+	px, py := idx.binaryClampPath(fromX, fromY, toX, toY, entityRx, entityRy)
+	da := (ax-fromX)*(ax-fromX) + (ay-fromY)*(ay-fromY)
+	db := (bx-fromX)*(bx-fromX) + (by-fromY)*(by-fromY)
+	dp := (px-fromX)*(px-fromX) + (py-fromY)*(py-fromY)
+	bestX, bestY, bestD := px, py, dp
+	if da > bestD {
+		bestX, bestY, bestD = ax, ay, da
 	}
-	dirX := dx / len
-	dirY := dy / len
+	if db > bestD {
+		bestX, bestY, bestD = bx, by, db
+	}
+	if bestD > 0.0001 {
+		return bestX, bestY
+	}
+	return fromX, fromY
+}
+
+// pathClear samples along from→to so thin tree stems cannot be tunneled in one frame.
+func (idx *foliageIndex) pathClear(fromX, fromCy, toX, toCy, entityRx, entityRy float64) bool {
+	fromFeetY := feetFromCollisionY(fromCy)
+	toFeetY := feetFromCollisionY(toCy)
+	if idx.feetWouldCollide(fromX, fromFeetY, entityRx, entityRy) ||
+		idx.feetWouldCollide(toX, toFeetY, entityRx, entityRy) {
+		return false
+	}
+	dx := toX - fromX
+	dy := toCy - fromCy
+	dist := math.Sqrt(dx*dx + dy*dy)
+	if dist < 0.001 {
+		return true
+	}
+	steps := int(math.Ceil(dist / 2))
+	if steps < 2 {
+		steps = 2
+	}
+	for i := 1; i < steps; i++ {
+		t := float64(i) / float64(steps)
+		mx := fromX + dx*t
+		my := fromCy + dy*t
+		if idx.feetWouldCollide(mx, feetFromCollisionY(my), entityRx, entityRy) {
+			return false
+		}
+	}
+	return true
+}
+
+func (idx *foliageIndex) binaryClampPath(fromX, fromY, toX, toY, entityRx, entityRy float64) (float64, float64) {
+	fromCy := playerCollisionY(fromY)
+	toCy := playerCollisionY(toY)
+	if idx.pathClear(fromX, fromCy, toX, toCy, entityRx, entityRy) {
+		return toX, toY
+	}
 	bestX, bestY := fromX, fromY
 	lo, hi := 0.0, 1.0
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 8; i++ {
 		mid := (lo + hi) * 0.5
-		tryX := fromX + dirX*len*mid
-		tryY := fromY + dirY*len*mid
-		if !idx.feetWouldCollide(tryX, tryY, entityRx, entityRy) {
-			bestX, bestY = tryX, tryY
+		mx := fromX + (toX-fromX)*mid
+		my := fromY + (toY-fromY)*mid
+		mCy := playerCollisionY(my)
+		if !idx.feetWouldCollide(mx, my, entityRx, entityRy) &&
+			idx.pathClear(fromX, fromCy, mx, mCy, entityRx, entityRy) {
+			bestX, bestY = mx, my
 			lo = mid
 		} else {
 			hi = mid
 		}
 	}
-	if lo > 0.001 {
-		return bestX, bestY
+	return bestX, bestY
+}
+
+func (idx *foliageIndex) tryFoliageSlide(fromX, fromY, toX, toY, entityRx, entityRy float64, xFirst bool) (float64, float64) {
+	x, y := fromX, fromY
+	if xFirst {
+		x, y = idx.binaryClampPath(fromX, fromY, toX, fromY, entityRx, entityRy)
+		x, y = idx.binaryClampPath(x, y, x, toY, entityRx, entityRy)
+	} else {
+		x, y = idx.binaryClampPath(fromX, fromY, fromX, toY, entityRx, entityRy)
+		x, y = idx.binaryClampPath(x, y, toX, y, entityRx, entityRy)
 	}
-	return fromX, fromY
+	return x, y
 }
 
 func (idx *foliageIndex) feetWouldCollide(x, y, entityRx, entityRy float64) bool {

@@ -95,7 +95,7 @@ public static class OcclusionZone
 
     /// <summary>
     /// Effective Y-sort depth for ghosting — matches exterior draw order.
-    /// Uses <see cref="IOcclusionHost.OcclusionDepthBottomY"/> (foliage feet / <c>FoliageBottomY</c>).
+    /// Uses <see cref="IOcclusionHost.OcclusionDepthBottomY"/> (bush yellow tip / tree feet).
     /// </summary>
     public static float EffectiveDepthBottomY(IOcclusionHost host) => host.OcclusionDepthBottomY;
 
@@ -110,9 +110,8 @@ public static class OcclusionZone
         float rx,
         float ry)
     {
-        // Same Y value as exterior draw sorting (player.SortY vs foliage FoliageBottomY):
-        // once the bush would paint over the player, start ghosting — don't wait for the
-        // narrow southern tip of the yellow ellipse to fully contain the player collider.
+        // Same Y as exterior draw sorting (player.SortY vs OcclusionDepthBottomY).
+        // Bushes use the yellow collider southern tip so ghosting is not delayed vs FootInset.
         if (!host.IsOverheadOccluder
             && PlayerEntity.SortYFromFeet(feet) >= EffectiveDepthBottomY(host))
             return false;
