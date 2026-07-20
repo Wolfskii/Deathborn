@@ -18,27 +18,37 @@ internal static class ChatBubbleDraw
         foreach (var line in lines)
             maxW = MathF.Max(maxW, font.MeasureString(SpriteFontSafe.Filter(line)).X);
 
-        var pad = 6f * zoom;
-        var bubbleW = maxW + pad * 2;
-        var bubbleH = lines.Count * lineH + pad * 2;
-        var gapAboveTarget = 10f * zoom;
+        var padX = 10f * zoom;
+        var padY = 8f * zoom;
+        var bubbleW = MathF.Max(48f * zoom, maxW + padX * 2);
+        var bubbleH = MathF.Max(32f * zoom, lines.Count * lineH + padY * 2);
+        var gapAboveTarget = 8f * zoom;
         var x = tailTarget.X - bubbleW / 2f;
         var y = tailTarget.Y - bubbleH - gapAboveTarget;
+        var body = new Rectangle((int)x, (int)y, (int)MathF.Ceiling(bubbleW), (int)MathF.Ceiling(bubbleH));
 
-        var fill = new Color(0.96f, 0.94f, 0.88f, alpha);
-        var border = new Color(0.2f, 0.18f, 0.16f, alpha);
+        if (FarmRpgDialogueUi.IsLoaded)
+        {
+            FarmRpgDialogueUi.DrawSpeechBubble(sb, body, tailTarget, alpha);
+        }
+        else
+        {
+            var fill = new Color(0.96f, 0.94f, 0.88f, alpha);
+            var border = new Color(0.2f, 0.18f, 0.16f, alpha);
+            DrawRoundedPanel(sb, x, y, bubbleW, bubbleH, fill, border, zoom);
+            var tailStart = new Vector2(x + bubbleW * 0.84f, y + bubbleH - 1f * zoom);
+            var tailEnd = tailTarget + new Vector2(8f * zoom, 6f * zoom);
+            DrawDiagonalTail(sb, tailStart, tailEnd, fill, border, zoom);
+        }
 
-        DrawRoundedPanel(sb, x, y, bubbleW, bubbleH, fill, border, zoom);
-
-        // Diagonal tail from the lower-right of the bubble toward the player
-        var tailStart = new Vector2(x + bubbleW * 0.84f, y + bubbleH - 1f * zoom);
-        var tailEnd = tailTarget + new Vector2(8f * zoom, 6f * zoom);
-        DrawDiagonalTail(sb, tailStart, tailEnd, fill, border, zoom);
+        var textColor = FarmRpgDialogueUi.IsLoaded
+            ? new Color(0.18f, 0.12f, 0.08f, alpha)
+            : new Color(0.12f, 0.1f, 0.1f, alpha);
 
         for (var i = 0; i < lines.Count; i++)
         {
-            var pos = new Vector2(x + pad, y + pad + i * lineH);
-            sb.DrawString(font, SpriteFontSafe.Filter(lines[i]), pos, new Color(0.12f, 0.1f, 0.1f, alpha));
+            var pos = new Vector2(x + padX, y + padY + i * lineH);
+            sb.DrawString(font, SpriteFontSafe.Filter(lines[i]), pos, textColor);
         }
     }
 

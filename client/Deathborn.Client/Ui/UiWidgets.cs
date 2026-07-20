@@ -46,7 +46,10 @@ public sealed class TextField
     public string Text = "";
     public string Placeholder = "";
     public Color PlaceholderColor = new(120, 120, 130);
+    public Color TextColor = Color.White;
+    public Color CursorColor = Color.White;
     public bool IsPassword;
+    public bool DrawBackground = true;
 
     private bool _focused;
     private double _cursorBlink;
@@ -95,14 +98,17 @@ public sealed class TextField
 
     public void Draw(SpriteBatch sb, SpriteFont font)
     {
-        DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 36, 30) : new Color(22, 20, 16));
-        DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2), Focused ? new Color(210, 170, 80) : new Color(90, 75, 50));
+        if (DrawBackground)
+        {
+            DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 36, 30) : new Color(22, 20, 16));
+            DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2), Focused ? new Color(210, 170, 80) : new Color(90, 75, 50));
+        }
 
         var showPlaceholder = Text.Length == 0 && !Focused && Placeholder.Length > 0;
         var display = Text.Length > 0
             ? (IsPassword ? new string('*', Text.Length) : SpriteFontSafe.Filter(Text))
             : showPlaceholder ? SpriteFontSafe.Filter(Placeholder) : "";
-        var col = Text.Length > 0 ? Color.White : PlaceholderColor;
+        var col = Text.Length > 0 ? TextColor : PlaceholderColor;
         if (display.Length > 0)
             sb.DrawString(font, display, new Vector2(Bounds.X + 8, Bounds.Y + 8), col);
 
@@ -110,7 +116,7 @@ public sealed class TextField
         {
             var textWidth = display.Length > 0 ? font.MeasureString(display).X : 0f;
             var cursorX = Bounds.X + 8 + textWidth + 2;
-            DrawPrimitives.FillRect(sb, new Rectangle((int)cursorX, Bounds.Y + 6, 2, Bounds.Height - 12), Color.White);
+            DrawPrimitives.FillRect(sb, new Rectangle((int)cursorX, Bounds.Y + 6, 2, Bounds.Height - 12), CursorColor);
         }
     }
 

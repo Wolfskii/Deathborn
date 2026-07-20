@@ -167,6 +167,7 @@ public sealed class DeathbornGame : Game
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         FarmRpgInventoryUi.Load(Content);
+        FarmRpgDialogueUi.Load(Content);
         TiledMapCatalog.Load(Content, GraphicsDevice);
     }
 

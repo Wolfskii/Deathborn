@@ -17,6 +17,7 @@ MGCB = REPO / "client/Deathborn.Client/Content/Content.mgcb"
 UI_FILES = {
     "Ui/FarmRpg/slots.png": "UI/Inventory/Slots.png",
     "Ui/FarmRpg/inventory.png": "UI/Inventory/inventory.png",
+    "Ui/FarmRpg/dialogue_box.png": "UI/dialogue box.png",
 }
 
 MGCB_BLOCK = """#begin {mgcb_path}

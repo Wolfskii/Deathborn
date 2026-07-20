@@ -4315,3 +4315,18 @@
 /build:Characters/FarmRpg/Buildings/tileset_house.png
 
 #end Characters/FarmRpg/Buildings/tileset_house.png
+
+#begin Ui/FarmRpg/dialogue_box.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Ui/FarmRpg/dialogue_box.png
+
+#end Ui/FarmRpg/dialogue_box.png
+
