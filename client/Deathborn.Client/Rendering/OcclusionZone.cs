@@ -27,13 +27,24 @@ public interface IOcclusionHost
     float OcclusionScale { get; }
     byte OcclusionMaskId { get; }
     OcclusionColliderOverride OcclusionOverride { get; }
+
+    /// <summary>
+    /// When true, only collider overlap matters (aerial props like clouds).
+    /// When false, the player must also be behind this object in Y-sort
+    /// (player feet above <see cref="OcclusionDepthBottomY"/>).
+    /// </summary>
+    bool IsOverheadOccluder { get; }
+
+    /// <summary>
+    /// World Y of the object's feet / sort bottom. Used only when
+    /// <see cref="IsOverheadOccluder"/> is false.
+    /// </summary>
+    float OcclusionDepthBottomY { get; }
 }
 
 public static class OcclusionZone
 {
     public const byte NoMaskId = 255;
-    /// <summary>Skip foliage-style depth gate (overhead clouds).</summary>
-    public const float NoDepthLimit = float.PositiveInfinity;
 
     public static bool TryGetWorldBounds(
         IOcclusionHost host,
@@ -63,16 +74,22 @@ public static class OcclusionZone
         return bottom > top;
     }
 
+    /// <summary>
+    /// True when the player collision ellipse overlaps the host ghost zone and
+    /// (unless <see cref="IOcclusionHost.IsOverheadOccluder"/>) the player is behind it in Y-sort.
+    /// </summary>
     public static bool EntityEllipseOverlaps(
         IOcclusionHost host,
         Vector2 feet,
-        float depthBottomY,
         float rx,
         float ry)
     {
-        var center = PlayerEntity.CollisionCenter(feet);
-        if (!float.IsPositiveInfinity(depthBottomY) && center.Y >= depthBottomY)
+        // Ground props: if the player's feet are at/below the object's depth bottom,
+        // the player is in front — do not occlude.
+        if (!host.IsOverheadOccluder && feet.Y >= host.OcclusionDepthBottomY)
             return false;
+
+        var center = PlayerEntity.CollisionCenter(feet);
 
         if (host.OcclusionOverride.IsSet)
         {

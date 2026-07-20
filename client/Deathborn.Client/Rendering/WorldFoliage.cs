@@ -21,11 +21,15 @@ public sealed class FoliageInstance : IOcclusionHost
     public byte ColliderMaskId = 255;
     public byte OcclusionMaskId = OcclusionZone.NoMaskId;
     public OcclusionColliderOverride OcclusionOverride;
+    /// <summary>When true, overlap alone ghosts the player (no Y-sort front/behind gate).</summary>
+    public bool IsOverheadOccluder;
 
     Vector2 IOcclusionHost.OcclusionAnchor => Position;
     float IOcclusionHost.OcclusionScale => Scale;
     byte IOcclusionHost.OcclusionMaskId => OcclusionMaskId;
     OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
+    bool IOcclusionHost.IsOverheadOccluder => IsOverheadOccluder;
+    float IOcclusionHost.OcclusionDepthBottomY => WorldFoliage.FoliageBottomY(this);
 
     /// <summary>Replace sprite-derived ghost zone with a custom unscaled rect from bottom-center.</summary>
     public void SetOcclusionOverride(float left, float right, float top, float bottom) =>
@@ -284,7 +288,6 @@ public static class WorldFoliage
         return OcclusionZone.EntityEllipseOverlaps(
             f,
             feet,
-            FoliageBottomY(f),
             PlayerEntity.CollisionRadiusX,
             PlayerEntity.CollisionRadiusY);
     }

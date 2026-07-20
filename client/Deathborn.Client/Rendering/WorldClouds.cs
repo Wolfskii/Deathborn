@@ -66,6 +66,8 @@ public readonly struct CloudOcclusionPart : IOcclusionHost
     float IOcclusionHost.OcclusionScale => Scale;
     byte IOcclusionHost.OcclusionMaskId => OcclusionMaskCache.CloudMaskIdFor(Variant);
     OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
+    bool IOcclusionHost.IsOverheadOccluder => true;
+    float IOcclusionHost.OcclusionDepthBottomY => OcclusionAnchor.Y;
 }
 
 /// <summary>
@@ -299,7 +301,6 @@ public static class WorldClouds
         OcclusionZone.EntityEllipseOverlaps(
             part,
             feet,
-            OcclusionZone.NoDepthLimit,
             PlayerEntity.CollisionRadiusX,
             PlayerEntity.CollisionRadiusY);
 
