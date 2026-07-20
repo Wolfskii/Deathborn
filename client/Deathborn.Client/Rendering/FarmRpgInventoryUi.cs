@@ -16,6 +16,12 @@ public static class FarmRpgInventoryUi
     public static readonly Rectangle HotbarBarEmpty = new(6, 105, 164, 28);
     public static readonly Rectangle HotbarSelectionOverlay = new(119, 6, 18, 18);
 
+    // Extras.png — white L-corner selection markers (first white set).
+    public static readonly Rectangle SelectionCornerTL = new(187, 11, 8, 8);
+    public static readonly Rectangle SelectionCornerTR = new(205, 11, 8, 8);
+    public static readonly Rectangle SelectionCornerBL = new(187, 29, 8, 8);
+    public static readonly Rectangle SelectionCornerBR = new(205, 29, 8, 8);
+
     // inventory.png — panel + slot tiles (112×112 sheet).
     public static readonly Rectangle InventoryPanel = new(0, 64, 48, 48);
     public static readonly Rectangle InventorySlotDark = new(7, 6, 18, 21);
@@ -23,6 +29,7 @@ public static class FarmRpgInventoryUi
 
     private static Texture2D? _slots;
     private static Texture2D? _inventory;
+    private static Texture2D? _extras;
 
     public static bool IsLoaded => _slots != null && _inventory != null;
 
@@ -30,6 +37,15 @@ public static class FarmRpgInventoryUi
     {
         _slots = content.Load<Texture2D>("Ui/FarmRpg/slots");
         _inventory = content.Load<Texture2D>("Ui/FarmRpg/inventory");
+        _extras = null;
+        try
+        {
+            _extras = content.Load<Texture2D>("Ui/FarmRpg/extras");
+        }
+        catch
+        {
+            // Optional until MGCB rebuild.
+        }
     }
 
     public static void DrawHotbarBar(SpriteBatch sb, Rectangle dest)
@@ -51,10 +67,31 @@ public static class FarmRpgInventoryUi
 
     public static void DrawHotbarSelection(SpriteBatch sb, Rectangle dest)
     {
+        if (_extras != null)
+        {
+            DrawCornerSelection(sb, dest);
+            return;
+        }
+
         if (_slots == null) return;
         const int pad = 3;
         var overlay = new Rectangle(dest.X - pad, dest.Y - pad, dest.Width + pad * 2, dest.Height + pad * 2);
         sb.Draw(_slots, overlay, HotbarSelectionOverlay, Color.White);
+    }
+
+    private static void DrawCornerSelection(SpriteBatch sb, Rectangle dest)
+    {
+        if (_extras == null) return;
+
+        // Slightly outside the slot so corners frame the icon without covering it.
+        const int pad = 2;
+        var frame = new Rectangle(dest.X - pad, dest.Y - pad, dest.Width + pad * 2, dest.Height + pad * 2);
+        var corner = Math.Clamp(Math.Min(frame.Width, frame.Height) / 3, 10, 18);
+
+        sb.Draw(_extras, new Rectangle(frame.X, frame.Y, corner, corner), SelectionCornerTL, Color.White);
+        sb.Draw(_extras, new Rectangle(frame.Right - corner, frame.Y, corner, corner), SelectionCornerTR, Color.White);
+        sb.Draw(_extras, new Rectangle(frame.X, frame.Bottom - corner, corner, corner), SelectionCornerBL, Color.White);
+        sb.Draw(_extras, new Rectangle(frame.Right - corner, frame.Bottom - corner, corner, corner), SelectionCornerBR, Color.White);
     }
 
     public static void DrawInventoryPanel(SpriteBatch sb, Rectangle dest)

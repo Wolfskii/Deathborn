@@ -18,6 +18,8 @@ UI_FILES = {
     "Ui/FarmRpg/slots.png": "UI/Inventory/Slots.png",
     "Ui/FarmRpg/inventory.png": "UI/Inventory/inventory.png",
     "Ui/FarmRpg/dialogue_box.png": "UI/dialogue box.png",
+    "Ui/FarmRpg/extras.png": "UI/Extras.png",
+    "Ui/FarmRpg/hud.png": "UI/HUD.png",
 }
 
 MGCB_BLOCK = """#begin {mgcb_path}

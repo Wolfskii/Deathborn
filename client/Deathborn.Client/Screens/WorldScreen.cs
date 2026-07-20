@@ -1215,7 +1215,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         sb.Begin(samplerState: SamplerState.PointClamp);
-        if (overlayRect is { } rect)
+        if (overlayRect is { } rect && !_worldMap.IsOpen)
         {
             if (!(_windows.Inventory.IsOpen && _windows.Inventory.TryGetSlotAt(mouse, out _, out _))
                 && FarmRpgInventoryUi.IsLoaded)
