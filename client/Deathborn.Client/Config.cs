@@ -103,6 +103,7 @@ public static class Config
     public const float WhirlwindRadius = 38f * Ws;
 
     public const float WarriorDashCooldown = 5f;
+    /// <summary>Travel distance — must match server abilities.json warrior_dash hitRange (used as dash length).</summary>
     public const float WarriorDashDistance = 100f * Ws;
     public const float WarriorDashDuration = 0.22f;
 

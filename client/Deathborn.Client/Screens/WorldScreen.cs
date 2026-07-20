@@ -2661,7 +2661,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 {
                     if (p.IsLocal && p.IsPostDashSettling)
                     {
-                        p.Position = pos;
+                        // Keep local charge end; only refresh Target for soft reconcile after settle.
+                        // Hard Position=server snap bounced the player back when distances mismatched.
                         p.Target = pos;
                     }
                     else if (!(p.IsLocal && p.IsDashing))

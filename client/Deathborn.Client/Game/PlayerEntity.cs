@@ -587,7 +587,7 @@ public sealed class PlayerEntity
         if (_postDashSettle > 0f)
         {
             _postDashSettle = MathF.Max(0f, _postDashSettle - dt);
-            Position = Target;
+            // Hold the charge landing pose; do not lerp/snap toward server Target mid-settle.
         }
 
         if (_isDashing)
@@ -601,10 +601,15 @@ public sealed class PlayerEntity
             if (_dashTimer <= 0f)
             {
                 _isDashing = false;
-                Position = _dashEnd;
-                Target = _dashEnd;
-                _postDashSettle = 0.15f;
+                // Land on the last resolved step — do not snap to the planned end if terrain clipped.
+                _dashEnd = Position;
+                Target = Position;
+                _postDashSettle = 0.18f;
             }
+        }
+        else if (_postDashSettle > 0f)
+        {
+            // Still settling — keep Position; Target may already reflect the server.
         }
         else if (IsLocal && InputDir.LengthSquared() > 0.01f && !BlocksMovement)
         {
@@ -638,17 +643,10 @@ public sealed class PlayerEntity
         }
         else
         {
-            if (IsLocal && _postDashSettle > 0f)
-            {
-                Position = Target;
-            }
-            else
-            {
-                var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
-                var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
-                // Do not re-run foliage push-out on idle reconcile — it caused bounce-back at tree contact.
-                Position = lerped;
-            }
+            var lerpSpeed = IsLocal ? Config.LocalReconcileSpeed : Config.PlayerLerpSpeed;
+            var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * lerpSpeed, 0, 1));
+            // Do not re-run foliage push-out on idle reconcile — it caused bounce-back at tree contact.
+            Position = lerped;
         }
 
         _lastFrameDisplacementSq = Vector2.DistanceSquared(prevPos, Position);

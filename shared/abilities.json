@@ -19,7 +19,7 @@
     {
       "id": "warrior_dash",
       "kind": "melee",
-      "combat": { "damage": 10, "hitRange": 110 }
+      "combat": { "damage": 10, "hitRange": 200 }
     },
     {
       "id": "fireball",
