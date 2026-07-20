@@ -141,15 +141,14 @@ func (g *elevationGrid) canStep(fx, fy, tx, ty, tw, th int) bool {
 
 // rampTreadCellID maps a tile to its stair only when it is a tread sprite cell (landing or top).
 func (g *elevationGrid) rampTreadCellID(tx, ty, tw, th int) (landingX, landingY, kind int, ok bool) {
-	for ry := 0; ry < th; ry++ {
-		for rx := 0; rx < tw; rx++ {
-			ramp := int(g.rampAt(rx, ry, tw, th))
-			if ramp == 0 {
-				continue
-			}
-			if tx == rx && (ty == ry || ty == ry-1) {
-				return rx, ry, ramp, true
-			}
+	rampHere := int(g.rampAt(tx, ty, tw, th))
+	if rampHere != 0 {
+		return tx, ty, rampHere, true
+	}
+	if ty+1 < th {
+		rampSouth := int(g.rampAt(tx, ty+1, tw, th))
+		if rampSouth != 0 {
+			return tx, ty + 1, rampSouth, true
 		}
 	}
 	return 0, 0, 0, false
@@ -165,8 +164,26 @@ func (g *elevationGrid) rampEngagedAtWorld(wx, wy, tileSize float64, tw, th int)
 	ty := int(wy / tileSize)
 	lx := (wx - float64(tx)*tileSize) / tileSize
 
-	for ry := 0; ry < th; ry++ {
-		for rx := 0; rx < tw; rx++ {
+	// Ramps only engage adjacent tiles — never scan the full map.
+	minRx := tx - 2
+	if minRx < 0 {
+		minRx = 0
+	}
+	maxRx := tx + 2
+	if maxRx >= tw {
+		maxRx = tw - 1
+	}
+	minRy := ty - 2
+	if minRy < 0 {
+		minRy = 0
+	}
+	maxRy := ty + 2
+	if maxRy >= th {
+		maxRy = th - 1
+	}
+
+	for ry := minRy; ry <= maxRy; ry++ {
+		for rx := minRx; rx <= maxRx; rx++ {
 			ramp := int(g.rampAt(rx, ry, tw, th))
 			if ramp == 0 {
 				continue
@@ -209,19 +226,28 @@ func (g *elevationGrid) rampEngagedAtWorld(wx, wy, tileSize float64, tw, th int)
 
 // rampTreadAtWorld checks world position against the green tread band inside the stair sprites.
 func (g *elevationGrid) rampTreadAtWorld(wx, wy, tileSize float64, tw, th int) (landingX, landingY, kind int, ok bool) {
-	for ry := 0; ry < th; ry++ {
-		for rx := 0; rx < tw; rx++ {
-			ramp := int(g.rampAt(rx, ry, tw, th))
-			if ramp == 0 {
-				continue
-			}
-			if ramp == 1 && g.onLeftRampTread(wx, wy, tileSize, rx, ry) {
-				return rx, ry, 1, true
-			}
-			if ramp == 2 && g.onRightRampTread(wx, wy, tileSize, rx, ry) {
-				return rx, ry, 2, true
-			}
+	tx := int(wx / tileSize)
+	ty := int(wy / tileSize)
+
+	try := func(rx, ry int) (int, int, int, bool) {
+		if rx < 0 || ry < 0 || rx >= tw || ry >= th {
+			return 0, 0, 0, false
 		}
+		ramp := int(g.rampAt(rx, ry, tw, th))
+		if ramp == 1 && g.onLeftRampTread(wx, wy, tileSize, rx, ry) {
+			return rx, ry, 1, true
+		}
+		if ramp == 2 && g.onRightRampTread(wx, wy, tileSize, rx, ry) {
+			return rx, ry, 2, true
+		}
+		return 0, 0, 0, false
+	}
+
+	if rx, ry, k, hit := try(tx, ty); hit {
+		return rx, ry, k, true
+	}
+	if rx, ry, k, hit := try(tx, ty+1); hit {
+		return rx, ry, k, true
 	}
 	return 0, 0, 0, false
 }

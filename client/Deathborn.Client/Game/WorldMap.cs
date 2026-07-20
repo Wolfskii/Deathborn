@@ -119,14 +119,18 @@ public sealed class WorldMap
 
     private (int rx, int ry, int kind, bool ok) RampTreadCellId(int tx, int ty)
     {
-        for (var ry = 0; ry < TileHeight; ry++)
-        for (var rx = 0; rx < TileWidth; rx++)
+        // A tread cell sits on ramp (tx,ty) or on the north edge of ramp (tx, ty+1).
+        var rampHere = GetRamp(tx, ty);
+        if (rampHere != 0)
+            return (tx, ty, rampHere, true);
+
+        if ((uint)ty + 1 < (uint)TileHeight)
         {
-            var ramp = GetRamp(rx, ry);
-            if (ramp == 0) continue;
-            if (tx == rx && (ty == ry || ty == ry - 1))
-                return (rx, ry, ramp, true);
+            var rampSouth = GetRamp(tx, ty + 1);
+            if (rampSouth != 0)
+                return (tx, ty + 1, rampSouth, true);
         }
+
         return (0, 0, 0, false);
     }
 
@@ -139,8 +143,13 @@ public sealed class WorldMap
         var ty = (int)(worldY / TileSize);
         var lx = (worldX - tx * TileSize) / TileSize;
 
-        for (var ry2 = 0; ry2 < TileHeight; ry2++)
-        for (var rx2 = 0; rx2 < TileWidth; rx2++)
+        // Ramps only engage adjacent tiles — never scan the full 1024² map.
+        var minRx = Math.Max(0, tx - 2);
+        var maxRx = Math.Min(TileWidth - 1, tx + 2);
+        var minRy = Math.Max(0, ty - 2);
+        var maxRy = Math.Min(TileHeight - 1, ty + 2);
+        for (var ry2 = minRy; ry2 <= maxRy; ry2++)
+        for (var rx2 = minRx; rx2 <= maxRx; rx2++)
         {
             var ramp = GetRamp(rx2, ry2);
             if (ramp == 0) continue;
@@ -166,15 +175,29 @@ public sealed class WorldMap
 
     private (int rx, int ry, int kind, bool ok) RampTreadAtWorld(float worldX, float worldY)
     {
-        for (var ry = 0; ry < TileHeight; ry++)
-        for (var rx = 0; rx < TileWidth; rx++)
+        var tx = (int)(worldX / TileSize);
+        var ty = (int)(worldY / TileSize);
+
+        // Only the current tile and the ramp immediately south can own this tread.
+        if ((uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight)
         {
-            var ramp = GetRamp(rx, ry);
-            if (ramp == 1 && OnLeftRampTread(worldX, worldY, rx, ry))
-                return (rx, ry, 1, true);
-            if (ramp == 2 && OnRightRampTread(worldX, worldY, rx, ry))
-                return (rx, ry, 2, true);
+            var ramp = GetRamp(tx, ty);
+            if (ramp == 1 && OnLeftRampTread(worldX, worldY, tx, ty))
+                return (tx, ty, 1, true);
+            if (ramp == 2 && OnRightRampTread(worldX, worldY, tx, ty))
+                return (tx, ty, 2, true);
         }
+
+        if ((uint)tx < (uint)TileWidth && (uint)ty + 1 < (uint)TileHeight)
+        {
+            var sy = ty + 1;
+            var ramp = GetRamp(tx, sy);
+            if (ramp == 1 && OnLeftRampTread(worldX, worldY, tx, sy))
+                return (tx, sy, 1, true);
+            if (ramp == 2 && OnRightRampTread(worldX, worldY, tx, sy))
+                return (tx, sy, 2, true);
+        }
+
         return (0, 0, 0, false);
     }
 
