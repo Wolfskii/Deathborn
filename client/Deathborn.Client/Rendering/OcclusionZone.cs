@@ -20,7 +20,25 @@ public readonly struct OcclusionColliderOverride
         new() { IsSet = true, Left = left, Right = right, Top = top, Bottom = bottom };
 }
 
-/// <summary>World object that can ghost/fade the player when walked under.</summary>
+/// <summary>
+/// World object that can ghost/fade the player when walked under its occlusion collider.
+///
+/// Depth rules (Y increases downward on screen):
+/// <list type="bullet">
+/// <item>
+/// <see cref="IsOverheadOccluder"/> = false (trees, bushes, ground props):
+/// overlap alone is not enough. Compare player feet Y to <see cref="OcclusionDepthBottomY"/>.
+/// If the player's feet are below the object's bottom (feet.Y &gt;= depth bottom), the player is
+/// visually in front — do not ghost. If the object's bottom is lower than the player's feet,
+/// the player is behind / under the prop — ghost when colliders overlap.
+/// </item>
+/// <item>
+/// <see cref="IsOverheadOccluder"/> = true (clouds / aerial props):
+/// perspective is "above the camera," so front/behind Y-sort does not apply.
+/// Ghost whenever the player collider overlaps the occlusion collider.
+/// </item>
+/// </list>
+/// </summary>
 public interface IOcclusionHost
 {
     Vector2 OcclusionAnchor { get; }
@@ -29,15 +47,16 @@ public interface IOcclusionHost
     OcclusionColliderOverride OcclusionOverride { get; }
 
     /// <summary>
-    /// When true, only collider overlap matters (aerial props like clouds).
-    /// When false, the player must also be behind this object in Y-sort
-    /// (player feet above <see cref="OcclusionDepthBottomY"/>).
+    /// Aerial / sky-style occluder. When true, skip Y-sort front/behind and ghost on overlap only.
+    /// Prefer this over ground foliage for anything that should always sit "above" the player in POV
+    /// (clouds, flying props). Default for ground foliage is false.
     /// </summary>
     bool IsOverheadOccluder { get; }
 
     /// <summary>
-    /// World Y of the object's feet / sort bottom. Used only when
-    /// <see cref="IsOverheadOccluder"/> is false.
+    /// World Y of the object's sprite feet / sort bottom (not the top of the leaf ellipse).
+    /// Compared to player feet when <see cref="IsOverheadOccluder"/> is false.
+    /// Unused for overhead occluders.
     /// </summary>
     float OcclusionDepthBottomY { get; }
 }
@@ -75,8 +94,9 @@ public static class OcclusionZone
     }
 
     /// <summary>
-    /// True when the player collision ellipse overlaps the host ghost zone and
-    /// (unless <see cref="IOcclusionHost.IsOverheadOccluder"/>) the player is behind it in Y-sort.
+    /// True when the player should be ghosted by this host.
+    /// Requires collider overlap, and for ground props also Y-sort depth
+    /// (see <see cref="IOcclusionHost"/>).
     /// </summary>
     public static bool EntityEllipseOverlaps(
         IOcclusionHost host,
@@ -84,8 +104,9 @@ public static class OcclusionZone
         float rx,
         float ry)
     {
-        // Ground props: if the player's feet are at/below the object's depth bottom,
-        // the player is in front — do not occlude.
+        // Ground props (trees/bushes): player feet at or below the object's depth bottom
+        // means the player is standing in front of it in top-down Y-sort — no ghost.
+        // Overhead props (clouds): IsOverheadOccluder skips this and uses overlap only.
         if (!host.IsOverheadOccluder && feet.Y >= host.OcclusionDepthBottomY)
             return false;
 

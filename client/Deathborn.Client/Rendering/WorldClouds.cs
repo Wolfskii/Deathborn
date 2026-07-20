@@ -39,7 +39,11 @@ public sealed class CloudSatellite
         new(shadowAnchor, Variant, Scale, ShadowRect, OcclusionOverride);
 }
 
-/// <summary>One cloud body (primary or satellite) as an <see cref="IOcclusionHost"/>.</summary>
+/// <summary>
+/// One cloud body (primary or satellite) as an <see cref="IOcclusionHost"/>.
+/// Always <see cref="IOcclusionHost.IsOverheadOccluder"/> — clouds sit above the scene in POV,
+/// so Y-sort front/behind is ignored and only collider overlap ghosts the player.
+/// </summary>
 public readonly struct CloudOcclusionPart : IOcclusionHost
 {
     public CloudOcclusionPart(
@@ -66,7 +70,9 @@ public readonly struct CloudOcclusionPart : IOcclusionHost
     float IOcclusionHost.OcclusionScale => Scale;
     byte IOcclusionHost.OcclusionMaskId => OcclusionMaskCache.CloudMaskIdFor(Variant);
     OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
+    // Aerial: overlap-only ghosting (see IOcclusionHost depth rules).
     bool IOcclusionHost.IsOverheadOccluder => true;
+    // Unused while IsOverheadOccluder is true; kept for interface completeness.
     float IOcclusionHost.OcclusionDepthBottomY => OcclusionAnchor.Y;
 }
 
@@ -297,6 +303,7 @@ public static class WorldClouds
         }
     }
 
+    // Overhead occluder: no Y-sort gate — see IOcclusionHost / IsOverheadOccluder.
     private static bool EntityUnderOcclusionPart(CloudOcclusionPart part, Vector2 feet) =>
         OcclusionZone.EntityEllipseOverlaps(
             part,

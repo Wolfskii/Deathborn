@@ -21,7 +21,10 @@ public sealed class FoliageInstance : IOcclusionHost
     public byte ColliderMaskId = 255;
     public byte OcclusionMaskId = OcclusionZone.NoMaskId;
     public OcclusionColliderOverride OcclusionOverride;
-    /// <summary>When true, overlap alone ghosts the player (no Y-sort front/behind gate).</summary>
+    /// <summary>
+    /// Set true for aerial foliage that should ghost on overlap alone (like clouds).
+    /// Leave false (default) for trees/bushes so standing south/in front of them does not ghost.
+    /// </summary>
     public bool IsOverheadOccluder;
 
     Vector2 IOcclusionHost.OcclusionAnchor => Position;
@@ -29,6 +32,7 @@ public sealed class FoliageInstance : IOcclusionHost
     byte IOcclusionHost.OcclusionMaskId => OcclusionMaskId;
     OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
     bool IOcclusionHost.IsOverheadOccluder => IsOverheadOccluder;
+    /// <summary>Sprite / sort feet — not the canopy ellipse bottom (see <see cref="WorldFoliage.FoliageBottomY"/>).</summary>
     float IOcclusionHost.OcclusionDepthBottomY => WorldFoliage.FoliageBottomY(this);
 
     /// <summary>Replace sprite-derived ghost zone with a custom unscaled rect from bottom-center.</summary>
@@ -167,14 +171,16 @@ public static class WorldFoliage
         f.Position.Y - f.FootInset * f.Scale;
 
     /// <summary>
-    /// World Y of the object's bottom edge for depth — compare to player feet.
-    /// Whichever bottom is higher on screen (smaller Y) is behind.
+    /// World Y of the foliage feet used for occlusion depth and draw sorting vs the player.
+    /// Player feet with a smaller Y are behind this object (may ghost when under the canopy);
+    /// player feet with a larger Y are in front (no ghost). Trees add a small shadow inset.
     /// </summary>
     public static float FoliageBottomY(FoliageInstance f) =>
         f.Kind == FoliageKind.Tree
             ? f.Position.Y + TreeShadowDepthInset * f.Scale
             : f.Position.Y;
 
+    /// <summary>True when <paramref name="entityFeetY"/> is north of the foliage feet (behind in Y-sort).</summary>
     public static bool EntityIsBehind(FoliageInstance f, float entityFeetY) =>
         entityFeetY < FoliageBottomY(f);
 
@@ -279,6 +285,10 @@ public static class WorldFoliage
         return pos;
     }
 
+    /// <summary>
+    /// Ghost under foliage when the occlusion collider overlaps and the player is behind
+    /// the sprite feet (unless <see cref="FoliageInstance.IsOverheadOccluder"/>).
+    /// </summary>
     public static bool EntityUnderFoliage(FoliageInstance f, Vector2 feet, float entityRadius)
     {
         _ = entityRadius;
