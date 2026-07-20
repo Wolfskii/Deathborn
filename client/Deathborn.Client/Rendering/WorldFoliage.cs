@@ -65,12 +65,61 @@ public static class WorldFoliage
     private const float TreeStemSortPadPx = 2f;
 
     private static readonly List<FoliageInstance> Instances = [];
+    /// <summary>Sparse grid: cell key → instances whose feet sit in that cell.</summary>
+    private static readonly Dictionary<long, List<FoliageInstance>> Cells = new();
+    private const float CellSize = 128f;
+    /// <summary>Largest collision/occlusion extent seen at last rebuild (query padding).</summary>
+    private static float _queryExtent = 48f;
     private static Texture2D?[] _textures = new Texture2D[13];
     private static float _animTime;
     private static bool _initialized;
 
     public static bool IsLoaded => _textures[0] != null;
     public static IReadOnlyList<FoliageInstance> All => Instances;
+
+    private static long CellKey(int cx, int cy) => ((long)cx << 32) ^ (uint)cy;
+
+    private static void RebuildSpatialIndex()
+    {
+        Cells.Clear();
+        _queryExtent = 48f;
+        foreach (var f in Instances)
+        {
+            var ext = Math.Max(f.CollisionRadius, 40f * f.Scale);
+            if (ext > _queryExtent) _queryExtent = ext;
+
+            var cx = (int)MathF.Floor(f.Position.X / CellSize);
+            var cy = (int)MathF.Floor(f.Position.Y / CellSize);
+            var key = CellKey(cx, cy);
+            if (!Cells.TryGetValue(key, out var list))
+            {
+                list = new List<FoliageInstance>(4);
+                Cells[key] = list;
+            }
+            list.Add(f);
+        }
+    }
+
+    private static bool AnyNear(Vector2 pos, float radius, Func<FoliageInstance, bool> predicate)
+    {
+        if (Cells.Count == 0) return false;
+        var minCx = (int)MathF.Floor((pos.X - radius) / CellSize);
+        var maxCx = (int)MathF.Floor((pos.X + radius) / CellSize);
+        var minCy = (int)MathF.Floor((pos.Y - radius) / CellSize);
+        var maxCy = (int)MathF.Floor((pos.Y + radius) / CellSize);
+        for (var cy = minCy; cy <= maxCy; cy++)
+        {
+            for (var cx = minCx; cx <= maxCx; cx++)
+            {
+                if (!Cells.TryGetValue(CellKey(cx, cy), out var list)) continue;
+                foreach (var f in list)
+                {
+                    if (predicate(f)) return true;
+                }
+            }
+        }
+        return false;
+    }
 
     public static void Load(ContentManager content)
     {
@@ -100,6 +149,7 @@ public static class WorldFoliage
         _initialized = true;
         Instances.Clear();
         Generate(map);
+        RebuildSpatialIndex();
     }
 
     public static void Update(float dt) => _animTime += dt;
@@ -199,12 +249,8 @@ public static class WorldFoliage
 
     public static bool BlocksCircle(Vector2 pos, float radius)
     {
-        foreach (var f in Instances)
-        {
-            if (InstanceBlocksEntity(f, pos, radius, radius))
-                return true;
-        }
-        return false;
+        var pad = radius + _queryExtent + 4f;
+        return AnyNear(pos, pad, f => InstanceBlocksEntity(f, pos, radius, radius));
     }
 
     public static bool BlocksFeet(Vector2 feet, float entityRadius) =>
@@ -273,17 +319,27 @@ public static class WorldFoliage
 
     private static Vector2 PushOutOfOverlappingFoliage(Vector2 center, float rx, float ry)
     {
+        var pad = Math.Max(rx, ry) + _queryExtent + 4f;
         for (var iter = 0; iter < 4; iter++)
         {
             var moved = false;
-            foreach (var f in Instances)
+            var minCx = (int)MathF.Floor((center.X - pad) / CellSize);
+            var maxCx = (int)MathF.Floor((center.X + pad) / CellSize);
+            var minCy = (int)MathF.Floor((center.Y - pad) / CellSize);
+            var maxCy = (int)MathF.Floor((center.Y + pad) / CellSize);
+            for (var cy = minCy; cy <= maxCy; cy++)
             {
-                if (!InstanceBlocksEntity(f, center, rx, ry)) continue;
-                var next = PushOutOfInstance(f, center, rx, ry);
-                if (next != center)
+                for (var cx = minCx; cx <= maxCx; cx++)
                 {
-                    center = next;
-                    moved = true;
+                    if (!Cells.TryGetValue(CellKey(cx, cy), out var list)) continue;
+                    foreach (var f in list)
+                    {
+                        if (!InstanceBlocksEntity(f, center, rx, ry)) continue;
+                        var next = PushOutOfInstance(f, center, rx, ry);
+                        if (next == center) continue;
+                        center = next;
+                        moved = true;
+                    }
                 }
             }
             if (!moved) break;
@@ -302,12 +358,8 @@ public static class WorldFoliage
         var center = PlayerEntity.CollisionCenter(feet);
         var rx = PlayerEntity.CollisionRadiusX;
         var ry = PlayerEntity.CollisionRadiusY;
-        foreach (var f in Instances)
-        {
-            if (InstanceBlocksEntity(f, center, rx, ry))
-                return true;
-        }
-        return false;
+        var pad = Math.Max(rx, ry) + _queryExtent + 4f;
+        return AnyNear(center, pad, f => InstanceBlocksEntity(f, center, rx, ry));
     }
 
     public static Vector2 ClipSegment(Vector2 from, Vector2 to, float entityRadius)
@@ -350,19 +402,16 @@ public static class WorldFoliage
 
     public static bool IsEntityUnderBush(Vector2 feet, float entityRadius = PlayerEntity.Radius)
     {
-        foreach (var f in Instances)
-        {
-            if (f.Kind != FoliageKind.Bush) continue;
-            if (EntityUnderFoliage(f, feet, entityRadius)) return true;
-        }
-        return false;
+        var pad = entityRadius + _queryExtent + 8f;
+        return AnyNear(feet, pad, f =>
+            f.Kind == FoliageKind.Bush && EntityUnderFoliage(f, feet, entityRadius));
     }
 
     public static void GetVisible(
         WorldMap map, Vector2 camera, Vector2 screenCenter, float zoom, List<FoliageInstance> visible)
     {
         visible.Clear();
-        if (!IsLoaded || Instances.Count == 0) return;
+        if (!IsLoaded || Instances.Count == 0 || Cells.Count == 0) return;
 
         var margin = map.TileSize * 4f;
         var halfViewW = screenCenter.X / zoom + margin;
@@ -372,11 +421,22 @@ public static class WorldFoliage
         var minY = camera.Y - halfViewH;
         var maxY = camera.Y + halfViewH;
 
-        foreach (var f in Instances)
+        var minCx = (int)MathF.Floor(minX / CellSize);
+        var maxCx = (int)MathF.Floor(maxX / CellSize);
+        var minCy = (int)MathF.Floor(minY / CellSize);
+        var maxCy = (int)MathF.Floor(maxY / CellSize);
+        for (var cy = minCy; cy <= maxCy; cy++)
         {
-            if (f.Position.X < minX || f.Position.X > maxX || f.Position.Y < minY || f.Position.Y > maxY)
-                continue;
-            visible.Add(f);
+            for (var cx = minCx; cx <= maxCx; cx++)
+            {
+                if (!Cells.TryGetValue(CellKey(cx, cy), out var list)) continue;
+                foreach (var f in list)
+                {
+                    if (f.Position.X < minX || f.Position.X > maxX || f.Position.Y < minY || f.Position.Y > maxY)
+                        continue;
+                    visible.Add(f);
+                }
+            }
         }
     }
 

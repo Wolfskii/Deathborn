@@ -516,17 +516,22 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         UpdateDragDrop(mouse, _prevMouse, uiCapturesMouse);
 
-        _debugLines =
-        [
-            $"FPS: {DeathbornGame.Instance.Fps}",
-            _status,
-            _debugHudVisible ? "F12: collider debug ON (green solid, yellow ghost, red terrain)" : "F12: debug HUD",
-            TiledMapPreview.IsActive
-                ? $"F11: Tiled preview ON ({TiledMapPreview.ActiveMapId})"
-                : "F11: Tiled map preview",
-            $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
-            $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
-        ];
+        if (_debugHudVisible || _screens.EscMenuOpen)
+        {
+            _debugLines =
+            [
+                $"FPS: {DeathbornGame.Instance.Fps}",
+                _status,
+                _debugHudVisible
+                    ? "F12: collider debug ON (green solid, yellow ghost, red terrain)"
+                    : "F12: debug HUD",
+                TiledMapPreview.IsActive
+                    ? $"F11: Tiled preview ON ({TiledMapPreview.ActiveMapId})"
+                    : "F11: Tiled map preview",
+                $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
+                $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
+            ];
+        }
 
         if (_deathPrompt && windowActive && !_screens.EscMenuOpen)
         {

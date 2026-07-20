@@ -30,11 +30,18 @@ type foliageCircle struct {
 }
 
 type foliageIndex struct {
-	circles []foliageCircle
+	circles    []foliageCircle
+	cellSize   float64
+	queryPad   float64
+	cells      map[[2]int][]int
 }
 
 func (m *Map) buildFoliage() *foliageIndex {
-	idx := &foliageIndex{}
+	idx := &foliageIndex{
+		cellSize: 128,
+		queryPad: 48,
+		cells:    make(map[[2]int][]int),
+	}
 	towns := m.townExclusions()
 	scale := m.TileSize / 16.0
 	townPad := foliageTownPad * scale
@@ -108,6 +115,39 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 		squareHeight: squareHeight,
 		squareBottom: squareBottom,
 	})
+	ext := radius
+	if squareHalf > ext {
+		ext = squareHalf
+	}
+	if ext+4 > idx.queryPad {
+		idx.queryPad = ext + 4
+	}
+	cx := int(math.Floor(x / idx.cellSize))
+	cy := int(math.Floor(y / idx.cellSize))
+	key := [2]int{cx, cy}
+	i := len(idx.circles) - 1
+	idx.cells[key] = append(idx.cells[key], i)
+}
+
+func (idx *foliageIndex) forEachNear(x, y, radius float64, fn func(i int, f *foliageCircle) bool) bool {
+	if idx == nil || len(idx.circles) == 0 {
+		return false
+	}
+	minCx := int(math.Floor((x - radius) / idx.cellSize))
+	maxCx := int(math.Floor((x + radius) / idx.cellSize))
+	minCy := int(math.Floor((y - radius) / idx.cellSize))
+	maxCy := int(math.Floor((y + radius) / idx.cellSize))
+	for cy := minCy; cy <= maxCy; cy++ {
+		for cx := minCx; cx <= maxCx; cx++ {
+			list := idx.cells[[2]int{cx, cy}]
+			for _, i := range list {
+				if fn(i, &idx.circles[i]) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func foliageScaleMul(kind foliageKind) float64 {
@@ -295,23 +335,17 @@ func (idx *foliageIndex) feetWouldCollide(x, y, entityRx, entityRy float64) bool
 		return false
 	}
 	cy := playerCollisionY(y)
-	for i := range idx.circles {
-		f := &idx.circles[i]
+	pad := math.Max(entityRx, entityRy) + idx.queryPad
+	return idx.forEachNear(x, cy, pad, func(_ int, f *foliageCircle) bool {
 		if f.trunkSortY > 0 && y < f.trunkSortY {
-			continue
+			return false
 		}
 		if f.squareHalf > 0 {
 			top := f.squareBottom - f.squareHeight
-			if ellipseOverlapsRect(x, cy, entityRx, entityRy, f.x-f.squareHalf, f.x+f.squareHalf, top, f.squareBottom) {
-				return true
-			}
-			continue
+			return ellipseOverlapsRect(x, cy, entityRx, entityRy, f.x-f.squareHalf, f.x+f.squareHalf, top, f.squareBottom)
 		}
-		if ellipseOverlapsCircle(x, cy, entityRx, entityRy, f.x, f.y, f.radius) {
-			return true
-		}
-	}
-	return false
+		return ellipseOverlapsCircle(x, cy, entityRx, entityRy, f.x, f.y, f.radius)
+	})
 }
 
 func (idx *foliageIndex) resolvePosition(x, y, entityRx, entityRy float64) (float64, float64) {
@@ -319,37 +353,47 @@ func (idx *foliageIndex) resolvePosition(x, y, entityRx, entityRy float64) (floa
 		return x, y
 	}
 	cy := playerCollisionY(y)
+	pad := math.Max(entityRx, entityRy) + idx.queryPad
 	for iter := 0; iter < 4; iter++ {
 		pushed := false
-		for i := range idx.circles {
-			f := &idx.circles[i]
-			if f.trunkSortY > 0 && y < f.trunkSortY {
-				continue
-			}
-			if f.squareHalf > 0 {
-				top := f.squareBottom - f.squareHeight
-				var ok bool
-				x, cy, ok = pushEllipseOutOfRect(x, cy, entityRx, entityRy, f.x-f.squareHalf, f.x+f.squareHalf, top, f.squareBottom)
-				if ok {
+		minCx := int(math.Floor((x - pad) / idx.cellSize))
+		maxCx := int(math.Floor((x + pad) / idx.cellSize))
+		minCy := int(math.Floor((cy - pad) / idx.cellSize))
+		maxCy := int(math.Floor((cy + pad) / idx.cellSize))
+		for cellY := minCy; cellY <= maxCy; cellY++ {
+			for cellX := minCx; cellX <= maxCx; cellX++ {
+				list := idx.cells[[2]int{cellX, cellY}]
+				for _, i := range list {
+					f := &idx.circles[i]
+					if f.trunkSortY > 0 && y < f.trunkSortY {
+						continue
+					}
+					if f.squareHalf > 0 {
+						top := f.squareBottom - f.squareHeight
+						var ok bool
+						x, cy, ok = pushEllipseOutOfRect(x, cy, entityRx, entityRy, f.x-f.squareHalf, f.x+f.squareHalf, top, f.squareBottom)
+						if ok {
+							pushed = true
+						}
+						continue
+					}
+					if !ellipseOverlapsCircle(x, cy, entityRx, entityRy, f.x, f.y, f.radius) {
+						continue
+					}
+					dx := x - f.x
+					dy := cy - f.y
+					minDist := f.radius + math.Max(entityRx, entityRy)
+					distSq := dx*dx + dy*dy
+					if distSq < 0.0001 {
+						continue
+					}
+					dist := math.Sqrt(distSq)
+					push := (minDist - dist) / dist
+					x += dx * push
+					cy += dy * push
 					pushed = true
 				}
-				continue
 			}
-			if !ellipseOverlapsCircle(x, cy, entityRx, entityRy, f.x, f.y, f.radius) {
-				continue
-			}
-			dx := x - f.x
-			dy := cy - f.y
-			minDist := f.radius + math.Max(entityRx, entityRy)
-			distSq := dx*dx + dy*dy
-			if distSq < 0.0001 {
-				continue
-			}
-			dist := math.Sqrt(distSq)
-			push := (minDist - dist) / dist
-			x += dx * push
-			cy += dy * push
-			pushed = true
 		}
 		if !pushed {
 			break
