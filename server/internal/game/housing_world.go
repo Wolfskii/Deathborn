@@ -238,6 +238,7 @@ func tryAutoEnterHouse(p *player, housing *HousingIndex) {
 	}
 	p.insideHouseID = best.id
 	p.x, p.y = HouseInteriorSpawn(best.centerX, best.centerY)
+	p.dirX, p.dirY = 0, -1 // face into the room (north / up)
 	p.lockHouseTransition()
 }
 
@@ -276,6 +277,7 @@ func (w *World) EnterHouse(characterID, houseID int64) (string, bool) {
 	}
 	p.insideHouseID = houseID
 	p.x, p.y = HouseInteriorSpawn(plot.centerX, plot.centerY)
+	p.dirX, p.dirY = 0, -1 // face into the room (north / up)
 	p.lockHouseTransition()
 	return "", true
 }

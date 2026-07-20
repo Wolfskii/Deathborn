@@ -41,9 +41,16 @@ public static class HousingConstants
         return center + door;
     }
 
-    /// <summary>Exit door inside the instanced room.</summary>
+    /// <summary>Exit door inside the instanced room (south wall).</summary>
     public static Vector2 InteriorDoorWorldPosition(Vector2 center) =>
         new(center.X, center.Y + InteriorHalfH - 20 * Hs);
+
+    /// <summary>Feet spawn just inside the south door (matches server HouseInteriorSpawn).</summary>
+    public static Vector2 InteriorSpawnPosition(Vector2 center)
+    {
+        var door = InteriorDoorWorldPosition(center);
+        return new Vector2(door.X, door.Y - 36f);
+    }
 
     public static Vector2 InteriorLocalMin => new(-InteriorHalfW, -InteriorHalfH);
     public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8 * Hs);

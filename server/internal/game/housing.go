@@ -20,10 +20,15 @@ const (
 
 	// Exterior cottage collision (matches client HousingCollision).
 	houseBodyHalfW      = 50.0
-	houseBodyTop        = -108.0
 	houseBodyBottom     = -4.0
+	houseRoofEave       = -64.0
+	houseRoofApex       = -108.0
 	houseDoorGapHalfW   = 20.0
 	houseDoorApproachS  = 36.0
+
+	// Homestead fence AABBs (matches client HomesteadFence).
+	fenceThickness = 14.0
+	fenceWorldTile = 32.0
 )
 
 // FurnitureItem is a placed interior object (world-relative coords).
@@ -287,7 +292,9 @@ func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
 }
 
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY - 24
+	// Just inside the south exit door — player appears at the doorway and walks up into the room.
+	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
+	return dx, dy - 36
 }
 
 func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
@@ -362,25 +369,89 @@ func overlapsHouseBody(x, y, centerX, centerY float64) bool {
 	}
 	left := centerX - houseBodyHalfW
 	right := centerX + houseBodyHalfW
-	top := centerY + houseBodyTop
+	wallTop := centerY + houseRoofEave
 	bottom := centerY + houseBodyBottom
-	dx, _ := HouseDoorPosition(centerX, centerY)
-	gapL := dx - houseDoorGapHalfW
-	gapR := dx + houseDoorGapHalfW
-	sill := bottom - 10
 
 	rx, ry := 12.0, 16.0
 	cy := y - 7*1.5*1.35 - ry + 2 // match worldmap playerCollisionY approx
-	if ellipseOverlapsHouseRect(x, cy, rx, ry, left, right, top, sill) {
+
+	// Wall rectangle.
+	if ellipseOverlapsHouseRect(x, cy, rx, ry, left, right, wallTop, bottom) {
 		return true
 	}
-	if ellipseOverlapsHouseRect(x, cy, rx, ry, left, gapL, sill, bottom) {
+
+	// Roof triangle (apex + eave base).
+	apexX, apexY := centerX, centerY+houseRoofApex
+	return ellipseOverlapsHouseTriangle(x, cy, rx, ry,
+		apexX, apexY,
+		left, wallTop,
+		right, wallTop)
+}
+
+func ellipseOverlapsHouseTriangle(ex, ey, rx, ry, ax, ay, bx, by, cx, cy float64) bool {
+	if rx < 0.0001 || ry < 0.0001 {
+		return false
+	}
+	toU := func(px, py float64) (float64, float64) {
+		return (px - ex) / rx, (py - ey) / ry
+	}
+	tax, tay := toU(ax, ay)
+	tbx, tby := toU(bx, by)
+	tcx, tcy := toU(cx, cy)
+	if pointInTriangle(0, 0, tax, tay, tbx, tby, tcx, tcy) {
 		return true
 	}
-	if ellipseOverlapsHouseRect(x, cy, rx, ry, gapR, right, sill, bottom) {
-		return true
+	cxp, cyp := closestOnTriangle(0, 0, tax, tay, tbx, tby, tcx, tcy)
+	return cxp*cxp+cyp*cyp <= 1
+}
+
+func pointInTriangle(px, py, ax, ay, bx, by, cx, cy float64) bool {
+	v0x, v0y := cx-ax, cy-ay
+	v1x, v1y := bx-ax, by-ay
+	v2x, v2y := px-ax, py-ay
+	dot00 := v0x*v0x + v0y*v0y
+	dot01 := v0x*v1x + v0y*v1y
+	dot02 := v0x*v2x + v0y*v2y
+	dot11 := v1x*v1x + v1y*v1y
+	dot12 := v1x*v2x + v1y*v2y
+	denom := dot00*dot11 - dot01*dot01
+	if math.Abs(denom) < 1e-12 {
+		return false
 	}
-	return false
+	u := (dot11*dot02 - dot01*dot12) / denom
+	v := (dot00*dot12 - dot01*dot02) / denom
+	return u >= 0 && v >= 0 && u+v <= 1
+}
+
+func closestOnTriangle(px, py, ax, ay, bx, by, cx, cy float64) (float64, float64) {
+	abx, aby := closestOnSegment(px, py, ax, ay, bx, by)
+	bcx, bcy := closestOnSegment(px, py, bx, by, cx, cy)
+	cax, cay := closestOnSegment(px, py, cx, cy, ax, ay)
+	dab := (px-abx)*(px-abx) + (py-aby)*(py-aby)
+	dbc := (px-bcx)*(px-bcx) + (py-bcy)*(py-bcy)
+	dca := (px-cax)*(px-cax) + (py-cay)*(py-cay)
+	if dab <= dbc && dab <= dca {
+		return abx, aby
+	}
+	if dbc <= dca {
+		return bcx, bcy
+	}
+	return cax, cay
+}
+
+func closestOnSegment(px, py, ax, ay, bx, by float64) (float64, float64) {
+	abx, aby := bx-ax, by-ay
+	lenSq := abx*abx + aby*aby
+	if lenSq < 1e-8 {
+		return ax, ay
+	}
+	t := ((px-ax)*abx + (py-ay)*aby) / lenSq
+	if t < 0 {
+		t = 0
+	} else if t > 1 {
+		t = 1
+	}
+	return ax + abx*t, ay + aby*t
 }
 
 func ellipseOverlapsHouseRect(ex, ey, rx, ry, left, right, top, bottom float64) bool {
@@ -405,6 +476,53 @@ func ellipseOverlapsHouseRect(ex, ey, rx, ry, left, right, top, bottom float64) 
 func (h *HousingIndex) blocksFeet(x, y float64) bool {
 	for _, p := range h.byID {
 		if overlapsHouseBody(x, y, p.centerX, p.centerY) {
+			return true
+		}
+		if overlapsHomesteadFence(x, y, p.centerX, p.centerY) {
+			return true
+		}
+	}
+	return false
+}
+
+// overlapsHomesteadFence — five thin AABBs around the plot (south gate gap open).
+func overlapsHomesteadFence(x, y, centerX, centerY float64) bool {
+	left := centerX - PlotHalfW
+	top := centerY - PlotHalfH
+	spanX := PlotHalfW * 2
+	spanY := PlotHalfH * 2
+	right := left + spanX
+	bottom := top + spanY
+
+	nx := int(math.Round(spanX / fenceWorldTile))
+	if nx < 4 {
+		nx = 4
+	}
+	spacingX := spanX / float64(nx)
+	gateL := nx/2 - 1
+	if gateL < 1 {
+		gateL = 1
+	}
+	if gateL > nx-3 {
+		gateL = nx - 3
+	}
+	gateR := gateL + 2
+	gapL := left + float64(gateL)*spacingX
+	gapR := left + float64(gateR)*spacingX
+	t := fenceThickness * 0.5
+
+	rx, ry := 12.0, 16.0
+	cy := y - 7*1.5*1.35 - ry + 2
+
+	rects := [5][4]float64{
+		{left - t, right + t, top - t, top + t},             // north
+		{left - t, left + t, top - t, bottom + t},           // west
+		{right - t, right + t, top - t, bottom + t},         // east
+		{left - t, gapL, bottom - t, bottom + t},            // south L
+		{gapR, right + t, bottom - t, bottom + t},           // south R
+	}
+	for _, r := range rects {
+		if ellipseOverlapsHouseRect(x, cy, rx, ry, r[0], r[1], r[2], r[3]) {
 			return true
 		}
 	}

@@ -765,6 +765,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             WorldFoliage.DrawDebugColliders(sb, map, _camera, ScreenCenter, zoom);
             WorldFoliage.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, zoom);
             WorldClouds.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, zoom);
+            HousingCollision.DrawDebugColliders(sb, WorldZones.Houses, _camera, ScreenCenter, zoom);
             if (FindLocalPlayer() is { InsideHouseId: <= 0 } local)
                 WorldFoliage.DrawDebugPlayerCollider(sb, local.Position, PlayerEntity.Radius, _camera, ScreenCenter, zoom);
         }
@@ -2825,7 +2826,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                         p.Position = pos;
                         p.Target = pos;
                     }
-                    if (p.InputDir.LengthSquared() > 0.0001f)
+                    if (s.InsideHouseId > 0)
+                        p.MoveDir = new Vector2(0, -1); // face into the room from the south door
+                    else if (p.InputDir.LengthSquared() > 0.0001f)
                         p.MoveDir = PlayerEntity.CardinalFacing(p.InputDir);
                 }
                 else
