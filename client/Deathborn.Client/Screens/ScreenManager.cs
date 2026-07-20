@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Deathborn.Client.Diagnostics;
 using Deathborn.Client.Net;
 using Deathborn.Client.Ui;
 
@@ -63,6 +64,8 @@ public sealed class ScreenManager
         Net.Poll();
         _escMenu.Update(gameTime);
         _current?.Update(gameTime);
+        if (DevPerfLog.Enabled && _current is not null)
+            DevPerfLog.Note("screen", _current.GetType().Name.Replace("Screen", "", StringComparison.Ordinal));
     }
 
     public void Draw(GameTime gameTime)

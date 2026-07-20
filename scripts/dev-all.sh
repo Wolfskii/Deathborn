@@ -252,6 +252,7 @@ fi
 start_clients
 
 echo "Watching for client changes (saves restart all game windows after rebuild)..."
+echo "FPS dips (<30) log to: ${CLIENT_OUT}/logs/fps-dips.log"
 while true; do
   if all_clients_closed; then
     echo "All clients closed."

@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Deathborn.Client.Diagnostics;
 using Deathborn.Client.Gameplay;
 using Deathborn.Client.Maps;
 using Deathborn.Client.Audio;
@@ -542,6 +543,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _prevKb = kb;
         if (windowActive)
             _prevMouse = mouse;
+
+        if (DevPerfLog.Enabled)
+        {
+            DevPerfLog.Note("screen", "World");
+            DevPerfLog.Note("players", _players.Count);
+            DevPerfLog.Note("npcs", _npcs.Count);
+            DevPerfLog.Note("fx", _effects.Count);
+            DevPerfLog.Note("houses", _houses.Count);
+            DevPerfLog.NoteFlag("interior", InteriorHouse() != null);
+            DevPerfLog.NoteFlag("esc", menuOpen);
+        }
     }
 
     private Vector2 _lastSentDir;
@@ -677,6 +689,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             sb.Begin();
             _disconnectOverlay.Draw(sb, font);
             sb.End();
+        }
+
+        if (DevPerfLog.Enabled)
+        {
+            DevPerfLog.Note("foliage", _visibleFoliage.Count);
+            if (TiledOverworldRenderer.LastRebuildReason is { } rebuild)
+                DevPerfLog.Note("tileCache", rebuild);
         }
     }
 

@@ -23,6 +23,8 @@ public static class TiledOverworldRenderer
     private static RenderTarget2D? _cache;
     private static int _cacheMinTx, _cacheMaxTx, _cacheMinTy, _cacheMaxTy;
     private static float _animAge;
+    /// <summary>Set when the tile cache was rebuilt this frame (cleared by DevPerfLog consumers).</summary>
+    public static string? LastRebuildReason { get; private set; }
 
     public static bool IsActive => TiledMapCatalog.TryGet(MapId) != null;
 
@@ -33,11 +35,15 @@ public static class TiledOverworldRenderer
         GameTime gameTime,
         VisibleTileRegion region)
     {
+        LastRebuildReason = null;
         map.Update(gameTime);
         _animAge += (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-        if (NeedsRebuild(region))
+        if (NeedsRebuild(region, out var reason))
+        {
+            LastRebuildReason = reason;
             RebuildCache(spriteBatch, graphicsDevice, map, region);
+        }
 
         if (_cache == null)
             return;
@@ -48,15 +54,26 @@ public static class TiledOverworldRenderer
         spriteBatch.Draw(_cache, dest, Color.White);
     }
 
-    private static bool NeedsRebuild(VisibleTileRegion region)
+    private static bool NeedsRebuild(VisibleTileRegion region, out string reason)
     {
         if (_cache == null)
+        {
+            reason = "cold";
             return true;
+        }
         if (_animAge >= AnimRebuildSeconds)
+        {
+            reason = "anim";
             return true;
+        }
         if (region.MinTx < _cacheMinTx || region.MaxTx > _cacheMaxTx ||
             region.MinTy < _cacheMinTy || region.MaxTy > _cacheMaxTy)
+        {
+            reason = "scroll";
             return true;
+        }
+
+        reason = "";
         return false;
     }
 

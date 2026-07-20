@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Deathborn.Client.Audio;
+using Deathborn.Client.Diagnostics;
 using Deathborn.Client.Maps;
 using Deathborn.Client.Net;
 using Deathborn.Client.Platform;
@@ -187,6 +188,7 @@ public sealed class DeathbornGame : Game
 
     protected override void Update(GameTime gameTime)
     {
+        DevPerfLog.BeginFrame();
         SyncViewport();
 
         var kb = Keyboard.GetState();
@@ -223,6 +225,7 @@ public sealed class DeathbornGame : Game
         _prevKb = kb;
         _wasActive = active;
         base.Update(gameTime);
+        DevPerfLog.EndUpdate();
     }
 
     private void ToggleFullscreen()
@@ -278,6 +281,7 @@ public sealed class DeathbornGame : Game
         GraphicsDevice.Clear(Color.Black);
         _screens.Draw(gameTime);
         base.Draw(gameTime);
+        DevPerfLog.EndDraw();
     }
 
     protected override void Dispose(bool disposing)
