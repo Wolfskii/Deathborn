@@ -60,6 +60,7 @@ Existing legacy paths that still contain `FarmRpg` / vendor folders are historic
 | Icon atlases | `Icons/` | Ability / cosmetic sheets. |
 | Cursors | `Cursors/` | |
 | Tiled maps | `Maps/…` | Follow existing dungeon / overworld layout. |
+| Weather | `Weather/` | Rain overlays, etc. |
 
 If unsure which category: inspect siblings under `Content/`, then ask only when the choice would be ambiguous or overwrite existing assets.
 

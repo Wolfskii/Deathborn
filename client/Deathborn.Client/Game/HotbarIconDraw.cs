@@ -44,6 +44,9 @@ public static class HotbarIconDraw
             case "ice_shard":
                 DrawIceShard(sb, bounds);
                 break;
+            case "poison_bolt":
+                DrawPoisonBolt(sb, bounds);
+                break;
             case "arc_bolt":
                 DrawArcBolt(sb, bounds);
                 break;
@@ -115,6 +118,16 @@ public static class HotbarIconDraw
         DrawIceDiamond(sb, c, bounds.Width * 0.32f, 0f);
         DrawIceDiamond(sb, c + new Vector2(-8, 4), bounds.Width * 0.18f, 0.5f);
         DrawIceDiamond(sb, c + new Vector2(9, -3), bounds.Width * 0.15f, -0.3f);
+    }
+
+    private static void DrawPoisonBolt(SpriteBatch sb, Rectangle bounds)
+    {
+        var c = new Vector2(bounds.Center.X, bounds.Center.Y);
+        var r = bounds.Width * 0.26f;
+        DrawPrimitives.FillRect(sb, bounds, new Color(12, 22, 10));
+        DrawPrimitives.FillCircle(sb, c + new Vector2(-6, 2), r * 1.1f, new Color(0.25f, 0.65f, 0.15f, 0.45f));
+        DrawPrimitives.FillCircle(sb, c, r, new Color(0.45f, 0.9f, 0.25f));
+        DrawPrimitives.FillCircle(sb, c + new Vector2(4, -3), r * 0.45f, new Color(0.85f, 1f, 0.7f));
     }
 
     private static void DrawIceDiamond(SpriteBatch sb, Vector2 center, float size, float rot)

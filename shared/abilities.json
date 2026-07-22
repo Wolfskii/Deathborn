@@ -32,6 +32,11 @@
       "combat": { "damage": 18, "hitRange": 560 }
     },
     {
+      "id": "poison_bolt",
+      "kind": "spell",
+      "combat": { "damage": 16, "hitRange": 560 }
+    },
+    {
       "id": "arc_bolt",
       "kind": "spell",
       "combat": { "damage": 14, "hitRange": 140 }

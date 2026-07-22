@@ -71,6 +71,13 @@ public static class Config
     public const float IceShardCooldown = 2.5f;
     public const float IceShardCastLockDuration = 0.28f;
 
+    public const float PoisonBoltSpeed = 380f * Ws;
+    public static float PoisonBoltMaxRange => SharedAbilities.HitRange("poison_bolt");
+    public const float PoisonBoltRadius = 8f * Ws;
+    public const float PoisonBoltBurstDuration = 0.3f;
+    public const float PoisonBoltCooldown = 2.8f;
+    public const float PoisonBoltCastLockDuration = 0.3f;
+
     public static float ArcBoltRange => SharedAbilities.HitRange("arc_bolt");
     public const float ArcBoltCooldown = 2f;
     public const float ArcBoltCastLockDuration = 0.25f;
@@ -91,6 +98,7 @@ public static class Config
     public static int SlashDamage => SharedAbilities.Damage("slash");
     public static int FireballDamage => SharedAbilities.Damage("fireball");
     public static int IceShardDamage => SharedAbilities.Damage("ice_shard");
+    public static int PoisonBoltDamage => SharedAbilities.Damage("poison_bolt");
     public static int ArcBoltDamage => SharedAbilities.Damage("arc_bolt");
     public static int PoisonCloudDamage => SharedAbilities.Damage("poison_cloud");
     public static int BloodBoltDamage => SharedAbilities.Damage("blood_bolt");

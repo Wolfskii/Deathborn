@@ -414,7 +414,7 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			dirX, dirY := normalizeDir(d.DirX, d.DirY)
 			switch d.SpellID {
-			case "fireball", "ice_shard":
+			case "fireball", "ice_shard", "poison_bolt":
 				c.broadcastProjectileCast(c.characterID, d.SpellID, dirX, dirY)
 			case "arc_bolt":
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "cast_arc_bolt", dirX, dirY, ""))
@@ -930,6 +930,7 @@ func (c *Client) broadcastProjectileCast(playerID int64, spellID string, dirX, d
 		return
 	}
 	dirX, dirY = normalizeDir(dirX, dirY)
+	dirX, dirY = cardinalDir(dirX, dirY)
 	ox, oy := projectileSpawnPoint(x, y, dirX, dirY)
 	c.hub.Broadcast(encode("projectile_spawn", ProjectileSpawnData{
 		OwnerID: playerID,
@@ -942,6 +943,8 @@ func (c *Client) broadcastProjectileCast(playerID int64, spellID string, dirX, d
 	action := "cast_fireball"
 	if spellID == "ice_shard" {
 		action = "cast_ice_shard"
+	} else if spellID == "poison_bolt" {
+		action = "cast_poison_bolt"
 	}
 	c.hub.Broadcast(BuildPlayerAction(playerID, action, dirX, dirY, ""))
 }

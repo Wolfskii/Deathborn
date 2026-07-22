@@ -68,7 +68,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private Vector2 _camera;
     private Vector2 _moveDir;
     private float _inputAccum;
-    private string _status = "Connected. WASD to move. [G] friends. [F] rain. Right-click players. Enter to chat. Space or click to attack. [E] to interact.";
+    private string _status = "Connected. WASD to move. [G] friends. [F6] rain. Right-click players. Enter to chat. Space or click to attack. [E] to interact.";
     private string _interactPrompt = "";
     private InteractableEntity? _focused;
     private InteractableEntity? _hovered;
@@ -378,7 +378,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (windowActive && !chatOpen && kb.IsKeyDown(Keys.M) && !_prevKb.IsKeyDown(Keys.M) && InteriorHouse() == null)
             _worldMap.Toggle();
 
-        if (windowActive && !chatOpen && kb.IsKeyDown(Keys.F) && !_prevKb.IsKeyDown(Keys.F))
+        if (windowActive && !chatOpen && kb.IsKeyDown(Keys.F6) && !_prevKb.IsKeyDown(Keys.F6))
             WorldRain.Toggle();
 
         if (menuOpen && _worldMap.IsOpen)
@@ -1778,9 +1778,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetInputAimDirection();
+        var dir = GetAimDirection();
         local.StartAbilityLock(castLock);
-        local.MoveDir = PlayerEntity.CardinalFacing(dir);
+        local.MoveDir = dir;
 
         var origin = local.GetProjectileSpawnPoint(dir);
         AddSpellProjectile(origin, dir, local.Id, def, style);
@@ -1809,6 +1809,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             ProjectileStyle.Ice,
             Config.IceShardCastLockDuration,
             "You cast Ice Shard.");
+        if (ok) SfxPlayer.PlayIceShard();
+        return ok;
+    }
+
+    private bool CastPoisonBolt()
+    {
+        var ok = CastProjectileSpell(
+            "poison_bolt",
+            ProjectileDefinitions.PoisonBolt,
+            ProjectileStyle.Poison,
+            Config.PoisonBoltCastLockDuration,
+            "You cast Poison Bolt.");
         if (ok) SfxPlayer.PlayIceShard();
         return ok;
     }
@@ -2062,6 +2074,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (spellId == "ice_shard")
         {
             AddSpellProjectile(origin, dir, data.OwnerId, ProjectileDefinitions.IceShard, ProjectileStyle.Ice);
+            SfxPlayer.PlayIceShard();
+        }
+        else if (spellId == "poison_bolt")
+        {
+            AddSpellProjectile(origin, dir, data.OwnerId, ProjectileDefinitions.PoisonBolt, ProjectileStyle.Poison);
             SfxPlayer.PlayIceShard();
         }
         else
@@ -3105,6 +3122,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
         else if (id == "ice_shard")
             used = CastIceShard();
+        else if (id == "poison_bolt")
+            used = CastPoisonBolt();
         else if (id == "arc_bolt")
             used = CastArcBolt();
         else if (id == "blood_bolt")
