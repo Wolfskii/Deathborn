@@ -51,8 +51,19 @@ func (w *World) worldScale() float64 {
 	return w.terrain.TileSize / 16.0
 }
 
+// PlayerVitals are restored combat resources for spawn / welcome.
+type PlayerVitals struct {
+	Hp      float64
+	HpMax   float64
+	Stamina float64
+	Mana    float64
+	HasHp   bool
+	HasStamina bool
+	HasMana bool
+}
+
 // AddPlayer inserts a player at a position (e.g. on connect/spawn).
-func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64, inventory []InventoryItem, headCosmetic string) {
+func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64, inventory []InventoryItem, headCosmetic string, vitals PlayerVitals) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if skillXP == nil {
@@ -60,15 +71,44 @@ func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Se
 	}
 	hpLevel := skillXP.Level(skills.Hitpoints)
 	hpMax := skills.HitpointsMax(hpLevel)
+	hp := hpMax
+	if vitals.HasHp {
+		hp = vitals.Hp
+		if hp < 0 {
+			hp = 0
+		}
+		if hp > hpMax {
+			hp = hpMax
+		}
+	}
+	stamina := 100.0
+	if vitals.HasStamina {
+		stamina = clampResource(vitals.Stamina, 100)
+	}
+	mana := 100.0
+	if vitals.HasMana {
+		mana = clampResource(vitals.Mana, 100)
+	}
 	p := &player{
 		id: id, name: name, x: x, y: y,
-		hp: hpMax, hpMax: hpMax,
+		hp: hp, hpMax: hpMax,
+		stamina: stamina, mana: mana,
 		skills: skillXP, totalXp: totalXp,
 		inventory:    append([]InventoryItem(nil), inventory...),
 		headCosmetic: headCosmetic,
 	}
 	syncPlayerCosmeticInventory(p)
 	w.players[id] = p
+}
+
+func clampResource(v, max float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > max {
+		return max
+	}
+	return v
 }
 
 // DeathPose returns a dead player's position and facing for the death broadcast.
@@ -364,6 +404,29 @@ func (w *World) PlayerHP(id int64) (hp, hpMax float64, ok bool) {
 		return 0, 0, false
 	}
 	return p.hp, p.hpMax, true
+}
+
+// SetClientVitals stores client-reported stamina/mana for persistence on logout.
+func (w *World) SetClientVitals(id int64, stamina, mana float64) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, ok := w.players[id]
+	if !ok || p.dead {
+		return
+	}
+	p.stamina = clampResource(stamina, 100)
+	p.mana = clampResource(mana, 100)
+}
+
+// VitalsForSave returns current combat resources for DB persistence.
+func (w *World) VitalsForSave(id int64) (hp, stamina, mana float64, ok bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	p, ok := w.players[id]
+	if !ok {
+		return 0, 0, 0, false
+	}
+	return p.hp, p.stamina, p.mana, true
 }
 func (w *World) PvPAllowedBetween(attackerID, targetID int64) bool {
 	w.mu.RLock()

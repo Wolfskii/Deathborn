@@ -69,10 +69,11 @@ var npcDefs = map[string]npcDef{
 	},
 	"wild_bat": {
 		id: "wild_bat", name: "Bat", category: NpcCategoryWildAnimal,
-		disposition: NpcHostile, spriteID: "bat", hpMax: 18, speed: 38,
-		radius: 10, wander: true, leash: 80,
-		aggro: true, aggroRange: 56, meleeDamage: 3, meleeReach: 5,
-		hitHalfW: 11, hitHalfH: 6, hitCenterY: -50,
+		disposition: NpcHostile, spriteID: "bat", hpMax: 18, speed: 42,
+		radius: 10, wander: true, leash: 96,
+		aggro: true, aggroRange: 72, meleeDamage: 3, meleeReach: 8,
+		// Tall AABB covers the flying body down toward the foot/shadow so under-hits register.
+		hitHalfW: 14, hitHalfH: 28, hitCenterY: -30,
 	},
 	"town_guard": {
 		id: "town_guard", name: "Town Guard", category: NpcCategoryGuard,

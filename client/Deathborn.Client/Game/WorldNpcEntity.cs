@@ -43,7 +43,20 @@ public sealed class WorldNpcEntity
     private TinyRpgStripAnimation? _anim;
     private FarmRpgSlimeAnimation? _slimeAnim;
     private string _animSpriteId = "";
+    private int _tinyBindVersion = -1;
+    private int _slimeBindVersion = -1;
     private bool _moving;
+    private Vector2 _lastSyncedPos;
+    private bool _hasSyncedPos;
+    private float _moveAnimHold;
+
+    public void PlayDamageFlash()
+    {
+        EnsureAnimationBound();
+        _slimeAnim?.BeginDamageFlash();
+        _anim?.BeginDamageFlash();
+        AbilityFlash = MathF.Max(AbilityFlash, 0.25f);
+    }
 
     public void SetTarget(Vector2 pos) => Target = pos;
 
@@ -55,11 +68,17 @@ public sealed class WorldNpcEntity
         Category = NpcCatalog.ParseCategory(s.Category, s.IsBoss);
         Disposition = NpcCatalog.ParseDisposition(s.Disposition);
         IsBoss = s.IsBoss || Category == NpcCategory.Boss;
-        Target = new Vector2((float)s.X, (float)s.Y);
+        var synced = new Vector2((float)s.X, (float)s.Y);
+        if (_hasSyncedPos && Vector2.DistanceSquared(synced, _lastSyncedPos) > 0.25f)
+            _moveAnimHold = 0.28f;
+        _lastSyncedPos = synced;
+        _hasSyncedPos = true;
+        Target = synced;
         Hp = (float)s.Hp;
         HpMax = (float)s.HpMax;
         var prevAction = Action;
         Action = s.Action ?? "";
+        EnsureAnimationBound();
         if (Action == "melee" && prevAction != "melee")
         {
             _anim?.BeginMeleeAttack();
@@ -67,20 +86,50 @@ public sealed class WorldNpcEntity
         }
         if (MathF.Abs((float)s.DirX) > 0.01f || MathF.Abs((float)s.DirY) > 0.01f)
             Facing = Vector2.Normalize(new Vector2((float)s.DirX, (float)s.DirY));
-        if (!string.Equals(_animSpriteId, SpriteId, StringComparison.OrdinalIgnoreCase))
-        {
-            _animSpriteId = SpriteId;
-            _slimeAnim = FarmRpgSlimeSprites.Get(SpriteId)?.Clone();
-            _anim = _slimeAnim == null ? TinyRpgCharacterSprites.Get(SpriteId)?.Clone() : null;
-        }
+    }
+
+    /// <summary>
+    /// Rebinds strip clones when the sprite id changes or after Content reload (device reset / resize).
+    /// Clones share Texture2D refs; Unload disposes those and leaves black draws until rebound.
+    /// </summary>
+    private void EnsureAnimationBound()
+    {
+        var tinyVer = TinyRpgCharacterSprites.BindVersion;
+        var slimeVer = FarmRpgSlimeSprites.BindVersion;
+        if (string.Equals(_animSpriteId, SpriteId, StringComparison.OrdinalIgnoreCase)
+            && _tinyBindVersion == tinyVer
+            && _slimeBindVersion == slimeVer)
+            return;
+
+        _animSpriteId = SpriteId;
+        _tinyBindVersion = tinyVer;
+        _slimeBindVersion = slimeVer;
+        _slimeAnim = FarmRpgSlimeSprites.Get(SpriteId)?.Clone();
+        _anim = _slimeAnim == null ? TinyRpgCharacterSprites.Get(SpriteId)?.Clone() : null;
     }
 
     public void Update(float dt)
     {
+        EnsureAnimationBound();
         var before = Position;
-        var lerped = Vector2.Lerp(Position, Target, MathHelper.Clamp(dt * Config.PlayerLerpSpeed, 0f, 1f));
-        Position = WorldMap.SwaroviaMainland.ResolveMove(lerped, Vector2.Zero, Radius);
-        _moving = Vector2.DistanceSquared(before, Position) > 0.05f;
+        var err = Target - Position;
+        var errLen = MathF.Sqrt(err.LengthSquared());
+        // Snap when nearly synced — avoids the mob "sliding away" when you outrun interpolation.
+        if (errLen <= 20f)
+            Position = Target;
+        else
+        {
+            // Catch up faster when far behind server position (common while sprint-chasing).
+            var lerp = MathHelper.Clamp(dt * Config.PlayerLerpSpeed * (1f + errLen / 96f), 0f, 1f);
+            Position = Vector2.Lerp(Position, Target, lerp);
+        }
+        // Do not run terrain/foliage ResolveMove here (same as remote players) — server is
+        // authoritative and depenetrate at the lerped point caused bounce/slide artifacts.
+        if (_moveAnimHold > 0f)
+            _moveAnimHold = MathF.Max(0f, _moveAnimHold - dt);
+        // Snap-to-target leaves many frames with zero delta while the server is still walking;
+        // hold walk from recent sync motion so idle/walk does not strobe (worst on near-vertical paths).
+        _moving = _moveAnimHold > 0f || Vector2.DistanceSquared(before, Position) > 0.05f;
         var drawFacing = GetDrawFacing();
         _slimeAnim?.Update(dt, drawFacing, _moving, Config.WalkAnimSpeed);
         _anim?.Update(dt, drawFacing, _moving, Config.WalkAnimSpeed);
@@ -95,7 +144,13 @@ public sealed class WorldNpcEntity
         {
             var delta = Target - Position;
             if (delta.LengthSquared() > 0.25f)
+            {
+                // Near-vertical lerp deltas jitter in X and flip the sprite; prefer server facing.
+                if (Facing.LengthSquared() > 0.01f
+                    && MathF.Abs(delta.X) < MathF.Abs(delta.Y) * 0.45f)
+                    return Facing;
                 return Vector2.Normalize(delta);
+            }
         }
 
         return Facing.LengthSquared() > 0.01f ? Facing : new Vector2(0, 1);
@@ -103,6 +158,7 @@ public sealed class WorldNpcEntity
 
     public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
     {
+        EnsureAnimationBound();
         if (UsesSprite)
         {
             var scale = DisplayScale * zoom;

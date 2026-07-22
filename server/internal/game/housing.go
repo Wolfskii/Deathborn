@@ -158,6 +158,14 @@ func (h *HousingIndex) CanBuildAt(w *World, characterID int64, x, y float64) str
 	if !plotWalkable(w, x, y) {
 		return "Terrain is not flat enough here."
 	}
+	if msg := plotOverlapsOccupants(w, x, y); msg != "" {
+		return msg
+	}
+	if w.terrain != nil {
+		if w.terrain.PlotOverlapsFoliage(x, y, PlotHalfW, PlotHalfH) {
+			return "Clear tree trunks from the plot first."
+		}
+	}
 	return ""
 }
 
@@ -363,24 +371,63 @@ func inDoorApproach(x, y, centerX, centerY float64) bool {
 		y >= bodyBottom-6 && y <= bodyBottom+houseDoorApproachS
 }
 
+func plotOverlapsOccupants(w *World, centerX, centerY float64) string {
+	for _, p := range w.players {
+		if p.dead {
+			continue
+		}
+		if entityOverlapsPlot(p.x, p.y, 12, 16, centerX, centerY) {
+			return "Move players and creatures out of the plot first."
+		}
+	}
+	if w.mobMgr != nil {
+		for _, m := range w.mobMgr.mobs {
+			rx := m.radius
+			if rx < 4 {
+				rx = 4
+			}
+			ry := rx * (16.0 / 12.0)
+			if entityOverlapsPlot(m.x, m.y, rx, ry, centerX, centerY) {
+				return "Clear creatures from the plot first."
+			}
+		}
+	}
+	return ""
+}
+
+func entityOverlapsPlot(feetX, feetY, rx, ry, centerX, centerY float64) bool {
+	if overlapsHouseBodyForBuild(feetX, feetY, rx, ry, centerX, centerY) {
+		return true
+	}
+	return overlapsHomesteadFenceEntity(feetX, feetY, rx, ry, centerX, centerY)
+}
+
+func playerCollisionY(feetY, ry float64) float64 {
+	return feetY - 7*1.5*1.35 - ry + 2
+}
+
 func overlapsHouseBody(x, y, centerX, centerY float64) bool {
-	if inDoorApproach(x, y, centerX, centerY) {
+	return overlapsHouseBodyEx(x, y, 12, 16, centerX, centerY, true)
+}
+
+func overlapsHouseBodyForBuild(x, y, rx, ry, centerX, centerY float64) bool {
+	return overlapsHouseBodyEx(x, y, rx, ry, centerX, centerY, false)
+}
+
+func overlapsHouseBodyEx(x, y, rx, ry, centerX, centerY float64, allowDoorApproach bool) bool {
+	if allowDoorApproach && inDoorApproach(x, y, centerX, centerY) {
 		return false
 	}
 	left := centerX - houseBodyHalfW
 	right := centerX + houseBodyHalfW
 	wallTop := centerY + houseRoofEave
 	bottom := centerY + houseBodyBottom
+	cy := playerCollisionY(y, ry)
 
-	rx, ry := 12.0, 16.0
-	cy := y - 7*1.5*1.35 - ry + 2 // match worldmap playerCollisionY approx
-
-	// Wall rectangle.
 	if ellipseOverlapsHouseRect(x, cy, rx, ry, left, right, wallTop, bottom) {
 		return true
 	}
 
-	// Roof triangle (apex + eave base).
 	apexX, apexY := centerX, centerY+houseRoofApex
 	return ellipseOverlapsHouseTriangle(x, cy, rx, ry,
 		apexX, apexY,
@@ -487,6 +534,10 @@ func (h *HousingIndex) blocksFeet(x, y float64) bool {
 
 // overlapsHomesteadFence — five thin AABBs around the plot (south gate gap open).
 func overlapsHomesteadFence(x, y, centerX, centerY float64) bool {
+	return overlapsHomesteadFenceEntity(x, y, 12, 16, centerX, centerY)
+}
+
+func overlapsHomesteadFenceEntity(x, y, rx, ry, centerX, centerY float64) bool {
 	left := centerX - PlotHalfW
 	top := centerY - PlotHalfH
 	spanX := PlotHalfW * 2
@@ -511,8 +562,7 @@ func overlapsHomesteadFence(x, y, centerX, centerY float64) bool {
 	gapR := left + float64(gateR)*spacingX
 	t := fenceThickness * 0.5
 
-	rx, ry := 12.0, 16.0
-	cy := y - 7*1.5*1.35 - ry + 2
+	cy := playerCollisionY(y, ry)
 
 	rects := [5][4]float64{
 		{left - t, right + t, top - t, top + t},             // north

@@ -32,6 +32,10 @@ public sealed class GameClient : IDisposable
     public Dictionary<string, long> SpawnSkills { get; private set; } = new();
     public long SpawnTotalXp { get; private set; }
     public List<InventoryItemState> SpawnInventory { get; private set; } = [];
+    public float SpawnHp { get; private set; }
+    public float SpawnHpMax { get; private set; }
+    public float SpawnStamina { get; private set; } = 100f;
+    public float SpawnMana { get; private set; } = 100f;
     public bool WsConnected => _ws?.State == WebSocketState.Open;
 
     /// <summary>Human-readable reason from the server or the network stack.</summary>
@@ -229,6 +233,10 @@ public sealed class GameClient : IDisposable
         SpawnSkills = new Dictionary<string, long>();
         SpawnTotalXp = 0;
         SpawnInventory = [];
+        SpawnHp = 0;
+        SpawnHpMax = 0;
+        SpawnStamina = 100f;
+        SpawnMana = 100f;
         DisconnectMessage = "";
     }
 
@@ -241,10 +249,13 @@ public sealed class GameClient : IDisposable
             action();
     }
 
-    public void SendInput(float dirX, float dirY, bool running = false)
+    public void SendInput(float dirX, float dirY, bool running = false, float? stamina = null, float? mana = null)
     {
         if (LocalCharacterId < 0) return;
-        Send("input", new { dirX, dirY, running });
+        if (stamina.HasValue || mana.HasValue)
+            Send("input", new { dirX, dirY, running, stamina, mana });
+        else
+            Send("input", new { dirX, dirY, running });
     }
 
     public void CreateCharacter(string name)
@@ -386,11 +397,16 @@ public sealed class GameClient : IDisposable
         Send("pm_send", new { targetCharacterId, text });
     }
 
-    /// <summary>Saves position on the server, then closes the world connection.</summary>
-    public async Task LogoutWorldAsync()
+    /// <summary>Saves position and vitals on the server, then closes the world connection.</summary>
+    public async Task LogoutWorldAsync(float? stamina = null, float? mana = null)
     {
         if (LocalCharacterId >= 0 && WsConnected)
-            Send("logout", new { });
+        {
+            if (stamina.HasValue || mana.HasValue)
+                Send("logout", new { stamina, mana });
+            else
+                Send("logout", new { });
+        }
         await Task.Delay(40);
         await DisconnectWorldAsync();
     }
@@ -492,6 +508,18 @@ public sealed class GameClient : IDisposable
                 SpawnSkills = welcome.Skills ?? new Dictionary<string, long>();
                 SpawnTotalXp = welcome.TotalXp;
                 SpawnInventory = welcome.Inventory ?? [];
+                SpawnHp = (float)welcome.Hp;
+                SpawnHpMax = (float)welcome.HpMax;
+                if (welcome.HpMax > 0)
+                {
+                    SpawnStamina = (float)welcome.Stamina;
+                    SpawnMana = (float)welcome.Mana;
+                }
+                else
+                {
+                    SpawnStamina = 100f;
+                    SpawnMana = 100f;
+                }
                 Welcome?.Invoke(welcome);
                 break;
             case "need_character":

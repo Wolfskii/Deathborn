@@ -26,7 +26,8 @@ type mob struct {
 	spawnY      float64
 	hp          float64
 	hpMax       float64
-	speed       float64
+	speed       float64 // wander / default move speed
+	combatSpeed float64 // chase speed while aggroed (0 = use speed)
 	radius      float64
 	wander      bool
 	leash       float64
@@ -172,6 +173,10 @@ func (w *World) spawnMobLocked(def npcDef, x, y float64) {
 		hitHalfH:    hitHalfH * scale * mobHitPadding,
 		hitCenterY:  hitCenterY * scale,
 		dirY: 1,
+	}
+	if def.id == "wild_bat" {
+		// Fast chase only while fighting — wander stays leisurely.
+		m.combatSpeed = 96 * scale
 	}
 	w.mobMgr.mobs[id] = m
 }
@@ -320,13 +325,18 @@ func (w *World) tickMobCombatLocked(m *mob, dt float64) []BossEvent {
 	}
 
 	scale := w.worldScale()
-	if dist > m.leash {
+	loseAggro := m.aggroRange * 1.35
+	if dist > loseAggro {
 		m.pendingMelee = false
 		w.moveMobTowardLocked(m, m.spawnX, m.spawnY, dt*0.85)
 		if math.Hypot(m.x-m.spawnX, m.y-m.spawnY) < 12*scale {
 			m.targetID = 0
 		}
 		return nil
+	}
+
+	if m.defID == "wild_bat" {
+		return w.tickBatCombatLocked(m, target, dt, scale)
 	}
 
 	if m.pendingMelee {
@@ -346,10 +356,10 @@ func (w *World) tickMobCombatLocked(m *mob, dt float64) []BossEvent {
 		return nil
 	}
 
-	bodyDist := distPointToAabb(target.x, target.y, m.x, m.y+m.hitCenterY, m.hitHalfW, m.hitHalfH)
-	contact := w.mobMeleeContactDist(m)
-	swingStart := contact + 4*scale
-	if bodyDist <= swingStart {
+	// Start the swing only when already in true contact range. Using a larger
+	// "swingStart" buffer made north/diagonal approaches stop short: the mob held
+	// still outside contact, so impact checks failed and no damage landed.
+	if w.mobMeleeContact(m, target) {
 		if m.attackT <= 0 {
 			dx := target.x - m.x
 			dy := target.y - m.y
@@ -370,12 +380,92 @@ func (w *World) tickMobCombatLocked(m *mob, dt float64) []BossEvent {
 	return nil
 }
 
+// tickBatCombatLocked — chase while out of reach; hold and bite once overlapping
+// (same as ground mobs). Continuous chase during melee made walking up under the
+// sprite look like the bat fleeing north with you.
+func (w *World) tickBatCombatLocked(m *mob, target *player, dt, scale float64) []BossEvent {
+	_ = scale
+
+	if m.pendingMelee {
+		m.meleeImpactT -= dt
+		if m.meleeImpactT <= 0 {
+			m.pendingMelee = false
+			if w.batMeleeContact(m, target) {
+				if ev := w.mobMeleeHitLocked(m, target); ev != nil {
+					return []BossEvent{*ev}
+				}
+			}
+		}
+		w.faceMobToward(m, target.x, target.y)
+		return nil
+	}
+
+	if m.actionT > 0 {
+		w.faceMobToward(m, target.x, target.y)
+		return nil
+	}
+
+	if w.batMeleeContact(m, target) {
+		w.faceMobToward(m, target.x, target.y)
+		if m.attackT <= 0 {
+			m.action = "melee"
+			m.actionT = mobMeleeSwingTime
+			m.attackT = mobMeleeCooldown
+			m.pendingMelee = true
+			m.meleeImpactT = mobMeleeImpactTime
+		}
+		return nil
+	}
+
+	chaseSpeed := m.speed
+	if m.combatSpeed > 0 {
+		chaseSpeed = m.combatSpeed
+	}
+	w.moveMobTowardSpeedLocked(m, target.x, target.y, dt, chaseSpeed)
+	return nil
+}
+
+func (w *World) faceMobToward(m *mob, tx, ty float64) {
+	dx := tx - m.x
+	dy := ty - m.y
+	if d := math.Hypot(dx, dy); d > 0.01 {
+		m.dirX = dx / d
+		m.dirY = dy / d
+	}
+}
+
 func (w *World) mobMeleeContactDist(m *mob) float64 {
 	return m.meleeReach + playerCombatRadius*w.worldScale()
 }
 
+// Bat wing/body reach past the foot anchor so standing under the sprite still counts.
+func (w *World) batMeleeContactDist(m *mob) float64 {
+	return w.mobMeleeContactDist(m) + 28*w.worldScale()
+}
+
+func (w *World) batMeleeContact(m *mob, target *player) bool {
+	return math.Hypot(target.x-m.x, target.y-m.y) <= w.batMeleeContactDist(m)
+}
+
+// mobBodyDist is the gap from the player's combat body to the mob hit AABB.
+// Feet alone under-count north approaches (hitboxes sit above feet); torso sample fixes that.
+func (w *World) mobBodyDist(m *mob, target *player) float64 {
+	cx := m.x
+	cy := m.y + m.hitCenterY
+	dFeet := distPointToAabb(target.x, target.y, cx, cy, m.hitHalfW, m.hitHalfH)
+	torsoY := target.y - playerCombatRadius*w.worldScale()
+	dTorso := distPointToAabb(target.x, torsoY, cx, cy, m.hitHalfW, m.hitHalfH)
+	if dTorso < dFeet {
+		return dTorso
+	}
+	return dFeet
+}
+
 func (w *World) mobMeleeContact(m *mob, target *player) bool {
-	return distPointToAabb(target.x, target.y, m.x, m.y+m.hitCenterY, m.hitHalfW, m.hitHalfH) <= w.mobMeleeContactDist(m)
+	if m.defID == "wild_bat" {
+		return w.batMeleeContact(m, target)
+	}
+	return w.mobBodyDist(m, target) <= w.mobMeleeContactDist(m)
 }
 
 func (w *World) resolveMobTargetLocked(m *mob) (*player, float64) {
@@ -404,6 +494,10 @@ func (w *World) resolveMobTargetLocked(m *mob) (*player, float64) {
 }
 
 func (w *World) moveMobTowardLocked(m *mob, tx, ty float64, dt float64) {
+	w.moveMobTowardSpeedLocked(m, tx, ty, dt, m.speed)
+}
+
+func (w *World) moveMobTowardSpeedLocked(m *mob, tx, ty, dt, speed float64) {
 	dx := tx - m.x
 	dy := ty - m.y
 	dist := math.Hypot(dx, dy)
@@ -413,7 +507,7 @@ func (w *World) moveMobTowardLocked(m *mob, tx, ty float64, dt float64) {
 	dx /= dist
 	dy /= dist
 	m.dirX, m.dirY = dx, dy
-	step := m.speed * dt
+	step := speed * dt
 	if step > dist {
 		step = dist
 	}

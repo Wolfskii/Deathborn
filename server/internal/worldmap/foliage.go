@@ -27,6 +27,8 @@ type foliageCircle struct {
 	squareHalf   float64
 	squareHeight float64
 	squareBottom float64
+	// Full sprite AABB for homestead plot overlap (anchor at feet).
+	spriteLeft, spriteTop, spriteRight, spriteBottom float64
 }
 
 type foliageIndex struct {
@@ -82,6 +84,7 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 
 	var centerY, radius, trunkSortY float64
 	var squareHalf, squareHeight, squareBottom float64
+	var spriteLeft, spriteTop, spriteRight, spriteBottom float64
 	switch kind {
 	case foliageTree:
 		var footInset float64
@@ -100,6 +103,13 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 		// Shorten from the bottom only — top stays put (40% less height).
 		squareHeight *= 0.6
 		squareBottom = top + squareHeight
+		const frameW, frameH = 32.0, 48.0
+		sw := frameW * scale
+		sh := frameH * scale
+		spriteLeft = x - sw*0.5
+		spriteRight = x + sw*0.5
+		spriteBottom = y
+		spriteTop = y - sh
 	default:
 		var footInset float64
 		footInset, radius = foliageCollider(kind, variant, scale)
@@ -114,6 +124,10 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 		squareHalf:   squareHalf,
 		squareHeight: squareHeight,
 		squareBottom: squareBottom,
+		spriteLeft:   spriteLeft,
+		spriteTop:    spriteTop,
+		spriteRight:  spriteRight,
+		spriteBottom: spriteBottom,
 	})
 	ext := radius
 	if squareHalf > ext {
@@ -148,6 +162,51 @@ func (idx *foliageIndex) forEachNear(x, y, radius float64, fn func(i int, f *fol
 		}
 	}
 	return false
+}
+
+// plotOverlaps reports whether a tree trunk or rock collider intersects a homestead plot.
+func (idx *foliageIndex) plotOverlaps(cx, cy, halfW, halfH float64) bool {
+	if idx == nil || len(idx.circles) == 0 {
+		return false
+	}
+	plotLeft := cx - halfW
+	plotRight := cx + halfW
+	plotTop := cy - halfH
+	plotBottom := cy + halfH
+	pad := math.Max(halfW, halfH) + idx.queryPad
+	return idx.forEachNear(cx, cy, pad, func(_ int, f *foliageCircle) bool {
+		if f.squareHalf > 0 {
+			top := f.squareBottom - f.squareHeight
+			return rectOverlapsPlot(f.x-f.squareHalf, top, f.x+f.squareHalf, f.squareBottom,
+				plotLeft, plotTop, plotRight, plotBottom)
+		}
+		if f.radius > 0.001 {
+			return circleOverlapsPlot(f.x, f.y, f.radius, plotLeft, plotTop, plotRight, plotBottom)
+		}
+		return false
+	})
+}
+
+func rectOverlapsPlot(l, t, r, b, plotL, plotT, plotR, plotB float64) bool {
+	return r >= plotL && l <= plotR && b >= plotT && t <= plotB
+}
+
+func circleOverlapsPlot(cx, cy, radius, plotL, plotT, plotR, plotB float64) bool {
+	closestX := cx
+	if closestX < plotL {
+		closestX = plotL
+	} else if closestX > plotR {
+		closestX = plotR
+	}
+	closestY := cy
+	if closestY < plotT {
+		closestY = plotT
+	} else if closestY > plotB {
+		closestY = plotB
+	}
+	dx := cx - closestX
+	dy := cy - closestY
+	return dx*dx+dy*dy <= radius*radius
 }
 
 func foliageScaleMul(kind foliageKind) float64 {

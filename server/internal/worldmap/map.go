@@ -378,3 +378,11 @@ func (m *Map) binaryClampMove(fromX, fromY, toX, toY float64) (float64, float64)
 	}
 	return x, y
 }
+
+// PlotOverlapsFoliage reports whether wilderness foliage sprites intersect a homestead plot.
+func (m *Map) PlotOverlapsFoliage(cx, cy, halfW, halfH float64) bool {
+	if m == nil || m.foliage == nil {
+		return false
+	}
+	return m.foliage.plotOverlaps(cx, cy, halfW, halfH)
+}

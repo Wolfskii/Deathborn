@@ -23,6 +23,10 @@ type Character struct {
 	Y         float64
 	Skills    map[string]int64
 	TotalXP   int64
+	// Vitals — nil means "full / default" (e.g. brand-new character).
+	Hp      *float64
+	Stamina *float64
+	Mana    *float64
 }
 
 // GetActiveCharacter returns the account's living character, or ErrNotFound.
@@ -30,13 +34,14 @@ func (d *DB) GetActiveCharacter(ctx context.Context, accountID int64) (Character
 	var c Character
 	var skillsJSON []byte
 	var totalXp int64
+	var hp, stamina, mana *float64
 	err := d.Pool.QueryRow(ctx,
-		`SELECT id, account_id, name, alive, pos_x, pos_y, skills, total_xp
+		`SELECT id, account_id, name, alive, pos_x, pos_y, skills, total_xp, hp, stamina, mana
 		 FROM characters
 		 WHERE account_id = $1 AND alive = TRUE
 		 LIMIT 1`,
 		accountID,
-	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Alive, &c.X, &c.Y, &skillsJSON, &totalXp)
+	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Alive, &c.X, &c.Y, &skillsJSON, &totalXp, &hp, &stamina, &mana)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Character{}, ErrNotFound
 	}
@@ -45,6 +50,9 @@ func (d *DB) GetActiveCharacter(ctx context.Context, accountID int64) (Character
 	}
 	c.Skills = decodeSkills(skillsJSON)
 	c.TotalXP = totalXp
+	c.Hp = hp
+	c.Stamina = stamina
+	c.Mana = mana
 	return c, nil
 }
 
@@ -87,6 +95,15 @@ func (d *DB) SaveCharacterSkills(ctx context.Context, id int64, skills map[strin
 	_, err = d.Pool.Exec(ctx,
 		`UPDATE characters SET skills = $2, total_xp = $3 WHERE id = $1 AND alive = TRUE`,
 		id, raw, totalXp,
+	)
+	return err
+}
+
+// SaveCharacterVitals persists current HP / stamina / mana for a living character.
+func (d *DB) SaveCharacterVitals(ctx context.Context, id int64, hp, stamina, mana float64) error {
+	_, err := d.Pool.Exec(ctx,
+		`UPDATE characters SET hp = $2, stamina = $3, mana = $4 WHERE id = $1 AND alive = TRUE`,
+		id, hp, stamina, mana,
 	)
 	return err
 }

@@ -154,7 +154,20 @@ func (c *Client) spawn(ch db.Character) {
 	}
 	gameInv := game.InventoryFromDB(inv)
 	cosmetics, _ := c.hub.db.GetCharacterCosmetics(ctx, ch.ID)
-	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP, gameInv, game.CosmeticsFromDB(cosmetics))
+	vitals := game.PlayerVitals{}
+	if ch.Hp != nil {
+		vitals.Hp = *ch.Hp
+		vitals.HasHp = true
+	}
+	if ch.Stamina != nil {
+		vitals.Stamina = *ch.Stamina
+		vitals.HasStamina = true
+	}
+	if ch.Mana != nil {
+		vitals.Mana = *ch.Mana
+		vitals.HasMana = true
+	}
+	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP, gameInv, game.CosmeticsFromDB(cosmetics), vitals)
 	log.Printf("character spawned account_id=%d character_id=%d name=%q pos=(%.0f,%.0f)",
 		c.accountID, ch.ID, ch.Name, x, y)
 	skillMap := map[string]int64{}
@@ -164,6 +177,11 @@ func (c *Client) spawn(ch db.Character) {
 		}
 		ch.TotalXP = total
 	}
+	hp, hpMax, _ := c.hub.world.PlayerHP(ch.ID)
+	stamina, mana := 100.0, 100.0
+	if _, s, m, ok := c.hub.world.VitalsForSave(ch.ID); ok {
+		stamina, mana = s, m
+	}
 	c.safeSend(encode("welcome", WelcomeData{
 		CharacterID: ch.ID,
 		X:           x,
@@ -172,6 +190,10 @@ func (c *Client) spawn(ch db.Character) {
 		Skills:      skillMap,
 		TotalXp:     ch.TotalXP,
 		Inventory:   gameInv,
+		Hp:          hp,
+		HpMax:       hpMax,
+		Stamina:     stamina,
+		Mana:        mana,
 	}))
 	if savedBuffs, err := c.hub.db.GetCharacterActiveBuffs(ctx, ch.ID); err == nil && len(savedBuffs) > 0 {
 		restored := c.hub.world.RestorePlayerBuffs(ch.ID, dbBuffsToGame(savedBuffs))
@@ -236,6 +258,9 @@ func (c *Client) persistSpawnedState(database *db.DB) {
 		if inv, ok := c.hub.world.PlayerInventory(c.characterID); ok {
 			_ = database.SaveCharacterInventory(ctx, c.characterID, game.InventoryToDB(inv))
 		}
+		if hp, stamina, mana, ok := c.hub.world.VitalsForSave(c.characterID); ok {
+			_ = database.SaveCharacterVitals(ctx, c.characterID, hp, stamina, mana)
+		}
 		cosmetics := db.EquippedCosmetics{}
 		if head := c.hub.world.HeadCosmetic(c.characterID); head != "" {
 			cosmetics[game.CosmeticSlotHead] = head
@@ -292,6 +317,18 @@ func (c *Client) readPump(database *db.DB) {
 			var d InputData
 			if json.Unmarshal(env.Data, &d) == nil {
 				c.hub.world.SetInput(c.characterID, d.DirX, d.DirY, d.Running)
+				if d.Stamina != nil || d.Mana != nil {
+					_, stamina, mana, ok := c.hub.world.VitalsForSave(c.characterID)
+					if ok {
+						if d.Stamina != nil {
+							stamina = *d.Stamina
+						}
+						if d.Mana != nil {
+							mana = *d.Mana
+						}
+						c.hub.world.SetClientVitals(c.characterID, stamina, mana)
+					}
+				}
 			}
 
 		case "create_character":
@@ -828,6 +865,21 @@ func (c *Client) readPump(database *db.DB) {
 		case "logout":
 			if !c.spawned {
 				continue
+			}
+			var d LogoutData
+			_ = json.Unmarshal(env.Data, &d)
+			if d.Stamina != nil || d.Mana != nil {
+				stamina, mana := 100.0, 100.0
+				if _, s, m, ok := c.hub.world.VitalsForSave(c.characterID); ok {
+					stamina, mana = s, m
+				}
+				if d.Stamina != nil {
+					stamina = *d.Stamina
+				}
+				if d.Mana != nil {
+					mana = *d.Mana
+				}
+				c.hub.world.SetClientVitals(c.characterID, stamina, mana)
 			}
 			if x, y, ok := c.hub.world.Position(c.characterID); ok {
 				_ = database.SaveCharacterPosition(context.Background(), c.characterID, x, y)

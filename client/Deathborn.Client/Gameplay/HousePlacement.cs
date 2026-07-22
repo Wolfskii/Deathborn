@@ -15,6 +15,8 @@ public static class HousePlacement
     public static bool IsValid(
         Vector2 center,
         Vector2 playerFeet,
+        IReadOnlyDictionary<long, PlayerEntity>? players,
+        IReadOnlyDictionary<long, WorldNpcEntity>? npcs,
         out string reason)
     {
         reason = "";
@@ -42,7 +44,58 @@ public static class HousePlacement
         if (!PlotClear(center, out reason))
             return false;
 
+        if (PlotOverlapsOccupants(center, players, npcs, out reason))
+            return false;
+
         return true;
+    }
+
+    private static bool PlotOverlapsOccupants(
+        Vector2 center,
+        IReadOnlyDictionary<long, PlayerEntity>? players,
+        IReadOnlyDictionary<long, WorldNpcEntity>? npcs,
+        out string reason)
+    {
+        reason = "";
+        if (players != null)
+        {
+            foreach (var p in players.Values)
+            {
+                if (p.IsDead) continue;
+                if (EntityOverlapsPlot(center, p.Position, PlayerEntity.CollisionRadiusX, PlayerEntity.CollisionRadiusY))
+                {
+                    reason = p.IsLocal
+                        ? "Move away - the house would cover you."
+                        : "Another player is in the plot.";
+                    return true;
+                }
+            }
+        }
+
+        if (npcs != null)
+        {
+            foreach (var npc in npcs.Values)
+            {
+                if (npc.Hp <= 0) continue;
+                var feet = NpcHitboxes.HitTestAnchor(npc);
+                var rx = npc.Radius;
+                var ry = rx * (PlayerEntity.CollisionRadiusY / PlayerEntity.CollisionRadiusX);
+                if (EntityOverlapsPlot(center, feet, rx, ry))
+                {
+                    reason = "Clear creatures from the plot first.";
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool EntityOverlapsPlot(Vector2 center, Vector2 feet, float rx, float ry)
+    {
+        if (HousingCollision.OverlapsHouseBody(feet, center, rx, ry, allowDoorApproach: false))
+            return true;
+        return HomesteadFence.Overlaps(feet, center, rx, ry);
     }
 
     private static bool NearTownExclusion(Vector2 world)
@@ -110,6 +163,12 @@ public static class HousePlacement
                 reason = DescribeBlocked(map, s);
                 return false;
             }
+        }
+
+        if (WorldFoliage.PlotOverlapsFoliage(center, HousingConstants.PlotHalfW, HousingConstants.PlotHalfH))
+        {
+            reason = "Clear tree trunks from the plot first.";
+            return false;
         }
 
         return true;

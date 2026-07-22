@@ -43,6 +43,18 @@ public sealed class WelcomeData
 
     [JsonPropertyName("inventory")]
     public List<InventoryItemState>? Inventory { get; set; }
+
+    [JsonPropertyName("hp")]
+    public double Hp { get; set; }
+
+    [JsonPropertyName("hpMax")]
+    public double HpMax { get; set; }
+
+    [JsonPropertyName("stamina")]
+    public double Stamina { get; set; }
+
+    [JsonPropertyName("mana")]
+    public double Mana { get; set; }
 }
 
 public sealed class InventoryItemState

@@ -272,6 +272,31 @@ public static class WorldClouds
         sb.Draw(_texture, bodyScreen, bodyRect, Color.White * bodyAlpha, 0f, bodyOrigin, drawScale, SpriteEffects.None, 0f);
     }
 
+    /// <summary>
+    /// Farm RPG cloud puffs under a Walk-the-veil ghost: platform under the feet,
+    /// smaller trailing puff below. Screen-space (ghost already projected).
+    /// </summary>
+    public static void DrawVeilSupportClouds(SpriteBatch sb, Vector2 ghostScreenPos, float zoom, Color tint)
+    {
+        if (_texture == null) return;
+
+        var tiny = VariantTemplate[TinyVariant];
+        // Origin at top-center so the platform top lines up with the ghost's feet.
+        var origin = new Vector2(tiny.BodyRect.Width * 0.5f, 0f);
+
+        // Platform the ghost stands on — tuck into the soles.
+        var platformScale = 6.0f * zoom;
+        var platformPos = ghostScreenPos + new Vector2(0f, -4f * zoom);
+        sb.Draw(_texture, platformPos, tiny.BodyRect, tint, 0f, origin, platformScale, SpriteEffects.None, 0f);
+
+        // Smaller trailing puff — hug closer under the platform.
+        var bottomScale = 4.2f * zoom;
+        var platformBottomY = platformPos.Y + tiny.BodyRect.Height * platformScale;
+        var bottomPos = new Vector2(ghostScreenPos.X + 2f * zoom, platformBottomY - 10f * zoom);
+        var bottomTint = tint * 0.72f;
+        sb.Draw(_texture, bottomPos, tiny.BodyRect, bottomTint, 0f, origin, bottomScale, SpriteEffects.None, 0f);
+    }
+
     private static readonly List<CloudInstance> VisibleScratch = [];
 
     public static void Draw(

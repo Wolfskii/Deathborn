@@ -21,6 +21,9 @@ type InputData struct {
 	DirX    float64 `json:"dirX"`
 	DirY    float64 `json:"dirY"`
 	Running bool    `json:"running,omitempty"`
+	// Optional client-side resources mirrored for logout persistence.
+	Stamina *float64 `json:"stamina,omitempty"`
+	Mana    *float64 `json:"mana,omitempty"`
 }
 
 // CreateCharacterData is sent on the "create_character" message.
@@ -226,6 +229,16 @@ type WelcomeData struct {
 	Skills      map[string]int64     `json:"skills,omitempty"`
 	TotalXp     int64                `json:"totalXp,omitempty"`
 	Inventory   []game.InventoryItem `json:"inventory,omitempty"`
+	Hp          float64              `json:"hp,omitempty"`
+	HpMax       float64              `json:"hpMax,omitempty"`
+	Stamina     float64              `json:"stamina,omitempty"`
+	Mana        float64              `json:"mana,omitempty"`
+}
+
+// LogoutData may include client-side vitals so they persist with the logout save.
+type LogoutData struct {
+	Stamina *float64 `json:"stamina,omitempty"`
+	Mana    *float64 `json:"mana,omitempty"`
 }
 
 // InventoryData syncs a player's inventory to the client.
