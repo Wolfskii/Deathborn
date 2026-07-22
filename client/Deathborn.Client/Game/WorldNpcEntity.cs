@@ -81,11 +81,16 @@ public sealed class WorldNpcEntity
         EnsureAnimationBound();
         if (Action == "melee" && prevAction != "melee")
         {
+            if (MathF.Abs((float)s.DirX) > 0.01f || MathF.Abs((float)s.DirY) > 0.01f)
+                Facing = Vector2.Normalize(new Vector2((float)s.DirX, (float)s.DirY));
             _anim?.BeginMeleeAttack();
             _slimeAnim?.BeginMeleeAttack();
         }
-        if (MathF.Abs((float)s.DirX) > 0.01f || MathF.Abs((float)s.DirY) > 0.01f)
+        else if (Action != "melee"
+            && (MathF.Abs((float)s.DirX) > 0.01f || MathF.Abs((float)s.DirY) > 0.01f))
+        {
             Facing = Vector2.Normalize(new Vector2((float)s.DirX, (float)s.DirY));
+        }
     }
 
     /// <summary>
@@ -140,6 +145,12 @@ public sealed class WorldNpcEntity
 
     private Vector2 GetDrawFacing()
     {
+        // Hold server aim for the whole lunge so client lerp cannot spin the sprite mid-attack.
+        if (Action == "melee"
+            || _slimeAnim is { IsMeleeActive: true }
+            || _anim is { IsMeleeActive: true })
+            return Facing.LengthSquared() > 0.01f ? Facing : new Vector2(0, 1);
+
         if (_moving)
         {
             var delta = Target - Position;
@@ -198,7 +209,7 @@ public sealed class WorldNpcEntity
     private void DrawOverheadUi(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
     {
         var label = SpriteFontSafe.Filter(Name);
-        const float labelScale = 0.85f;
+        const float labelScale = 1.0f;
         var hasName = !string.IsNullOrWhiteSpace(label);
         var size = hasName ? SpriteFontSafe.MeasureString(font, label) * labelScale : Vector2.Zero;
         if (!hasName && !ShouldShowOverheadHp()) return;

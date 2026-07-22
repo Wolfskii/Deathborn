@@ -349,10 +349,12 @@ func (w *World) tickMobCombatLocked(m *mob, dt float64) []BossEvent {
 				}
 			}
 		}
+		w.faceMobToward(m, target.x, target.y)
 		return nil
 	}
 
 	if m.actionT > 0 {
+		w.faceMobToward(m, target.x, target.y)
 		return nil
 	}
 

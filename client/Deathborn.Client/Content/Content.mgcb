@@ -21,6 +21,29 @@
 
 #end Fonts/Default.spritefont
 
+#begin Fonts/Small.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Color
+/build:Fonts/Small.spritefont
+
+#end Fonts/Small.spritefont
+
+#begin Weather/rain.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Weather/rain.png
+
+#end Weather/rain.png
+
 #begin Images/Logos/Banners/Banner V2.png
 /importer:TextureImporter
 /processor:TextureProcessor

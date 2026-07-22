@@ -286,7 +286,7 @@ public static class WorldClouds
 
         // Platform the ghost stands on — tuck into the soles.
         var platformScale = 6.0f * zoom;
-        var platformPos = ghostScreenPos + new Vector2(0f, -4f * zoom);
+        var platformPos = ghostScreenPos + new Vector2(0f, -7f * zoom);
         sb.Draw(_texture, platformPos, tiny.BodyRect, tint, 0f, origin, platformScale, SpriteEffects.None, 0f);
 
         // Smaller trailing puff — hug closer under the platform.

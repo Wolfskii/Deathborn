@@ -68,7 +68,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private Vector2 _camera;
     private Vector2 _moveDir;
     private float _inputAccum;
-    private string _status = "Connected. WASD to move. [F] friends. Right-click players. Enter to chat. Space or click to attack. [E] to interact.";
+    private string _status = "Connected. WASD to move. [G] friends. [F] rain. Right-click players. Enter to chat. Space or click to attack. [E] to interact.";
     private string _interactPrompt = "";
     private InteractableEntity? _focused;
     private InteractableEntity? _hovered;
@@ -378,6 +378,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (windowActive && !chatOpen && kb.IsKeyDown(Keys.M) && !_prevKb.IsKeyDown(Keys.M) && InteriorHouse() == null)
             _worldMap.Toggle();
 
+        if (windowActive && !chatOpen && kb.IsKeyDown(Keys.F) && !_prevKb.IsKeyDown(Keys.F))
+            WorldRain.Toggle();
+
         if (menuOpen && _worldMap.IsOpen)
             _worldMap.Close();
 
@@ -396,6 +399,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         WorldFoliage.Update(dt);
         DevPerfLog.Mark("clouds");
         WorldClouds.Update(dt, WorldMap.SwaroviaMainland);
+        WorldRain.Update(dt);
         DevPerfLog.Mark("zone");
         UpdateZonePresence(localEntity);
 
@@ -638,7 +642,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (interiorHouse != null)
             DrawInteriorWorld(sb, font, interiorHouse, zoom);
         else
+        {
             DrawExteriorWorld(sb, font, game, gameTime, zoom);
+            WorldRain.Draw(sb);
+        }
 
         if (TiledMapPreview.IsActive && interiorHouse == null)
             DrawTiledMapPreview(sb, game, gameTime, zoom);
@@ -1467,7 +1474,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
 
         sb.Begin(samplerState: SamplerState.PointClamp);
-        _worldMap.Draw(sb, font, local.Position, _npcs.Values, LocalHomestead());
+        _worldMap.Draw(sb, font, DeathbornGame.Instance.FontSmall, local.Position, _npcs.Values, LocalHomestead());
         sb.End();
     }
 

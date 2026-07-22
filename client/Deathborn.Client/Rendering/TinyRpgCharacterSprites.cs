@@ -58,6 +58,8 @@ public sealed class TinyRpgStripAnimation
         _meleeFrame = 0;
     }
 
+    public bool IsMeleeActive => _meleeActive;
+
     public void BeginDamageFlash()
     {
         _damageFlashActive = true;

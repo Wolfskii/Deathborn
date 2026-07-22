@@ -18,6 +18,64 @@ Client-only presentation (cooldowns, names, VFX timing) may stay in `AbilityCata
 
 ---
 
+## Asset drop zone (`import/`)
+
+Repo-root [`import/`](import/) is the **staging inbox** for raw drops: sound effects, music, sprites, tiles, fonts, UI art, etc.
+
+### Workflow
+
+1. You (or the user) drop files/folders into `import/` — pack layout and vendor names are fine here.
+2. When the user says to use / install something from `import/`, the agent **moves or copies** it into the correct runtime tree under `client/Deathborn.Client/Content/`.
+3. **Sort and categorize** into child dirs matching existing conventions (do not dump everything flat).
+4. **Strip pack / company / shop names** from destination folder and file names. Runtime paths must be Deathborn-owned (role + category), not vendor branding.
+5. Register new loadable assets in `Content.mgcb` when required; wire code/loaders if needed.
+6. Keep a short license note next to the installed asset when the drop includes one (e.g. `*.LICENSE` beside fonts).
+7. After a successful install, remove the processed items from `import/` (leave unrelated drops alone).
+
+`import/` contents are **gitignored** (except `import/README.md`) — staging only. Committed runtime assets live under `Content/`.
+
+### Naming rules (destinations)
+
+| Bad (do not use) | Good |
+|------------------|------|
+| `…/FarmRpg/…`, `…/Farm RPG - Tiny Asset Pack…` | `Characters/Enemies/slimes/`, `Tiles/grass/`, `Decorations/trees/` |
+| `…/TinyRpg/…`, `…/Rpg/` as pack label | `Characters/Npcs/`, role-based folders |
+| `font_Pix3M_ccby/alagard.ttf` | `Fonts/alagard.ttf` (optional `Fonts/pixel/` if grouping) |
+| Pack-prefixed filenames (`farmrpg_grass.png`) | Descriptive names (`grass_elev1.png`, `sword-swing-sfx.mp3`) |
+
+Existing legacy paths that still contain `FarmRpg` / vendor folders are historical; **new installs from `import/` must not add pack names**. Prefer matching the cleanest nearby convention, or a role-based folder if none fits.
+
+### Where things go
+
+| Kind | Destination under `Content/` | Notes |
+|------|------------------------------|--------|
+| Sound effects | `Audio/Sfx/<Category>/` | Categories today: `Battle`, `Heal`, `World`. Add a new category folder only when none fit. Prefer `*-sfx.mp3` (or match neighbors). |
+| Music | `Audio/Songs/` | Full tracks / loops. |
+| Fonts | `Fonts/` | `.ttf` / `.otf` + license file; SpriteFont defs as `.spritefont` when needed. |
+| Player / NPC / enemy sprites | `Characters/…` | By role: layers, enemies, buildings, npcs — **no pack name in path**. |
+| Tiles / terrain | `Tiles/…` | Group by set or biome (`grass`, `water`, `house`, …). |
+| Props / foliage | `Decorations/…` | Trees, bushes, rocks, etc. |
+| UI chrome | `Ui/…` | Panels, HUD, inventory frames. |
+| Logos / marketing art | `Images/…` | e.g. `Images/Logos/`. |
+| Icon atlases | `Icons/` | Ability / cosmetic sheets. |
+| Cursors | `Cursors/` | |
+| Tiled maps | `Maps/…` | Follow existing dungeon / overworld layout. |
+
+If unsure which category: inspect siblings under `Content/`, then ask only when the choice would be ambiguous or overwrite existing assets.
+
+### Install checklist (agents)
+
+When the user points at `import/…`:
+
+1. List what was dropped and infer type(s).
+2. Choose destination dirs using the table above; create child folders as needed.
+3. Rename paths/files to strip company/pack/shop/author branding (keep descriptive asset names and license attribution files).
+4. Copy/move into `Content/…`, update `Content.mgcb`, and update loaders/code if paths changed.
+5. Delete the processed drop from `import/`.
+6. Summarize what landed where.
+
+---
+
 ## Player character sprites (Farm RPG)
 
 **Active player pipeline** — modular Farm RPG layers only. Legacy Swordsman V1/V2 systems have been removed.

@@ -17,6 +17,8 @@ public sealed class FarmRpgSlimeAnimation
     private readonly Texture2D? _dead;
     private readonly int _idleFrames;
     private readonly int _walkFrames;
+    /// <summary>One hop/lunge cycle — long strips repeat the same bounce 3×; melee must not play all of them.</summary>
+    private readonly int _lungeFrames;
     private readonly int _damageFrames;
     private readonly int _deadFrames;
     private readonly float _footSortOffsetFromAnchor;
@@ -44,8 +46,21 @@ public sealed class FarmRpgSlimeAnimation
         _footSortOffsetFromAnchor = footSortOffsetFromAnchor;
         _idleFrames = Math.Max(1, idle.Width / FrameSize);
         _walkFrames = Math.Max(1, walk.Width / FrameSize);
+        _lungeFrames = ResolveLungeFrames(_walkFrames);
         _damageFrames = Math.Max(1, damage.Width / FrameSize);
         _deadFrames = dead != null ? Math.Max(1, dead.Width / FrameSize) : 1;
+    }
+
+    /// <summary>
+    /// Walk strips are often 12 frames = 3× the same 4-frame hop. Playing the whole strip
+    /// as a melee lunge looks like the slime turns away mid-attack (especially vs a player to the north).
+    /// </summary>
+    private static int ResolveLungeFrames(int walkFrames)
+    {
+        const int hop = 4;
+        if (walkFrames > hop && walkFrames % hop == 0)
+            return hop;
+        return Math.Max(1, walkFrames);
     }
 
     public float GetFootSortY(Vector2 position, float worldScale) =>
@@ -59,6 +74,8 @@ public sealed class FarmRpgSlimeAnimation
         _timer = 0f;
     }
 
+    public bool IsMeleeActive => _meleeActive;
+
     public void BeginDamageFlash()
     {
         _damageFlashActive = true;
@@ -68,7 +85,9 @@ public sealed class FarmRpgSlimeAnimation
 
     public void Update(float dt, Vector2 facing, bool moving, float animSpeed = 1f)
     {
-        UpdateFacing(facing);
+        // Freeze aim during lunge/damage so interpolation jitter cannot flip the sprite mid-attack.
+        if (!_meleeActive && !_damageFlashActive)
+            UpdateFacing(facing);
 
         if (_damageFlashActive)
         {
@@ -82,11 +101,11 @@ public sealed class FarmRpgSlimeAnimation
 
         if (_meleeActive)
         {
-            // Lunge uses walk frames — damage sheet is for taking hits only.
+            // Single hop/lunge only — not the full multi-cycle walk strip.
             var meleeFrameDuration = 0.09f / MathF.Max(0.1f, animSpeed);
             _meleeTimer += dt;
-            _frame = Math.Min(_walkFrames - 1, (int)(_meleeTimer / meleeFrameDuration));
-            if (_meleeTimer >= meleeFrameDuration * _walkFrames)
+            _frame = Math.Min(_lungeFrames - 1, (int)(_meleeTimer / meleeFrameDuration));
+            if (_meleeTimer >= meleeFrameDuration * _lungeFrames)
                 _meleeActive = false;
             return;
         }
@@ -141,7 +160,7 @@ public sealed class FarmRpgSlimeAnimation
         else if (_meleeActive)
         {
             tex = _walk;
-            frames = _walkFrames;
+            frames = _lungeFrames;
             frame = _frame;
         }
         else if (_moving)

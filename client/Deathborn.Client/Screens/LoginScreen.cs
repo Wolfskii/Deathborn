@@ -217,10 +217,11 @@ public sealed class LoginScreen : IScreen
 
         var versionLine =
             $"Client {ProtocolCompat.ClientRelease} (protocol {ProtocolCompat.Protocol})";
-        var versionSize = font.MeasureString(versionLine) * 0.72f;
-        sb.DrawString(font, versionLine,
+        var versionFont = game.FontSmall;
+        var versionSize = versionFont.MeasureString(versionLine);
+        sb.DrawString(versionFont, versionLine,
             new Vector2(cx - versionSize.X / 2f, GameViewport.Height - versionSize.Y - 10),
-            new Color(120, 110, 100), 0f, Vector2.Zero, 0.72f, SpriteEffects.None, 0f);
+            new Color(120, 110, 100));
 
         _clientUpdate.Draw(sb, font);
 

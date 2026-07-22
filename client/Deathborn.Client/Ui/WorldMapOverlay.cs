@@ -33,6 +33,7 @@ public sealed class WorldMapOverlay
     public void Draw(
         SpriteBatch sb,
         SpriteFont font,
+        SpriteFont fontSmall,
         Vector2 playerWorldPos,
         IEnumerable<WorldNpcEntity>? npcs = null,
         HousePlotZone? homestead = null)
@@ -49,8 +50,8 @@ public sealed class WorldMapOverlay
         DrawBorder(sb, new Rectangle(panel.X + 5, panel.Y + 5, panel.Width - 10, panel.Height - 10), GoldDim, 1);
 
         WorldMap.SwaroviaMainland.DrawOverlay(sb, _mapBounds, playerWorldPos);
-        DrawTownMarkers(sb, font);
-        DrawHouseMarkers(sb, font, homestead);
+        DrawTownMarkers(sb, fontSmall);
+        DrawHouseMarkers(sb, fontSmall, homestead);
         DrawNpcMarkers(sb, npcs);
 
         var title = "World Map";
@@ -66,7 +67,7 @@ public sealed class WorldMapOverlay
             new Color(190, 190, 200));
     }
 
-    private void DrawHouseMarkers(SpriteBatch sb, SpriteFont font, HousePlotZone? homestead)
+    private void DrawHouseMarkers(SpriteBatch sb, SpriteFont fontSmall, HousePlotZone? homestead)
     {
         if (homestead == null) return;
 
@@ -75,10 +76,9 @@ public sealed class WorldMapOverlay
         HomesteadMapIcon.Draw(sb, pos, 0.85f);
 
         var label = SpriteFontSafe.Filter("Your Homestead");
-        var size = SpriteFontSafe.MeasureString(font, label) * 0.55f;
+        var size = SpriteFontSafe.MeasureString(fontSmall, label);
         var labelPos = new Vector2(pos.X - size.X / 2f, pos.Y + 8f);
-        SpriteFontSafe.DrawString(sb, font, label, labelPos, new Color(180, 210, 235),
-            0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
+        SpriteFontSafe.DrawString(sb, fontSmall, label, labelPos, new Color(180, 210, 235));
     }
 
     private void DrawNpcMarkers(SpriteBatch sb, IEnumerable<WorldNpcEntity>? npcs)
@@ -99,7 +99,7 @@ public sealed class WorldMapOverlay
         }
     }
 
-    private void DrawTownMarkers(SpriteBatch sb, SpriteFont font)
+    private void DrawTownMarkers(SpriteBatch sb, SpriteFont fontSmall)
     {
         if (WorldZones.Towns.Count == 0)
             WorldZones.Initialize(WorldMap.SwaroviaMainland);
@@ -112,10 +112,9 @@ public sealed class WorldMapOverlay
             DrawPrimitives.DrawCircleOutline(sb, pos, 5f, new Color(0.18f, 0.42f, 0.28f, 0.95f), 14, 1.5f);
 
             var label = SpriteFontSafe.Filter(town.Name);
-            var size = SpriteFontSafe.MeasureString(font, label) * 0.55f;
+            var size = SpriteFontSafe.MeasureString(fontSmall, label);
             var labelPos = new Vector2(pos.X - size.X / 2f, pos.Y + 7f);
-            SpriteFontSafe.DrawString(sb, font, label, labelPos, new Color(210, 225, 200),
-                0f, Vector2.Zero, 0.55f, SpriteEffects.None, 0f);
+            SpriteFontSafe.DrawString(sb, fontSmall, label, labelPos, new Color(210, 225, 200));
         }
     }
 

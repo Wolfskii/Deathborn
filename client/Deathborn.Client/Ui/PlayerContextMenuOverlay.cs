@@ -100,7 +100,7 @@ public sealed class PlayerContextMenuOverlay
             TinySwordsUi.DrawRibbon(sb, titleRibbon, TinySwordsUi.RibbonKind.Steel, pointed: false);
             var name = TargetName.Length > 16 ? TargetName[..13] + "..." : TargetName;
             sb.DrawString(font, SpriteFontSafe.Filter(name), new Vector2(titleRibbon.X + 10, titleRibbon.Y + 5),
-                new Color(240, 235, 220), 0f, Vector2.Zero, 0.85f, SpriteEffects.None, 0f);
+                new Color(240, 235, 220));
 
             var y = _bounds.Y + Pad + 30;
             foreach (var item in _items)
