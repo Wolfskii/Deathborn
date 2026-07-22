@@ -184,9 +184,13 @@ public sealed class SpellProjectile : IWorldEffect
         // Sheets face left; rotate so the head leads the velocity. No flip needed for right —
         // Pi offset handles all directions including rightward.
         var angle = MathF.Atan2(Direction.Y, Direction.X) + ProjectileSprites.BallArtFacingOffset;
-        // Frame cells are wide and short (~68×9); size by length so they stay near hit radius.
-        var targetLen = MathF.Max(18f, Definition.Radius * 1.15f * zoom);
-        var scale = targetLen / MathF.Max(1f, src.Width);
+        // Fly cells are wide/short (~68×9). Size by thickness vs hit radius, then cap length
+        // so they read clearly without becoming screen-filling streaks.
+        var targetH = MathF.Max(16f, Definition.Radius * 0.85f * zoom);
+        var scale = targetH / MathF.Max(1f, src.Height);
+        var maxLen = MathF.Max(56f, Definition.Radius * 3.4f * zoom);
+        if (src.Width * scale > maxLen)
+            scale = maxLen / MathF.Max(1f, src.Width);
         var origin = ProjectileSprites.BallFlyOrigin(src);
         sb.Draw(tex, screenPos, src, Color.White, angle, origin, scale, SpriteEffects.None, 0f);
         return true;
@@ -198,7 +202,7 @@ public sealed class SpellProjectile : IWorldEffect
         if (ProjectileSprites.TryGetBallBurstFrame(Style, t, out var tex, out var src))
         {
             var alpha = 1f - t * 0.85f;
-            var targetH = MathF.Max(16f, Definition.Radius * (1.4f + t * 1.6f) * zoom);
+            var targetH = MathF.Max(22f, Definition.Radius * (1.6f + t * 1.8f) * zoom);
             var scale = targetH / MathF.Max(1f, src.Height);
             var origin = new Vector2(src.Width * 0.5f, src.Height * 0.55f);
             sb.Draw(tex, screenPos, src, Color.White * alpha, 0f, origin, scale, SpriteEffects.None, 0f);
