@@ -3,21 +3,23 @@ using Deathborn.Client.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended.Tilemaps;
+using System.Text.RegularExpressions;
 
 namespace Deathborn.Client.Maps;
 
 /// <summary>
 /// Draws the authored Swarovia mainland Tiled map (WYSIWYG tiles, no elevation autotile).
 /// Farm RPG art is 16 px; world cells are 32 px — stretch each tile to the screen cell rect.
-/// Static Ground tiles are baked into a padded render-target; animated Water is drawn live.
+/// Static ground_* layers are baked into a padded render-target; water_* is drawn live.
+/// Layer names are free; gameplay/render groups use Tiled class ground_N / water_N.
 /// </summary>
 public static class TiledOverworldRenderer
 {
     public const string MapId = "swarovia_mainland";
 
     private const int CachePadTiles = 8;
-    private const string WaterLayer = "Water";
-    private const string GroundLayer = "Ground";
+    private static readonly Regex WaterClass = new(@"^water_(\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex GroundClass = new(@"^ground_(\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static RenderTarget2D? _cache;
     private static int _cacheMinTx, _cacheMaxTx, _cacheMinTy, _cacheMaxTy;
@@ -42,8 +44,8 @@ public static class TiledOverworldRenderer
             RebuildGroundCache(spriteBatch, graphicsDevice, map, region);
         }
 
-        // Animated water — live each frame (avoids rebuilding the RT every 0.2s).
-        DrawLayerScreen(spriteBatch, map, WaterLayer, region);
+        // Animated / open water — live each frame (avoids rebuilding the RT every anim tick).
+        DrawMatchingLayersScreen(spriteBatch, map, region, water: true);
 
         if (_cache == null)
             return;
@@ -111,7 +113,7 @@ public static class TiledOverworldRenderer
         graphicsDevice.Clear(Color.Transparent);
         spriteBatch.Begin(samplerState: SamplerState.PointClamp);
 
-        DrawLayerToCache(spriteBatch, map, GroundLayer, minTx, minTy, maxTx, maxTy, tileSize);
+        DrawMatchingLayersToCache(spriteBatch, map, minTx, minTy, maxTx, maxTy, tileSize, water: false);
 
         spriteBatch.End();
         graphicsDevice.SetRenderTargets(prevTargets);
@@ -121,6 +123,59 @@ public static class TiledOverworldRenderer
         _cacheMaxTx = maxTx;
         _cacheMinTy = minTy;
         _cacheMaxTy = maxTy;
+    }
+
+    private static bool IsWaterLayer(TilemapLayer layer)
+    {
+        if (!string.IsNullOrEmpty(layer.Class) && WaterClass.IsMatch(layer.Class))
+            return true;
+        // Legacy name fallback when classes are missing.
+        return string.IsNullOrEmpty(layer.Class)
+            && (layer.Name is "Water" or "Sea");
+    }
+
+    private static bool IsGroundLayer(TilemapLayer layer)
+    {
+        if (!string.IsNullOrEmpty(layer.Class) && GroundClass.IsMatch(layer.Class))
+            return true;
+        return string.IsNullOrEmpty(layer.Class)
+            && (layer.Name is "Ground" or "Land");
+    }
+
+    private static void DrawMatchingLayersScreen(
+        SpriteBatch spriteBatch,
+        TiledMapInstance map,
+        VisibleTileRegion region,
+        bool water)
+    {
+        foreach (var layer in map.Map.Layers)
+        {
+            if (layer is not TilemapTileLayer)
+                continue;
+            if (water ? !IsWaterLayer(layer) : !IsGroundLayer(layer))
+                continue;
+            DrawLayerScreen(spriteBatch, map, layer.Name, region);
+        }
+    }
+
+    private static void DrawMatchingLayersToCache(
+        SpriteBatch spriteBatch,
+        TiledMapInstance map,
+        int minTx,
+        int minTy,
+        int maxTx,
+        int maxTy,
+        int tileSize,
+        bool water)
+    {
+        foreach (var layer in map.Map.Layers)
+        {
+            if (layer is not TilemapTileLayer)
+                continue;
+            if (water ? !IsWaterLayer(layer) : !IsGroundLayer(layer))
+                continue;
+            DrawLayerToCache(spriteBatch, map, layer.Name, minTx, minTy, maxTx, maxTy, tileSize);
+        }
     }
 
     private static void DrawLayerToCache(

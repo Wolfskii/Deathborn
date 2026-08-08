@@ -173,7 +173,7 @@ Authoritative reference: [`.tile_debug/farmrpg_guide.json`](.tile_debug/farmrpg_
 - **Tile size:** 16×16 px art (world collision grid uses **32 px** cells; renderer scales 2×).
 - **Vendor pack:** `Content/Characters/Farm RPG - Tiny Asset Pack - (All in One)/Tileset/`
 - **Runtime tiles:** `Content/Tiles/FarmRpg/` (installed via `scripts/install_farm_rpg_terrain.py`)
-- **Elevation levels:** `-1` water, `0` sea shoreline, `1` base land, `2–4` plateaus (spring → summer → fall → deep forest palettes).
+- **Elevation levels:** Tiled authoring uses `ground_N` / `water_N` (N≥1); import writes elevation **N** for both (water stays non-walkable). Empty cells → `-1`. Legacy autotile/generators may still use `0` shoreline.
 - **Grass autotile origin:** column 5, row 1; plain fill cell (9, 2). Do **not** use (4, 14) — that is tilled soil.
 - **Shoreline:** grass↔water transitions from `grass_water.png` land origin (4, 8).
 - **Water fill:** solid `water_fill.png` (16×16 cyan tile).
@@ -252,7 +252,7 @@ Keep client and server ramp logic in sync when changing engagement rules.
 | Mistake | Symptom | Fix location |
 |---------|---------|--------------|
 | `File.GetLastWriteTimeUtc` every `SwaroviaMainland` access | Update stalls | `WorldMap` — cache after load; use `ReloadFromDisk()` for manual reload |
-| Rebuild full tiled overworld RT every water anim tick (~0.2s) | Draw/update spikes | `TiledOverworldRenderer` — cache Ground; draw Water live |
+| Rebuild full tiled overworld RT every water anim tick (~0.2s) | Draw/update spikes | `TiledOverworldRenderer` — cache `ground_*`; draw `water_*` live |
 | Sync `AutoFlush` / IDE-watched FPS log on game thread | Hitch storms from logging itself | `DevPerfLog` — async queue writer |
 
 ### Ellipse vs tiles / props (corners)
@@ -283,25 +283,44 @@ The overworld is drawn from `Maps/overworld/swarovia_mainland.tmx` at runtime. W
 python scripts/install_farm_rpg_terrain.py
 ```
 
-**One-time export (seeds Ground layer from current elevation bins):**
+**One-time export (seeds Sea + Land from current collision bins):**
 
 ```bash
 python scripts/export_realik_to_tiled.py
 # or: task world:export-tiled
 ```
 
-Opens: `client/Deathborn.Client/Content/Maps/overworld/swarovia_mainland.tmx` (1024×1024, 32 px cells). Use **Water** + **Ground** tile layers. Layer data is stored as **base64+gzip** (Tiled’s native format for large maps).
+Opens: `client/Deathborn.Client/Content/Maps/overworld/swarovia_mainland.tmx` (1024×1024, 32 px cells). Layer data is stored as **base64+gzip** (Tiled’s native format for large maps).
 
-Export seeds **uniform plain grass + water** from collision (no elevation shore rings or town icon circles). Pass `--reference` only if you want the art overlay with town icons for tracing.
+#### Layer classes (gameplay height)
 
-Paint on the **Ground** layer using the Farm RPG grass, water, cliff, and shoreline tilesets. The export only seeds plain grass/water fills — you hand-paint cliffs, shores, and palette changes.
+Layer **names** are free (`Sea`, `Land`, …). Import and rendering key off the Tiled **class**:
 
-**Tile properties (optional, for walkability on import):**
+| Class | Meaning |
+|-------|---------|
+| `ground_1` | Base land (main continent height) |
+| `water_1` | Water at the same height as `ground_1` (open sea) |
+| `ground_2` | One elevation tier above `ground_1` |
+| `water_2` | Water at that higher tier (e.g. lake on a plateau) |
+| `ground_N` / `water_N` | Same pattern for higher tiers |
+
+Export seeds locked **Sea** (`water_1`) + **Land** (`ground_1`) with uniform plain grass / water. Pass `--reference` only if you want the art overlay with town icons for tracing.
+
+Paint land on `ground_*` layers; put open water / lakes on `water_*`. Add new tile layers in Tiled and set **Class** to `ground_2`, `water_2`, etc. when you need higher land or elevated water (swimming / fishing later).
+
+**Import rules (per cell):**
+
+1. Among painted `ground_N` / `water_N` tiles, the **highest N** wins.
+2. At the same N, **ground beats water**.
+3. `ground_N` → walkable (unless the tile’s `walkable` prop is false, e.g. cliffs) and elevation **N**.
+4. `water_N` → non-walkable, elevation **N** (height preserved for future water gameplay).
+5. Empty cells → non-walkable ocean, elevation **-1**.
+
+**Optional tile properties** (still used on `ground_*` for cliffs / blockers):
 
 | Property | Type | Meaning |
 |----------|------|---------|
-| `walkable` | bool | Whether players can stand here |
-| `elevation` | int | Gameplay elevation (-1 water, 0 shore, 1+ land) |
+| `walkable` | bool | Whether players can stand here (cliffs = false) |
 
 **After editing in Tiled:**
 
@@ -310,7 +329,7 @@ python scripts/import_tiled_overworld.py
 # or: task world:import-tiled
 ```
 
-This writes `shared/world/swarovia_mainland_collision.bin` + `swarovia_mainland_elevation.bin` from tile properties and syncs server copies. **Restart the client** to reload the map.
+This writes `shared/world/swarovia_mainland_collision.bin` + `swarovia_mainland_elevation.bin` from layer classes and syncs server copies. **Restart the client** to reload the map.
 
 ### Dungeons / instanced rooms
 
@@ -356,11 +375,11 @@ Copy `.tmx`, `.tsx`, and referenced tileset `.png` files under `Content/Maps/` (
 | `Maps/TiledMapCatalog.cs` | Loads maps from manifest via runtime `TiledTmxParser` |
 | `Maps/TiledMapInstance.cs` | Renderer wrapper + collision helpers |
 | `Maps/TiledMapMetadata.cs` | Parses `Collision` / `Objects` layers |
-| `Maps/TiledOverworldRenderer.cs` | Draws Swarovia mainland from Tiled (replaces autotile) |
+| `Maps/TiledOverworldRenderer.cs` | Draws Swarovia mainland from Tiled (`water_*` live, `ground_*` cached) |
 | `Maps/TiledMapPreview.cs` | F11 dev overlay |
 | `Game/WorldBackgroundRenderer.cs` | Overworld background — Tiled map or autotile fallback |
-| `scripts/export_realik_to_tiled.py` | Export overworld bins → painted `swarovia_mainland.tmx` |
-| `scripts/import_tiled_overworld.py` | Import Ground layer → walkability + elevation bins |
+| `scripts/export_realik_to_tiled.py` | Export overworld bins → Sea (`water_1`) + Land (`ground_1`) |
+| `scripts/import_tiled_overworld.py` | Import `ground_N` / `water_N` classes → walkability + elevation bins |
 | `scripts/register_tiled_maps.py` | Adds dungeon map entries to manifest |
 
 ### Overworld vs Tiled

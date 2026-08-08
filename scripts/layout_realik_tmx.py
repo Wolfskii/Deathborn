@@ -20,6 +20,7 @@ from tiled_overworld_io import (
     crop_gids,
     ensure_farmrpg_tiles,
     layout_tilesets,
+    parse_classified_tile_layers,
     parse_tile_layers,
     scale_gids_nearest,
     write_overworld_tmx_layers,
@@ -35,21 +36,54 @@ def main() -> None:
     parser.add_argument("--tmx", type=Path, default=TMX)
     parser.add_argument("--size", type=int, default=1024, help="Output map width/height in tiles")
     parser.add_argument("--scale", type=int, default=2, help="Nearest-neighbor upscale for land content")
-    parser.add_argument("--ground-layer", default="Ground")
-    parser.add_argument("--water-layer", default="Water")
+    parser.add_argument("--ground-layer", default="", help="Override ground layer name (default: first ground_*)")
+    parser.add_argument("--water-layer", default="", help="Override water layer name (default: first water_*)")
     args = parser.parse_args()
 
     if not args.tmx.exists():
         raise SystemExit(f"TMX not found: {args.tmx}")
 
-    src_tw, src_th, layers = parse_tile_layers(args.tmx)
-    if args.ground_layer not in layers:
-        raise SystemExit(f"Layer '{args.ground_layer}' not found in {args.tmx}")
+    src_tw, src_th, classified = parse_classified_tile_layers(args.tmx)
+    ground_name = args.ground_layer
+    water_name = args.water_layer
+    ground_class = "ground_1"
+    water_class = "water_1"
 
-    ground = layers[args.ground_layer]
+    if classified:
+        grounds = [layer for layer in classified if layer.kind == "ground"]
+        waters = [layer for layer in classified if layer.kind == "water"]
+        if not ground_name:
+            if not grounds:
+                raise SystemExit("No ground_N layer found — set --ground-layer")
+            ground_name = grounds[0].name
+            ground_class = grounds[0].class_name
+        else:
+            match = next((layer for layer in grounds if layer.name == ground_name), None)
+            if match:
+                ground_class = match.class_name
+        if not water_name:
+            if waters:
+                water_name = waters[0].name
+                water_class = waters[0].class_name
+            else:
+                water_name = "Sea"
+        else:
+            match = next((layer for layer in waters if layer.name == water_name), None)
+            if match:
+                water_class = match.class_name
+        layer_map = {layer.name: layer.gids for layer in classified}
+    else:
+        src_tw, src_th, layer_map = parse_tile_layers(args.tmx)
+        ground_name = ground_name or ("Land" if "Land" in layer_map else "Ground")
+        water_name = water_name or ("Sea" if "Sea" in layer_map else "Water")
+
+    if ground_name not in layer_map:
+        raise SystemExit(f"Layer '{ground_name}' not found in {args.tmx}")
+
+    ground = layer_map[ground_name]
     bbox = content_bbox(ground)
     if bbox is None:
-        raise SystemExit("Ground layer is empty — nothing to center.")
+        raise SystemExit(f"Layer '{ground_name}' is empty — nothing to center.")
 
     min_x, min_y, max_x, max_y = bbox
     cropped = crop_gids(ground, min_x, min_y, max_x, max_y)
@@ -68,8 +102,8 @@ def main() -> None:
     offset_y = (out_th - scaled_h) // 2
 
     water_gid = 0
-    if args.water_layer in layers:
-        for row in layers[args.water_layer]:
+    if water_name in layer_map:
+        for row in layer_map[water_name]:
             for gid in row:
                 if gid:
                     water_gid = gid
@@ -94,14 +128,17 @@ def main() -> None:
         args.tmx,
         out_tw,
         out_th,
-        {args.water_layer: new_water, args.ground_layer: new_ground},
+        {water_name: new_water, ground_name: new_ground},
         layouts,
-        layer_order=(args.water_layer, args.ground_layer),
+        layer_order=(water_name, ground_name),
+        layer_classes={water_name: water_class, ground_name: ground_class},
+        layer_locked={water_name: True},
     )
 
     print(f"Layout {args.tmx.name}: {src_tw}x{src_th} -> {out_tw}x{out_th}")
     print(f"  land crop {max_x - min_x + 1}x{max_y - min_y + 1} @ ({min_x},{min_y})")
     print(f"  scaled {scaled_w}x{scaled_h}, placed at ({offset_x},{offset_y})")
+    print(f"  layers: {water_name} ({water_class}), {ground_name} ({ground_class})")
     print("Run: py -3 scripts/import_tiled_overworld.py")
 
 

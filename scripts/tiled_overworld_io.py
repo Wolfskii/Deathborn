@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import base64
 import gzip
+import re
 import struct
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
+
+# Layer class convention: ground_1 / water_1 = base height; _2 is one tier higher, etc.
+LAYER_CLASS_RE = re.compile(r"^(ground|water)_(\d+)$", re.IGNORECASE)
 
 TILE_ART_PX = 16
 MAP_TILE_PX = 32
@@ -51,6 +55,18 @@ class TilesetLayout:
 
     def gid(self, col: int, row: int) -> int:
         return self.firstgid + row * self.cols + col
+
+
+@dataclass(frozen=True)
+class ClassifiedLayer:
+    """Tile layer tagged with ground_N / water_N for gameplay height."""
+
+    name: str
+    class_name: str
+    kind: str  # "ground" | "water"
+    level: int
+    gids: list[list[int]]
+    order: int  # document order (0 = bottom)
 
 
 OVERWORLD_TILESETS: tuple[TilesetSpec, ...] = (
@@ -259,6 +275,23 @@ def decode_layer_data(data_el: ET.Element, tw: int, th: int) -> list[list[int]]:
     return gids
 
 
+def parse_layer_class(class_attr: str | None) -> tuple[str, int] | None:
+    """Parse ground_N / water_N. Returns (kind, level) or None."""
+    if not class_attr:
+        return None
+    match = LAYER_CLASS_RE.match(class_attr.strip())
+    if not match:
+        return None
+    level = int(match.group(2))
+    if level < 1:
+        return None
+    return match.group(1).lower(), level
+
+
+def layer_class_name(kind: str, level: int) -> str:
+    return f"{kind}_{level}"
+
+
 def write_overworld_tmx(
     path: Path,
     tw: int,
@@ -268,51 +301,24 @@ def write_overworld_tmx(
     *,
     include_reference: bool = True,
 ) -> None:
-    """Write a Tiled map using gzip layer data (reliable for 353x512 maps)."""
-    payload = encode_layer_gzip(gids)
-    ref_w = ref_h = 0
-    if include_reference and REFERENCE_SRC.exists():
-        dest = path.parent / REFERENCE_NAME
-        dest.write_bytes(REFERENCE_SRC.read_bytes())
-        with Image.open(REFERENCE_SRC) as img:
-            ref_w, ref_h = img.size
-
-    lines = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        f'<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" '
-        f'renderorder="right-down" width="{tw}" height="{th}" '
-        f'tilewidth="{MAP_TILE_PX}" tileheight="{MAP_TILE_PX}" infinite="0" '
-        f'nextlayerid="{"3" if ref_w else "2"}" nextobjectid="1">',
-        " <properties>",
-        f'  <property name="map_id" value="{OVERWORLD_MAP_ID}"/>',
-        '  <property name="title" value="Swarovia Mainland"/>',
-        f'  <property name="tile_size" value="{MAP_TILE_PX}"/>',
-        '  <property name="render_mode" value="painted"/>',
-        f'  <property name="source" value="{OVERWORLD_TMX_NAME}"/>',
-        " </properties>",
+    """Split a flat grass/water gid grid into Sea (water_1) + Land (ground_1)."""
+    water_gid = seed_gid_for_elevation(layouts, -1)
+    water = blank_layer(tw, th, water_gid)
+    ground = [
+        [0 if gid in (0, water_gid) else gid for gid in row]
+        for row in gids
     ]
-    for layout in layouts:
-        lines.append(
-            f' <tileset firstgid="{layout.firstgid}" source="{layout.spec.tsx_name}"/>'
-        )
-    lines.extend(
-        [
-            f' <layer id="1" name="Ground" width="{tw}" height="{th}">',
-            f'  <data encoding="base64" compression="gzip">{payload}</data>',
-            " </layer>",
-        ]
+    write_overworld_tmx_layers(
+        path,
+        tw,
+        th,
+        {"Sea": water, "Land": ground},
+        layouts,
+        layer_order=("Sea", "Land"),
+        layer_classes={"Sea": "water_1", "Land": "ground_1"},
+        layer_locked={"Sea": True},
+        include_reference=include_reference,
     )
-    if ref_w:
-        lines.extend(
-            [
-                ' <imagelayer id="2" name="Reference" locked="1">',
-                f'  <image source="{REFERENCE_NAME}" width="{ref_w}" height="{ref_h}"/>',
-                " </imagelayer>",
-            ]
-        )
-    lines.extend(["</map>", ""])
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def parse_tile_layers(tmx_path: Path) -> tuple[int, int, dict[str, list[list[int]]]]:
@@ -334,15 +340,53 @@ def parse_tile_layers(tmx_path: Path) -> tuple[int, int, dict[str, list[list[int
     return tw, th, layers
 
 
+def parse_classified_tile_layers(tmx_path: Path) -> tuple[int, int, list[ClassifiedLayer]]:
+    """Return tile layers that have a ground_N / water_N class, in document order."""
+    root = ET.parse(tmx_path).getroot()
+    tw = int(root.get("width", "0"))
+    th = int(root.get("height", "0"))
+    if tw <= 0 or th <= 0:
+        raise ValueError(f"invalid map size in {tmx_path}")
+
+    classified: list[ClassifiedLayer] = []
+    for order, el in enumerate(root.findall("layer")):
+        parsed = parse_layer_class(el.get("class"))
+        if parsed is None:
+            continue
+        kind, level = parsed
+        data_el = el.find("data")
+        if data_el is None:
+            continue
+        name = el.get("name") or f"layer_{el.get('id', '0')}"
+        class_name = layer_class_name(kind, level)
+        classified.append(
+            ClassifiedLayer(
+                name=name,
+                class_name=class_name,
+                kind=kind,
+                level=level,
+                gids=decode_layer_data(data_el, tw, th),
+                order=order,
+            )
+        )
+    return tw, th, classified
+
+
 def merge_layer_gids(
     layers: dict[str, list[list[int]]],
     *,
     ground: str = "Ground",
     water: str = "Water",
 ) -> list[list[int]]:
-    """Composite painted layers: ground tiles win; empty cells use water."""
+    """Legacy composite: ground tiles win; empty cells use water (by layer name)."""
     if ground not in layers:
-        raise ValueError(f"layer '{ground}' not found")
+        # Common rename: Land / Sea
+        if "Land" in layers:
+            ground = "Land"
+        else:
+            raise ValueError(f"layer '{ground}' not found")
+    if water not in layers and "Sea" in layers:
+        water = "Sea"
     ground_gids = layers[ground]
     th = len(ground_gids)
     tw = len(ground_gids[0])
@@ -357,6 +401,70 @@ def merge_layer_gids(
             row.append(gid)
         merged.append(row)
     return merged
+
+
+def _classified_cell_wins(challenger: ClassifiedLayer, incumbent: ClassifiedLayer | None) -> bool:
+    if incumbent is None:
+        return True
+    if challenger.level != incumbent.level:
+        return challenger.level > incumbent.level
+    if challenger.kind != incumbent.kind:
+        return challenger.kind == "ground"
+    return challenger.order > incumbent.order
+
+
+def gameplay_from_classified_layers(
+    layers: list[ClassifiedLayer],
+    gid_props: dict[int, dict[str, str]],
+) -> tuple[list[list[bool]], list[list[int]]]:
+    """Derive walkability + elevation from ground_N / water_N layer classes.
+
+    Per cell, the winning painted tile is the highest level; at the same level
+    ground beats water; later document order breaks remaining ties.
+    water_N keeps elevation N (non-walkable) for elevated lakes / future swim.
+    Empty cells are ocean: non-walkable, elevation -1.
+    """
+    if not layers:
+        raise ValueError("no classified ground_N / water_N layers")
+
+    th = len(layers[0].gids)
+    tw = len(layers[0].gids[0])
+    walkable: list[list[bool]] = []
+    elev: list[list[int]] = []
+
+    for ty in range(th):
+        w_row: list[bool] = []
+        e_row: list[int] = []
+        for tx in range(tw):
+            winner: ClassifiedLayer | None = None
+            win_gid = 0
+            for layer in layers:
+                gid = layer.gids[ty][tx]
+                if gid == 0:
+                    continue
+                if _classified_cell_wins(layer, winner):
+                    winner = layer
+                    win_gid = gid
+            if winner is None:
+                w_row.append(False)
+                e_row.append(-1)
+                continue
+
+            if winner.kind == "water":
+                w_row.append(False)
+                e_row.append(winner.level)
+                continue
+
+            props = gid_props.get(win_gid, {})
+            if "walkable" in props:
+                walk = props["walkable"].lower() in {"true", "1", "yes"}
+            else:
+                walk = True
+            w_row.append(walk)
+            e_row.append(winner.level)
+        walkable.append(w_row)
+        elev.append(e_row)
+    return walkable, elev
 
 
 def content_bbox(gids: list[list[int]]) -> tuple[int, int, int, int] | None:
@@ -429,17 +537,40 @@ def write_overworld_tmx_layers(
     layers: dict[str, list[list[int]]],
     layouts: list[TilesetLayout],
     *,
-    layer_order: tuple[str, ...] = ("Water", "Ground"),
+    layer_order: tuple[str, ...] = ("Sea", "Land"),
+    layer_classes: dict[str, str] | None = None,
+    layer_locked: dict[str, bool] | None = None,
     include_reference: bool = False,
 ) -> None:
-    """Write a multi-layer Realik TMX (gzip tile data per layer)."""
+    """Write a multi-layer overworld TMX (gzip tile data per layer).
+
+    Default classes: Sea=water_1, Land=ground_1. Pass layer_classes to override.
+    """
+    if layer_classes is None:
+        layer_classes = {
+            "Sea": "water_1",
+            "Land": "ground_1",
+            "Water": "water_1",
+            "Ground": "ground_1",
+        }
+    if layer_locked is None:
+        layer_locked = {}
+
+    ref_w = ref_h = 0
+    if include_reference and REFERENCE_SRC.exists():
+        dest = path.parent / REFERENCE_NAME
+        dest.write_bytes(REFERENCE_SRC.read_bytes())
+        with Image.open(REFERENCE_SRC) as img:
+            ref_w, ref_h = img.size
+
     next_layer_id = 1
+    next_ids = len(layer_order) + (1 if ref_w else 0) + 1
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         f'<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" '
         f'renderorder="right-down" width="{tw}" height="{th}" '
         f'tilewidth="{MAP_TILE_PX}" tileheight="{MAP_TILE_PX}" infinite="0" '
-        f'nextlayerid="{len(layer_order) + 1}" nextobjectid="1">',
+        f'nextlayerid="{next_ids}" nextobjectid="1">',
         " <properties>",
         f'  <property name="map_id" value="{OVERWORLD_MAP_ID}"/>',
         '  <property name="title" value="Swarovia Mainland"/>',
@@ -457,21 +588,42 @@ def write_overworld_tmx_layers(
         if layer_name not in layers:
             raise ValueError(f"missing layer '{layer_name}'")
         payload = encode_layer_gzip(layers[layer_name])
+        attrs = [f'id="{next_layer_id}"', f'name="{layer_name}"']
+        class_name = layer_classes.get(layer_name)
+        if class_name:
+            attrs.append(f'class="{class_name}"')
+        attrs.append(f'width="{tw}"')
+        attrs.append(f'height="{th}"')
+        if layer_locked.get(layer_name):
+            attrs.append('locked="1"')
         lines.extend(
             [
-                f' <layer id="{next_layer_id}" name="{layer_name}" width="{tw}" height="{th}">',
+                f' <layer {" ".join(attrs)}>',
                 f'  <data encoding="base64" compression="gzip">{payload}</data>',
                 " </layer>",
             ]
         )
         next_layer_id += 1
 
+    if ref_w:
+        lines.extend(
+            [
+                f' <imagelayer id="{next_layer_id}" name="Reference" locked="1">',
+                f'  <image source="{REFERENCE_NAME}" width="{ref_w}" height="{ref_h}"/>',
+                " </imagelayer>",
+            ]
+        )
+
     lines.extend(["</map>", ""])
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def parse_tile_layer(tmx_path: Path, primary: str = "Ground", fallback: str = "Terrain") -> tuple[int, int, list[list[int]]]:
+def parse_tile_layer(
+    tmx_path: Path,
+    primary: str = "Land",
+    fallback: str = "Ground",
+) -> tuple[int, int, list[list[int]]]:
     root = ET.parse(tmx_path).getroot()
     tw = int(root.get("width", "0"))
     th = int(root.get("height", "0"))
@@ -479,7 +631,7 @@ def parse_tile_layer(tmx_path: Path, primary: str = "Ground", fallback: str = "T
         raise ValueError(f"invalid map size in {tmx_path}")
 
     layer = None
-    for name in (primary, fallback):
+    for name in (primary, fallback, "Terrain"):
         for el in root.findall("layer"):
             if el.get("name") == name:
                 layer = el
@@ -487,7 +639,7 @@ def parse_tile_layer(tmx_path: Path, primary: str = "Ground", fallback: str = "T
         if layer is not None:
             break
     if layer is None:
-        raise ValueError(f"layer '{primary}' (or '{fallback}') not found in {tmx_path}")
+        raise ValueError(f"layer '{primary}' (or fallbacks) not found in {tmx_path}")
 
     data_el = layer.find("data")
     if data_el is None:

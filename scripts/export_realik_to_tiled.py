@@ -1,8 +1,8 @@
 """Export Realik overworld binaries to a painted Tiled map (Farm RPG tiles).
 
-Reads collision bins and seeds the Ground layer with uniform plain grass / water.
-You paint cliffs, shores, and palettes directly in Tiled — the game draws those
-tiles at runtime (no elevation autotile).
+Reads collision bins and seeds Sea (water_1) + Land (ground_1) layers.
+You paint cliffs, shores, and higher tiers (ground_2 / water_2, …) in Tiled —
+the game draws those tiles at runtime (no elevation autotile).
 
 Usage:
   py -3 scripts/export_realik_to_tiled.py
@@ -20,10 +20,11 @@ from tiled_overworld_io import (
     OVERWORLD,
     OVERWORLD_TILESETS,
     OVERWORLD_TMX_NAME,
+    blank_layer,
     ensure_farmrpg_tiles,
     layout_tilesets,
     seed_gid_for_elevation,
-    write_overworld_tmx,
+    write_overworld_tmx_layers,
     write_tsx,
 )
 
@@ -37,14 +38,18 @@ def load_walkable_grid() -> tuple[int, int, list[list[bool]]]:
     return tw, th, walkable
 
 
-def build_ground_gids(tw: int, th: int, walkable: list[list[bool]], layouts) -> list[list[int]]:
-    """Flat terrain seed: water + one plain grass tile (no shore/plateau circles)."""
+def build_seed_layers(
+    tw: int, th: int, walkable: list[list[bool]], layouts
+) -> tuple[list[list[int]], list[list[int]]]:
+    """Sea filled with water; Land gets plain grass on walkable cells only."""
     water_gid = seed_gid_for_elevation(layouts, -1)
     grass_gid = seed_gid_for_elevation(layouts, 1)
-    return [
-        [grass_gid if walkable[ty][tx] else water_gid for tx in range(tw)]
+    sea = blank_layer(tw, th, water_gid)
+    land = [
+        [grass_gid if walkable[ty][tx] else 0 for tx in range(tw)]
         for ty in range(th)
     ]
+    return sea, land
 
 
 def update_manifest() -> None:
@@ -80,14 +85,24 @@ def main() -> None:
         write_tsx(OVERWORLD, layout)
 
     tw, th, walkable = load_walkable_grid()
-    gids = build_ground_gids(tw, th, walkable, layouts)
-    write_overworld_tmx(TMX, tw, th, gids, layouts, include_reference=args.reference)
+    sea, land = build_seed_layers(tw, th, walkable, layouts)
+    write_overworld_tmx_layers(
+        TMX,
+        tw,
+        th,
+        {"Sea": sea, "Land": land},
+        layouts,
+        layer_order=("Sea", "Land"),
+        layer_classes={"Sea": "water_1", "Land": "ground_1"},
+        layer_locked={"Sea": True},
+        include_reference=args.reference,
+    )
     update_manifest()
     print(f"Exported Realik {tw}x{th} -> {TMX}")
-    print("Layer format: base64+gzip (opens reliably in Tiled 1.11+).")
+    print("Layers: Sea (class water_1) + Land (class ground_1); base64+gzip.")
     if args.reference:
         print("Reference image layer included (shared/world/realik_reference.png).")
-    print("Paint on the Ground layer. Restart the client after editing.")
+    print("Paint Land; add ground_2 / water_2 layers for higher tiers. Then import.")
 
 
 if __name__ == "__main__":

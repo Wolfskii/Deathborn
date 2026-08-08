@@ -14,7 +14,8 @@ SERVER_ELEVATION = ROOT / "server" / "internal" / "worldmap" / "swarovia_mainlan
 TILE_SIZE = 32.0
 RAMP_NONE = 0
 
-# Elevation (-1..4) <-> Tiled tile index (0..5) / GID (index + 1)
+# Elevation (-1 empty/ocean unset, 1..N from ground_N / water_N layer classes)
+# Legacy generators may still emit 0 = shore; classed Tiled import uses 1+ only.
 ELEVATION_LEVELS: tuple[int, ...] = (-1, 0, 1, 2, 3, 4)
 ELEVATION_NAMES: dict[int, str] = {
     -1: "water",
@@ -69,8 +70,11 @@ def load_elevation(path: Path = ELEVATION) -> tuple[int, int, list[list[int]], l
     if data[:4] != b"ELEV" or data[4] != 2:
         raise ValueError(f"expected ELEV v2 elevation file: {path}")
     tw, th = struct.unpack_from("<HH", data, 5)
+    # Header: magic(4) + version(1) + tw(2) + th(2) = 9 bytes (matches client/server).
     count = tw * th
-    off = 7
+    off = 9
+    if len(data) < off + count * 2:
+        raise ValueError(f"elevation truncated: {path}")
     flat_elev = list(struct.unpack(f"<{count}b", data[off : off + count]))
     off += count
     flat_ramps = list(struct.unpack(f"<{count}B", data[off : off + count]))
@@ -103,7 +107,11 @@ def sync_server_copies() -> None:
 
 
 def elevation_from_walkable_and_elev(walkable: list[list[bool]], elev: list[list[int]]) -> None:
-    """Ensure water cells use elevation -1 and match walkability."""
+    """Legacy: force non-walkable cells to elevation -1.
+
+    Do not use after class-based Tiled import — water_N keeps elevation N
+    (elevated lakes). Prefer collision walkability + elevation bins as-is.
+    """
     th = len(elev)
     tw = len(elev[0]) if th else 0
     for ty in range(th):
