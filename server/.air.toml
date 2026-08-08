@@ -5,6 +5,7 @@ tmp_dir = "tmp"
 
 [build]
   cmd = "go build -o ./tmp/deathborn ./cmd/deathborn"
+  bin = "./tmp/deathborn"
   entrypoint = ["./tmp/deathborn"]
   include_ext = ["go", "sql", "toml"]
   exclude_dir = ["tmp", "vendor", "testdata", "bin"]
@@ -14,9 +15,12 @@ tmp_dir = "tmp"
   send_interrupt = true
   kill_delay = "500ms"
 
+# Requires Air >= 1.64 (platform overrides). Older Air ignores this block and
+# builds a non-.exe binary while still trying to run tmp\main.exe on Windows.
 [build.windows]
   cmd = "go build -o ./tmp/deathborn.exe ./cmd/deathborn"
-  entrypoint = ["./tmp/deathborn.exe"]
+  bin = "tmp\\deathborn.exe"
+  entrypoint = ["tmp\\deathborn.exe"]
 
 [log]
   time = false
