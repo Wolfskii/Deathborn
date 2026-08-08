@@ -477,12 +477,14 @@ public sealed class PlayerEntity
                 break;
             case PlayerActions.CastFireball:
             case PlayerActions.CastIceShard:
+            case PlayerActions.CastPoisonBolt:
             case PlayerActions.CastArcBolt:
             case PlayerActions.CastBloodBolt:
             case PlayerActions.CastPoisonCloud:
                 StartAbilityLock(action switch
                 {
                     PlayerActions.CastIceShard => Config.IceShardCastLockDuration,
+                    PlayerActions.CastPoisonBolt => Config.PoisonBoltCastLockDuration,
                     PlayerActions.CastArcBolt => Config.ArcBoltCastLockDuration,
                     PlayerActions.CastBloodBolt => Config.BloodBoltCastLockDuration,
                     PlayerActions.CastPoisonCloud => Config.PoisonCloudCastLockDuration,

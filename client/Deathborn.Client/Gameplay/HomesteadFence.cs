@@ -76,14 +76,14 @@ public static class HomesteadFence
         walls.Add((layout.GateGapRight, right + t, bottom - t, bottom + t)); // south R
     }
 
-    public static bool Overlaps(Vector2 feet, Vector2 center)
+    public static bool Overlaps(Vector2 feet, Vector2 center) =>
+        Overlaps(feet, center, PlayerEntity.CollisionRadiusX, PlayerEntity.CollisionRadiusY);
+
+    public static bool Overlaps(Vector2 feet, Vector2 center, float rx, float ry)
     {
-        // Reuse a tiny scratch via stackalloc-style locals — 5 rects, no heap.
         GetLayout(center, out var layout);
         var t = Thickness * 0.5f;
         var c = PlayerEntity.CollisionCenter(feet);
-        var rx = PlayerEntity.CollisionRadiusX;
-        var ry = PlayerEntity.CollisionRadiusY;
 
         if (Hit(c, rx, ry, layout.Left - t, layout.Right + t, layout.Top - t, layout.Top + t))
             return true;

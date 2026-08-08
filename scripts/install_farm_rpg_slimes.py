@@ -57,6 +57,46 @@ MGCB_BLOCK = """#begin {mgcb_path}
 """
 
 
+def clear_orphan_ground_specks(im: Image.Image, frame: int = FRAME) -> Image.Image:
+    """Remove stray 1-row outline crumbs left under airborne bounce frames.
+
+    Some Big Slime walk/idle cells keep a short dark line on the bottom row while
+    the body has bounced up — it reads as a floating bar under the sprite in-game.
+    """
+    im = im.convert("RGBA")
+    w, h = im.size
+    if w % frame != 0 or h != frame:
+        return im
+
+    px = im.load()
+    cols = w // frame
+    for col in range(cols):
+        x0 = col * frame
+        row_has = [
+            any(px[x0 + x, y][3] > 0 for x in range(frame))
+            for y in range(frame)
+        ]
+        y = frame - 1
+        while y >= 0 and not row_has[y]:
+            y -= 1
+        if y < 0:
+            continue
+        bottom_block: list[int] = []
+        while y >= 0 and row_has[y]:
+            bottom_block.append(y)
+            y -= 1
+        gap = 0
+        while y >= 0 and not row_has[y]:
+            gap += 1
+            y -= 1
+        # Isolated 1–2 px ground speck separated from the body by empty rows.
+        if gap >= 2 and bottom_block and (max(bottom_block) - min(bottom_block)) <= 1:
+            for by in bottom_block:
+                for x in range(frame):
+                    px[x0 + x, by] = (0, 0, 0, 0)
+    return im
+
+
 def to_horizontal_strip(im: Image.Image) -> Image.Image:
     """Normalize any clip sheet to a single-row strip of 32×32 frames."""
     im = im.convert("RGBA")
@@ -75,7 +115,7 @@ def to_horizontal_strip(im: Image.Image) -> Image.Image:
     out = Image.new("RGBA", (FRAME * len(frames), FRAME), (0, 0, 0, 0))
     for i, fr in enumerate(frames):
         out.paste(fr, (i * FRAME, 0))
-    return out
+    return clear_orphan_ground_specks(out)
 
 
 def slice_combined(sheet: Path) -> dict[str, Image.Image]:

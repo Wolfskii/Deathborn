@@ -68,7 +68,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private Vector2 _camera;
     private Vector2 _moveDir;
     private float _inputAccum;
-    private string _status = "Connected. WASD to move. [F] friends. Right-click players. Enter to chat. Space or click to attack. [E] to interact.";
+    private string _status = "Connected. WASD to move. [G] friends. [F6] rain. Right-click players. Enter to chat. Space or click to attack. [E] to interact.";
     private string _interactPrompt = "";
     private InteractableEntity? _focused;
     private InteractableEntity? _hovered;
@@ -164,6 +164,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _skills.ApplySnapshot(net.SpawnSkills, net.SpawnTotalXp);
         _inventory.ApplyFromServer(net.SpawnInventory);
         SyncLocalStatsFromSkills();
+        ApplySpawnVitals();
         DeathbornGame.Instance.IsMouseVisible = false;
 
         WorldZones.Initialize(WorldMap.SwaroviaMainland);
@@ -171,6 +172,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         WorldClouds.Initialize(WorldMap.SwaroviaMainland);
         SeedHotbar();
         TextField.ReleaseFocus();
+
+        // Seed edge detection so keys held from character create / login (Enter) do not
+        // fire as fresh presses and open chat on the first world frame.
+        _prevKb = Keyboard.GetState();
+        _prevMouse = Mouse.GetState();
 
         _windows.Character.Bind(
             () => _players.TryGetValue(net.LocalCharacterId, out var p) ? p.Stats : null,
@@ -372,6 +378,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (windowActive && !chatOpen && kb.IsKeyDown(Keys.M) && !_prevKb.IsKeyDown(Keys.M) && InteriorHouse() == null)
             _worldMap.Toggle();
 
+        if (windowActive && !chatOpen && kb.IsKeyDown(Keys.F6) && !_prevKb.IsKeyDown(Keys.F6))
+            WorldRain.Toggle();
+
         if (menuOpen && _worldMap.IsOpen)
             _worldMap.Close();
 
@@ -390,6 +399,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         WorldFoliage.Update(dt);
         DevPerfLog.Mark("clouds");
         WorldClouds.Update(dt, WorldMap.SwaroviaMainland);
+        WorldRain.Update(dt);
         DevPerfLog.Mark("zone");
         UpdateZonePresence(localEntity);
 
@@ -439,7 +449,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             {
                 _lastSentDir = Vector2.Zero;
                 _lastSentRunning = false;
-                _screens.Net.SendInput(0, 0, false);
+                _screens.Net.SendInput(0, 0, false,
+                    localEntity?.Stats.Stamina, localEntity?.Stats.Mana);
             }
         }
         else
@@ -453,7 +464,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 _inputAccum = 0;
                 _lastSentDir = _moveDir;
                 _lastSentRunning = running;
-                _screens.Net.SendInput(_moveDir.X, _moveDir.Y, running);
+                _screens.Net.SendInput(_moveDir.X, _moveDir.Y, running,
+                    localEntity?.Stats.Stamina, localEntity?.Stats.Mana);
             }
         }
 
@@ -630,7 +642,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (interiorHouse != null)
             DrawInteriorWorld(sb, font, interiorHouse, zoom);
         else
+        {
             DrawExteriorWorld(sb, font, game, gameTime, zoom);
+            WorldRain.Draw(sb);
+        }
 
         if (TiledMapPreview.IsActive && interiorHouse == null)
             DrawTiledMapPreview(sb, game, gameTime, zoom);
@@ -1061,6 +1076,22 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void UpdateGhostMode(float dt, KeyboardState kb, MouseState mouse, bool windowActive)
     {
+        // Keep the living world moving — veil is spectator-only, not a pause.
+        _zoneBanner.Update(dt);
+        _notifications.Update(dt);
+        WaterTiles.Update(dt);
+        WorldFoliage.Update(dt);
+        WorldClouds.Update(dt, WorldMap.SwaroviaMainland);
+
+        foreach (var p in _players.Values)
+            p.Update(dt);
+        foreach (var b in _npcs.Values)
+            b.Update(dt);
+        ProcessDeathWatch();
+        UpdateProjectiles(dt);
+        _feedback.Update(dt, _players, _npcs);
+        _hotbar.Update(dt, kb, _prevKb, mouse, _prevMouse, acceptInput: false);
+
         if (_ghost == null) return;
 
         _ghost.MoveDir = windowActive ? ReadMoveDir(kb) : Vector2.Zero;
@@ -1408,7 +1439,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private async Task LogoutAsync()
     {
-        await _screens.Net.LogoutWorldAsync();
+        float? stamina = null;
+        float? mana = null;
+        if (_players.TryGetValue(_screens.Net.LocalCharacterId, out var local))
+        {
+            stamina = local.Stats.Stamina;
+            mana = local.Stats.Mana;
+        }
+        await _screens.Net.LogoutWorldAsync(stamina, mana);
         _screens.Net.ClearWorldSession();
         _screens.Change(new LoginScreen(_screens));
     }
@@ -1436,7 +1474,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
 
         sb.Begin(samplerState: SamplerState.PointClamp);
-        _worldMap.Draw(sb, font, local.Position, _npcs.Values, LocalHomestead());
+        _worldMap.Draw(sb, font, DeathbornGame.Instance.FontSmall, local.Position, _npcs.Values, LocalHomestead());
         sb.End();
     }
 
@@ -1740,9 +1778,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         if (local.IsBusy) return false;
 
-        var dir = GetInputAimDirection();
+        var dir = GetAimDirection();
         local.StartAbilityLock(castLock);
-        local.MoveDir = PlayerEntity.CardinalFacing(dir);
+        local.MoveDir = dir;
 
         var origin = local.GetProjectileSpawnPoint(dir);
         AddSpellProjectile(origin, dir, local.Id, def, style);
@@ -1771,6 +1809,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             ProjectileStyle.Ice,
             Config.IceShardCastLockDuration,
             "You cast Ice Shard.");
+        if (ok) SfxPlayer.PlayIceShard();
+        return ok;
+    }
+
+    private bool CastPoisonBolt()
+    {
+        var ok = CastProjectileSpell(
+            "poison_bolt",
+            ProjectileDefinitions.PoisonBolt,
+            ProjectileStyle.Poison,
+            Config.PoisonBoltCastLockDuration,
+            "You cast Poison Bolt.");
         if (ok) SfxPlayer.PlayIceShard();
         return ok;
     }
@@ -2026,6 +2076,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             AddSpellProjectile(origin, dir, data.OwnerId, ProjectileDefinitions.IceShard, ProjectileStyle.Ice);
             SfxPlayer.PlayIceShard();
         }
+        else if (spellId == "poison_bolt")
+        {
+            AddSpellProjectile(origin, dir, data.OwnerId, ProjectileDefinitions.PoisonBolt, ProjectileStyle.Poison);
+            SfxPlayer.PlayIceShard();
+        }
         else
         {
             AddSpellProjectile(origin, dir, data.OwnerId, ProjectileDefinitions.Fireball, ProjectileStyle.Fire);
@@ -2261,6 +2316,19 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             : 0f;
     }
 
+    private void ApplySpawnVitals()
+    {
+        if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return;
+        var net = _screens.Net;
+        if (net.SpawnHpMax > 0)
+        {
+            local.Stats.HpMax = MathF.Max(local.Stats.HpMax, net.SpawnHpMax);
+            local.Stats.Hp = Math.Clamp(net.SpawnHp, 0f, local.Stats.HpMax);
+        }
+        local.Stats.Stamina = Math.Clamp(net.SpawnStamina, 0f, local.Stats.StaminaMax);
+        local.Stats.Mana = Math.Clamp(net.SpawnMana, 0f, local.Stats.ManaMax);
+    }
+
     private void OnPlayerHit(PlayerHitData data)
     {
         if (!_players.TryGetValue(data.TargetId, out var target)) return;
@@ -2412,6 +2480,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!_npcs.TryGetValue(data.TargetNpcId, out var boss)) return;
         boss.Hp = (float)data.Hp;
         boss.HpMax = (float)data.HpMax;
+        boss.PlayDamageFlash();
         _feedback.SpawnBossDamage(data.TargetNpcId, data.Damage);
     }
 
@@ -2704,7 +2773,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _housePlacing = true;
         _housePlaceAwaitRelease = true;
         _housePlacePos = SnapHousePlacePos(local.Position);
-        _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, out _housePlaceReason);
+        _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, _players, _npcs, out _housePlaceReason);
         _status = "Homestead placement - green plot = ok. Left-click to build, right-click/Esc cancel.";
     }
 
@@ -2742,7 +2811,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (windowActive && DeathbornGame.Instance.IsMouseOverClient(mouse.Position))
             _housePlacePos = SnapHousePlacePos(ScreenToWorld(mouse.Position));
 
-        _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, out _housePlaceReason);
+        _housePlaceValid = HousePlacement.IsValid(_housePlacePos, local.Position, _players, _npcs, out _housePlaceReason);
 
         // Movement stays free while placing; only clicks need a clear mouse.
         if (uiCapturesMouse || !windowActive) return;
@@ -3053,6 +3122,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
         else if (id == "ice_shard")
             used = CastIceShard();
+        else if (id == "poison_bolt")
+            used = CastPoisonBolt();
         else if (id == "arc_bolt")
             used = CastArcBolt();
         else if (id == "blood_bolt")

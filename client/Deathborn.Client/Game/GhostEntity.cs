@@ -20,24 +20,31 @@ public sealed class GhostEntity
 
     public void Update(float dt)
     {
-        if (MoveDir.LengthSquared() > 0.01f)
+        var moving = MoveDir.LengthSquared() > 0.01f;
+        if (moving)
         {
             Position += Vector2.Normalize(MoveDir) * FlySpeed * dt;
             _facing = MoveDir;
         }
 
-        _visual.HoldIdlePose(_facing);
+        // Soft idle loop (breathing) while the spirit drifts — not a frozen pose.
+        _visual.UpdateAnimation(dt, new AnimationInput
+        {
+            IsMoving = false,
+            FacingDir = _facing,
+            AnimSpeed = Config.WalkAnimSpeed,
+        });
     }
 
     public void Draw(SpriteBatch sb, Vector2 screenPos, float zoom)
     {
         var scale = CharacterAnimationCatalog.GetDrawScale(_visual.Appearance.BodyTypeId) * zoom;
         var ghostTint = new Color(0.78f, 0.82f, 0.95f, 0.72f);
+        var cloudTint = new Color(0.92f, 0.95f, 1f, 0.88f);
 
-        DrawPrimitives.FillCircle(sb, screenPos + new Vector2(0, 10f * zoom), 20f * zoom, new Color(0.75f, 0.85f, 1f, 0.12f));
-        DrawPrimitives.FillCircle(sb, screenPos + new Vector2(0, 8f * zoom), 16f * zoom, new Color(1f, 1f, 1f, 0.1f));
+        // screenPos is the frame-bottom origin; opaque feet sit above that (Farm RPG inset).
+        var feetScreenPos = screenPos - new Vector2(0f, FarmRpgAnimationSpecs.FootBottomInsetPx * scale);
+        WorldClouds.DrawVeilSupportClouds(sb, feetScreenPos, zoom, cloudTint);
         _visual.Draw(sb, screenPos, ghostTint, scale);
-        DrawPrimitives.DrawCircleOutline(sb, screenPos + new Vector2(0, -6f * zoom), 16f * zoom,
-            new Color(0.85f, 0.92f, 1f, 0.45f), 24, 2f);
     }
 }

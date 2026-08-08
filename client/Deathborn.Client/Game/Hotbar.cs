@@ -1,14 +1,13 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Deathborn.Client;
 using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
 
 public sealed class HotbarSlot
 {
-    private const float StackCountScale = 0.55f;
-
     public string KeyLabel = "?";
     public Dictionary<string, object>? Entry;
     public bool Flash;
@@ -114,15 +113,15 @@ public sealed class HotbarSlot
 
     private static void DrawStackCount(SpriteBatch sb, SpriteFont font, Rectangle bounds, int count)
     {
+        var smallFont = DeathbornGame.Instance.FontSmall;
         var label = count.ToString();
-        var size = font.MeasureString(label) * StackCountScale;
+        var size = smallFont.MeasureString(label);
         var labelX = bounds.Right - size.X - 3;
         var labelY = bounds.Bottom - size.Y - 2;
         DrawPrimitives.FillRect(sb,
             new Rectangle((int)labelX - 2, (int)labelY - 1, (int)size.X + 4, (int)size.Y + 2),
             new Color(0, 0, 0, 0.62f));
-        sb.DrawString(font, label, new Vector2(labelX, labelY), new Color(245, 240, 220),
-            0f, Vector2.Zero, StackCountScale, SpriteEffects.None, 0f);
+        sb.DrawString(smallFont, label, new Vector2(labelX, labelY), new Color(245, 240, 220));
     }
 
     private void DrawCooldownOverlay(SpriteBatch sb, SpriteFont font, Rectangle bounds)
@@ -141,13 +140,14 @@ public sealed class HotbarSlot
         var line = new Rectangle(bounds.X + 2, (int)lineY - 1, bounds.Width - 4, 2);
         DrawPrimitives.FillRect(sb, line, new Color(210, 185, 95, 0.85f));
 
+        var smallFont = DeathbornGame.Instance.FontSmall;
         var label = FormatCooldownLabel(CooldownRemaining);
-        var size = font.MeasureString(label);
+        var size = smallFont.MeasureString(label);
         var textPos = new Vector2(bounds.Center.X - size.X / 2f, bounds.Center.Y - size.Y / 2f + 4f);
         DrawPrimitives.FillRect(sb,
             new Rectangle((int)textPos.X - 3, (int)textPos.Y - 1, (int)size.X + 6, (int)size.Y + 2),
             new Color(0, 0, 0, 0.5f));
-        sb.DrawString(font, label, textPos, new Color(245, 240, 220));
+        sb.DrawString(smallFont, label, textPos, new Color(245, 240, 220));
     }
 
     private static string FormatCooldownLabel(float remaining) =>

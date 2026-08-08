@@ -41,10 +41,22 @@ public static class ProjectileDefinitions
         Damage = Config.IceShardDamage,
     };
 
+    public static readonly ProjectileDefinition PoisonBolt = new()
+    {
+        Id = "poison_bolt",
+        Radius = Config.PoisonBoltRadius,
+        Speed = Config.PoisonBoltSpeed,
+        MaxRange = Config.PoisonBoltMaxRange,
+        BurstDuration = Config.PoisonBoltBurstDuration,
+        ClashWithProjectiles = true,
+        Damage = Config.PoisonBoltDamage,
+    };
+
     private static readonly Dictionary<string, ProjectileDefinition> ById = new(StringComparer.Ordinal)
     {
         [Fireball.Id] = Fireball,
         [IceShard.Id] = IceShard,
+        [PoisonBolt.Id] = PoisonBolt,
     };
 
     public static ProjectileDefinition Get(string id) =>

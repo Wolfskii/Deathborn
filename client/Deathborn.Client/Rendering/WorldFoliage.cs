@@ -277,6 +277,58 @@ public static class WorldFoliage
     public static bool BlocksFeet(Vector2 feet, float entityRadius) =>
         FeetWouldCollide(feet);
 
+    /// <summary>True when a tree trunk or rock collider overlaps a homestead plot (not canopy / decor).</summary>
+    public static bool PlotOverlapsFoliage(Vector2 center, float halfW, float halfH)
+    {
+        if (Instances.Count == 0) return false;
+        var left = center.X - halfW;
+        var right = center.X + halfW;
+        var top = center.Y - halfH;
+        var bottom = center.Y + halfH;
+        var pad = MathF.Max(halfW, halfH) + _queryExtent;
+        return AnyNear(center, pad, f => ColliderOverlapsPlot(f, left, top, right, bottom));
+    }
+
+    private static bool ColliderOverlapsPlot(
+        FoliageInstance f, float plotLeft, float plotTop, float plotRight, float plotBottom)
+    {
+        if (!f.BlocksMovement) return false;
+
+        if (f.Kind == FoliageKind.Tree)
+        {
+            TreeStemColliderBounds(f, out var left, out var right, out var top, out var bottom);
+            return right >= plotLeft && left <= plotRight && bottom >= plotTop && top <= plotBottom;
+        }
+
+        if (f.CollisionRadius > 0.001f)
+        {
+            var c = ColliderCenter(f);
+            return CircleOverlapsRect(c.X, c.Y, f.CollisionRadius, plotLeft, plotTop, plotRight, plotBottom);
+        }
+
+        return false;
+    }
+
+    private static bool CircleOverlapsRect(
+        float cx, float cy, float radius, float left, float top, float right, float bottom)
+    {
+        var closestX = Math.Clamp(cx, left, right);
+        var closestY = Math.Clamp(cy, top, bottom);
+        var dx = cx - closestX;
+        var dy = cy - closestY;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    private static bool IsInsideAnyHousePlot(Vector2 world)
+    {
+        foreach (var house in WorldZones.Houses)
+        {
+            if (HousingConstants.InPlot(world, house.Center))
+                return true;
+        }
+        return false;
+    }
+
     public static Vector2 ResolvePosition(Vector2 feet, float entityRadius) => feet;
 
     /// <summary>
@@ -564,7 +616,12 @@ public static class WorldFoliage
         VisibleScratch.Sort(static (a, b) => a.Position.Y.CompareTo(b.Position.Y));
         Span<Vector2> empty = [];
         foreach (var f in VisibleScratch)
+        {
+            // Decorative foliage (bushes, etc.) is cleared from homestead farmland after build.
+            if (!f.BlocksMovement && IsInsideAnyHousePlot(f.Position))
+                continue;
             DrawInstance(sb, f, camera, screenCenter, zoom, empty);
+        }
     }
 
     /// <summary>Chroma-key green collider outlines — call when F12 debug HUD is on.</summary>
@@ -710,12 +767,10 @@ public static class WorldFoliage
                 if (InTown(pos) || NearSpawn(map, pos)) continue;
 
                 var treeRoll = Hash(tx, ty, 1) % 1000;
-                var bushRoll = Hash(tx, ty, 3) % 1000;
 
                 if (treeRoll < 16 && IsInland(map, tx, ty))
                     Add(FoliageKind.Tree, pos, tx, ty);
-                else if (bushRoll < 28)
-                    Add(FoliageKind.Bush, pos, tx, ty);
+                // Bushes omitted — visual-only clutter; homestead plots use flat grass.
             }
         }
     }

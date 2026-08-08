@@ -53,6 +53,7 @@ public static class FarmRpgGrassProps
 
         region.ForEachTile((tx, ty) =>
         {
+            if (IsInsideAnyHousePlot(map, tx, ty)) return;
             if (!ShouldPlace(map, tx, ty, out var elev)) return;
             if (!ShouldSpawn(tx, ty)) return;
 
@@ -63,6 +64,39 @@ public static class FarmRpgGrassProps
             var src = new Rectangle(pick.X * CellSize, pick.Y * CellSize, CellSize, CellSize);
             sb.Draw(_sheet, ScaleDest(region.Rect(tx, ty)), src, Color.White);
         });
+    }
+
+    /// <summary>True when the plot would overlap procedural grass tufts (no collider, but blocks homestead).</summary>
+    public static bool PlotHasTufts(WorldMap map, Vector2 center, float halfW, float halfH)
+    {
+        if (_sheet == null || !map.HasElevation || _catalogByElev.Length == 0) return false;
+
+        var tile = map.TileSize;
+        var tx0 = Math.Max(0, (int)MathF.Floor((center.X - halfW) / tile));
+        var ty0 = Math.Max(0, (int)MathF.Floor((center.Y - halfH) / tile));
+        var tx1 = Math.Min(map.TileWidth - 1, (int)MathF.Floor((center.X + halfW) / tile));
+        var ty1 = Math.Min(map.TileHeight - 1, (int)MathF.Floor((center.Y + halfH) / tile));
+
+        for (var ty = ty0; ty <= ty1; ty++)
+        for (var tx = tx0; tx <= tx1; tx++)
+        {
+            if (!ShouldPlace(map, tx, ty, out var elev)) continue;
+            if (!ShouldSpawn(tx, ty)) continue;
+            var catalog = _catalogByElev[Math.Clamp(elev, 0, _catalogByElev.Length - 1)];
+            if (catalog.Length > 0) return true;
+        }
+        return false;
+    }
+
+    private static bool IsInsideAnyHousePlot(WorldMap map, int tx, int ty)
+    {
+        var world = new Vector2((tx + 0.5f) * map.TileSize, (ty + 0.5f) * map.TileSize);
+        foreach (var house in WorldZones.Houses)
+        {
+            if (HousingConstants.InPlot(world, house.Center))
+                return true;
+        }
+        return false;
     }
 
     private static bool ShouldSpawn(int tx, int ty)

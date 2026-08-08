@@ -30,7 +30,7 @@ public sealed class FriendsWindow : UiWindow
     private Rectangle _removeBtn;
     private bool _awaitEnterRelease;
 
-    public FriendsWindow() : base("Friends", WinWidth, WinHeight, Keys.F, new Point(520, 80)) { }
+    public FriendsWindow() : base("Friends", WinWidth, WinHeight, Keys.G, new Point(520, 80)) { }
 
     public void Bind(
         PlayerFriends friends,

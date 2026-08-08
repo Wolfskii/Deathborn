@@ -178,7 +178,7 @@ func CombatXP(ability string, damage int) (attackerSkills map[string]int64, defe
 		Hitpoints: int64(math.Max(1, float64(d)/3)),
 	}
 	// Ranged/magic abilities could split differently later.
-	if ability == "fireball" || ability == "ice_shard" || ability == "arc_bolt" || ability == "blood_bolt" {
+	if ability == "fireball" || ability == "ice_shard" || ability == "poison_bolt" || ability == "arc_bolt" || ability == "blood_bolt" {
 		delete(attackerSkills, Strength)
 	}
 	return attackerSkills, defenderSkills

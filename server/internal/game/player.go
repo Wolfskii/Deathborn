@@ -9,6 +9,9 @@ type player struct {
 	x, y  float64
 	hp    float64
 	hpMax float64
+	// Client-reported resources mirrored for logout persistence (not simulated server-side).
+	stamina float64
+	mana    float64
 	dead  bool
 	hot   *healOverTime
 	buffs []playerBuff

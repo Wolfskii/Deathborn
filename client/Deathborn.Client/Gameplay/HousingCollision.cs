@@ -59,14 +59,17 @@ public static class HousingCollision
             && world.Y <= bodyBottom + DoorApproachSouth;
     }
 
-    public static bool OverlapsHouseBody(Vector2 feet, float radius, Vector2 center)
+    public static bool OverlapsHouseBody(Vector2 feet, float radius, Vector2 center) =>
+        OverlapsHouseBody(feet, center, PlayerEntity.CollisionRadiusX, PlayerEntity.CollisionRadiusY, allowDoorApproach: true);
+
+    /// <param name="allowDoorApproach">When false (homestead placement), the door pad counts as solid.</param>
+    public static bool OverlapsHouseBody(
+        Vector2 feet, Vector2 center, float rx, float ry, bool allowDoorApproach = true)
     {
-        if (InDoorApproach(feet, center))
+        if (allowDoorApproach && InDoorApproach(feet, center))
             return false;
 
         var c = PlayerEntity.CollisionCenter(feet);
-        var rx = PlayerEntity.CollisionRadiusX;
-        var ry = PlayerEntity.CollisionRadiusY;
 
         WallBounds(center, out var left, out var right, out var wallTop, out var bottom);
         if (PlayerEntity.EllipseOverlapsRect(c, rx, ry, left, right, wallTop, bottom))

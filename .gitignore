@@ -35,6 +35,10 @@ client/**/.vs/
 .tile_debug/*
 !.tile_debug/farmrpg_guide.json
 
+# Asset staging inbox (agents install into Content/; keep README tracked)
+/import/**
+!/import/README.md
+
 # Dev FPS hitch logs (task dev:all)
 client/**/logs/
 **/fps-dips*.log

@@ -32,6 +32,7 @@ public sealed class DeathbornGame : Game
     private Point _windowedPosition;
 
     public SpriteFont Font { get; private set; } = null!;
+    public SpriteFont FontSmall { get; private set; } = null!;
     public int Fps => _fps.Fps;
     public GameClient Client { get; } = new();
 
@@ -134,6 +135,7 @@ public sealed class DeathbornGame : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         DrawPrimitives.Init(GraphicsDevice);
         Font = Content.Load<SpriteFont>("Fonts/Default");
+        FontSmall = Content.Load<SpriteFont>("Fonts/Small");
         LoadGraphicsAssets();
         AudioSettings.Load();
         MusicPlayer.ApplySavedSettings();
@@ -159,6 +161,7 @@ public sealed class DeathbornGame : Game
         FarmRpgGrassProps.Load(Content);
         WorldFoliage.Load(Content);
         WorldClouds.Load(Content);
+        WorldRain.Load(Content);
         TinyRpgCharacterSprites.Load(Content);
         FarmRpgSlimeSprites.Load(Content);
         FarmRpgHouseSprites.Load(Content);
@@ -183,6 +186,7 @@ public sealed class DeathbornGame : Game
             SfxPlayer.ClearCache();
             Content.Unload();
             Font = Content.Load<SpriteFont>("Fonts/Default");
+        FontSmall = Content.Load<SpriteFont>("Fonts/Small");
             LoadGraphicsAssets();
             SfxPlayer.Load(Content);
             RefreshGraphicsResources();

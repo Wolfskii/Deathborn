@@ -46,6 +46,10 @@ public static class AbilityCatalog
         };
         if (info.Id == "fireball")
             entry["projectileId"] = ProjectileDefinitions.Fireball.Id;
+        else if (info.Id == "ice_shard")
+            entry["projectileId"] = ProjectileDefinitions.IceShard.Id;
+        else if (info.Id == "poison_bolt")
+            entry["projectileId"] = ProjectileDefinitions.PoisonBolt.Id;
         return HotbarEntry.Clone(entry);
     }
 
@@ -89,6 +93,10 @@ public static class AbilityCatalog
             ["ice_shard"] = A("ice_shard", "Ice Shard", "spell", "Arcane",
                 "Launch a fast shard of ice.", Config.IceShardCooldown,
                 ResourceCostKind.Mana, 14, dmg: Config.IceShardDamage, range: Config.IceShardMaxRange,
+                effectPlacement: AbilityEffectPlacement.Projectile),
+            ["poison_bolt"] = A("poison_bolt", "Poison Bolt", "spell", "Arcane",
+                "Hurl a venomous bolt that bursts on impact.", Config.PoisonBoltCooldown,
+                ResourceCostKind.Mana, 16, dmg: Config.PoisonBoltDamage, range: Config.PoisonBoltMaxRange,
                 effectPlacement: AbilityEffectPlacement.Projectile),
             ["arc_bolt"] = A("arc_bolt", "Arc Bolt", "spell", "Arcane",
                 "A short-range lightning bolt in a cone.", Config.ArcBoltCooldown,

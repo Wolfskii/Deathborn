@@ -218,6 +218,25 @@ cleanup() {
   fi
 }
 
+stop_stale_windows_server() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+      # A prior Air process can leave its child alive. That stale process both serves the
+      # health check and locks tmp/deathborn.exe, so a new Air instance appears healthy
+      # while continuing to run old code.
+      taskkill //F //IM deathborn.exe //T >/dev/null 2>&1 || true
+      for _ in $(seq 1 20); do
+        if rm -f "$SERVER_DIR/tmp/deathborn.exe" "$SERVER_DIR/tmp/deathborn.exe~" 2>/dev/null; then
+          return 0
+        fi
+        sleep 0.1
+      done
+      echo "Could not remove the stale server executable. Stop deathborn.exe and retry." >&2
+      exit 1
+      ;;
+  esac
+}
+
 # Git Bash / MSYS on Windows only supports EXIT in trap (not INT/TERM).
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*) trap cleanup EXIT ;;
@@ -226,6 +245,7 @@ esac
 
 echo "Starting Go server with Air live-reload on ${LISTEN_HOST}:${DEV_PORT}..."
 ensure_air
+stop_stale_windows_server
 (
   cd "$SERVER_DIR"
   exec air -c .air.toml
@@ -235,6 +255,10 @@ SERVER_PID=$!
 echo "Waiting for server health check..."
 ready=0
 for i in $(seq 1 60); do
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "Air exited before the server became ready." >&2
+    exit 1
+  fi
   if curl -sf "http://127.0.0.1:${DEV_PORT}/health" >/dev/null 2>&1; then
     echo "Server is ready."
     ready=1
