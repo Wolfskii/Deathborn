@@ -1,3 +1,4 @@
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace Deathborn.Client.Rendering.Characters;
@@ -15,10 +16,18 @@ public sealed class SpriteAssembler
     {
         _layerCount = 0;
 
-        TryAddFarmTexture(FarmRpgCharacterSprites.SkinLayerId(appearance.SkinTone), clip, CharacterLayerId.Body);
-        TryAddFarmTexture(FarmRpgCharacterSprites.EyesLayerId(appearance.EyeColor), clip, CharacterLayerId.Eyes);
+        TryAddFarmTexture(
+            FarmRpgCharacterSprites.SkinLayerId(appearance.SkinTone),
+            clip,
+            CharacterLayerId.Body,
+            appearance.SkinPalette);
+        TryAddFarmTexture(
+            FarmRpgCharacterSprites.EyesLayerId(appearance.EyeColor, appearance.GenderId),
+            clip,
+            CharacterLayerId.Eyes,
+            appearance.EyePalette);
         TryAddEquipment(equipment.ChestId, clip);
-        TryAddEquipment(appearance.HairStyleId, clip);
+        TryAddEquipment(appearance.HairStyleId, clip, appearance.HairPalette);
         TryAddEquipment(equipment.WeaponId, clip);
 
         if (clip == CharacterClip.Cast)
@@ -33,15 +42,21 @@ public sealed class SpriteAssembler
         return _buffer.AsSpan(0, _layerCount);
     }
 
-    private void TryAddFarmTexture(string? layerId, CharacterClip clip, CharacterLayerId slot)
+    private void TryAddFarmTexture(
+        string? layerId,
+        CharacterClip clip,
+        CharacterLayerId slot,
+        CharacterPalette? palette = null)
     {
         var source = FarmRpgCharacterSprites.TryGetLayer(layerId, clip);
         if (source == null)
             return;
-        _buffer[_layerCount++] = new SpriteLayer(source, slot);
+        _buffer[_layerCount++] = new SpriteLayer(
+            palette is { } color ? CharacterPaletteTextureCache.Get(source, color) : source,
+            slot);
     }
 
-    private void TryAddEquipment(string? itemId, CharacterClip clip)
+    private void TryAddEquipment(string? itemId, CharacterClip clip, CharacterPalette? palette = null)
     {
         if (string.IsNullOrEmpty(itemId))
             return;
@@ -52,6 +67,8 @@ public sealed class SpriteAssembler
         if (source == null)
             return;
 
-        _buffer[_layerCount++] = new SpriteLayer(source, CharacterLayerCatalog.GetLayerId(itemId));
+        _buffer[_layerCount++] = new SpriteLayer(
+            palette is { } color ? CharacterPaletteTextureCache.Get(source, color) : source,
+            CharacterLayerCatalog.GetLayerId(itemId));
     }
 }

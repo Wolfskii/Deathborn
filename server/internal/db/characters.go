@@ -12,17 +12,20 @@ import (
 // ErrActiveCharacterExists is returned when an account already has a living
 // character (enforced by a partial unique index).
 var ErrActiveCharacterExists = errors.New("account already has an active character")
+var ErrNameTaken = errors.New("character name already exists")
 
 // Character is a single life belonging to an account.
 type Character struct {
-	ID        int64
-	AccountID int64
-	Name      string
-	Alive     bool
-	X         float64
-	Y         float64
-	Skills    map[string]int64
-	TotalXP   int64
+	ID         int64
+	AccountID  int64
+	Name       string
+	Race       string
+	Appearance json.RawMessage
+	Alive      bool
+	X          float64
+	Y          float64
+	Skills     map[string]int64
+	TotalXP    int64
 	// Vitals — nil means "full / default" (e.g. brand-new character).
 	Hp      *float64
 	Stamina *float64
@@ -36,12 +39,12 @@ func (d *DB) GetActiveCharacter(ctx context.Context, accountID int64) (Character
 	var totalXp int64
 	var hp, stamina, mana *float64
 	err := d.Pool.QueryRow(ctx,
-		`SELECT id, account_id, name, alive, pos_x, pos_y, skills, total_xp, hp, stamina, mana
+		`SELECT id, account_id, name, race, appearance, alive, pos_x, pos_y, skills, total_xp, hp, stamina, mana
 		 FROM characters
 		 WHERE account_id = $1 AND alive = TRUE
 		 LIMIT 1`,
 		accountID,
-	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Alive, &c.X, &c.Y, &skillsJSON, &totalXp, &hp, &stamina, &mana)
+	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Race, &c.Appearance, &c.Alive, &c.X, &c.Y, &skillsJSON, &totalXp, &hp, &stamina, &mana)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Character{}, ErrNotFound
 	}
@@ -58,17 +61,20 @@ func (d *DB) GetActiveCharacter(ctx context.Context, accountID int64) (Character
 
 // CreateCharacter inserts a new living character. Returns
 // ErrActiveCharacterExists if one already exists for the account.
-func (d *DB) CreateCharacter(ctx context.Context, accountID int64, name string, x, y float64) (Character, error) {
+func (d *DB) CreateCharacter(ctx context.Context, accountID int64, name, race string, appearance json.RawMessage, x, y float64) (Character, error) {
 	var c Character
 	err := d.Pool.QueryRow(ctx,
-		`INSERT INTO characters (account_id, name, pos_x, pos_y)
-		 VALUES ($1, $2, $3, $4)
-		 RETURNING id, account_id, name, alive, pos_x, pos_y`,
-		accountID, name, x, y,
-	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Alive, &c.X, &c.Y)
+		`INSERT INTO characters (account_id, name, race, appearance, pos_x, pos_y)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING id, account_id, name, race, appearance, alive, pos_x, pos_y`,
+		accountID, name, race, appearance, x, y,
+	).Scan(&c.ID, &c.AccountID, &c.Name, &c.Race, &c.Appearance, &c.Alive, &c.X, &c.Y)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			if pgErr.ConstraintName == "one_active_character_name" {
+				return Character{}, ErrNameTaken
+			}
 			return Character{}, ErrActiveCharacterExists
 		}
 		return Character{}, err

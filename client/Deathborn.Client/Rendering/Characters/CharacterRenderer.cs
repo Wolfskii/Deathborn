@@ -26,7 +26,7 @@ public static class CharacterRenderer
 
     var (src, origin, effects) = GetFrameRect(spec, frameIndex, facing);
     foreach (var layer in layers)
-      sb.Draw(layer.Texture, screenPos, src, tint, 0f, origin, scale, effects, 0f);
+      sb.Draw(layer.Texture, screenPos, src, Multiply(tint, layer.Tint), 0f, origin, scale, effects, 0f);
   }
 
   public static void DrawOutline(
@@ -61,4 +61,10 @@ public static class CharacterRenderer
     var src = new Rectangle(col * spec.FrameWidth, 0, spec.FrameWidth, spec.FrameHeight);
     return (src, spec.Origin, SpriteEffects.None);
   }
+
+  private static Color Multiply(Color baseTint, Color layerTint) => new(
+    baseTint.R * layerTint.R / 255,
+    baseTint.G * layerTint.G / 255,
+    baseTint.B * layerTint.B / 255,
+    baseTint.A * layerTint.A / 255);
 }

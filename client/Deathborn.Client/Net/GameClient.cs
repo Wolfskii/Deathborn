@@ -27,6 +27,8 @@ public sealed class GameClient : IDisposable
 
     public long LocalCharacterId { get; private set; } = -1;
     public string SpawnName { get; private set; } = "";
+    public string SpawnRace { get; private set; } = "human";
+    public CharacterAppearanceData SpawnAppearance { get; private set; } = new();
     public float SpawnX { get; private set; }
     public float SpawnY { get; private set; }
     public Dictionary<string, long> SpawnSkills { get; private set; } = new();
@@ -228,6 +230,8 @@ public sealed class GameClient : IDisposable
     {
         LocalCharacterId = -1;
         SpawnName = "";
+        SpawnRace = "human";
+        SpawnAppearance = new CharacterAppearanceData();
         SpawnX = 0;
         SpawnY = 0;
         SpawnSkills = new Dictionary<string, long>();
@@ -258,9 +262,9 @@ public sealed class GameClient : IDisposable
             Send("input", new { dirX, dirY, running });
     }
 
-    public void CreateCharacter(string name)
+    public void CreateCharacter(string name, string race, CharacterAppearanceData appearance)
     {
-        Send("create_character", new { name });
+        Send("create_character", new { name, race, appearance });
     }
 
     public void SendInteract(string targetId)
@@ -505,6 +509,8 @@ public sealed class GameClient : IDisposable
                 SpawnX = (float)welcome.X;
                 SpawnY = (float)welcome.Y;
                 SpawnName = welcome.Name;
+                SpawnRace = welcome.Race;
+                SpawnAppearance = welcome.Appearance ?? new CharacterAppearanceData();
                 SpawnSkills = welcome.Skills ?? new Dictionary<string, long>();
                 SpawnTotalXp = welcome.TotalXp;
                 SpawnInventory = welcome.Inventory ?? [];

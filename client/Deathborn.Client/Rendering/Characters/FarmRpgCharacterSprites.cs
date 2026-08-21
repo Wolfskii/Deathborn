@@ -11,7 +11,11 @@ public static class FarmRpgCharacterSprites
 
     public static void Load(ContentManager content) => _content = content;
 
-    public static void ClearCache() => Cache.Clear();
+    public static void ClearCache()
+    {
+        CharacterPaletteTextureCache.Clear();
+        Cache.Clear();
+    }
 
     public static Texture2D? TryGetLayer(string? layerId, CharacterClip clip)
     {
@@ -45,13 +49,19 @@ public static class FarmRpgCharacterSprites
         _ => "skin-1",
     };
 
-    public static string EyesLayerId(EyeColor color) => color switch
+    public static string EyesLayerId(EyeColor color, string? gender = null)
     {
-        EyeColor.Blue => "eyes-male-blue",
-        EyeColor.Green => "eyes-male-green",
-        EyeColor.Gray or EyeColor.Hazel => "eyes-male-black",
-        _ => "eyes-male-brown",
-    };
+        var prefix = string.Equals(gender, "female", StringComparison.OrdinalIgnoreCase)
+            ? "eyes-female"
+            : "eyes-male";
+        return color switch
+        {
+            EyeColor.Blue => $"{prefix}-blue",
+            EyeColor.Green => $"{prefix}-green",
+            EyeColor.Gray or EyeColor.Hazel => $"{prefix}-black",
+            _ => $"{prefix}-brown",
+        };
+    }
 
     private static string ClipFileName(CharacterClip clip) => clip switch
     {

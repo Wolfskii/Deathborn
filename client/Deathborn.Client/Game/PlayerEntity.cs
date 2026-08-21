@@ -233,6 +233,11 @@ public sealed class PlayerEntity
 
     public CharacterStats Stats { get; } = CharacterStats.CreateStarter();
 
+    public void ApplyAppearance(string? race, CharacterAppearanceData? appearance)
+    {
+        _visual.Appearance = CharacterAppearanceDataMapper.ToAppearance(race, appearance);
+    }
+
     public void BeginDeath(Vector2? facing = null)
     {
         if (IsDead) return;
@@ -786,6 +791,7 @@ public sealed class PlayerEntity
         };
         if (s.HpMax > 0)
             entity.SyncStats((float)s.Hp, (float)s.HpMax);
+        entity.ApplyAppearance(s.Race, s.Appearance);
         return entity;
     }
 }

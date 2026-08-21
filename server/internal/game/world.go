@@ -53,17 +53,17 @@ func (w *World) worldScale() float64 {
 
 // PlayerVitals are restored combat resources for spawn / welcome.
 type PlayerVitals struct {
-	Hp      float64
-	HpMax   float64
-	Stamina float64
-	Mana    float64
-	HasHp   bool
+	Hp         float64
+	HpMax      float64
+	Stamina    float64
+	Mana       float64
+	HasHp      bool
 	HasStamina bool
-	HasMana bool
+	HasMana    bool
 }
 
 // AddPlayer inserts a player at a position (e.g. on connect/spawn).
-func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Set, totalXp int64, inventory []InventoryItem, headCosmetic string, vitals PlayerVitals) {
+func (w *World) AddPlayer(id int64, name, race string, appearance PlayerAppearance, x, y float64, skillXP skills.Set, totalXp int64, inventory []InventoryItem, headCosmetic string, vitals PlayerVitals) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if skillXP == nil {
@@ -90,7 +90,7 @@ func (w *World) AddPlayer(id int64, name string, x, y float64, skillXP skills.Se
 		mana = clampResource(vitals.Mana, 100)
 	}
 	p := &player{
-		id: id, name: name, x: x, y: y,
+		id: id, name: name, race: race, appearance: appearance, x: x, y: y,
 		hp: hp, hpMax: hpMax,
 		stamina: stamina, mana: mana,
 		skills: skillXP, totalXp: totalXp,
@@ -277,6 +277,8 @@ func (w *World) Snapshot() []PlayerState {
 			Hp: p.hp, HpMax: p.hpMax,
 			InsideHouseID: p.insideHouseID,
 			HeadCosmetic:  p.headCosmetic,
+			Race:          p.race,
+			Appearance:    p.appearance,
 		})
 	}
 	return out

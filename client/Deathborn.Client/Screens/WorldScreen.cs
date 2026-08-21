@@ -151,7 +151,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (net.LocalCharacterId >= 0 && !_players.ContainsKey(net.LocalCharacterId))
         {
-            _players[net.LocalCharacterId] = new PlayerEntity
+            var localPlayer = new PlayerEntity
             {
                 Id = net.LocalCharacterId,
                 Name = net.SpawnName,
@@ -159,6 +159,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 Target = new Vector2(net.SpawnX, net.SpawnY),
                 IsLocal = true,
             };
+            localPlayer.ApplyAppearance(net.SpawnRace, net.SpawnAppearance);
+            _players[net.LocalCharacterId] = localPlayer;
         }
 
         _skills.ApplySnapshot(net.SpawnSkills, net.SpawnTotalXp);
@@ -3004,6 +3006,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             }
 
             p.HeadCosmetic = string.IsNullOrEmpty(s.HeadCosmetic) ? null : s.HeadCosmetic;
+            p.ApplyAppearance(s.Race, s.Appearance);
 
             if (s.HpMax > 0 && !_deathWatch.ContainsKey(s.Id))
                 p.SyncStats((float)s.Hp, (float)s.HpMax);

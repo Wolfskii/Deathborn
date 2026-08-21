@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/deathborn/server/internal/auth"
 	"github.com/deathborn/server/internal/db"
@@ -167,7 +169,11 @@ func (c *Client) spawn(ch db.Character) {
 		vitals.Mana = *ch.Mana
 		vitals.HasMana = true
 	}
-	c.hub.world.AddPlayer(ch.ID, ch.Name, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP, gameInv, game.CosmeticsFromDB(cosmetics), vitals)
+	race, appearance, _ := validateCharacterAppearance(ch.Race, game.PlayerAppearance{})
+	if len(ch.Appearance) > 0 && json.Unmarshal(ch.Appearance, &appearance) == nil {
+		race, appearance, _ = validateCharacterAppearance(ch.Race, appearance)
+	}
+	c.hub.world.AddPlayer(ch.ID, ch.Name, race, appearance, x, y, dbSkillsToSet(ch.Skills), ch.TotalXP, gameInv, game.CosmeticsFromDB(cosmetics), vitals)
 	log.Printf("character spawned account_id=%d character_id=%d name=%q pos=(%.0f,%.0f)",
 		c.accountID, ch.ID, ch.Name, x, y)
 	skillMap := map[string]int64{}
@@ -187,6 +193,8 @@ func (c *Client) spawn(ch db.Character) {
 		X:           x,
 		Y:           y,
 		Name:        ch.Name,
+		Race:        race,
+		Appearance:  appearance,
 		Skills:      skillMap,
 		TotalXp:     ch.TotalXP,
 		Inventory:   gameInv,
@@ -344,8 +352,23 @@ func (c *Client) readPump(database *db.DB) {
 				c.safeSend(encode("error", MessageData{Message: "name must be 1-24 characters"}))
 				continue
 			}
+			race, appearance, ok := validateCharacterAppearance(d.Race, d.Appearance)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: "invalid character appearance"}))
+				continue
+			}
+			appearanceJSON, _ := json.Marshal(appearance)
 			sx, sy := c.hub.spawnXY()
-			ch, err := database.CreateCharacter(context.Background(), c.accountID, name, sx, sy)
+			candidate := name
+			var ch db.Character
+			var err error
+			for suffix := 1; suffix <= 99; suffix++ {
+				ch, err = database.CreateCharacter(context.Background(), c.accountID, candidate, race, appearanceJSON, sx, sy)
+				if !errors.Is(err, db.ErrNameTaken) {
+					break
+				}
+				candidate = nameWithSuffix(name, suffix+1)
+			}
 			if err != nil {
 				log.Printf("character create failed account_id=%d name=%q: %v", c.accountID, name, err)
 				c.safeSend(encode("error", MessageData{Message: "could not create character"}))
@@ -918,6 +941,75 @@ func normalizeDir(dirX, dirY float64) (float64, float64) {
 		return dirX / l, dirY / l
 	}
 	return 0, 1
+}
+
+func nameWithSuffix(base string, number int) string {
+	suffix := fmt.Sprintf("_%d", number)
+	for len(base)+len(suffix) > 24 && len(base) > 0 {
+		_, size := utf8.DecodeLastRuneInString(base)
+		base = base[:len(base)-size]
+	}
+	return base + suffix
+}
+
+func defaultPlayerAppearance() game.PlayerAppearance {
+	return game.PlayerAppearance{
+		Gender: "male", SkinTone: "fair", EyeColor: "brown", HairStyleID: "farm-hair-josh-brown",
+		SkinBrightness: 100, EyeBrightness: 100, HairBrightness: 100,
+	}
+}
+
+func validateCharacterAppearance(race string, appearance game.PlayerAppearance) (string, game.PlayerAppearance, bool) {
+	race = strings.ToLower(strings.TrimSpace(race))
+	if race == "" {
+		race = "human"
+	}
+	switch race {
+	case "human", "elf", "dwarf", "orc", "halfling", "undead":
+	default:
+		return "", game.PlayerAppearance{}, false
+	}
+
+	if appearance.SkinTone == "" && appearance.EyeColor == "" && appearance.HairStyleID == "" {
+		appearance = defaultPlayerAppearance()
+	}
+	appearance.Gender = strings.ToLower(appearance.Gender)
+	if appearance.Gender == "" {
+		appearance.Gender = "male"
+	}
+	if appearance.Gender != "male" && appearance.Gender != "female" {
+		return "", game.PlayerAppearance{}, false
+	}
+	appearance.SkinTone = strings.ToLower(appearance.SkinTone)
+	appearance.EyeColor = strings.ToLower(appearance.EyeColor)
+	switch appearance.SkinTone {
+	case "fair", "tan", "olive", "dark":
+	default:
+		return "", game.PlayerAppearance{}, false
+	}
+	switch appearance.EyeColor {
+	case "brown", "blue", "green", "gray":
+	default:
+		return "", game.PlayerAppearance{}, false
+	}
+	switch appearance.HairStyleID {
+	case "farm-hair-josh-brown", "farm-hair-josh-black", "farm-hair-josh-blonde", "farm-hair-josh-ginger",
+		"farm-hair-lyria-brown", "farm-hair-lyria-black", "farm-hair-lyria-blonde", "farm-hair-lyria-ginger":
+	default:
+		return "", game.PlayerAppearance{}, false
+	}
+	if appearance.SkinHue < 0 || appearance.SkinHue > 360 ||
+		appearance.EyeHue < 0 || appearance.EyeHue > 360 ||
+		appearance.HairHue < 0 || appearance.HairHue > 360 ||
+		appearance.SkinSaturation < 0 || appearance.SkinSaturation > 100 ||
+		appearance.EyeSaturation < 0 || appearance.EyeSaturation > 100 ||
+		appearance.HairSaturation < 0 || appearance.HairSaturation > 100 ||
+		appearance.SkinBrightness < 0 || appearance.SkinBrightness > 100 ||
+		appearance.EyeBrightness < 0 || appearance.EyeBrightness > 100 ||
+		appearance.HairBrightness < 0 || appearance.HairBrightness > 100 {
+		return "", game.PlayerAppearance{}, false
+	}
+	return race, appearance, true
 }
 
 func formatTargetID(id int64) string {

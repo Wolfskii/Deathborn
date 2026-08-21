@@ -130,6 +130,46 @@
       "Characters/FarmRpg/layers/eyes-male-black/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-black/death.png"
     ],
+    "eyes-female-brown": [
+      "Characters/FarmRpg/layers/eyes-female-brown/idle.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/walk.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/run.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/attack.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/cast.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/shield_bash.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/hurt.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/death.png"
+    ],
+    "eyes-female-blue": [
+      "Characters/FarmRpg/layers/eyes-female-blue/idle.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/walk.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/run.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/attack.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/cast.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/shield_bash.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/hurt.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/death.png"
+    ],
+    "eyes-female-green": [
+      "Characters/FarmRpg/layers/eyes-female-green/idle.png",
+      "Characters/FarmRpg/layers/eyes-female-green/walk.png",
+      "Characters/FarmRpg/layers/eyes-female-green/run.png",
+      "Characters/FarmRpg/layers/eyes-female-green/attack.png",
+      "Characters/FarmRpg/layers/eyes-female-green/cast.png",
+      "Characters/FarmRpg/layers/eyes-female-green/shield_bash.png",
+      "Characters/FarmRpg/layers/eyes-female-green/hurt.png",
+      "Characters/FarmRpg/layers/eyes-female-green/death.png"
+    ],
+    "eyes-female-black": [
+      "Characters/FarmRpg/layers/eyes-female-black/idle.png",
+      "Characters/FarmRpg/layers/eyes-female-black/walk.png",
+      "Characters/FarmRpg/layers/eyes-female-black/run.png",
+      "Characters/FarmRpg/layers/eyes-female-black/attack.png",
+      "Characters/FarmRpg/layers/eyes-female-black/cast.png",
+      "Characters/FarmRpg/layers/eyes-female-black/shield_bash.png",
+      "Characters/FarmRpg/layers/eyes-female-black/hurt.png",
+      "Characters/FarmRpg/layers/eyes-female-black/death.png"
+    ],
     "hair-josh-brown": [
       "Characters/FarmRpg/layers/hair-josh-brown/idle.png",
       "Characters/FarmRpg/layers/hair-josh-brown/walk.png",
@@ -169,6 +209,46 @@
       "Characters/FarmRpg/layers/hair-josh-ginger/shield_bash.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/death.png"
+    ],
+    "hair-lyria-brown": [
+      "Characters/FarmRpg/layers/hair-lyria-brown/idle.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/walk.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/run.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/attack.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/cast.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/shield_bash.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/hurt.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/death.png"
+    ],
+    "hair-lyria-black": [
+      "Characters/FarmRpg/layers/hair-lyria-black/idle.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/walk.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/run.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/attack.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/cast.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/shield_bash.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/hurt.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/death.png"
+    ],
+    "hair-lyria-blonde": [
+      "Characters/FarmRpg/layers/hair-lyria-blonde/idle.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/walk.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/run.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/attack.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/cast.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/shield_bash.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/hurt.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/death.png"
+    ],
+    "hair-lyria-ginger": [
+      "Characters/FarmRpg/layers/hair-lyria-ginger/idle.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/walk.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/run.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/attack.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/cast.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/shield_bash.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/hurt.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/death.png"
     ],
     "outfit-farm-blue": [
       "Characters/FarmRpg/layers/outfit-farm-blue/idle.png",

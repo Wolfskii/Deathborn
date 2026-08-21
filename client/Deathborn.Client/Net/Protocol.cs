@@ -3,6 +3,48 @@ using System.Text.Json.Serialization;
 
 namespace Deathborn.Client.Net;
 
+public sealed class CharacterAppearanceData
+{
+    [JsonPropertyName("gender")]
+    public string Gender { get; set; } = "male";
+
+    [JsonPropertyName("skinTone")]
+    public string SkinTone { get; set; } = "fair";
+
+    [JsonPropertyName("eyeColor")]
+    public string EyeColor { get; set; } = "brown";
+
+    [JsonPropertyName("hairStyleId")]
+    public string HairStyleId { get; set; } = "farm-hair-josh-brown";
+
+    [JsonPropertyName("skinHue")]
+    public int SkinHue { get; set; }
+
+    [JsonPropertyName("skinSaturation")]
+    public int SkinSaturation { get; set; }
+
+    [JsonPropertyName("skinBrightness")]
+    public int SkinBrightness { get; set; } = 100;
+
+    [JsonPropertyName("eyeHue")]
+    public int EyeHue { get; set; }
+
+    [JsonPropertyName("eyeSaturation")]
+    public int EyeSaturation { get; set; }
+
+    [JsonPropertyName("eyeBrightness")]
+    public int EyeBrightness { get; set; } = 100;
+
+    [JsonPropertyName("hairHue")]
+    public int HairHue { get; set; }
+
+    [JsonPropertyName("hairSaturation")]
+    public int HairSaturation { get; set; }
+
+    [JsonPropertyName("hairBrightness")]
+    public int HairBrightness { get; set; } = 100;
+}
+
 public sealed class Envelope
 {
     [JsonPropertyName("type")]
@@ -34,6 +76,12 @@ public sealed class WelcomeData
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
+
+    [JsonPropertyName("race")]
+    public string Race { get; set; } = "human";
+
+    [JsonPropertyName("appearance")]
+    public CharacterAppearanceData Appearance { get; set; } = new();
 
     [JsonPropertyName("skills")]
     public Dictionary<string, long>? Skills { get; set; }
@@ -382,6 +430,12 @@ public sealed class PlayerState
 
     [JsonPropertyName("headCosmetic")]
     public string? HeadCosmetic { get; set; }
+
+    [JsonPropertyName("race")]
+    public string Race { get; set; } = "human";
+
+    [JsonPropertyName("appearance")]
+    public CharacterAppearanceData Appearance { get; set; } = new();
 }
 
 public sealed class MessageData

@@ -4523,3 +4523,899 @@
 
 #end Ui/FarmRpg/hud.png
 
+#begin Characters/FarmRpg/layers/eyes-female-black/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/attack.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/attack.png
+
+#begin Characters/FarmRpg/layers/eyes-female-black/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/cast.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/cast.png
+
+#begin Characters/FarmRpg/layers/eyes-female-black/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/death.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/death.png
+
+#begin Characters/FarmRpg/layers/eyes-female-black/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/hurt.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/hurt.png
+
+#begin Characters/FarmRpg/layers/eyes-female-black/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/idle.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/idle.png
+
+#begin Characters/FarmRpg/layers/eyes-female-black/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/run.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/run.png
+
+#begin Characters/FarmRpg/layers/eyes-female-black/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/shield_bash.png
+
+#begin Characters/FarmRpg/layers/eyes-female-black/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-black/walk.png
+
+#end Characters/FarmRpg/layers/eyes-female-black/walk.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/attack.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/attack.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/cast.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/cast.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/death.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/death.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/hurt.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/hurt.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/idle.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/idle.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/run.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/run.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/shield_bash.png
+
+#begin Characters/FarmRpg/layers/eyes-female-blue/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-blue/walk.png
+
+#end Characters/FarmRpg/layers/eyes-female-blue/walk.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/attack.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/attack.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/cast.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/cast.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/death.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/death.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/hurt.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/hurt.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/idle.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/idle.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/run.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/run.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/shield_bash.png
+
+#begin Characters/FarmRpg/layers/eyes-female-brown/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-brown/walk.png
+
+#end Characters/FarmRpg/layers/eyes-female-brown/walk.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/attack.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/attack.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/cast.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/cast.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/death.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/death.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/hurt.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/hurt.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/idle.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/idle.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/run.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/run.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/shield_bash.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/shield_bash.png
+
+#begin Characters/FarmRpg/layers/eyes-female-green/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/eyes-female-green/walk.png
+
+#end Characters/FarmRpg/layers/eyes-female-green/walk.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/attack.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/attack.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/cast.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/cast.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/death.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/death.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/hurt.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/hurt.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/idle.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/idle.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/run.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/run.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-black/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-black/walk.png
+
+#end Characters/FarmRpg/layers/hair-lyria-black/walk.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/attack.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/attack.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/cast.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/cast.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/death.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/death.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/hurt.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/hurt.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/idle.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/idle.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/run.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/run.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-blonde/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-blonde/walk.png
+
+#end Characters/FarmRpg/layers/hair-lyria-blonde/walk.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/attack.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/attack.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/cast.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/cast.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/death.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/death.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/hurt.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/hurt.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/idle.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/idle.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/run.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/run.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-brown/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-brown/walk.png
+
+#end Characters/FarmRpg/layers/hair-lyria-brown/walk.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/attack.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/attack.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/attack.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/cast.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/cast.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/cast.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/death.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/death.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/death.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/hurt.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/hurt.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/hurt.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/idle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/idle.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/idle.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/run.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/run.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/run.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/shield_bash.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/shield_bash.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/shield_bash.png
+
+#begin Characters/FarmRpg/layers/hair-lyria-ginger/walk.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Characters/FarmRpg/layers/hair-lyria-ginger/walk.png
+
+#end Characters/FarmRpg/layers/hair-lyria-ginger/walk.png
+

@@ -14,11 +14,17 @@ except ImportError:
     ImageDraw = None  # type: ignore[assignment,misc]
 
 REPO = Path(__file__).resolve().parents[1]
-PACK = (
+MODEL_PACK = (
+    REPO
+    / "client/Deathborn.Client/Models/Farm RPG - Tiny Asset Pack - (All in One)"
+    / "Character/Character/PNG"
+)
+LEGACY_PACK = (
     REPO
     / "client/Deathborn.Client/Content/Characters/Farm RPG - Tiny Asset Pack - (All in One)"
     / "Character/Character/PNG"
 )
+PACK = MODEL_PACK if MODEL_PACK.is_dir() else LEGACY_PACK
 OUT = REPO / "client/Deathborn.Client/Content/Characters/FarmRpg"
 MGCB = REPO / "client/Deathborn.Client/Content/Content.mgcb"
 
@@ -43,10 +49,18 @@ LAYERS: dict[str, dict[str, str]] = {
     "eyes-male-blue": {"tpl": "Eyes/Male/Blue.png"},
     "eyes-male-green": {"tpl": "Eyes/Male/Green.png"},
     "eyes-male-black": {"tpl": "Eyes/Male/Black.png"},
+    "eyes-female-brown": {"tpl": "Eyes/Female/Brown.png"},
+    "eyes-female-blue": {"tpl": "Eyes/Female/Blue.png"},
+    "eyes-female-green": {"tpl": "Eyes/Female/Green.png"},
+    "eyes-female-black": {"tpl": "Eyes/Female/Black.png"},
     "hair-josh-brown": {"tpl": "Hair's/Josh/Brown.png"},
     "hair-josh-black": {"tpl": "Hair's/Josh/Black.png"},
     "hair-josh-blonde": {"tpl": "Hair's/Josh/Blonde.png"},
     "hair-josh-ginger": {"tpl": "Hair's/Josh/Ginger.png"},
+    "hair-lyria-brown": {"tpl": "Hair's/Lyria/Brown.png"},
+    "hair-lyria-black": {"tpl": "Hair's/Lyria/Black.png"},
+    "hair-lyria-blonde": {"tpl": "Hair's/Lyria/Blonde.png"},
+    "hair-lyria-ginger": {"tpl": "Hair's/Lyria/Ginger.png"},
     "outfit-farm-blue": {"tpl": "Clothers/Farm/Blue.png"},
     "outfit-farm-green": {"tpl": "Clothers/Farm/Green.png"},
     "outfit-farm-red": {"tpl": "Clothers/Farm/Red.png"},

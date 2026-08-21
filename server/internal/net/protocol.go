@@ -28,7 +28,9 @@ type InputData struct {
 
 // CreateCharacterData is sent on the "create_character" message.
 type CreateCharacterData struct {
-	Name string `json:"name"`
+	Name       string                `json:"name"`
+	Race       string                `json:"race"`
+	Appearance game.PlayerAppearance `json:"appearance"`
 }
 
 // InteractData is sent when the player interacts with a world object.
@@ -222,17 +224,19 @@ type PlayerBuffData struct {
 
 // WelcomeData tells the client which entity id is theirs and the spawn point.
 type WelcomeData struct {
-	CharacterID int64                `json:"characterId"`
-	X           float64              `json:"x"`
-	Y           float64              `json:"y"`
-	Name        string               `json:"name"`
-	Skills      map[string]int64     `json:"skills,omitempty"`
-	TotalXp     int64                `json:"totalXp,omitempty"`
-	Inventory   []game.InventoryItem `json:"inventory,omitempty"`
-	Hp          float64              `json:"hp,omitempty"`
-	HpMax       float64              `json:"hpMax,omitempty"`
-	Stamina     float64              `json:"stamina,omitempty"`
-	Mana        float64              `json:"mana,omitempty"`
+	CharacterID int64                 `json:"characterId"`
+	X           float64               `json:"x"`
+	Y           float64               `json:"y"`
+	Name        string                `json:"name"`
+	Race        string                `json:"race"`
+	Appearance  game.PlayerAppearance `json:"appearance"`
+	Skills      map[string]int64      `json:"skills,omitempty"`
+	TotalXp     int64                 `json:"totalXp,omitempty"`
+	Inventory   []game.InventoryItem  `json:"inventory,omitempty"`
+	Hp          float64               `json:"hp,omitempty"`
+	HpMax       float64               `json:"hpMax,omitempty"`
+	Stamina     float64               `json:"stamina,omitempty"`
+	Mana        float64               `json:"mana,omitempty"`
 }
 
 // LogoutData may include client-side vitals so they persist with the logout save.
