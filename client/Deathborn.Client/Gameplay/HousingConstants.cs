@@ -49,7 +49,7 @@ public static class HousingConstants
     public static Vector2 InteriorSpawnPosition(Vector2 center)
     {
         var door = InteriorDoorWorldPosition(center);
-        return new Vector2(door.X, door.Y - 36f);
+        return new Vector2(door.X, door.Y - 18f);
     }
 
     public static Vector2 InteriorLocalMin => new(-InteriorHalfW, -InteriorHalfH);

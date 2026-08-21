@@ -16,7 +16,7 @@ from PIL import Image
 LAYER_CLASS_RE = re.compile(r"^(ground|water)_(\d+)$", re.IGNORECASE)
 
 TILE_ART_PX = 16
-MAP_TILE_PX = 32
+MAP_TILE_PX = 16
 PLAIN_GRASS = (9, 2)
 SHORE_CELL = (4, 8)
 

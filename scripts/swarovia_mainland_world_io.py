@@ -11,7 +11,7 @@ ELEVATION = ROOT / "shared" / "world" / "swarovia_mainland_elevation.bin"
 SERVER_COLLISION = ROOT / "server" / "internal" / "worldmap" / "swarovia_mainland_collision.bin"
 SERVER_ELEVATION = ROOT / "server" / "internal" / "worldmap" / "swarovia_mainland_elevation.bin"
 
-TILE_SIZE = 32.0
+TILE_SIZE = 16.0
 RAMP_NONE = 0
 
 # Elevation (-1 empty/ocean unset, 1..N from ground_N / water_N layer classes)

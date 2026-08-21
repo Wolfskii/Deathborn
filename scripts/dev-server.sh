@@ -5,6 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER_DIR="${ROOT}/server"
+WORLD_WATCH_INTERVAL="${DEV_WATCH_INTERVAL:-0.75}"
+WORLD_WATCH_PID=""
 
 # Platform overrides ([build.windows]) need Air >= 1.64.
 AIR_MIN_VERSION="1.64.0"
@@ -46,6 +48,28 @@ ensure_air() {
   fi
 }
 
+watch_world_data() {
+  while true; do
+    if ! PYTHONDONTWRITEBYTECODE=1 WORLD_SYNC_QUIET=1 \
+      python "$ROOT/scripts/sync_world_if_changed.py"; then
+      echo "World data regeneration failed — retrying..." >&2
+    fi
+    sleep "$WORLD_WATCH_INTERVAL"
+  done
+}
+
+cleanup() {
+  if [ -n "$WORLD_WATCH_PID" ]; then
+    kill "$WORLD_WATCH_PID" 2>/dev/null || true
+    wait "$WORLD_WATCH_PID" 2>/dev/null || true
+  fi
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 ensure_air
 cd "$SERVER_DIR"
-exec air -c .air.toml
+watch_world_data &
+WORLD_WATCH_PID=$!
+air -c .air.toml

@@ -108,7 +108,7 @@ def copy_assets() -> list[str]:
 def write_manifest(installed: list[str]) -> None:
     manifest = {
         "tile_size_px": 16,
-        "world_tile_size": 32,
+        "world_tile_size": 16,
         "plain_grass_cell": [9, 2],
         "grass_autotile_origin": [5, 1],
         "grass_water_land_origin": [4, 8],

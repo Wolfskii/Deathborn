@@ -136,7 +136,7 @@ public sealed class WorldMap
         return (0, 0, 0, false);
     }
 
-    // PERF: Previously looped every tile in the elevation grid (1024×1024 ≈ 1M GetRamp calls)
+    // PERF: Previously looped every tile in the elevation grid (2048×2048 ≈ 4M GetRamp calls)
     // on each engagement check. Walking called this several times per ResolveMove → ~55–75ms
     // "move=" FPS dips (fps-dips.log). Stairs only touch nearby tiles, so scan ±2 around the feet.
     private (int rx, int ry, int kind, bool ok) RampEngagedAtWorld(float worldX, float worldY)

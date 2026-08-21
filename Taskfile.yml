@@ -67,6 +67,7 @@ tasks:
 
   dev:all:*:
     desc: "Start DB, backend, and N MonoGame clients. Usage: task dev:all:3"
+    deps: [world:generate]
     vars:
       CLIENT_COUNT: '{{index .MATCH 0}}'
     cmds:
@@ -79,6 +80,7 @@ tasks:
 
   dev:all:
     desc: "Start DB, backend, and N MonoGame clients (default 1). Usage: task dev:all -- 2"
+    deps: [world:generate]
     cmds:
       - task: db
       - task: dev:wait-db
@@ -88,8 +90,8 @@ tasks:
         platforms: [windows]
 
   dev:server:
-    desc: Run Go server with Air live-reload (rebuilds on .go/.sql changes)
-    deps: [db, dev:wait-db, sync:shared]
+    desc: Run Go server with Air live-reload (rebuilds on code and world-data changes)
+    deps: [db, dev:wait-db, sync:shared, world:generate]
     dir: "{{.SERVER_DIR}}"
     env:
       DATABASE_URL: "{{.DEV_DATABASE_URL}}"
@@ -103,10 +105,11 @@ tasks:
         platforms: [windows]
 
   dev:client:
-    desc: Run only the MonoGame client; dotnet watch restarts the game on code changes
+    desc: Run only the MonoGame client; dotnet watch restarts on code/map changes
     dir: "{{.CLIENT_DIR}}"
     deps:
       - task: client:icons
+      - task: world:generate
     env:
       DEATHBORN_SKIP_UPDATE: "1"
     cmds:
@@ -155,6 +158,12 @@ tasks:
 
   world:import-tiled:
     desc: Import edited swarovia_mainland.tmx back into world binaries
+    deps: [world:generate]
+
+  world:generate:
+    desc: Regenerate collision/elevation data consumed by the minimap and M world map
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     cmds:
       - python scripts/import_tiled_overworld.py
 
@@ -163,6 +172,7 @@ tasks:
     dir: "{{.CLIENT_DIR}}"
     deps:
       - task: client:icons
+      - task: world:generate
     cmds:
       - dotnet tool restore
       - dotnet build Deathborn.Client/Deathborn.Client.csproj -c Release -v {{.DOTNET_VERBOSITY}}
@@ -175,6 +185,7 @@ tasks:
     dir: "{{.CLIENT_DIR}}"
     deps:
       - task: client:icons
+      - task: world:generate
     vars:
       RID: '{{.RID | default .CLIENT_RID}}'
       VERSION_STRIP:
@@ -318,7 +329,9 @@ tasks:
     dir: "{{.SERVER_DIR}}"
     env:
       CGO_ENABLED: "0"
-    deps: [sync:shared]
+    deps:
+      - task: sync:shared
+      - task: world:generate
     cmds:
       - go build -ldflags "{{.LDFLAGS}}" -o ../bin/{{.BINARY}} ./cmd/deathborn
     generates:
@@ -326,6 +339,7 @@ tasks:
 
   build:image:
     desc: Build the server Docker image, tagged with the current version and latest
+    deps: [world:generate]
     cmds:
       - docker build -t {{.IMAGE}}:{{.VERSION}} -t {{.IMAGE}}:latest {{.SERVER_DIR}}
 
@@ -373,6 +387,7 @@ tasks:
     desc: 'Push the image to a registry. Set REGISTRY, e.g. REGISTRY=ghcr.io/you task publish:image'
     requires:
       vars: [REGISTRY]
+    deps: [world:generate]
     cmds:
       - docker build -t {{.REGISTRY}}/{{.IMAGE}}:{{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE}}:latest {{.SERVER_DIR}}
       - docker push {{.REGISTRY}}/{{.IMAGE}}:{{.VERSION}}

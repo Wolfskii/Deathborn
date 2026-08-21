@@ -7,10 +7,10 @@ namespace Deathborn.Client.Gameplay;
 public static class HousePlacement
 {
     /// <summary>Max distance from player feet to proposed plot center.</summary>
-    public const float MaxPlaceDistance = 320f;
+    public const float MaxPlaceDistance = 160f;
 
     /// <summary>Matches server HouseMinSeparation.</summary>
-    public const float MinSeparation = 440f;
+    public const float MinSeparation = 220f;
 
     public static bool IsValid(
         Vector2 center,

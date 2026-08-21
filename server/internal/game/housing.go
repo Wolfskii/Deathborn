@@ -8,27 +8,27 @@ import (
 )
 
 const (
-	PlotHalfW          = 200.0
-	PlotHalfH          = 176.0
-	HouseHalfW         = 104.0
-	HouseHalfH         = 88.0
-	InteriorHalfW      = 420.0
-	InteriorHalfH      = 250.0
-	HouseMinSeparation = 440.0
-	HouseMaxPlaceDist  = 320.0
+	PlotHalfW          = 100.0
+	PlotHalfH          = 88.0
+	HouseHalfW         = 52.0
+	HouseHalfH         = 44.0
+	InteriorHalfW      = 210.0
+	InteriorHalfH      = 125.0
+	HouseMinSeparation = 220.0
+	HouseMaxPlaceDist  = 160.0
 	MaxFurniture       = 24
 
 	// Exterior cottage collision (matches client HousingCollision).
-	houseBodyHalfW      = 50.0
-	houseBodyBottom     = -4.0
-	houseRoofEave       = -64.0
-	houseRoofApex       = -108.0
-	houseDoorGapHalfW   = 20.0
-	houseDoorApproachS  = 36.0
+	houseBodyHalfW     = 50.0
+	houseBodyBottom    = -4.0
+	houseRoofEave      = -64.0
+	houseRoofApex      = -108.0
+	houseDoorGapHalfW  = 20.0
+	houseDoorApproachS = 36.0
 
 	// Homestead fence AABBs (matches client HomesteadFence).
 	fenceThickness = 14.0
-	fenceWorldTile = 32.0
+	fenceWorldTile = 16.0
 )
 
 // FurnitureItem is a placed interior object (world-relative coords).
@@ -302,11 +302,11 @@ func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
 	// Just inside the south exit door — player appears at the doorway and walks up into the room.
 	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
-	return dx, dy - 36
+	return dx, dy - 18
 }
 
 func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY + InteriorHalfH - 40
+	return centerX, centerY + InteriorHalfH - 20
 }
 
 func HouseExteriorSpawn(centerX, centerY float64) (float64, float64) {
@@ -332,19 +332,19 @@ func canAutoHouseTransition(p *player) bool {
 
 func NearHouseDoor(x, y, centerX, centerY float64) bool {
 	dx, dy := HouseDoorPosition(centerX, centerY)
-	return math.Hypot(x-dx, y-dy) <= 76
+	return math.Hypot(x-dx, y-dy) <= 38
 }
 
 func NearInteriorExit(x, y, centerX, centerY float64) bool {
 	dx, dy := HouseInteriorDoorPosition(centerX, centerY)
-	if y < dy-28 {
+	if y < dy-14 {
 		return false
 	}
-	return math.Hypot(x-dx, y-dy) <= 52
+	return math.Hypot(x-dx, y-dy) <= 26
 }
 
 func clampToInterior(x, y, centerX, centerY float64) (float64, float64) {
-	const inset = 32.0
+	const inset = 16.0
 	minX := centerX - InteriorHalfW + inset
 	maxX := centerX + InteriorHalfW - inset
 	minY := centerY - InteriorHalfH + inset
@@ -565,11 +565,11 @@ func overlapsHomesteadFenceEntity(x, y, rx, ry, centerX, centerY float64) bool {
 	cy := playerCollisionY(y, ry)
 
 	rects := [5][4]float64{
-		{left - t, right + t, top - t, top + t},             // north
-		{left - t, left + t, top - t, bottom + t},           // west
-		{right - t, right + t, top - t, bottom + t},         // east
-		{left - t, gapL, bottom - t, bottom + t},            // south L
-		{gapR, right + t, bottom - t, bottom + t},           // south R
+		{left - t, right + t, top - t, top + t},     // north
+		{left - t, left + t, top - t, bottom + t},   // west
+		{right - t, right + t, top - t, bottom + t}, // east
+		{left - t, gapL, bottom - t, bottom + t},    // south L
+		{gapR, right + t, bottom - t, bottom + t},   // south R
 	}
 	for _, r := range rects {
 		if ellipseOverlapsHouseRect(x, cy, rx, ry, r[0], r[1], r[2], r[3]) {

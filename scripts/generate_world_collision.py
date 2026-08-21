@@ -14,13 +14,13 @@ OUT = ROOT / "shared" / "world" / "swarovia_mainland_collision.bin"
 PREVIEW = ROOT / "shared" / "world" / "swarovia_mainland_preview.png"
 SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "swarovia_mainland_collision.bin"
 
-STEP = 2
-TILE_SIZE = 32.0
-SMALL_WATER_MAX = 9  # fill water pockets with <= this many tiles
+STEP = 1
+TILE_SIZE = 16.0
+SMALL_WATER_MAX = 36  # fill water pockets with <= this many 16px tiles
 # Town icon art leaves compact land specks and enclosed water holes on the reference map.
-TOWN_MARKER_LAND_MAX = 120
-TOWN_MARKER_DIMENSION_MAX = 14
-ENCLOSED_WATER_MAX = 120
+TOWN_MARKER_LAND_MAX = 480
+TOWN_MARKER_DIMENSION_MAX = 28
+ENCLOSED_WATER_MAX = 480
 
 
 def is_water(r: int, g: int, b: int, a: int) -> bool:

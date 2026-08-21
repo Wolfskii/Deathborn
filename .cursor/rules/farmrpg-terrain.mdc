@@ -14,7 +14,7 @@ Read [`.tile_debug/farmrpg_guide.json`](../../.tile_debug/farmrpg_guide.json) be
 - Autotile mask uses 4 neighbours; **same** = elevation ≥ cell elevation (or land/water for shoreline).
 - Cliffs face **south only**; lip row 17, base row 18, cols 16–19 on grass sheets.
 - Grass autotile origin (5, 1); plain fill (9, 2); grass-water land origin (4, 8).
-- 16 px art scales 2× to 32 px world cells. Install: `python scripts/install_farm_rpg_terrain.py`.
+- 16 px art is drawn at native size in 16 px world cells. Install: `python scripts/install_farm_rpg_terrain.py`.
 - Regenerate data: `python scripts/generate_world_elevation.py` after collision changes.
 
 See [AGENTS.md](../../AGENTS.md) for file map and generator notes.

@@ -31,10 +31,10 @@ public static class Config
     public const float LocalReconcileSpeed = 14f;
     public const float LocalSnapDistance = 72f;
 
-    /// <summary>Legacy design tile size; world bins may use a larger value.</summary>
+    /// <summary>Base art and world tile size used by the overworld bins.</summary>
     public const float LegacyTileSize = 16f;
     /// <summary>Must match <c>swarovia_mainland_collision.bin</c> tile size.</summary>
-    public const float WorldTileSize = 32f;
+    public const float WorldTileSize = 16f;
     private const float Ws = WorldTileSize / LegacyTileSize;
 
     public const float InteractRange = 72f * Ws;

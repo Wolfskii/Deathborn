@@ -1,6 +1,6 @@
 {
   "tile_size_px": 16,
-  "world_tile_size": 32,
+  "world_tile_size": 16,
   "plain_grass_cell": [
     9,
     2

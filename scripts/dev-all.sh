@@ -2,8 +2,8 @@
 # Start Go server in background, then N MonoGame clients for local multiplayer testing.
 # Used by: task dev / task dev:all [-- CLIENT_COUNT]
 #
-# Client reload: poll for source changes, stop all game windows, rebuild, restart.
-# Server reload: Air watches server/*.go (+ migrations) and rebuilds in place.
+# Client reload: poll for source/map changes, regenerate world data, rebuild, restart.
+# Server reload: Air watches server/*.go, migrations, and world bins, then rebuilds in place.
 # Uses a build stamp (not the DLL mtime) and ignores obj/bin so generated files
 # don't retrigger an infinite rebuild loop on Windows.
 set -e
@@ -95,6 +95,27 @@ resolve_python() {
   return 1
 }
 
+world_map_sources_changed() {
+  if [ ! -f "$BUILD_STAMP" ]; then
+    return 0
+  fi
+  [ -n "$(find "$CLIENT_DIR/Deathborn.Client/Content/Maps/overworld" "${FIND_PRUNE[@]}" \
+      \( -name '*.tmx' -o -name '*.tsx' \) -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]
+}
+
+refresh_world_data_if_needed() {
+  if ! world_map_sources_changed; then
+    return 0
+  fi
+
+  local py
+  if ! py=$(resolve_python); then
+    echo "Python not found — cannot regenerate world data." >&2
+    return 1
+  fi
+  "$py" "$ROOT/scripts/sync_world_if_changed.py"
+}
+
 refresh_app_icons() {
   local py
   if ! py=$(resolve_python); then
@@ -167,7 +188,7 @@ client_sources_changed() {
     return 0
   fi
   if [ -n "$(find "$CLIENT_DIR/Deathborn.Client/Content" "${FIND_PRUNE[@]}" \
-      \( -name '*.mgcb' -o -name '*.png' -o -name '*.jpg' -o -name '*.mp3' -o -name '*.ogg' -o -name '*.wav' -o -name '*.spritefont' \) \
+      \( -name '*.mgcb' -o -name '*.png' -o -name '*.jpg' -o -name '*.mp3' -o -name '*.ogg' -o -name '*.wav' -o -name '*.spritefont' -o -name '*.tmx' -o -name '*.tsx' \) \
       -newer "$BUILD_STAMP" -print -quit 2>/dev/null)" ]; then
     return 0
   fi
@@ -195,6 +216,11 @@ rebuild_clients_if_needed() {
   fi
 
   BUILDING=1
+  if ! refresh_world_data_if_needed; then
+    echo "World data regeneration failed — fix the map/importer and save again to retry."
+    BUILDING=0
+    return
+  fi
   echo "Client sources changed — stopping game windows to rebuild..."
   stop_clients
 

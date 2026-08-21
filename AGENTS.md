@@ -170,7 +170,7 @@ Authoritative reference: [`.tile_debug/farmrpg_guide.json`](.tile_debug/farmrpg_
 
 ### Quick facts
 
-- **Tile size:** 16×16 px art (world collision grid uses **32 px** cells; renderer scales 2×).
+- **Tile size:** 16×16 px art and **16 px** world collision cells; renderer draws at native size.
 - **Vendor pack:** `Content/Characters/Farm RPG - Tiny Asset Pack - (All in One)/Tileset/`
 - **Runtime tiles:** `Content/Tiles/FarmRpg/` (installed via `scripts/install_farm_rpg_terrain.py`)
 - **Elevation levels:** Tiled authoring uses `ground_N` / `water_N` (N≥1); import writes elevation **N** for both (water stays non-walkable). Empty cells → `-1`. Legacy autotile/generators may still use `0` shoreline.
@@ -239,7 +239,7 @@ python scripts/install_farm_rpg_terrain.py
 
 Dev log: `client/Deathborn.Client/bin/Debug/net8.0/logs/fps-dips.log` (phase marks: `poll`, `move`, `clouds`, …).
 
-### Never full-scan the 1024×1024 elevation / ramp grid on the move hot path
+### Never full-scan the 2048×2048 elevation / ramp grid on the move hot path
 
 **Bug (fixed):** `RampTreadAtWorld`, `RampEngagedAtWorld`, and `RampTreadCellId` (client `Game/WorldMap.cs`; server `server/internal/worldmap/elevation.go`) used to iterate **every** ramp/elevation cell. Walking called them several times per `ResolveMove` → ~55–75ms `move=` dips and ~15 FPS while idle frames were ~3ms.
 
@@ -252,7 +252,7 @@ Keep client and server ramp logic in sync when changing engagement rules.
 | Mistake | Symptom | Fix location |
 |---------|---------|--------------|
 | `File.GetLastWriteTimeUtc` every `SwaroviaMainland` access | Update stalls | `WorldMap` — cache after load; use `ReloadFromDisk()` for manual reload |
-| Rebuild full tiled overworld RT every water anim tick (~0.2s) | Draw/update spikes | `TiledOverworldRenderer` — cache `ground_*`; draw `water_*` live |
+| Mix a scaled tiled-overworld RT with live shoreline tiles | Blue seams while moving | `TiledOverworldRenderer` — draw water and ground using the same live, pixel-snapped tile rects |
 | Sync `AutoFlush` / IDE-watched FPS log on game thread | Hitch storms from logging itself | `DevPerfLog` — async queue writer |
 
 ### Ellipse vs tiles / props (corners)
@@ -290,7 +290,7 @@ python scripts/export_realik_to_tiled.py
 # or: task world:export-tiled
 ```
 
-Opens: `client/Deathborn.Client/Content/Maps/overworld/swarovia_mainland.tmx` (1024×1024, 32 px cells). Layer data is stored as **base64+gzip** (Tiled’s native format for large maps).
+Opens: `client/Deathborn.Client/Content/Maps/overworld/swarovia_mainland.tmx` (2048×2048, 16 px cells). Layer data is stored as **base64+gzip** (Tiled’s native format for large maps).
 
 #### Layer classes (gameplay height)
 
@@ -327,15 +327,17 @@ Paint land on `ground_*` layers; put open water / lakes on `water_*`. Add new ti
 ```bash
 python scripts/import_tiled_overworld.py
 # or: task world:import-tiled
+# or: task world:generate
 ```
 
 This writes `shared/world/swarovia_mainland_collision.bin` + `swarovia_mainland_elevation.bin` from layer classes and syncs server copies. **Restart the client** to reload the map.
+`task world:generate` also runs automatically before server/client builds; the minimap and M world map consume these same runtime binaries.
 
 ### Dungeons / instanced rooms
 
 - **Editor:** [Tiled Map Editor](https://www.mapeditor.org/) (`.tmx` + `.tsx` + tileset `.png`)
 - **Runtime:** MonoGame.Extended 6.x loads `.tmx` at runtime via `TiledTmxParser` (no MGCB rebuild when editing maps)
-- **Tile size:** 32×32 px world cells for new dungeon maps (match `Config.WorldTileSize`)
+- **Tile size:** 16×16 px world cells for new dungeon maps (match `Config.WorldTileSize`)
 - **Starter map:** `Content/Maps/dungeons/starter_room.tmx`
 
 ### Layer conventions

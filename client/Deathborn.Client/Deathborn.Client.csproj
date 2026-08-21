@@ -47,7 +47,7 @@
     <Content Include="Content\Maps\manifest.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Content\Maps\**\*.tmx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Content\Maps\**\*.tsx" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Runtime Tiled loader reads tileset PNGs from disk (16 px art, stretched to 32 px cells in-game). -->
+    <!-- Runtime Tiled loader reads tileset PNGs from disk at native 16px world-cell size. -->
     <Content Include="Content\Tiles\FarmRpg\*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Content\Audio\Songs\*.srt" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="..\..\shared\protocol.json" Link="Protocol\protocol.json" />
@@ -62,4 +62,7 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.4.1" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
   </ItemGroup>
+  <Target Name="SyncOverworldData" BeforeTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="python &quot;$(MSBuildThisFileDirectory)../../scripts/sync_world_if_changed.py&quot;" />
+  </Target>
 </Project>

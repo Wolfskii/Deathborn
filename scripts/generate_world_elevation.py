@@ -18,11 +18,11 @@ OUT = ROOT / "shared" / "world" / "swarovia_mainland_elevation.bin"
 SERVER_COPY = ROOT / "server" / "internal" / "worldmap" / "swarovia_mainland_elevation.bin"
 
 SEED = 0x0EA11C
-MIN_PLATEAU_CELLS = 40
+MIN_PLATEAU_CELLS = 160
 PLATEAU_COUNT = 5
-PLATEAU_RADIUS = (22, 38)
-MIN_RAMP_SEPARATION = 8
-MIN_CLIFF_GAP_ROWS = 4
+PLATEAU_RADIUS = (44, 76)
+MIN_RAMP_SEPARATION = 16
+MIN_CLIFF_GAP_ROWS = 8
 
 RAMP_NONE = 0
 RAMP_LEFT = 1

@@ -157,7 +157,7 @@ func (g *elevationGrid) rampTreadCellID(tx, ty, tw, th int) (landingX, landingY,
 
 // rampEngagedAtWorld is true on the green tread band or valid stair entry/approach tiles.
 //
-// PERF: Used to iterate every ramp cell on the map (1024×1024) on each call. Movement
+// PERF: Used to iterate every ramp cell on the map (2048×2048) on each call. Movement
 // resolution hits this path often; that full-grid scan caused multi-frame client hitch storms
 // (move phase ~55–75ms). Stairs only engage nearby tiles — keep the search to ±2 around feet.
 func (g *elevationGrid) rampEngagedAtWorld(wx, wy, tileSize float64, tw, th int) (landingX, landingY, kind int, ok bool) {
