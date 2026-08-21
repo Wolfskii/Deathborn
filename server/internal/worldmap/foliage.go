@@ -3,10 +3,10 @@ package worldmap
 import "math"
 
 const (
-	foliageSeed        = 0xB00B5
-	foliageLandStride  = 2
-	foliageTownPad     = 56.0
-	foliageSpawnClear  = 160.0
+	foliageSeed       = 0xB00B5
+	foliageLandStride = 2
+	foliageTownPad    = 56.0
+	foliageSpawnClear = 160.0
 )
 
 type foliageKind int
@@ -32,10 +32,10 @@ type foliageCircle struct {
 }
 
 type foliageIndex struct {
-	circles    []foliageCircle
-	cellSize   float64
-	queryPad   float64
-	cells      map[[2]int][]int
+	circles  []foliageCircle
+	cellSize float64
+	queryPad float64
+	cells    map[[2]int][]int
 }
 
 func (m *Map) buildFoliage() *foliageIndex {
@@ -79,7 +79,7 @@ const treeStemSortPad = 2.0
 
 func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	scale := 0.78 + float64(foliageHash(tx, ty, 10)%1000)/1000.0*0.38
-	scale *= foliageScaleMul(kind)
+	scale *= foliageScaleMul(kind) / 2.0
 	variant := foliageVariant(kind, tx, ty)
 
 	var centerY, radius, trunkSortY float64

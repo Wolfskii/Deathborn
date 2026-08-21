@@ -8,27 +8,29 @@ import (
 )
 
 const (
-	PlotHalfW          = 100.0
-	PlotHalfH          = 88.0
-	HouseHalfW         = 52.0
-	HouseHalfH         = 44.0
+	PlotHalfW          = 50.0
+	PlotHalfH          = 44.0
+	HouseHalfW         = 26.0
+	HouseHalfH         = 22.0
 	InteriorHalfW      = 210.0
 	InteriorHalfH      = 125.0
-	HouseMinSeparation = 220.0
-	HouseMaxPlaceDist  = 160.0
+	HouseMinSeparation = 110.0
+	HouseMaxPlaceDist  = 80.0
 	MaxFurniture       = 24
 
 	// Exterior cottage collision (matches client HousingCollision).
-	houseBodyHalfW     = 50.0
-	houseBodyBottom    = -4.0
-	houseRoofEave      = -64.0
-	houseRoofApex      = -108.0
-	houseDoorGapHalfW  = 20.0
-	houseDoorApproachS = 36.0
+	houseBodyHalfW     = 25.0
+	houseBodyBottom    = 2.0
+	houseRoofEave      = -20.0
+	houseRoofApex      = -54.0
+	houseDoorGapHalfW  = 10.0
+	houseDoorApproachS = 18.0
 
 	// Homestead fence AABBs (matches client HomesteadFence).
-	fenceThickness = 14.0
-	fenceWorldTile = 16.0
+	fenceThickness          = 7.0
+	fenceWorldTile          = 16.0
+	fenceTopCollisionOffset = -4.0
+	fenceContactInset       = 0.5
 )
 
 // FurnitureItem is a placed interior object (world-relative coords).
@@ -296,7 +298,7 @@ func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
 	const displayScale = 1.55
 	const artW = 72.0
 	const artH = 86.0
-	return centerX + artW*0.22*displayScale, centerY - artH*0.12*displayScale
+	return centerX + artW*0.22*displayScale/2, centerY - artH*0.12*displayScale/2
 }
 
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
@@ -311,7 +313,7 @@ func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
 
 func HouseExteriorSpawn(centerX, centerY float64) (float64, float64) {
 	dx, dy := HouseDoorPosition(centerX, centerY)
-	return dx, dy + 36
+	return dx, dy + 18
 }
 
 const houseTransitionCooldownSec = 1.1
@@ -332,7 +334,7 @@ func canAutoHouseTransition(p *player) bool {
 
 func NearHouseDoor(x, y, centerX, centerY float64) bool {
 	dx, dy := HouseDoorPosition(centerX, centerY)
-	return math.Hypot(x-dx, y-dy) <= 38
+	return math.Hypot(x-dx, y-dy) <= 19
 }
 
 func NearInteriorExit(x, y, centerX, centerY float64) bool {
@@ -403,11 +405,11 @@ func entityOverlapsPlot(feetX, feetY, rx, ry, centerX, centerY float64) bool {
 }
 
 func playerCollisionY(feetY, ry float64) float64 {
-	return feetY - 7*1.5*1.35 - ry + 2
+	return feetY - 7*1.5*1.35/2 - ry + 1
 }
 
 func overlapsHouseBody(x, y, centerX, centerY float64) bool {
-	return overlapsHouseBodyEx(x, y, 12, 16, centerX, centerY, true)
+	return overlapsHouseBodyEx(x, y, 6, 8, centerX, centerY, true)
 }
 
 func overlapsHouseBodyForBuild(x, y, rx, ry, centerX, centerY float64) bool {
@@ -428,11 +430,7 @@ func overlapsHouseBodyEx(x, y, rx, ry, centerX, centerY float64, allowDoorApproa
 		return true
 	}
 
-	apexX, apexY := centerX, centerY+houseRoofApex
-	return ellipseOverlapsHouseTriangle(x, cy, rx, ry,
-		apexX, apexY,
-		left, wallTop,
-		right, wallTop)
+	return false
 }
 
 func ellipseOverlapsHouseTriangle(ex, ey, rx, ry, ax, ay, bx, by, cx, cy float64) bool {
@@ -534,16 +532,15 @@ func (h *HousingIndex) blocksFeet(x, y float64) bool {
 
 // overlapsHomesteadFence — five thin AABBs around the plot (south gate gap open).
 func overlapsHomesteadFence(x, y, centerX, centerY float64) bool {
-	return overlapsHomesteadFenceEntity(x, y, 12, 16, centerX, centerY)
+	return overlapsHomesteadFenceEntity(x, y, 6, 8, centerX, centerY)
 }
 
 func overlapsHomesteadFenceEntity(x, y, rx, ry, centerX, centerY float64) bool {
 	left := centerX - PlotHalfW
-	top := centerY - PlotHalfH
+	top := centerY - PlotHalfH + fenceTopCollisionOffset
 	spanX := PlotHalfW * 2
-	spanY := PlotHalfH * 2
 	right := left + spanX
-	bottom := top + spanY
+	bottom := centerY + PlotHalfH
 
 	nx := int(math.Round(spanX / fenceWorldTile))
 	if nx < 4 {
@@ -572,7 +569,11 @@ func overlapsHomesteadFenceEntity(x, y, rx, ry, centerX, centerY float64) bool {
 		{gapR, right + t, bottom - t, bottom + t},   // south R
 	}
 	for _, r := range rects {
-		if ellipseOverlapsHouseRect(x, cy, rx, ry, r[0], r[1], r[2], r[3]) {
+		if ellipseOverlapsHouseRect(
+			x, cy, rx, ry,
+			r[0]+fenceContactInset, r[1]-fenceContactInset,
+			r[2]+fenceContactInset, r[3]-fenceContactInset,
+		) {
 			return true
 		}
 	}
@@ -583,6 +584,12 @@ func overlapsHomesteadFenceEntity(x, y, rx, ry, centerX, centerY float64) bool {
 func (h *HousingIndex) ResolveAgainstHouses(fromX, fromY, toX, toY float64) (float64, float64) {
 	if h == nil || len(h.byID) == 0 {
 		return toX, toY
+	}
+	if math.Abs(toX-fromX) < 0.0001 && math.Abs(toY-fromY) < 0.0001 {
+		return toX, toY
+	}
+	if h.blocksFeet(fromX, fromY) {
+		return fromX, fromY
 	}
 	if !h.blocksFeet(toX, toY) {
 		return toX, toY

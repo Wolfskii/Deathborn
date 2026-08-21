@@ -8,17 +8,18 @@ namespace Deathborn.Client.Gameplay;
 
 public sealed class PlayerEntity
 {
-    public const float Radius = 12f;
+    public const float Radius = 6f;
     /// <summary>Extra vertical reach above the foot-anchored bottom (ellipse grows upward only).</summary>
-    private const float CollisionVerticalExtraPx = 4f;
+    private const float CollisionVerticalExtraPx = 2f;
     public static float CollisionRadiusX => Radius;
     public static float CollisionRadiusY => Radius + CollisionVerticalExtraPx;
     public const float SpriteDrawScale = 1.5f;
     /// <summary>Feet anchor → collision ellipse center (bottom sits on foot pixels).</summary>
-    private const float CollisionCenterFineTuneDownPx = 2f;
+    private const float CollisionCenterFineTuneDownPx = 1f;
     public static float CollisionCenterYOffset =>
         -Rendering.Characters.FarmRpgAnimationSpecs.FootBottomInsetPx *
-        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg) - CollisionRadiusY +
+        CharacterAnimationCatalog.GetDrawScale(CharacterAnimationCatalog.FarmRpg) /
+        Config.ExteriorTerrainFocusScale - CollisionRadiusY +
         CollisionCenterFineTuneDownPx;
 
     public static bool EllipseContainsPoint(Vector2 center, float rx, float ry, Vector2 point)

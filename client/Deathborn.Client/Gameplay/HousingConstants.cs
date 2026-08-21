@@ -7,11 +7,12 @@ namespace Deathborn.Client.Gameplay;
 public static class HousingConstants
 {
     private const float Hs = Config.WorldTileSize / Config.LegacyTileSize;
+    private const float Es = Hs / Config.ExteriorTerrainFocusScale;
 
-    public const float PlotHalfW = 100f * Hs;
-    public const float PlotHalfH = 88f * Hs;
-    public const float HouseHalfW = 52f * Hs;
-    public const float HouseHalfH = 44f * Hs;
+    public const float PlotHalfW = 100f * Es;
+    public const float PlotHalfH = 88f * Es;
+    public const float HouseHalfW = 52f * Es;
+    public const float HouseHalfH = 44f * Es;
 
     /// <summary>Instanced interior — three connected rooms (bedroom | hall | kitchen).</summary>
     public const float InteriorHalfW = 210f * Hs;
@@ -37,7 +38,8 @@ public static class HousingConstants
     /// <summary>Exterior door on the homestead building (right-side door on Farm RPG cottage).</summary>
     public static Vector2 DoorWorldPosition(Vector2 center)
     {
-        var door = FarmRpgHouseSprites.DoorOffsetFromFoot() * FarmRpgHouseSprites.DisplayScale;
+        var door = FarmRpgHouseSprites.DoorOffsetFromFoot()
+            * FarmRpgHouseSprites.DisplayScale * Es;
         return center + door;
     }
 
@@ -56,12 +58,12 @@ public static class HousingConstants
     public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8 * Hs);
 
     /// <summary>Legacy radius — prefer <see cref="DoorHitBounds"/> for click / highlight.</summary>
-    public const float DoorInteractRadius = 38f * Hs;
+    public const float DoorInteractRadius = 38f * Es;
 
     /// <summary>Exterior door click/highlight box (world units) — tall door plate on the cottage.</summary>
-    public const float DoorHitHalfW = 11f;
-    public const float DoorHitHeight = 40f;
-    public const float DoorHitBottomPad = 6f;
+    public const float DoorHitHalfW = 11f * Es;
+    public const float DoorHitHeight = 40f * Es;
+    public const float DoorHitBottomPad = 6f * Es;
 
     public const float InteriorWallInset = 16f * Hs;
 

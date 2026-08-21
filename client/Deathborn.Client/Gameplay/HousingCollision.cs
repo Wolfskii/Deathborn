@@ -6,21 +6,21 @@ namespace Deathborn.Client.Gameplay;
 
 /// <summary>
 /// Exterior cottage collision + interior wall segments.
-/// Cottage solid = bottom wall AABB + roof triangle (cheap). Door approach stays walkable.
+/// Cottage solid = lower wall AABB only; the roof remains pass-through. Door approach stays walkable.
 /// </summary>
 public static class HousingCollision
 {
     /// <summary>Solid house footprint relative to plot center (foot anchor).</summary>
-    public const float BodyHalfW = 50f;
-    public const float BodyBottom = -4f;
+    public const float BodyHalfW = 50f / Config.ExteriorTerrainFocusScale;
+    public const float BodyBottom = 2f;
     /// <summary>Top of the wall rectangle / base of the roof triangle.</summary>
-    public const float RoofEave = -64f;
+    public const float RoofEave = -20f;
     /// <summary>Roof apex (peak).</summary>
-    public const float RoofApex = -108f;
+    public const float RoofApex = -108f / Config.ExteriorTerrainFocusScale;
     /// <summary>Overall top of the collider AABB (roof peak).</summary>
-    public const float BodyTop = RoofApex;
-    public const float DoorGapHalfW = 20f;
-    public const float DoorApproachSouth = 36f;
+    public const float BodyTop = RoofEave;
+    public const float DoorGapHalfW = 20f / Config.ExteriorTerrainFocusScale;
+    public const float DoorApproachSouth = 36f / Config.ExteriorTerrainFocusScale;
 
     public static void BodyBounds(Vector2 center, out float left, out float right, out float top, out float bottom)
     {
@@ -75,8 +75,7 @@ public static class HousingCollision
         if (PlayerEntity.EllipseOverlapsRect(c, rx, ry, left, right, wallTop, bottom))
             return true;
 
-        RoofTriangle(center, out var apex, out var bl, out var br);
-        return EllipseOverlapsTriangle(c, rx, ry, apex, bl, br);
+        return false;
     }
 
     /// <summary>
@@ -152,7 +151,7 @@ public static class HousingCollision
         return false;
     }
 
-    /// <summary>F12: wall AABB + roof triangle (+ fence strips).</summary>
+    /// <summary>F12: lower wall AABB (+ fence strips).</summary>
     public static void DrawDebugColliders(
         SpriteBatch sb,
         IEnumerable<HousePlotZone> houses,
@@ -161,7 +160,6 @@ public static class HousingCollision
         float zoom)
     {
         var wallColor = new Color(0.35f, 1f, 0.45f) * 0.9f;
-        var roofColor = new Color(1f, 0.85f, 0.25f) * 0.9f;
         var fenceColor = new Color(0.4f, 0.75f, 1f) * 0.85f;
         var thick = Math.Max(1.5f, 2f * zoom);
 
@@ -169,14 +167,6 @@ public static class HousingCollision
         {
             WallBounds(house.Center, out var l, out var r, out var t, out var b);
             DrawPrimitives.DrawWorldRectOutline(sb, l, t, r, b, camera, screenCenter, zoom, wallColor, thick);
-
-            RoofTriangle(house.Center, out var apex, out var bl, out var br);
-            var sa = ToScreen(apex, camera, screenCenter, zoom);
-            var sbL = ToScreen(bl, camera, screenCenter, zoom);
-            var sbR = ToScreen(br, camera, screenCenter, zoom);
-            DrawPrimitives.DrawLine(sb, sa, sbL, roofColor, thick);
-            DrawPrimitives.DrawLine(sb, sbL, sbR, roofColor, thick);
-            DrawPrimitives.DrawLine(sb, sbR, sa, roofColor, thick);
 
             var fences = new List<(float L, float R, float T, float B)>(5);
             HomesteadFence.AppendAabbs(house.Center, fences);
@@ -192,6 +182,10 @@ public static class HousingCollision
     {
         var list = houses as IList<HousePlotZone> ?? houses.ToList();
         if (list.Count == 0) return toFeet;
+        if (Vector2.DistanceSquared(fromFeet, toFeet) < 0.0001f)
+            return fromFeet;
+        if (BlocksAt(fromFeet, radius, list))
+            return fromFeet;
 
         if (!BlocksAt(toFeet, radius, list))
             return toFeet;

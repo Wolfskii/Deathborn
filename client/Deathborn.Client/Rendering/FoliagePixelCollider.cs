@@ -71,7 +71,7 @@ internal static class FoliagePixelCollider
 
     public static bool CircleOverlaps(FoliageInstance f, Mask mask, Vector2 circleCenter, float radius)
     {
-        var scale = MathF.Max(0.01f, f.Scale);
+        var scale = MathF.Max(0.01f, f.CollisionScale);
         var localX = (circleCenter.X - f.Position.X) / scale + mask.OriginX;
         var localY = (f.Position.Y - circleCenter.Y) / scale;
         var r = radius / scale;
@@ -98,7 +98,7 @@ internal static class FoliagePixelCollider
 
     public static bool EllipseOverlaps(FoliageInstance f, Mask mask, Vector2 center, float rx, float ry)
     {
-        var scale = MathF.Max(0.01f, f.Scale);
+        var scale = MathF.Max(0.01f, f.CollisionScale);
         var localX = (center.X - f.Position.X) / scale + mask.OriginX;
         var localY = (f.Position.Y - center.Y) / scale;
         var erx = rx / scale;
@@ -125,7 +125,7 @@ internal static class FoliagePixelCollider
 
     public static Vector2 PushOut(FoliageInstance f, Mask mask, Vector2 center, float radius)
     {
-        var scale = MathF.Max(0.01f, f.Scale);
+        var scale = MathF.Max(0.01f, f.CollisionScale);
         var localX = (center.X - f.Position.X) / scale + mask.OriginX;
         var localY = (f.Position.Y - center.Y) / scale;
         var r = radius / scale;
@@ -165,7 +165,7 @@ internal static class FoliagePixelCollider
 
     public static Vector2 PushOutEllipse(FoliageInstance f, Mask mask, Vector2 center, float rx, float ry)
     {
-        var scale = MathF.Max(0.01f, f.Scale);
+        var scale = MathF.Max(0.01f, f.CollisionScale);
         var localX = (center.X - f.Position.X) / scale + mask.OriginX;
         var localY = (f.Position.Y - center.Y) / scale;
         var erx = rx / scale;
@@ -214,7 +214,7 @@ internal static class FoliagePixelCollider
     /// <summary>Chroma-key green (#00FF00) collider outlines — toggle with F12 debug HUD.</summary>
     public static void DrawDebugMask(SpriteBatch sb, FoliageInstance f, Mask mask, Vector2 camera, Vector2 screenCenter, float zoom)
     {
-        var scale = MathF.Max(0.01f, f.Scale);
+        var scale = MathF.Max(0.01f, f.CollisionScale);
         var edge = MathF.Max(1f, zoom);
         var color = Color.Lime;
 

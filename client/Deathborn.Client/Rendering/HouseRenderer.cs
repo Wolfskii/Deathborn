@@ -17,15 +17,16 @@ public static class HouseRenderer
         SpriteBatch sb,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom,
+        float positionZoom,
+        float visualZoom,
         IEnumerable<HousePlotZone> houses)
     {
         foreach (var house in houses)
         {
-            FarmRpgFenceSprites.DrawPlot(sb, house.Center, camera, screenCenter, zoom);
-            DrawHouseStructure(sb, house.Center, camera, screenCenter, zoom);
+            FarmRpgFenceSprites.DrawPlot(sb, house.Center, camera, screenCenter, positionZoom, visualZoom);
+            DrawHouseStructure(sb, house.Center, camera, screenCenter, positionZoom, visualZoom);
             foreach (var item in house.Furniture)
-                DrawFurniture(sb, item, camera, screenCenter, zoom);
+                DrawFurniture(sb, item, camera, screenCenter, positionZoom, visualZoom);
         }
     }
 
@@ -60,7 +61,8 @@ public static class HouseRenderer
         SpriteBatch sb,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom,
+        float positionZoom,
+        float visualZoom,
         IEnumerable<HousePlotZone> houses,
         HousePlotZone? hovered)
     {
@@ -75,10 +77,10 @@ public static class HouseRenderer
                 ? new Color(1f, 0.92f, 0.45f) * 0.18f
                 : new Color(1f, 1f, 1f) * 0.05f;
             DrawPrimitives.DrawWorldRectOutline(
-                sb, left, top, right, bottom, camera, screenCenter, zoom, edge,
-                highlight ? Math.Max(2f, 2.5f * zoom) : Math.Max(1.5f, 1.5f * zoom));
-            var tl = WorldToScreen(new Vector2(left, top), camera, screenCenter, zoom);
-            var br = WorldToScreen(new Vector2(right, bottom), camera, screenCenter, zoom);
+                sb, left, top, right, bottom, camera, screenCenter, positionZoom, edge,
+                highlight ? Math.Max(2f, 2.5f * visualZoom) : Math.Max(1.5f, 1.5f * visualZoom));
+            var tl = WorldToScreen(new Vector2(left, top), camera, screenCenter, positionZoom);
+            var br = WorldToScreen(new Vector2(right, bottom), camera, screenCenter, positionZoom);
             var rect = new Rectangle(
                 (int)MathF.Floor(tl.X),
                 (int)MathF.Floor(tl.Y),
@@ -96,7 +98,8 @@ public static class HouseRenderer
         Vector2 worldCenter,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom,
+        float positionZoom,
+        float visualZoom,
         bool canPlace)
     {
         const float tileFillA = 0.42f;
@@ -110,26 +113,26 @@ public static class HouseRenderer
             ? new Color(0.35f, 1f, 0.45f) * 0.7f
             : new Color(1f, 0.3f, 0.3f) * 0.7f;
 
-        DrawPlotTileOverlay(sb, worldCenter, camera, screenCenter, zoom, okFill, badFill);
+        DrawPlotTileOverlay(sb, worldCenter, camera, screenCenter, positionZoom, okFill, badFill);
 
         var plotTl = WorldToScreen(
             worldCenter + new Vector2(-HousingConstants.PlotHalfW, -HousingConstants.PlotHalfH),
-            camera, screenCenter, zoom);
+            camera, screenCenter, positionZoom);
         var plotBr = WorldToScreen(
             worldCenter + new Vector2(HousingConstants.PlotHalfW, HousingConstants.PlotHalfH),
-            camera, screenCenter, zoom);
+            camera, screenCenter, positionZoom);
         var plotRect = new Rectangle(
             (int)MathF.Floor(plotTl.X),
             (int)MathF.Floor(plotTl.Y),
             Math.Max(1, (int)MathF.Ceiling(plotBr.X - plotTl.X)),
             Math.Max(1, (int)MathF.Ceiling(plotBr.Y - plotTl.Y)));
-        DrawPrimitives.DrawRectOutline(sb, plotRect, edge, Math.Max(2f, 3f * zoom));
+        DrawPrimitives.DrawRectOutline(sb, plotRect, edge, Math.Max(2f, 3f * visualZoom));
 
-        var screen = WorldToScreen(worldCenter, camera, screenCenter, zoom);
+        var screen = WorldToScreen(worldCenter, camera, screenCenter, positionZoom);
         var tex = FarmRpgHouseSprites.OrangeCottage;
         if (tex != null)
         {
-            var scale = FarmRpgHouseSprites.DisplayScale * zoom;
+            var scale = FarmRpgHouseSprites.DisplayScale * visualZoom;
             var origin = FarmRpgHouseSprites.FootAnchor();
             sb.Draw(tex, screen, null, cottageTint, 0f, origin, scale, SpriteEffects.None, 0f);
 
@@ -140,19 +143,19 @@ public static class HouseRenderer
                 (int)(screen.Y - origin.Y * scale),
                 (int)MathF.Ceiling(w),
                 (int)MathF.Ceiling(h));
-            DrawPrimitives.DrawRectOutline(sb, rect, edge, Math.Max(2f, 2.5f * zoom));
+            DrawPrimitives.DrawRectOutline(sb, rect, edge, Math.Max(2f, 2.5f * visualZoom));
             return;
         }
 
         HousingCollision.BodyBounds(worldCenter, out var left, out var right, out var top, out var bottom);
-        var tl = WorldToScreen(new Vector2(left, top), camera, screenCenter, zoom);
-        var br = WorldToScreen(new Vector2(right, bottom), camera, screenCenter, zoom);
+        var tl = WorldToScreen(new Vector2(left, top), camera, screenCenter, positionZoom);
+        var br = WorldToScreen(new Vector2(right, bottom), camera, screenCenter, positionZoom);
         var fallback = new Rectangle(
             (int)tl.X, (int)tl.Y,
             Math.Max(1, (int)(br.X - tl.X)),
             Math.Max(1, (int)(br.Y - tl.Y)));
         DrawPrimitives.FillRect(sb, fallback, cottageTint);
-        DrawPrimitives.DrawRectOutline(sb, fallback, edge, Math.Max(2f, 2.5f * zoom));
+        DrawPrimitives.DrawRectOutline(sb, fallback, edge, Math.Max(2f, 2.5f * visualZoom));
     }
 
     /// <summary>Draw translucent per-tile cells for the homestead plot (green walkable / red blocked).</summary>
@@ -161,7 +164,7 @@ public static class HouseRenderer
         Vector2 worldCenter,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom,
+        float positionZoom,
         Color okFill,
         Color badFill)
     {
@@ -184,8 +187,8 @@ public static class HouseRenderer
             var wx = (tx + 0.5f) * tile;
             var wy = (ty + 0.5f) * tile;
             var clear = map.IsWalkable(wx, wy, 4f);
-            var tl = WorldToScreen(new Vector2(tx * tile, ty * tile), camera, screenCenter, zoom);
-            var br = WorldToScreen(new Vector2((tx + 1) * tile, (ty + 1) * tile), camera, screenCenter, zoom);
+            var tl = WorldToScreen(new Vector2(tx * tile, ty * tile), camera, screenCenter, positionZoom);
+            var br = WorldToScreen(new Vector2((tx + 1) * tile, (ty + 1) * tile), camera, screenCenter, positionZoom);
             var rect = new Rectangle(
                 (int)MathF.Floor(tl.X),
                 (int)MathF.Floor(tl.Y),
@@ -197,13 +200,13 @@ public static class HouseRenderer
 
     private static void DrawHouseStructure(
         SpriteBatch sb, Vector2 world,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+        Vector2 camera, Vector2 screenCenter, float positionZoom, float visualZoom)
     {
-        var screen = WorldToScreen(world, camera, screenCenter, zoom);
+        var screen = WorldToScreen(world, camera, screenCenter, positionZoom);
         var tex = FarmRpgHouseSprites.OrangeCottage;
         if (tex != null)
         {
-            var scale = FarmRpgHouseSprites.DisplayScale * zoom;
+            var scale = FarmRpgHouseSprites.DisplayScale * visualZoom;
             sb.Draw(tex, screen, null, Color.White, 0f, FarmRpgHouseSprites.FootAnchor(), scale, SpriteEffects.None, 0f);
             return;
         }
@@ -212,20 +215,20 @@ public static class HouseRenderer
         var w = HousingConstants.HouseHalfW * 2f;
         var h = HousingConstants.HouseHalfH * 2f;
         var body = new Rectangle(
-            (int)(screen.X - w * 0.5f * zoom),
-            (int)(screen.Y - h * 0.35f * zoom),
-            (int)(w * zoom),
-            (int)(h * 0.65f * zoom));
+            (int)(screen.X - w * 0.5f * visualZoom),
+            (int)(screen.Y - h * 0.35f * visualZoom),
+            (int)(w * visualZoom),
+            (int)(h * 0.65f * visualZoom));
         DrawPrimitives.FillRect(sb, body, Plaster);
         DrawPrimitives.FillRect(sb, new Rectangle(body.X, body.Y, body.Width, 2), PlasterDark);
 
-        var doorW = (int)(14 * zoom);
-        var doorH = (int)(22 * zoom);
+        var doorW = (int)(14 * visualZoom);
+        var doorH = (int)(22 * visualZoom);
         DrawPrimitives.FillRect(sb,
             new Rectangle(body.Center.X - doorW / 2, body.Bottom - doorH, doorW, doorH),
             Door);
 
-        var roofH = h * 0.4f * zoom;
+        var roofH = h * 0.4f * visualZoom;
         var roofBase = new Vector2(body.Center.X, body.Y);
         DrawPrimitives.FillTriangle(sb,
             roofBase + new Vector2(-body.Width * 0.55f, 0),
@@ -240,10 +243,10 @@ public static class HouseRenderer
 
     private static void DrawFurniture(
         SpriteBatch sb, FurnitureItemState item,
-        Vector2 camera, Vector2 screenCenter, float zoom)
+        Vector2 camera, Vector2 screenCenter, float positionZoom, float visualZoom)
     {
-        var screen = WorldToScreen(item.Position, camera, screenCenter, zoom);
-        DrawFurnitureShape(sb, item.Type, screen, zoom);
+        var screen = WorldToScreen(item.Position, camera, screenCenter, positionZoom);
+        DrawFurnitureShape(sb, item.Type, screen, visualZoom);
     }
 
     public static void DrawFurnitureItem(

@@ -26,6 +26,8 @@ public static class Config
     public const float WorldZoomBase = 1.85f;
     public const float WorldZoomMin = 1.0f;
     public const float WorldZoomMax = 2.6f;
+    /// <summary>Exterior terrain transform scale; non-terrain world art compensates to retain its screen size.</summary>
+    public const float ExteriorTerrainFocusScale = 2f;
     public const float InputSendInterval = 0.05f;
     public const float PlayerLerpSpeed = 16f;
     public const float LocalReconcileSpeed = 14f;
@@ -142,8 +144,8 @@ public static class Config
     public const float ChatBubbleDuration = 10f;
     public const int ChatMaxLength = 120;
     /// <summary>World Y offset from feet to torso for projectile spawn.</summary>
-    public const float CastTorsoOffsetY = -11f * Ws;
-    public const float CastSpawnDistance = 8f * Ws;
+    public const float CastTorsoOffsetY = -5.5f * Ws;
+    public const float CastSpawnDistance = 4f * Ws;
 
     public const float MinimapWorldRadius = 400f * Ws;
     public const float MinimapScreenRadius = 58f;

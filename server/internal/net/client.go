@@ -905,9 +905,9 @@ func cardinalDir(dirX, dirY float64) (float64, float64) {
 }
 
 func projectileSpawnPoint(x, y, dirX, dirY float64) (float64, float64) {
-	const playerRadius = 12.0
-	const torsoYOffset = -11.0
-	const spawnOffset = 8.0
+	const playerRadius = 6.0
+	const torsoYOffset = -5.5
+	const spawnOffset = 4.0
 	ox := x + dirX*(playerRadius+spawnOffset)
 	oy := y + torsoYOffset + dirY*(playerRadius+spawnOffset)
 	return ox, oy

@@ -634,21 +634,22 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var sb = game.SpriteBatch;
         var font = game.Font;
 
-        var zoom = GameViewport.WorldZoom;
+        var visualZoom = GameViewport.WorldZoom;
+        var exteriorTransformZoom = GameViewport.ExteriorTerrainZoom;
         var interiorHouse = InteriorHouse();
 
         sb.Begin(samplerState: SamplerState.PointClamp);
 
         if (interiorHouse != null)
-            DrawInteriorWorld(sb, font, interiorHouse, zoom);
+            DrawInteriorWorld(sb, font, interiorHouse, visualZoom);
         else
         {
-            DrawExteriorWorld(sb, font, game, gameTime, zoom);
+            DrawExteriorWorld(sb, font, game, gameTime, exteriorTransformZoom, visualZoom);
             WorldRain.Draw(sb);
         }
 
         if (TiledMapPreview.IsActive && interiorHouse == null)
-            DrawTiledMapPreview(sb, game, gameTime, zoom);
+            DrawTiledMapPreview(sb, game, gameTime, exteriorTransformZoom);
 
         if (_debugHudVisible)
         {
@@ -710,7 +711,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         sb.End();
 
-        DrawChatOverlay(sb, font, zoom);
+        DrawChatOverlay(sb, font, visualZoom);
         if (interiorHouse == null)
             DrawWorldMapOverlay(sb, font);
 
@@ -741,49 +742,58 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
-    private void DrawExteriorWorld(SpriteBatch sb, SpriteFont font, DeathbornGame game, GameTime gameTime, float zoom)
+    private void DrawExteriorWorld(
+        SpriteBatch sb,
+        SpriteFont font,
+        DeathbornGame game,
+        GameTime gameTime,
+        float transformZoom,
+        float visualZoom)
     {
-        _bg.Draw(sb, game.GraphicsDevice, gameTime, _camera, ScreenCenter, zoom);
-        HouseRenderer.Draw(sb, _camera, ScreenCenter, zoom, WorldZones.Houses);
-        HouseRenderer.DrawDoorHighlights(sb, _camera, ScreenCenter, zoom, WorldZones.Houses, _hoveredDoorHouse);
+        _bg.Draw(sb, game.GraphicsDevice, gameTime, _camera, ScreenCenter, transformZoom);
+        HouseRenderer.Draw(sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses);
+        HouseRenderer.DrawDoorHighlights(
+            sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses, _hoveredDoorHouse);
 
         foreach (var obj in _interactables)
-            obj.Draw(sb, font, WorldToScreen(obj.Position), zoom);
+            obj.Draw(sb, font, WorldToScreen(obj.Position), visualZoom);
 
         foreach (var effect in _effects.Where(e => e.DrawUnderEntities))
-            effect.Draw(sb, WorldToScreen(effect.Position), zoom);
+            effect.Draw(sb, WorldToScreen(effect.Position), visualZoom);
 
         foreach (var corpse in _corpses)
-            corpse.Draw(sb, WorldToScreen(corpse.Position), zoom);
+            corpse.Draw(sb, WorldToScreen(corpse.Position), visualZoom);
 
-        DrawExteriorFoliageAndPlayers(sb, font, zoom);
+        DrawExteriorFoliageAndPlayers(sb, font, transformZoom, visualZoom);
 
         if (_housePlacing)
-            HouseRenderer.DrawPlacementGhost(sb, _housePlacePos, _camera, ScreenCenter, zoom, _housePlaceValid);
+            HouseRenderer.DrawPlacementGhost(
+                sb, _housePlacePos, _camera, ScreenCenter, transformZoom, visualZoom, _housePlaceValid);
 
-        WorldClouds.Draw(sb, WorldMap.SwaroviaMainland, _camera, ScreenCenter, zoom,
+        WorldClouds.Draw(sb, WorldMap.SwaroviaMainland, _camera, ScreenCenter, transformZoom, visualZoom,
             CollectionsMarshal.AsSpan(_entityPositionScratch));
 
         foreach (var effect in _effects.Where(e => !e.DrawUnderEntities))
-            effect.Draw(sb, WorldToScreen(effect.Position), zoom);
+            effect.Draw(sb, WorldToScreen(effect.Position), visualZoom);
 
-        _feedback.DrawWorld(sb, font, WorldToScreen, zoom, _players, _npcs);
+        _feedback.DrawWorld(sb, font, WorldToScreen, visualZoom, _players, _npcs);
 
         if (_ghostMode && _ghost != null)
-            _ghost.Draw(sb, WorldToScreen(_ghost.Position), zoom);
+            _ghost.Draw(sb, WorldToScreen(_ghost.Position), visualZoom);
 
         if (_debugHudVisible)
         {
             var map = WorldMap.SwaroviaMainland;
             var debugTiles = new VisibleTileRegion();
-            debugTiles.Begin(map, _camera, ScreenCenter, zoom, marginTiles: 3f);
+            debugTiles.Begin(map, _camera, ScreenCenter, transformZoom, marginTiles: 3f);
             map.DrawDebugTerrainBorders(sb, debugTiles);
-            WorldFoliage.DrawDebugColliders(sb, map, _camera, ScreenCenter, zoom);
-            WorldFoliage.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, zoom);
-            WorldClouds.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, zoom);
-            HousingCollision.DrawDebugColliders(sb, WorldZones.Houses, _camera, ScreenCenter, zoom);
+            WorldFoliage.DrawDebugColliders(sb, map, _camera, ScreenCenter, transformZoom);
+            WorldFoliage.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, transformZoom);
+            WorldClouds.DrawDebugOcclusionZones(sb, map, _camera, ScreenCenter, transformZoom);
+            HousingCollision.DrawDebugColliders(sb, WorldZones.Houses, _camera, ScreenCenter, transformZoom);
             if (FindLocalPlayer() is { InsideHouseId: <= 0 } local)
-                WorldFoliage.DrawDebugPlayerCollider(sb, local.Position, PlayerEntity.Radius, _camera, ScreenCenter, zoom);
+                WorldFoliage.DrawDebugPlayerCollider(
+                    sb, local.Position, PlayerEntity.Radius, _camera, ScreenCenter, transformZoom);
         }
 
         if (!_ghostMode && !IsLocalDyingOrDead())
@@ -845,13 +855,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _entityPositionScratch.Add(local.Position);
     }
 
-    private void DrawExteriorFoliageAndPlayers(SpriteBatch sb, SpriteFont font, float zoom)
+    private void DrawExteriorFoliageAndPlayers(
+        SpriteBatch sb,
+        SpriteFont font,
+        float transformZoom,
+        float visualZoom)
     {
         CollectExteriorEntities();
         var localOcclusionPositions = CollectionsMarshal.AsSpan(_entityPositionScratch);
         _exteriorDrawOrder.Clear();
 
-        WorldFoliage.GetVisible(WorldMap.SwaroviaMainland, _camera, ScreenCenter, zoom, _visibleFoliage);
+        WorldFoliage.GetVisible(WorldMap.SwaroviaMainland, _camera, ScreenCenter, transformZoom, _visibleFoliage);
         for (var i = 0; i < _visibleFoliage.Count; i++)
         {
             var foliage = _visibleFoliage[i];
@@ -892,23 +906,25 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             switch (entry.Kind)
             {
                 case ExteriorDrawableKind.Foliage:
-                    WorldFoliage.DrawInstance(sb, _visibleFoliage[entry.Index], _camera, ScreenCenter, zoom, localOcclusionPositions);
+                    WorldFoliage.DrawInstance(
+                        sb, _visibleFoliage[entry.Index], _camera, ScreenCenter,
+                        transformZoom, visualZoom, localOcclusionPositions);
                     break;
                 case ExteriorDrawableKind.Player:
                 {
                     var player = _exteriorPlayers[entry.Index];
                     var screenPos = WorldToScreen(player.Position);
                     if (player == _hoveredPlayer)
-                        player.DrawHoverHighlight(sb, screenPos, zoom);
-                    player.Draw(sb, font, screenPos, zoom);
+                        player.DrawHoverHighlight(sb, screenPos, visualZoom);
+                    player.Draw(sb, font, screenPos, visualZoom);
                     if (_hunterMarks.ContainsKey(player.Id))
-                        PlayerEntity.DrawHunterMark(sb, screenPos, zoom);
+                        PlayerEntity.DrawHunterMark(sb, screenPos, visualZoom);
                     break;
                 }
                 case ExteriorDrawableKind.Npc:
                 {
                     var npc = _exteriorNpcs[entry.Index];
-                    npc.Draw(sb, font, WorldToScreen(npc.Position), zoom);
+                    npc.Draw(sb, font, WorldToScreen(npc.Position), visualZoom);
                     break;
                 }
             }
@@ -1535,14 +1551,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (FindLocalPlayer() is { InsideHouseId: > 0 })
             return ScreenCenter + (world - _camera) * GameViewport.WorldZoom;
-        return (world - _camera) * GameViewport.WorldZoom + ScreenCenter;
+        return (world - _camera) * GameViewport.ExteriorTerrainZoom + ScreenCenter;
     }
 
     private Vector2 ScreenToWorld(Point screen)
     {
         if (FindLocalPlayer() is { InsideHouseId: > 0 })
             return _camera + (new Vector2(screen.X, screen.Y) - ScreenCenter) / GameViewport.WorldZoom;
-        return (new Vector2(screen.X, screen.Y) - ScreenCenter) / GameViewport.WorldZoom + _camera;
+        return (new Vector2(screen.X, screen.Y) - ScreenCenter) / GameViewport.ExteriorTerrainZoom + _camera;
     }
 
     private void UpdateInteractFocus(Point mouseScreen)

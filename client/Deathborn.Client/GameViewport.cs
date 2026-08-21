@@ -12,6 +12,8 @@ public static class GameViewport
 
     /// <summary>Camera scale for the world screen; scales with window size for fair visible area.</summary>
     public static float WorldZoom => ComputeWorldZoom(Width, Height);
+    /// <summary>Exterior transform scale for terrain and world-space positioning.</summary>
+    public static float ExteriorTerrainZoom => WorldZoom * Config.ExteriorTerrainFocusScale;
 
     private static float ComputeWorldZoom(float width, float height)
     {

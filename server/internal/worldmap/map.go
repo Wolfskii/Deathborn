@@ -10,17 +10,23 @@ import (
 //go:embed swarovia_mainland_collision.bin
 var collisionData []byte
 
-const playerRadiusX = 12.0
+const playerRadiusX = 6.0
 
-const playerRadiusY = 16.0
+const playerRadiusY = 8.0
 
-const playerCollisionVerticalExtraPx = 4.0
+const playerCollisionVerticalExtraPx = 2.0
+const (
+	shorelineHorizontalPaddingPx = 2.0
+	shorelineUpPaddingPx         = 6.0
+	shorelineDownPaddingPx       = 8.0
+	shorelineRightPaddingPx      = 4.0
+)
 
 // Match client PlayerEntity: ellipse bottom on foot row (FarmRpg FootBottomInsetPx × draw scale).
 const (
 	playerFootBottomInsetPx       = 7.0
-	playerSpriteDrawScale         = 1.5 * 1.35
-	playerCollisionFineTuneDownPx = 2.0
+	playerSpriteDrawScale         = 1.5 * 1.35 / 2.0
+	playerCollisionFineTuneDownPx = 1.0
 )
 
 func playerCollisionY(feetY float64) float64 {
@@ -208,14 +214,14 @@ func (m *Map) canTraverseWorld(fromX, fromY, toX, toY float64) bool {
 	// southern ellipse edge or sideways sliding fails after pressing a south shore
 	// (feet on water tile, ellipse still on land).
 	if toY > fromY+0.001 {
-		sampleFromY = playerCollisionBottomY(fromY)
-		sampleToY = playerCollisionBottomY(toY)
+		sampleFromY = playerCollisionBottomY(fromY) + shorelineDownPaddingPx
+		sampleToY = playerCollisionBottomY(toY) + shorelineDownPaddingPx
 	} else if toY < fromY-0.001 {
 		sampleFromY = playerCollisionTopY(fromY)
 		sampleToY = playerCollisionTopY(toY)
 	} else {
-		sampleFromY = playerCollisionBottomY(fromY)
-		sampleToY = playerCollisionBottomY(toY)
+		sampleFromY = playerCollisionBottomY(fromY) + shorelineDownPaddingPx
+		sampleToY = playerCollisionBottomY(toY) + shorelineDownPaddingPx
 	}
 
 	fx, fy := m.tileAt(fromX, sampleFromY)
@@ -283,10 +289,11 @@ func (m *Map) CanWalk(x, y, radius float64) bool {
 }
 
 func (m *Map) ellipseClearOfBlockedTiles(cx, cy, rx, ry float64) bool {
-	minTx := int(math.Floor((cx - rx) / m.TileSize))
-	maxTx := int(math.Floor((cx + rx) / m.TileSize))
-	minTy := int(math.Floor((cy - ry) / m.TileSize))
-	maxTy := int(math.Floor((cy + ry) / m.TileSize))
+	queryPadding := shorelineDownPaddingPx
+	minTx := int(math.Floor((cx - rx - queryPadding) / m.TileSize))
+	maxTx := int(math.Floor((cx + rx + queryPadding) / m.TileSize))
+	minTy := int(math.Floor((cy - ry - queryPadding) / m.TileSize))
+	maxTy := int(math.Floor((cy + ry + queryPadding) / m.TileSize))
 	if minTx < 0 {
 		minTx = 0
 	}
@@ -305,8 +312,22 @@ func (m *Map) ellipseClearOfBlockedTiles(cx, cy, rx, ry float64) bool {
 				continue
 			}
 			left := float64(tx) * m.TileSize
+			right := left + m.TileSize
 			top := float64(ty) * m.TileSize
-			if ellipseOverlapsRect(cx, cy, rx, ry, left, left+m.TileSize, top, top+m.TileSize) {
+			bottom := top + m.TileSize
+			// Match the client: bias only the blocked edge facing the player,
+			// without changing the player's collision ellipse.
+			if cx <= left {
+				left -= shorelineRightPaddingPx
+			} else if cx >= right {
+				right += shorelineHorizontalPaddingPx
+			}
+			if cy <= top {
+				top -= shorelineDownPaddingPx
+			} else if cy >= bottom {
+				bottom -= shorelineUpPaddingPx
+			}
+			if ellipseOverlapsRect(cx, cy, rx, ry, left, right, top, bottom) {
 				return false
 			}
 		}

@@ -13,6 +13,8 @@ public sealed class FoliageInstance : IOcclusionHost
     public Vector2 Position;
     public int Variant;
     public float Scale;
+    /// <summary>World-space scale for collision and occlusion after terrain focus is applied.</summary>
+    public float CollisionScale;
     public float CollisionRadius;
     public int AnimPhase;
     /// <summary>Unscaled pixels from sprite bottom to the visual foot (opaque base).</summary>
@@ -28,7 +30,7 @@ public sealed class FoliageInstance : IOcclusionHost
     public bool IsOverheadOccluder;
 
     Vector2 IOcclusionHost.OcclusionAnchor => Position;
-    float IOcclusionHost.OcclusionScale => Scale;
+    float IOcclusionHost.OcclusionScale => CollisionScale;
     byte IOcclusionHost.OcclusionMaskId => OcclusionMaskId;
     OcclusionColliderOverride IOcclusionHost.OcclusionOverride => OcclusionOverride;
     bool IOcclusionHost.IsOverheadOccluder => IsOverheadOccluder;
@@ -85,7 +87,7 @@ public static class WorldFoliage
         _queryExtent = 48f;
         foreach (var f in Instances)
         {
-            var ext = Math.Max(f.CollisionRadius, 40f * f.Scale);
+            var ext = Math.Max(f.CollisionRadius, 40f * f.CollisionScale);
             if (ext > _queryExtent) _queryExtent = ext;
 
             var cx = (int)MathF.Floor(f.Position.X / CellSize);
@@ -157,21 +159,21 @@ public static class WorldFoliage
     // Lift the circle by its radius so its bottom edge sits at the visual foot;
     // otherwise half the collider sticks out below the sprite.
     public static Vector2 ColliderCenter(FoliageInstance f) =>
-        new(f.Position.X, f.Position.Y - f.FootInset * f.Scale - f.CollisionRadius);
+        new(f.Position.X, f.Position.Y - f.FootInset * f.CollisionScale - f.CollisionRadius);
 
     private static void TreeStemColliderBounds(FoliageInstance f, out float left, out float right, out float top, out float bottom)
     {
         var half = f.CollisionRadius;
         left = f.Position.X - half;
         right = f.Position.X + half;
-        bottom = f.Position.Y - TreeStemColliderBottomInsetPx * f.Scale;
-        top = f.Position.Y - TreeStemColliderRows * f.Scale;
+        bottom = f.Position.Y - TreeStemColliderBottomInsetPx * f.CollisionScale;
+        top = f.Position.Y - TreeStemColliderRows * f.CollisionScale;
         // Keep the solid trunk out of the canopy pass-through band (feet north of SortY).
-        var solidTop = SortY(f) - TreeStemSortPadPx * f.Scale;
+        var solidTop = SortY(f) - TreeStemSortPadPx * f.CollisionScale;
         if (top < solidTop)
             top = solidTop;
-        if (bottom < top + 0.5f * f.Scale)
-            bottom = top + 0.5f * f.Scale;
+        if (bottom < top + 0.5f * f.CollisionScale)
+            bottom = top + 0.5f * f.CollisionScale;
         // Shorten from the bottom only — top stays put (40% less height).
         bottom = top + (bottom - top) * 0.6f;
     }
@@ -230,7 +232,7 @@ public static class WorldFoliage
 
     /// <summary>Ground contact / trunk base (north of texture bottom).</summary>
     public static float SortY(FoliageInstance f) =>
-        f.Position.Y - f.FootInset * f.Scale;
+        f.Position.Y - f.FootInset * f.CollisionScale;
 
     /// <summary>
     /// Exterior draw-order Y vs players — visual foot only.
@@ -253,7 +255,7 @@ public static class WorldFoliage
             if (mask.UsesSimplifiedCollider
                 && mask.ColliderShape is OcclusionColliderShape.Ellipse or OcclusionColliderShape.Circle)
             {
-                mask.GetWorldEllipse(f.Position, f.Scale, out var center, out _, out var radiusY);
+                mask.GetWorldEllipse(f.Position, f.CollisionScale, out var center, out _, out var radiusY);
                 return center.Y + radiusY;
             }
 
@@ -572,7 +574,8 @@ public static class WorldFoliage
         FoliageInstance f,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom,
+        float positionZoom,
+        float visualZoom,
         ReadOnlySpan<Vector2> localPlayerPositions,
         float entityRadius = PlayerEntity.Radius)
     {
@@ -585,11 +588,11 @@ public static class WorldFoliage
         if (src.Right > tex.Width) src.Width = Math.Max(1, tex.Width - src.X);
         if (src.Bottom > tex.Height) src.Height = Math.Max(1, tex.Height - src.Y);
 
-        var drawW = frameW * f.Scale * zoom;
-        var drawH = frameH * f.Scale * zoom;
+        var drawW = frameW * f.Scale * visualZoom;
+        var drawH = frameH * f.Scale * visualZoom;
         var screenPos = new Vector2(
-            (f.Position.X - camera.X) * zoom + screenCenter.X,
-            (f.Position.Y - camera.Y) * zoom + screenCenter.Y);
+            (f.Position.X - camera.X) * positionZoom + screenCenter.X,
+            (f.Position.Y - camera.Y) * positionZoom + screenCenter.Y);
         var dest = new Rectangle(
             (int)MathF.Floor(screenPos.X - drawW * 0.5f),
             (int)MathF.Floor(screenPos.Y - drawH),
@@ -620,7 +623,7 @@ public static class WorldFoliage
             // Decorative foliage (bushes, etc.) is cleared from homestead farmland after build.
             if (!f.BlocksMovement && IsInsideAnyHousePlot(f.Position))
                 continue;
-            DrawInstance(sb, f, camera, screenCenter, zoom, empty);
+            DrawInstance(sb, f, camera, screenCenter, zoom, zoom, empty);
         }
     }
 
@@ -792,6 +795,7 @@ public static class WorldFoliage
             Position = pos,
             Variant = variant,
             Scale = scale,
+            CollisionScale = scale / Config.ExteriorTerrainFocusScale,
             AnimPhase = (int)(Hash(tx, ty, 11) % 100),
         };
         ConfigureMetrics(instance);
@@ -804,14 +808,14 @@ public static class WorldFoliage
         {
             case FoliageKind.Tree when f.Variant == 0:
                 f.FootInset = 6f;
-                f.CollisionRadius = 5f * f.Scale;
+                f.CollisionRadius = 5f * f.CollisionScale;
                 f.ColliderMaskId = FoliagePixelCollider.NoMaskId;
                 f.OcclusionMaskId = OcclusionMaskCache.MaskIdFor(f);
                 f.BlocksMovement = true;
                 break;
             case FoliageKind.Tree:
                 f.FootInset = 8f;
-                f.CollisionRadius = 6f * f.Scale;
+                f.CollisionRadius = 6f * f.CollisionScale;
                 f.ColliderMaskId = FoliagePixelCollider.NoMaskId;
                 f.OcclusionMaskId = OcclusionMaskCache.MaskIdFor(f);
                 f.BlocksMovement = true;
@@ -831,7 +835,7 @@ public static class WorldFoliage
                 break;
             case FoliageKind.WaterRock:
                 f.FootInset = 8f;
-                f.CollisionRadius = 10f * f.Scale;
+                f.CollisionRadius = 10f * f.CollisionScale;
                 f.OcclusionMaskId = OcclusionZone.NoMaskId;
                 f.BlocksMovement = true;
                 break;

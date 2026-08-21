@@ -30,6 +30,15 @@ public sealed class WorldMap
     private DateTime _collisionWriteTime;
     private DateTime _elevationWriteTime;
     private DateTime _mapColorSourceWriteTime;
+    private const float ShorelineDownPaddingPx = 8f;
+    private const float ShorelineLeftPaddingPx = 2f;
+    private const float ShorelineRightPaddingPx = 4f;
+    private const float ShorelineDebugJoinExtraPx = 2f;
+    private const float ShorelineDebugTopExtensionPx = 1f;
+    private const float ShorelineDebugTopLeftExtraPx = 4f;
+    private const float ShorelineDebugBottomLeftExtraPx = 0f;
+    private const float ShorelineDebugBottomRightExtraPx = 0f;
+    private const float ShorelineDebugLeftConnectionRightExtraPx = 2f;
 
     public bool IsLand(int tx, int ty) =>
         (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight && _walkable[ty * TileWidth + tx];
@@ -284,8 +293,8 @@ public sealed class WorldMap
         // CanTraverse (using raw feet Y) falsely blocks as an invisible wall.
         if (toY > fromY + 0.001f)
         {
-            sampleFromY = PlayerEntity.CollisionBottomY(fromY);
-            sampleToY = PlayerEntity.CollisionBottomY(toY);
+            sampleFromY = PlayerEntity.CollisionBottomY(fromY) + ShorelineDownPaddingPx;
+            sampleToY = PlayerEntity.CollisionBottomY(toY) + ShorelineDownPaddingPx;
         }
         else if (toY < fromY - 0.001f)
         {
@@ -294,8 +303,8 @@ public sealed class WorldMap
         }
         else
         {
-            sampleFromY = PlayerEntity.CollisionBottomY(fromY);
-            sampleToY = PlayerEntity.CollisionBottomY(toY);
+            sampleFromY = PlayerEntity.CollisionBottomY(fromY) + ShorelineDownPaddingPx;
+            sampleToY = PlayerEntity.CollisionBottomY(toY) + ShorelineDownPaddingPx;
         }
 
         var fx = (int)(fromX / TileSize);
@@ -617,18 +626,31 @@ public sealed class WorldMap
     /// </summary>
     private bool EllipseClearOfBlockedTiles(Vector2 center, float rx, float ry)
     {
-        var minTx = Math.Max(0, (int)MathF.Floor((center.X - rx) / TileSize));
-        var maxTx = Math.Min(TileWidth - 1, (int)MathF.Floor((center.X + rx) / TileSize));
-        var minTy = Math.Max(0, (int)MathF.Floor((center.Y - ry) / TileSize));
-        var maxTy = Math.Min(TileHeight - 1, (int)MathF.Floor((center.Y + ry) / TileSize));
+        const float shorelineUpPaddingPx = 6f;
+        var queryPadding = ShorelineDownPaddingPx;
+        var minTx = Math.Max(0, (int)MathF.Floor((center.X - rx - queryPadding) / TileSize));
+        var maxTx = Math.Min(TileWidth - 1, (int)MathF.Floor((center.X + rx + queryPadding) / TileSize));
+        var minTy = Math.Max(0, (int)MathF.Floor((center.Y - ry - queryPadding) / TileSize));
+        var maxTy = Math.Min(TileHeight - 1, (int)MathF.Floor((center.Y + ry + queryPadding) / TileSize));
 
         for (var ty = minTy; ty <= maxTy; ty++)
         for (var tx = minTx; tx <= maxTx; tx++)
         {
             if (_walkable[ty * TileWidth + tx]) continue;
             var left = tx * TileSize;
+            var right = left + TileSize;
             var top = ty * TileSize;
-            if (PlayerEntity.EllipseOverlapsRect(center, rx, ry, left, left + TileSize, top, top + TileSize))
+            var bottom = top + TileSize;
+
+            // Bias only the blocked tile edge facing the player. This keeps the
+            // player ellipse unchanged while compensating for the 2x terrain
+            // presentation's shoreline art inset.
+            if (center.X <= left) left -= ShorelineRightPaddingPx;
+            else if (center.X >= right) right += ShorelineLeftPaddingPx;
+            if (center.Y <= top) top -= ShorelineDownPaddingPx;
+            else if (center.Y >= bottom) bottom -= shorelineUpPaddingPx;
+
+            if (PlayerEntity.EllipseOverlapsRect(center, rx, ry, left, right, top, bottom))
                 return false;
         }
 
@@ -697,20 +719,99 @@ public sealed class WorldMap
                 return;
 
             var rect = region.Rect(tx, ty);
-            var topLeft = new Vector2(rect.Left, rect.Top);
-            var topRight = new Vector2(rect.Right, rect.Top);
-            var bottomLeft = new Vector2(rect.Left, rect.Bottom);
-            var bottomRight = new Vector2(rect.Right, rect.Bottom);
+            var bottomEdgeY = rect.Bottom - ShorelineDownPaddingPx * region.Zoom;
+            var leftEdgeX = rect.Left + ShorelineLeftPaddingPx * region.Zoom;
 
             if (IsBlocked(tx, ty - 1))
-                DrawPrimitives.DrawLine(sb, topLeft, topRight, color, thickness);
+            {
+                var startX = IsBlocked(tx - 1, ty)
+                    ? leftEdgeX
+                    : IsLand(tx - 1, ty + 1) && IsBlocked(tx, ty + 1)
+                        ? rect.Left - (ShorelineRightPaddingPx + ShorelineDebugJoinExtraPx) * region.Zoom
+                        : rect.Left;
+                var endX = IsBlocked(tx + 1, ty)
+                    ? rect.Right - ShorelineRightPaddingPx * region.Zoom
+                    : IsLand(tx + 1, ty + 1) && IsBlocked(tx, ty + 1)
+                        ? rect.Right + (ShorelineLeftPaddingPx + ShorelineDebugJoinExtraPx) * region.Zoom
+                        : IsLand(tx + 1, ty)
+                            ? rect.Right + ShorelineLeftPaddingPx * region.Zoom
+                        : rect.Right;
+                var topLeftExtension = IsBlocked(tx - 1, ty)
+                    ? ShorelineDebugTopExtensionPx
+                    : ShorelineDebugTopExtensionPx + ShorelineDebugTopLeftExtraPx;
+                startX -= topLeftExtension * region.Zoom;
+                endX += ShorelineDebugTopExtensionPx * region.Zoom;
+                DrawDebugHorizontal(sb, startX, endX, rect.Top, color, thickness);
+            }
             if (IsBlocked(tx + 1, ty))
-                DrawPrimitives.DrawLine(sb, topRight, bottomRight, color, thickness);
+            {
+                var x = rect.Right - ShorelineRightPaddingPx * region.Zoom;
+                var startY = (float)rect.Top;
+                if (IsLand(tx + 1, ty - 1) && IsBlocked(tx + 1, ty))
+                {
+                    var above = region.Rect(tx + 1, ty - 1);
+                    startY = above.Bottom - ShorelineDownPaddingPx * region.Zoom;
+                }
+                var endY = IsBlocked(tx, ty + 1) ? bottomEdgeY : rect.Bottom;
+                DrawDebugVertical(sb, x, startY, endY, color, thickness);
+            }
             if (IsBlocked(tx, ty + 1))
-                DrawPrimitives.DrawLine(sb, bottomLeft, bottomRight, color, thickness);
+            {
+                var y = rect.Bottom - ShorelineDownPaddingPx * region.Zoom;
+                var startX = IsBlocked(tx - 1, ty)
+                    ? leftEdgeX + ShorelineDebugBottomLeftExtraPx * region.Zoom
+                    : IsLand(tx - 1, ty + 1) && IsBlocked(tx, ty + 1)
+                        ? rect.Left - ShorelineRightPaddingPx * region.Zoom
+                        : rect.Left;
+                var endX = IsBlocked(tx + 1, ty)
+                    ? rect.Right - ShorelineRightPaddingPx * region.Zoom
+                    : rect.Right;
+                startX -= ShorelineDebugTopExtensionPx * region.Zoom;
+                var bottomRightExtension = ShorelineDebugTopExtensionPx
+                    + ShorelineDebugBottomRightExtraPx
+                    + (IsBlocked(tx + 1, ty) ? 0f : ShorelineDebugLeftConnectionRightExtraPx);
+                endX += bottomRightExtension * region.Zoom;
+                DrawDebugHorizontal(sb, startX, endX, y, color, thickness);
+            }
             if (IsBlocked(tx - 1, ty))
-                DrawPrimitives.DrawLine(sb, topLeft, bottomLeft, color, thickness);
+            {
+                var x = rect.Left + ShorelineLeftPaddingPx * region.Zoom;
+                var startY = (float)rect.Top;
+                if (IsLand(tx - 1, ty - 1) && IsBlocked(tx - 1, ty))
+                {
+                    var above = region.Rect(tx - 1, ty - 1);
+                    startY = above.Bottom - ShorelineDownPaddingPx * region.Zoom;
+                }
+                var endY = IsBlocked(tx, ty + 1) ? bottomEdgeY : rect.Bottom;
+                DrawDebugVertical(sb, x, startY, endY, color, thickness);
+            }
         });
+    }
+
+    private static void DrawDebugHorizontal(
+        SpriteBatch sb, float left, float right, float y, Color color, float thickness)
+    {
+        var x = (int)MathF.Floor(MathF.Min(left, right));
+        var end = (int)MathF.Ceiling(MathF.Max(left, right));
+        var top = (int)MathF.Floor(y - thickness * 0.5f);
+        var bottom = (int)MathF.Ceiling(y + thickness * 0.5f);
+        DrawPrimitives.FillRect(
+            sb,
+            new Rectangle(x, top, Math.Max(1, end - x), Math.Max(1, bottom - top)),
+            color);
+    }
+
+    private static void DrawDebugVertical(
+        SpriteBatch sb, float x, float top, float bottom, Color color, float thickness)
+    {
+        var left = (int)MathF.Floor(x - thickness * 0.5f);
+        var right = (int)MathF.Ceiling(x + thickness * 0.5f);
+        var y = (int)MathF.Floor(MathF.Min(top, bottom));
+        var end = (int)MathF.Ceiling(MathF.Max(top, bottom));
+        DrawPrimitives.FillRect(
+            sb,
+            new Rectangle(left, y, Math.Max(1, right - left), Math.Max(1, end - y)),
+            color);
     }
 
     private bool IsBlocked(int tx, int ty) =>

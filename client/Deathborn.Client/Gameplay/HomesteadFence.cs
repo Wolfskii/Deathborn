@@ -9,7 +9,9 @@ namespace Deathborn.Client.Gameplay;
 public static class HomesteadFence
 {
     /// <summary>Thickness of each fence AABB (world units).</summary>
-    public const float Thickness = 14f;
+    public const float Thickness = 7f;
+    private const float TopCollisionOffset = -4f;
+    private const float ContactInset = 0.5f;
 
     public readonly struct Layout
     {
@@ -66,7 +68,7 @@ public static class HomesteadFence
         var t = Thickness * 0.5f;
         var left = layout.Left;
         var right = layout.Right;
-        var top = layout.Top;
+        var top = layout.Top + TopCollisionOffset;
         var bottom = layout.Bottom;
 
         walls.Add((left - t, right + t, top - t, top + t)); // north
@@ -85,11 +87,12 @@ public static class HomesteadFence
         var t = Thickness * 0.5f;
         var c = PlayerEntity.CollisionCenter(feet);
 
-        if (Hit(c, rx, ry, layout.Left - t, layout.Right + t, layout.Top - t, layout.Top + t))
+        var top = layout.Top + TopCollisionOffset;
+        if (Hit(c, rx, ry, layout.Left - t, layout.Right + t, top - t, top + t))
             return true;
-        if (Hit(c, rx, ry, layout.Left - t, layout.Left + t, layout.Top - t, layout.Bottom + t))
+        if (Hit(c, rx, ry, layout.Left - t, layout.Left + t, top - t, layout.Bottom + t))
             return true;
-        if (Hit(c, rx, ry, layout.Right - t, layout.Right + t, layout.Top - t, layout.Bottom + t))
+        if (Hit(c, rx, ry, layout.Right - t, layout.Right + t, top - t, layout.Bottom + t))
             return true;
         if (Hit(c, rx, ry, layout.Left - t, layout.GateGapLeft, layout.Bottom - t, layout.Bottom + t))
             return true;
@@ -99,5 +102,6 @@ public static class HomesteadFence
     }
 
     private static bool Hit(Vector2 c, float rx, float ry, float l, float r, float top, float bottom) =>
-        PlayerEntity.EllipseOverlapsRect(c, rx, ry, l, r, top, bottom);
+        PlayerEntity.EllipseOverlapsRect(
+            c, rx, ry, l + ContactInset, r - ContactInset, top + ContactInset, bottom - ContactInset);
 }

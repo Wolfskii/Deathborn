@@ -44,48 +44,49 @@ public static class FarmRpgFenceSprites
         Vector2 center,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom)
+        float positionZoom,
+        float visualZoom)
     {
-        DrawLand(sb, center, camera, screenCenter, zoom);
+        DrawLand(sb, center, camera, screenCenter, positionZoom);
         if (_sheet == null) return;
 
         HomesteadFence.GetLayout(center, out var layout);
-        var scale = (layout.SpacingX / Cell) * zoom;
+        var scale = (layout.SpacingX / Cell) * positionZoom;
         var origin = new Vector2(Cell * 0.5f, Cell);
 
         Vector2 Pos(int i, int j) =>
             new(layout.Left + i * layout.SpacingX, layout.Top + j * layout.SpacingY);
 
         // North: same front-facing rail style as south (no gate).
-        DrawCell(sb, CornerBL, Pos(0, 0), camera, screenCenter, zoom, scale, origin);
+        DrawCell(sb, CornerBL, Pos(0, 0), camera, screenCenter, positionZoom, scale, origin);
         for (var i = 1; i < layout.Nx; i++)
-            DrawCell(sb, HorizRail, Pos(i, 0), camera, screenCenter, zoom, scale, origin);
-        DrawCell(sb, CornerBR, Pos(layout.Nx, 0), camera, screenCenter, zoom, scale, origin);
+            DrawCell(sb, HorizRail, Pos(i, 0), camera, screenCenter, positionZoom, scale, origin);
+        DrawCell(sb, CornerBR, Pos(layout.Nx, 0), camera, screenCenter, positionZoom, scale, origin);
 
         for (var j = 1; j < layout.Ny; j++)
         {
-            DrawCell(sb, LeftEdge, Pos(0, j), camera, screenCenter, zoom, scale, origin);
-            DrawCell(sb, RightEdge, Pos(layout.Nx, j), camera, screenCenter, zoom, scale, origin);
+            DrawCell(sb, LeftEdge, Pos(0, j), camera, screenCenter, positionZoom, scale, origin);
+            DrawCell(sb, RightEdge, Pos(layout.Nx, j), camera, screenCenter, positionZoom, scale, origin);
         }
 
-        DrawCell(sb, CornerBL, Pos(0, layout.Ny), camera, screenCenter, zoom, scale, origin);
+        DrawCell(sb, CornerBL, Pos(0, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
         for (var i = 1; i < layout.Nx; i++)
         {
             if (i == layout.GateL)
             {
-                DrawCell(sb, GateOpenL, Pos(i, layout.Ny), camera, screenCenter, zoom, scale, origin);
+                DrawCell(sb, GateOpenL, Pos(i, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
                 continue;
             }
             if (i == layout.GateL + 1)
                 continue;
             if (i == layout.GateR)
             {
-                DrawCell(sb, GateOpenR, Pos(i, layout.Ny), camera, screenCenter, zoom, scale, origin);
+                DrawCell(sb, GateOpenR, Pos(i, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
                 continue;
             }
-            DrawCell(sb, HorizRail, Pos(i, layout.Ny), camera, screenCenter, zoom, scale, origin);
+            DrawCell(sb, HorizRail, Pos(i, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
         }
-        DrawCell(sb, CornerBR, Pos(layout.Nx, layout.Ny), camera, screenCenter, zoom, scale, origin);
+        DrawCell(sb, CornerBR, Pos(layout.Nx, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
     }
 
     private static void DrawLand(

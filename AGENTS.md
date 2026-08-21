@@ -257,7 +257,7 @@ Keep client and server ramp logic in sync when changing engagement rules.
 
 ### Ellipse vs tiles / props (corners)
 
-Player collider is an **upward ellipse** (rx=12, ry=16), not a circle. F12: red = land/water tile edges; green = player ellipse + prop stems.
+Player collider is an **upward ellipse** (rx=6, ry=8), not a circle. F12: red = land/water tile edges; green = player ellipse + prop stems.
 
 **Do not** use 5-point axial samples for terrain walkability — diagonal body can sit past a convex red corner while center ± tips stay on land. Test **ellipse vs each blocked tile AABB** in the ellipse’s tile neighborhood (`EllipseClearOfBlockedTiles` / server `ellipseClearOfBlockedTiles`).
 

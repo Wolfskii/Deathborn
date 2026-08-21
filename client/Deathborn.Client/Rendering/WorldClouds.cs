@@ -10,6 +10,7 @@ public sealed class CloudInstance
     public int Variant;
     public Vector2 Position;
     public float Scale;
+    public float WorldScale;
     public float DriftSpeed;
     public Rectangle BodyRect;
     public Rectangle ShadowRect;
@@ -20,7 +21,7 @@ public sealed class CloudInstance
         OcclusionOverride = OcclusionColliderOverride.FromLocalRect(left, right, top, bottom);
 
     public CloudOcclusionPart ToOcclusionPart() =>
-        new(Position, Variant, Scale, ShadowRect, OcclusionOverride);
+        new(Position, Variant, WorldScale, ShadowRect, OcclusionOverride);
 }
 
 public sealed class CloudSatellite
@@ -28,6 +29,7 @@ public sealed class CloudSatellite
     public int Variant;
     public Vector2 Offset;
     public float Scale;
+    public float WorldScale;
     public Rectangle BodyRect;
     public Rectangle ShadowRect;
     public OcclusionColliderOverride OcclusionOverride;
@@ -36,7 +38,7 @@ public sealed class CloudSatellite
         OcclusionOverride = OcclusionColliderOverride.FromLocalRect(left, right, top, bottom);
 
     public CloudOcclusionPart ToOcclusionPart(Vector2 shadowAnchor) =>
-        new(shadowAnchor, Variant, Scale, ShadowRect, OcclusionOverride);
+        new(shadowAnchor, Variant, WorldScale, ShadowRect, OcclusionOverride);
 }
 
 /// <summary>
@@ -183,7 +185,7 @@ public static class WorldClouds
 
         foreach (var c in Instances)
         {
-            GetBodyWorldBounds(c.Variant, c.Position, c.Scale, c.BodyRect, c.ShadowRect,
+            GetBodyWorldBounds(c.Variant, c.Position, c.WorldScale, c.BodyRect, c.ShadowRect,
                 out _, out var bodyTop, out var halfW, out _);
             halfW = MathF.Max(halfW, c.ShadowRect.Width * c.Scale * 0.5f);
             var cloudTop = bodyTop;
@@ -192,7 +194,7 @@ public static class WorldClouds
             foreach (var sat in c.Satellites)
             {
                 var satPos = c.Position + sat.Offset;
-                GetBodyWorldBounds(sat.Variant, satPos, sat.Scale, sat.BodyRect, sat.ShadowRect,
+                GetBodyWorldBounds(sat.Variant, satPos, sat.WorldScale, sat.BodyRect, sat.ShadowRect,
                     out _, out var satTop, out var satHalfW, out _);
                 halfW = MathF.Max(halfW, satHalfW);
                 halfW = MathF.Max(halfW, sat.ShadowRect.Width * sat.Scale * 0.5f);
@@ -213,7 +215,8 @@ public static class WorldClouds
         CloudInstance c,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom,
+        float positionZoom,
+        float visualZoom,
         ReadOnlySpan<Vector2> localPlayerPositions,
         float entityRadius = PlayerEntity.Radius)
     {
@@ -221,13 +224,13 @@ public static class WorldClouds
 
         DrawCloudPart(sb, c.Position, c.Variant, c.Scale, c.BodyRect, c.ShadowRect,
             BodyAlphaForPart(c.ToOcclusionPart(), localPlayerPositions, entityRadius),
-            camera, screenCenter, zoom);
+            camera, screenCenter, positionZoom, visualZoom, c.WorldScale);
         foreach (var sat in c.Satellites)
         {
             var satPos = c.Position + sat.Offset;
             DrawCloudPart(sb, satPos, sat.Variant, sat.Scale, sat.BodyRect, sat.ShadowRect,
                 BodyAlphaForPart(sat.ToOcclusionPart(satPos), localPlayerPositions, entityRadius),
-                camera, screenCenter, zoom);
+                camera, screenCenter, positionZoom, visualZoom, sat.WorldScale);
         }
     }
 
@@ -257,18 +260,21 @@ public static class WorldClouds
         float bodyAlpha,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom)
+        float positionZoom,
+        float visualZoom,
+        float worldScale)
     {
         if (_texture == null) return;
 
-        var drawScale = scale * zoom;
+        var drawScale = scale * visualZoom;
         var shadowOrigin = new Vector2(shadowRect.Width * 0.5f, shadowRect.Height);
-        var shadowScreen = WorldToScreen(anchorPos, camera, screenCenter, zoom);
+        var shadowScreen = WorldToScreen(anchorPos, camera, screenCenter, positionZoom);
         sb.Draw(_texture, shadowScreen, shadowRect, Color.White, 0f, shadowOrigin, drawScale, SpriteEffects.None, 0f);
 
-        var bodyBottomWorld = GetBodyBottomWorldY(anchorPos, shadowRect, scale);
+        var bodyBottomWorld = GetBodyBottomWorldY(anchorPos, shadowRect, worldScale);
         var bodyOrigin = new Vector2(bodyRect.Width * 0.5f, bodyRect.Height);
-        var bodyScreen = WorldToScreen(new Vector2(anchorPos.X, bodyBottomWorld), camera, screenCenter, zoom);
+        var bodyScreen = WorldToScreen(
+            new Vector2(anchorPos.X, bodyBottomWorld), camera, screenCenter, positionZoom);
         sb.Draw(_texture, bodyScreen, bodyRect, Color.White * bodyAlpha, 0f, bodyOrigin, drawScale, SpriteEffects.None, 0f);
     }
 
@@ -304,12 +310,13 @@ public static class WorldClouds
         WorldMap map,
         Vector2 camera,
         Vector2 screenCenter,
-        float zoom,
+        float positionZoom,
+        float visualZoom,
         ReadOnlySpan<Vector2> localPlayerPositions)
     {
-        GetVisible(map, camera, screenCenter, zoom, VisibleScratch);
+        GetVisible(map, camera, screenCenter, positionZoom, VisibleScratch);
         foreach (var c in VisibleScratch)
-            DrawInstance(sb, c, camera, screenCenter, zoom, localPlayerPositions);
+            DrawInstance(sb, c, camera, screenCenter, positionZoom, visualZoom, localPlayerPositions);
     }
 
     private static readonly Color OcclusionDebugColor = new(240, 210, 48);
@@ -398,6 +405,7 @@ public static class WorldClouds
                     Variant = variant,
                     Position = pos,
                     Scale = scale,
+                    WorldScale = scale / Config.ExteriorTerrainFocusScale,
                     DriftSpeed = drift,
                     BodyRect = template.BodyRect,
                     ShadowRect = template.ShadowRect,
@@ -414,13 +422,13 @@ public static class WorldClouds
         if (mode >= 520) return;
 
         var tiny = VariantTemplate[TinyVariant];
-        var tinyScale = parent.Scale;
-        var parentHalfW = parent.BodyRect.Width * parent.Scale * 0.5f;
+        var tinyScale = parent.WorldScale;
+        var parentHalfW = parent.BodyRect.Width * parent.WorldScale * 0.5f;
         var tinyHalfW = tiny.BodyRect.Width * tinyScale * 0.5f;
-        var gap = parent.Scale * 1.6f;
+        var gap = parent.WorldScale * 1.6f;
         var side = (Hash(tx, ty, 7) & 1) == 0 ? -1f : 1f;
         var flankX = side * (parentHalfW + tinyHalfW + gap);
-        var flankY = -parent.Scale * (1.2f + (Hash(tx, ty, 8) % 1000) / 1000f * 2.2f);
+        var flankY = -parent.WorldScale * (1.2f + (Hash(tx, ty, 8) % 1000) / 1000f * 2.2f);
 
         parent.Satellites.Add(MakeSatellite(flankX, flankY, tinyScale));
 
@@ -433,7 +441,7 @@ public static class WorldClouds
         }
 
         var overlapX = (Hash(tx, ty, 9) % 1000) / 1000f * parentHalfW * 0.55f - parentHalfW * 0.275f;
-        var overlapY = -parent.BodyRect.Height * parent.Scale * 0.3f;
+        var overlapY = -parent.BodyRect.Height * parent.WorldScale * 0.3f;
         parent.Satellites.Add(MakeSatellite(overlapX, overlapY, tinyScale * 0.9f));
     }
 
@@ -444,7 +452,8 @@ public static class WorldClouds
         {
             Variant = TinyVariant,
             Offset = new Vector2(offsetX, offsetY),
-            Scale = scale,
+            Scale = scale * Config.ExteriorTerrainFocusScale,
+            WorldScale = scale,
             BodyRect = template.BodyRect,
             ShadowRect = template.ShadowRect,
         };

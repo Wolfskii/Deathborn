@@ -8,43 +8,43 @@ import (
 const (
 	mobIDStart         = int64(-2000)
 	mobHitPadding      = 1.12
-	playerCombatRadius = 12.0
+	playerCombatRadius = 6.0
 	mobMeleeSwingTime  = 0.45
 	mobMeleeImpactTime = 0.24 // damage on the forward swing frame
 	mobMeleeCooldown   = 2.0
 )
 
 type mob struct {
-	id          int64
-	defID       string
-	name        string
-	category    NpcCategory
-	disposition NpcDisposition
-	spriteID    string
-	x, y        float64
-	spawnX      float64
-	spawnY      float64
-	hp          float64
-	hpMax       float64
-	speed       float64 // wander / default move speed
-	combatSpeed float64 // chase speed while aggroed (0 = use speed)
-	radius      float64
-	wander      bool
-	leash       float64
-	aggro       bool
-	aggroRange  float64
-	meleeDamage int
-	meleeReach  float64 // scaled px from mob center to player center at sword contact
-	hitHalfW    float64
-	hitHalfH    float64
-	hitCenterY  float64
-	dirX        float64
-	dirY        float64
-	wanderTimer float64
-	targetID    int64
-	attackT     float64
-	action      string
-	actionT     float64
+	id           int64
+	defID        string
+	name         string
+	category     NpcCategory
+	disposition  NpcDisposition
+	spriteID     string
+	x, y         float64
+	spawnX       float64
+	spawnY       float64
+	hp           float64
+	hpMax        float64
+	speed        float64 // wander / default move speed
+	combatSpeed  float64 // chase speed while aggroed (0 = use speed)
+	radius       float64
+	wander       bool
+	leash        float64
+	aggro        bool
+	aggroRange   float64
+	meleeDamage  int
+	meleeReach   float64 // scaled px from mob center to player center at sword contact
+	hitHalfW     float64
+	hitHalfH     float64
+	hitCenterY   float64
+	dirX         float64
+	dirY         float64
+	wanderTimer  float64
+	targetID     int64
+	attackT      float64
+	action       string
+	actionT      float64
 	pendingMelee bool
 	meleeImpactT float64
 }
@@ -172,7 +172,7 @@ func (w *World) spawnMobLocked(def npcDef, x, y float64) {
 		hitHalfW:    hitHalfW * scale * mobHitPadding,
 		hitHalfH:    hitHalfH * scale * mobHitPadding,
 		hitCenterY:  hitCenterY * scale,
-		dirY: 1,
+		dirY:        1,
 	}
 	if def.id == "wild_bat" {
 		// Fast chase only while fighting — wander stays leisurely.
