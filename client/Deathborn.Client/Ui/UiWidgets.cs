@@ -100,15 +100,27 @@ public sealed class TextField
     {
         if (DrawBackground)
         {
-            DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 36, 30) : new Color(22, 20, 16));
-            DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2), Focused ? new Color(210, 170, 80) : new Color(90, 75, 50));
+            if (FarmRpgUi.IsLoaded)
+            {
+                FarmRpgUi.DrawInsetPanel(sb, Bounds);
+                DrawPrimitives.FillRect(sb, FarmRpgUi.Inset(Bounds, 6),
+                    Focused ? new Color(255, 224, 185, 75) : new Color(127, 62, 43, 45));
+            }
+            else
+            {
+                DrawPrimitives.FillRect(sb, Bounds, Focused ? new Color(40, 36, 30) : new Color(22, 20, 16));
+                DrawPrimitives.FillRect(sb, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, 2),
+                    Focused ? new Color(210, 170, 80) : new Color(90, 75, 50));
+            }
         }
 
         var showPlaceholder = Text.Length == 0 && !Focused && Placeholder.Length > 0;
         var display = Text.Length > 0
             ? (IsPassword ? new string('*', Text.Length) : SpriteFontSafe.Filter(Text))
             : showPlaceholder ? SpriteFontSafe.Filter(Placeholder) : "";
-        var col = Text.Length > 0 ? TextColor : PlaceholderColor;
+        var col = Text.Length > 0
+            ? (FarmRpgUi.IsLoaded && TextColor == Color.White ? FarmRpgUi.Ink : TextColor)
+            : (FarmRpgUi.IsLoaded ? FarmRpgUi.InkMuted : PlaceholderColor);
         if (display.Length > 0)
             sb.DrawString(font, display, new Vector2(Bounds.X + 8, Bounds.Y + 8), col);
 
@@ -116,7 +128,8 @@ public sealed class TextField
         {
             var textWidth = display.Length > 0 ? font.MeasureString(display).X : 0f;
             var cursorX = Bounds.X + 8 + textWidth + 2;
-            DrawPrimitives.FillRect(sb, new Rectangle((int)cursorX, Bounds.Y + 6, 2, Bounds.Height - 12), CursorColor);
+            DrawPrimitives.FillRect(sb, new Rectangle((int)cursorX, Bounds.Y + 6, 2, Bounds.Height - 12),
+                FarmRpgUi.IsLoaded && CursorColor == Color.White ? FarmRpgUi.Ink : CursorColor);
         }
     }
 
@@ -134,13 +147,18 @@ public sealed class Button
     public void Draw(SpriteBatch sb, SpriteFont font, bool hover)
     {
         if (!Visible) return;
-        var bg = !Enabled ? new Color(50, 45, 40) : hover ? new Color(90, 72, 38) : new Color(55, 45, 28);
-        DrawPrimitives.FillRect(sb, Bounds, bg);
+        if (FarmRpgUi.IsLoaded)
+            FarmRpgUi.DrawButton(sb, Bounds, pressed: hover && Enabled, disabled: !Enabled);
+        else
+        {
+            var bg = !Enabled ? new Color(50, 45, 40) : hover ? new Color(90, 72, 38) : new Color(55, 45, 28);
+            DrawPrimitives.FillRect(sb, Bounds, bg);
+        }
         var size = font.MeasureString(Label);
         var pos = new Vector2(
             Bounds.X + (Bounds.Width - size.X) / 2,
             Bounds.Y + (Bounds.Height - size.Y) / 2);
-        sb.DrawString(font, Label, pos, Enabled ? Color.White : new Color(140, 140, 150));
+        sb.DrawString(font, Label, pos, Enabled ? FarmRpgUi.Ink : new Color(140, 120, 115));
     }
 }
 
@@ -154,6 +172,14 @@ public sealed class Checkbox
 
     public void Draw(SpriteBatch sb, SpriteFont font, bool hover)
     {
+        if (FarmRpgUi.IsLoaded)
+        {
+            FarmRpgUi.DrawToggle(sb, BoxBounds, Checked, hover);
+            if (!string.IsNullOrEmpty(Label))
+                sb.DrawString(font, Label, new Vector2(BoxBounds.Right + 8, BoxBounds.Y + 2), FarmRpgUi.Ink);
+            return;
+        }
+
         var bg = hover ? new Color(50, 55, 65) : new Color(35, 38, 45);
         DrawPrimitives.FillRect(sb, BoxBounds, bg);
         var border = Checked ? new Color(210, 170, 80) : new Color(90, 75, 50);

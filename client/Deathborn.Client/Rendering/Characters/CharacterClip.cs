@@ -12,4 +12,6 @@ public enum CharacterClip
     Hurt,
     Death,
     Roll,
+    FishWait,
+    FishReel,
 }

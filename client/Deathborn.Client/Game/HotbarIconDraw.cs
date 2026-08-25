@@ -30,6 +30,15 @@ public static class HotbarIconDraw
         if (AbilityIconAtlas.TryDraw(sb, spellId, bounds))
             return;
 
+        if (FarmIconAtlas.TryDraw(sb, spellId, bounds))
+            return;
+
+        if (FishIconAtlas.TryDraw(sb, spellId, bounds))
+            return;
+
+        if (CookIconAtlas.TryDraw(sb, spellId, bounds))
+            return;
+
         if (TryDrawFarmWeapon(sb, spellId, bounds))
             return;
 

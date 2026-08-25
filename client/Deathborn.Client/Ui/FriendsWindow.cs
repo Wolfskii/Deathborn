@@ -11,7 +11,7 @@ namespace Deathborn.Client.Ui;
 public sealed class FriendsWindow : UiWindow
 {
     private const int WinWidth = 440;
-    private const int WinHeight = 400;
+    private const int WinHeight = 420;
     private const int ListWidth = 168;
     private const int RowHeight = 26;
     private const int ChatInputHeight = 32;
@@ -69,6 +69,13 @@ public sealed class FriendsWindow : UiWindow
         _hoverRow = null;
         var area = ContentAreaInternal();
         var listArea = new Rectangle(area.X, area.Y, ListWidth, area.Height);
+        if (listArea.Contains(mouse.Position))
+        {
+            var maxScroll = Math.Max(0, _friends.Entries.Count * RowHeight - listArea.Height);
+            var wheel = mouse.ScrollWheelValue - prevMouse.ScrollWheelValue;
+            if (wheel != 0)
+                _listScroll = Math.Clamp(_listScroll - wheel / 120 * RowHeight, 0, maxScroll);
+        }
         if (listArea.Contains(mouse.Position))
         {
             var localY = mouse.Y - listArea.Y + _listScroll;
@@ -150,8 +157,7 @@ public sealed class FriendsWindow : UiWindow
         }
 
         var listArea = new Rectangle(area.X, area.Y, ListWidth, area.Height);
-        DrawPrimitives.FillRect(sb, listArea, new Color(18, 16, 14));
-        DrawBorder(sb, listArea, GoldDim, 1);
+        FarmRpgUi.DrawInsetPanel(sb, listArea);
 
         var chatArea = new Rectangle(area.X + ListWidth + 8, area.Y, area.Width - ListWidth - 8, area.Height);
         DrawChatPanel(sb, font, chatArea);
@@ -161,7 +167,7 @@ public sealed class FriendsWindow : UiWindow
         {
             var entry = _friends.Entries[i];
             var row = new Rectangle(listArea.X + 2, y, listArea.Width - 4, RowHeight);
-            if (row.Bottom < listArea.Y || row.Y > listArea.Bottom)
+            if (row.Y < listArea.Y || row.Bottom > listArea.Bottom)
             {
                 y += RowHeight;
                 continue;
@@ -171,7 +177,9 @@ public sealed class FriendsWindow : UiWindow
                 || (_friends.SelectedWhisper?.CharacterId > 0 && _friends.SelectedWhisper.CharacterId == entry.CharacterId);
             var hover = _hoverRow == i;
             if (selected || hover)
-                DrawPrimitives.FillRect(sb, row, selected ? new Color(48, 42, 32) : new Color(36, 32, 26));
+            {
+                FarmRpgUi.DrawButton(sb, row, pressed: selected || hover);
+            }
 
             var dotColor = entry.Online ? new Color(80, 200, 90) : new Color(90, 90, 95);
             DrawPrimitives.FillCircle(sb, new Vector2(row.X + 10, row.Y + RowHeight * 0.5f), 4f, dotColor);
@@ -180,7 +188,7 @@ public sealed class FriendsWindow : UiWindow
             if (entry.PendingIn) label += " (request)";
             else if (entry.PendingOut) label += " (pending)";
             sb.DrawString(font, label, new Vector2(row.X + 20, row.Y + 4),
-                entry.Online ? Color.White : new Color(170, 170, 175));
+                entry.Online ? FarmRpgUi.Ink : FarmRpgUi.InkMuted);
 
             y += RowHeight;
         }
@@ -193,7 +201,7 @@ public sealed class FriendsWindow : UiWindow
     {
         var target = _friends?.SelectedWhisper;
         var header = target != null ? $"Whisper: {target.Name}" : "Select a friend or whisper a player";
-        sb.DrawString(font, header, new Vector2(chatArea.X, chatArea.Y), PanelBorder);
+        sb.DrawString(font, header, new Vector2(chatArea.X, chatArea.Y), FarmRpgUi.Ink);
 
         var entry = SelectedEntry();
         var btnY = chatArea.Y + font.LineSpacing + 4;
@@ -216,8 +224,7 @@ public sealed class FriendsWindow : UiWindow
         var logHeight = chatArea.Height - (logTop - chatArea.Y) - ChatInputHeight - 8;
         if (logHeight < 20) logHeight = 20;
         var logRect = new Rectangle(chatArea.X, logTop, chatArea.Width, logHeight);
-        DrawPrimitives.FillRect(sb, logRect, new Color(14, 12, 10));
-        DrawBorder(sb, logRect, GoldDim, 1);
+        FarmRpgUi.DrawInsetPanel(sb, logRect);
 
         if (target is { CharacterId: > 0 })
         {
@@ -232,7 +239,7 @@ public sealed class FriendsWindow : UiWindow
                 y -= size.Y;
                 if (y < logRect.Y + 2) break;
                 sb.DrawString(font, text, new Vector2(logRect.X + 6, y),
-                    line.Outgoing ? new Color(180, 210, 255) : new Color(220, 215, 200));
+                    line.Outgoing ? new Color(92, 80, 145) : FarmRpgUi.Ink);
             }
         }
         else if (target != null)
@@ -257,22 +264,17 @@ public sealed class FriendsWindow : UiWindow
 
     private Rectangle ContentAreaInternal()
     {
-        const int titleBar = 28;
-        const int border = 2;
-        return new Rectangle(
-            Bounds.X + border,
-            Bounds.Y + titleBar + border,
-            Bounds.Width - border * 2,
-            Bounds.Height - titleBar - border * 2);
+        return ContentBounds;
     }
 
-    private Rectangle ChatArea() => ContentAreaInternal();
+    private Rectangle ChatArea()
+    {
+        var area = ContentAreaInternal();
+        return new Rectangle(area.X + ListWidth + 8, area.Y, area.Width - ListWidth - 8, area.Height);
+    }
 
     private static void DrawActionButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover)
     {
-        DrawPrimitives.FillRect(sb, rect, hover ? new Color(68, 56, 38) : new Color(48, 40, 30));
-        DrawBorder(sb, rect, hover ? PanelBorder : GoldDim, 1);
-        var size = font.MeasureString(label);
-        sb.DrawString(font, label, new Vector2(rect.X + (rect.Width - size.X) * 0.5f, rect.Y + 4), Color.White);
+        DrawThemedButton(sb, font, rect, label, hover, danger: label is "Decline" or "Remove");
     }
 }

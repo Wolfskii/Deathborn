@@ -22,6 +22,7 @@ public sealed class WorldMap
     public Vector2 DefaultSpawn { get; private init; }
 
     private bool[] _walkable = [];
+    private bool[] _sea = [];
     private sbyte[] _elevation = [];
     private byte[] _ramps = [];
     private int _maxElevation;
@@ -42,6 +43,13 @@ public sealed class WorldMap
 
     public bool IsLand(int tx, int ty) =>
         (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight && _walkable[ty * TileWidth + tx];
+
+    public bool IsWater(int tx, int ty) =>
+        (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight && !_walkable[ty * TileWidth + tx];
+
+    public bool IsSea(int tx, int ty) =>
+        (uint)tx < (uint)TileWidth && (uint)ty < (uint)TileHeight
+        && _sea.Length == _walkable.Length && _sea[ty * TileWidth + tx];
 
     public bool HasElevation => _elevation.Length > 0;
     public int MaxElevation => _maxElevation;
@@ -494,6 +502,7 @@ public sealed class WorldMap
             TileHeight = th,
             TileSize = tileSize,
             _walkable = walkable,
+            _sea = BuildSeaMask(walkable, tw, th),
             _elevation = elevation,
             _ramps = ramps,
             _maxElevation = maxElev,
@@ -593,6 +602,41 @@ public sealed class WorldMap
             if (IsLand(grid, tw, th, tx + dx, ty + dy)) n++;
         }
         return n;
+    }
+
+    private static bool[] BuildSeaMask(bool[] walkable, int tw, int th)
+    {
+        var sea = new bool[tw * th];
+        var q = new Queue<int>();
+        void Push(int tx, int ty)
+        {
+            if ((uint)tx >= (uint)tw || (uint)ty >= (uint)th) return;
+            var i = ty * tw + tx;
+            if (walkable[i] || sea[i]) return;
+            sea[i] = true;
+            q.Enqueue(i);
+        }
+        for (var ty = 0; ty < th; ty++)
+        {
+            Push(0, ty);
+            Push(tw - 1, ty);
+        }
+        for (var tx = 0; tx < tw; tx++)
+        {
+            Push(tx, 0);
+            Push(tx, th - 1);
+        }
+        while (q.Count > 0)
+        {
+            var i = q.Dequeue();
+            var tx = i % tw;
+            var ty = i / tw;
+            Push(tx + 1, ty);
+            Push(tx - 1, ty);
+            Push(tx, ty + 1);
+            Push(tx, ty - 1);
+        }
+        return sea;
     }
 
     private static Vector2 TileCenter(int tx, int ty, float tileSize) =>

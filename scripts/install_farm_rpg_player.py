@@ -37,6 +37,8 @@ CLIP_FOLDERS: dict[str, str] = {
     "shield_bash": "13.4 Carrying - Throwing items",
     "hurt": "10. Damage",
     "death": "11. Death",
+    "fish_wait": "12.1. Fishing - Wait",
+    "fish_reel": "12.3. Fishing - Reel",
 }
 
 # Starter modular character — Josh + farm overalls + sword (character-creator-ready ids).
@@ -68,6 +70,7 @@ LAYERS: dict[str, dict[str, str]] = {
     "weapon-staff": {"tpl": "Healer Staff.png", "clips": ["cast"]},
     "fx-cast": {"tpl": "Fx.png", "clips": ["cast"]},
     "weapon-shield": {"generated": True, "clips": ["shield_bash"]},
+    "weapon-fishing-rod": {"tpl": "Weapons/1.png", "clips": ["fish_wait", "fish_reel"]},
 }
 
 MAGIC_FX_SRC = PACK.parent / "Others/Arrow/Magic.png"
@@ -95,6 +98,11 @@ def resolve_src(clip: str, tpl: str) -> Path:
         return src
     # Some clips omit variant eyes — reuse idle art.
     if tpl.startswith("Eyes/"):
+        fallback = PACK / CLIP_FOLDERS["idle"] / tpl
+        if fallback.exists():
+            return fallback
+    # Fishing folders are complete for starter layers; fall back to idle if a variant is missing.
+    if clip in ("fish_wait", "fish_reel"):
         fallback = PACK / CLIP_FOLDERS["idle"] / tpl
         if fallback.exists():
             return fallback
@@ -181,6 +189,8 @@ def write_manifest(installed: dict[str, list[str]]) -> None:
             "shield_bash": {"frames": 5, "folder": "13.4 Carrying - Throwing items"},
             "hurt": {"frames": 4, "folder": "10. Damage"},
             "death": {"frames": 4, "folder": "11. Death"},
+            "fish_wait": {"frames": 4, "folder": "12.1. Fishing - Wait"},
+            "fish_reel": {"frames": 4, "folder": "12.3. Fishing - Reel"},
         },
         "starter_appearance": {
             "skin_layer": "skin-1",

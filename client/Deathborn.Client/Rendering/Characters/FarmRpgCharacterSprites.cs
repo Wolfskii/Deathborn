@@ -35,6 +35,12 @@ public static class FarmRpgCharacterSprites
         }
         catch (ContentLoadException)
         {
+            if (clip is CharacterClip.FishWait or CharacterClip.FishReel)
+            {
+                var idle = TryGetLayer(layerId, CharacterClip.Idle);
+                Cache[key] = idle;
+                return idle;
+            }
             Cache[key] = null;
             return null;
         }
@@ -73,6 +79,8 @@ public static class FarmRpgCharacterSprites
         CharacterClip.ShieldBash => "shield_bash",
         CharacterClip.Hurt => "hurt",
         CharacterClip.Death => "death",
+        CharacterClip.FishWait => "fish_wait",
+        CharacterClip.FishReel => "fish_reel",
         _ => "idle",
     };
 }

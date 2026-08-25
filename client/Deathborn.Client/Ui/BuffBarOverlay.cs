@@ -10,13 +10,13 @@ namespace Deathborn.Client.Ui;
 /// <summary>Draggable panel listing active buffs with countdown and descriptions.</summary>
 public sealed class BuffBarOverlay
 {
-    private const int TitleHeight = 24;
-    private const int RowHeight = 54;
+    private const int TitleHeight = 30;
+    private const int RowHeight = 64;
     private const int RowGap = 6;
     private const int Pad = 8;
     private const int RowInnerPad = 8;
     private const int AccentWidth = 4;
-    private const int BarHeight = 3;
+    private const int BarHeight = 14;
     private const int BarGapAbove = 6;
     private const int Width = 248;
 
@@ -62,12 +62,11 @@ public sealed class BuffBarOverlay
 
         ResizeForBuffCount(tracker.Active.Count);
 
-        DrawPrimitives.FillRect(sb, _bounds, new Color(16, 18, 24, 210));
-        UiWindowBorder(sb, _bounds, new Color(120, 130, 150));
+        FarmRpgUi.DrawWindowPanel(sb, _bounds, 0.95f);
 
-        var titleBar = new Rectangle(_bounds.X, _bounds.Y, _bounds.Width, TitleHeight);
-        DrawPrimitives.FillRect(sb, titleBar, new Color(32, 36, 48, 230));
-        sb.DrawString(font, "Buffs", new Vector2(_bounds.X + 8, _bounds.Y + 5), new Color(200, 205, 220));
+        var titleBar = new Rectangle(_bounds.X + Pad, _bounds.Y + 4, _bounds.Width - Pad * 2, TitleHeight - 6);
+        FarmRpgUi.DrawTitle(sb, titleBar, 0.95f);
+        sb.DrawString(font, "Buffs", new Vector2(titleBar.X + 8, titleBar.Y + 4), FarmRpgUi.Ink);
 
         var y = _bounds.Y + TitleHeight + Pad;
         foreach (var buff in tracker.Active)
@@ -75,19 +74,20 @@ public sealed class BuffBarOverlay
             var row = new Rectangle(_bounds.X + Pad, y, _bounds.Width - Pad * 2, RowHeight);
             var (name, desc, tint) = BuffCatalog.Describe(buff.Id);
 
-            DrawPrimitives.FillRect(sb, row, new Color(24, 26, 32, 200));
-            DrawPrimitives.FillRect(sb, new Rectangle(row.X, row.Y, AccentWidth, row.Height), tint);
+            FarmRpgUi.DrawInsetPanel(sb, row, 0.92f);
+            DrawPrimitives.FillRect(sb,
+                new Rectangle(row.X + 6, row.Y + 6, AccentWidth, row.Height - 12), tint * 0.9f);
 
-            var textLeft = row.X + AccentWidth + RowInnerPad;
+            var textLeft = row.X + AccentWidth + RowInnerPad + 4;
             var textTop = row.Y + RowInnerPad;
             var time = FormatRemaining(buff.Remaining);
             var timeRight = row.Right - RowInnerPad;
 
-            sb.DrawString(font, name, new Vector2(textLeft, textTop), Color.White);
-            DrawFixedWidthTimer(sb, font, time, timeRight, textTop, new Color(240, 220, 140));
+            sb.DrawString(font, name, new Vector2(textLeft, textTop), FarmRpgUi.Ink);
+            DrawFixedWidthTimer(sb, font, time, timeRight, textTop, FarmRpgUi.Rust);
 
             var descY = textTop + font.LineSpacing + 2;
-            sb.DrawString(font, desc, new Vector2(textLeft, descY), new Color(170, 175, 185));
+            sb.DrawString(font, desc, new Vector2(textLeft, descY), FarmRpgUi.InkMuted);
 
             var barY = row.Bottom - RowInnerPad - BarHeight;
             // Keep the timer bar below description text (not through it).
@@ -96,11 +96,8 @@ public sealed class BuffBarOverlay
                 barY = minBarY;
 
             var bar = new Rectangle(textLeft, barY, row.Right - RowInnerPad - textLeft, BarHeight);
-            DrawPrimitives.FillRect(sb, bar, new Color(40, 42, 50));
             var pct = buff.Duration > 0f ? buff.Remaining / buff.Duration : 0f;
-            var fillW = (int)(bar.Width * MathHelper.Clamp(pct, 0f, 1f));
-            if (fillW > 0)
-                DrawPrimitives.FillRect(sb, new Rectangle(bar.X, bar.Y, fillW, bar.Height), tint * 0.85f);
+            FarmRpgUi.DrawBar(sb, bar, pct, tint * 0.85f);
 
             y += RowHeight + RowGap;
         }
@@ -172,14 +169,5 @@ public sealed class BuffBarOverlay
         var x = Math.Clamp(_bounds.X, 0, Math.Max(0, GameViewport.Width - _bounds.Width));
         var y = Math.Clamp(_bounds.Y, 0, Math.Max(0, GameViewport.Height - _bounds.Height));
         _bounds = new Rectangle(x, y, _bounds.Width, _bounds.Height);
-    }
-
-    private static void UiWindowBorder(SpriteBatch sb, Rectangle rect, Color color)
-    {
-        const int t = 1;
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, t), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - t, rect.Width, t), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, t, rect.Height), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - t, rect.Y, t, rect.Height), color);
     }
 }

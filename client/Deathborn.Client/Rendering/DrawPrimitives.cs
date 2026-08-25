@@ -19,6 +19,39 @@ public static class DrawPrimitives
     sb.Draw(_pixel!, rect, color);
   }
 
+  public static void FillRoundedRect(SpriteBatch sb, Rectangle rect, Color color, int radius)
+  {
+    radius = Math.Clamp(radius, 0, Math.Min(rect.Width, rect.Height) / 2);
+    if (radius <= 0)
+    {
+      FillRect(sb, rect, color);
+      return;
+    }
+
+    FillRect(sb, new Rectangle(rect.X + radius, rect.Y, rect.Width - radius * 2, rect.Height), color);
+    FillRect(sb, new Rectangle(rect.X, rect.Y + radius, radius, rect.Height - radius * 2), color);
+    FillRect(sb, new Rectangle(rect.Right - radius, rect.Y + radius, radius, rect.Height - radius * 2), color);
+
+    for (var i = 0; i < radius; i++)
+    {
+      var t = (radius - i - 0.5f) / radius;
+      var inset = radius - (int)MathF.Ceiling(MathF.Sqrt(MathF.Max(0f, 1f - t * t)) * radius);
+      inset = Math.Clamp(inset, 0, radius - 1);
+      var span = radius - inset;
+      FillRect(sb, new Rectangle(rect.X + inset, rect.Y + i, span, 1), color);
+      FillRect(sb, new Rectangle(rect.Right - inset - span, rect.Y + i, span, 1), color);
+      FillRect(sb, new Rectangle(rect.X + inset, rect.Bottom - 1 - i, span, 1), color);
+      FillRect(sb, new Rectangle(rect.Right - inset - span, rect.Bottom - 1 - i, span, 1), color);
+    }
+  }
+
+  public static void FillRotatedRect(
+      SpriteBatch sb, Vector2 center, float width, float height, float rotation, Color color)
+  {
+    sb.Draw(_pixel!, center, null, color, rotation, new Vector2(0.5f), new Vector2(width, height),
+        SpriteEffects.None, 0f);
+  }
+
   public static void MaskOutsideCircle(SpriteBatch sb, Vector2 center, float radius, Color color, int segments = 48)
   {
     for (var i = 0; i < segments; i++)

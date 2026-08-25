@@ -76,16 +76,21 @@ public static class AbilityTooltipDraw
         Rectangle anchor, Point viewportSize, bool preferAbove = false)
     {
         const int pad = 8;
-        var maxW = 0f;
-        maxW = MathF.Max(maxW, font.MeasureString(title).X);
+        var maxContentW = Math.Max(48, Math.Min(360, viewportSize.X - 24 - pad * 2));
+        var wrappedLines = new List<string>();
         foreach (var line in lines)
+            WrapLine(font, SpriteFontSafe.Filter(line), maxContentW, wrappedLines);
+
+        var safeTitle = FitText(font, SpriteFontSafe.Filter(title), maxContentW);
+        var maxW = font.MeasureString(safeTitle).X;
+        foreach (var line in wrappedLines)
             maxW = MathF.Max(maxW, font.MeasureString(line).X);
 
-        var w = (int)maxW + pad * 2;
-        var h = pad * 2 + font.LineSpacing * (lines.Count + 1);
+        var w = Math.Min(viewportSize.X - 8, (int)MathF.Ceiling(maxW) + pad * 2);
+        var titleH = font.LineSpacing + 8;
+        var h = pad * 2 + titleH + 4 + font.LineSpacing * wrappedLines.Count;
 
-        int x;
-        int y;
+        int x, y;
         if (preferAbove)
         {
             x = anchor.X + anchor.Width / 2 - w / 2;
@@ -101,24 +106,51 @@ public static class AbilityTooltipDraw
         }
 
         x = Math.Clamp(x, 4, Math.Max(4, viewportSize.X - w - 4));
+        y = Math.Clamp(y, 4, Math.Max(4, viewportSize.Y - h - 4));
 
         var panel = new Rectangle(x, y, w, h);
-        Deathborn.Client.Rendering.DrawPrimitives.FillRect(sb, panel, new Color(12, 14, 22, 240));
-        DrawBorder(sb, panel, new Color(210, 170, 80));
-        sb.DrawString(font, SpriteFontSafe.Filter(title), new Vector2(panel.X + pad, panel.Y + pad), new Color(235, 210, 140));
-        var ly = panel.Y + pad + font.LineSpacing + 2;
-        foreach (var line in lines)
+        FarmRpgUi.DrawInsetPanel(sb, panel);
+        var titleRect = new Rectangle(panel.X + 6, panel.Y + 6, panel.Width - 12, titleH);
+        FarmRpgUi.DrawTitle(sb, titleRect);
+        sb.DrawString(font, safeTitle, new Vector2(titleRect.X + 4, titleRect.Y + 4), FarmRpgUi.Ink);
+        var ly = titleRect.Bottom + 4;
+        foreach (var line in wrappedLines)
         {
-            sb.DrawString(font, SpriteFontSafe.Filter(line), new Vector2(panel.X + pad, ly), new Color(195, 200, 210));
+            sb.DrawString(font, line, new Vector2(panel.X + pad, ly), FarmRpgUi.InkMuted);
             ly += font.LineSpacing;
         }
     }
 
-    private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color)
+    private static void WrapLine(SpriteFont font, string text, int maxWidth, List<string> output)
     {
-        Deathborn.Client.Rendering.DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, 1), color);
-        Deathborn.Client.Rendering.DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - 1, rect.Width, 1), color);
-        Deathborn.Client.Rendering.DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, 1, rect.Height), color);
-        Deathborn.Client.Rendering.DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - 1, rect.Y, 1, rect.Height), color);
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+        {
+            output.Add("");
+            return;
+        }
+
+        var current = words[0];
+        for (var i = 1; i < words.Length; i++)
+        {
+            var candidate = current + " " + words[i];
+            if (font.MeasureString(candidate).X <= maxWidth)
+                current = candidate;
+            else
+            {
+                output.Add(FitText(font, current, maxWidth));
+                current = words[i];
+            }
+        }
+        output.Add(FitText(font, current, maxWidth));
+    }
+
+    private static string FitText(SpriteFont font, string text, int maxWidth)
+    {
+        if (font.MeasureString(text).X <= maxWidth) return text;
+        const string suffix = "...";
+        while (text.Length > 0 && font.MeasureString(text + suffix).X > maxWidth)
+            text = text[..^1];
+        return text + suffix;
     }
 }

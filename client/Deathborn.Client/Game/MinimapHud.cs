@@ -9,7 +9,7 @@ namespace Deathborn.Client.Gameplay;
 public sealed class MinimapHud
 {
     private static readonly Color WaterFill = new(0.04f, 0.18f, 0.22f, 0.95f);
-    private static readonly Color FrameFill = new(0.08f, 0.08f, 0.1f, 0.92f);
+    private static readonly Color FrameFill = new(0.33f, 0.14f, 0.1f, 0.94f);
     private static readonly Color CompassColor = new(0.92f, 0.22f, 0.2f, 0.95f);
 
     public Vector2 Center =>
@@ -38,7 +38,8 @@ public sealed class MinimapHud
 
         DrawCompassMarkers(sb, font, center, r);
 
-        DrawPrimitives.DrawCircleOutline(sb, center, r, new Color(0.75f, 0.62f, 0.38f, 0.9f), 48, 2.5f);
+        DrawPrimitives.DrawCircleOutline(sb, center, r, FarmRpgUi.Parchment * 0.95f, 48, 2.5f);
+        DrawPrimitives.DrawCircleOutline(sb, center, r + 3f, FarmRpgUi.Ink * 0.9f, 48, 1.5f);
 
         if (WorldZones.Towns.Count == 0)
             WorldZones.Initialize(map);

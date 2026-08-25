@@ -43,6 +43,7 @@ public sealed class DeathbornGame : Game
         {
             PreferredBackBufferWidth = Config.DefaultWidth,
             PreferredBackBufferHeight = Config.DefaultHeight,
+            PreferredDepthStencilFormat = DepthFormat.Depth24Stencil8,
             HardwareModeSwitch = false,
             SynchronizeWithVerticalRetrace = false,
         };
@@ -167,10 +168,19 @@ public sealed class DeathbornGame : Game
         FarmRpgHouseSprites.Load(Content);
         FarmRpgFenceSprites.Load(Content);
         FarmRpgHouseInteriorTiles.Load(Content);
+        FarmCropSprites.Load(Content);
+        FarmAnimalSprites.Load(Content);
+        FarmRenderer.Load(Content);
+        FarmIconAtlas.Load(Content);
+        FishIconAtlas.Load(Content);
+        CookIconAtlas.Load(Content);
+        FurnitureSprites.Load(Content);
+        FishingFx.Load(Content);
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);
         FarmRpgInventoryUi.Load(Content);
         FarmRpgDialogueUi.Load(Content);
+        FarmRpgUi.Load(Content);
         TiledMapCatalog.Load(Content, GraphicsDevice);
     }
 

@@ -126,6 +126,27 @@ public sealed class InventoryData
     public List<InventoryItemState> Items { get; set; } = [];
 }
 
+public sealed class FishResultData
+{
+    [JsonPropertyName("itemId")]
+    public string ItemId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("baitUsed")]
+    public bool BaitUsed { get; set; }
+}
+
+public sealed class CookResultData
+{
+    [JsonPropertyName("itemId")]
+    public string ItemId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+}
+
 public sealed class WorldItemDropState
 {
     [JsonPropertyName("id")]
@@ -235,6 +256,54 @@ public sealed class HouseState
 
     [JsonPropertyName("furniture")]
     public List<FurnitureItem>? Furniture { get; set; }
+
+    [JsonPropertyName("crops")]
+    public List<FarmCropState>? Crops { get; set; }
+
+    [JsonPropertyName("animals")]
+    public List<FarmAnimalState>? Animals { get; set; }
+}
+
+public sealed class FarmCropState
+{
+    [JsonPropertyName("tx")]
+    public int Tx { get; set; }
+
+    [JsonPropertyName("ty")]
+    public int Ty { get; set; }
+
+    [JsonPropertyName("crop")]
+    public string Crop { get; set; } = "";
+
+    [JsonPropertyName("stage")]
+    public int Stage { get; set; }
+
+    [JsonPropertyName("watered")]
+    public bool Watered { get; set; }
+
+    [JsonPropertyName("ready")]
+    public bool Ready { get; set; }
+
+    [JsonPropertyName("maxStage")]
+    public int MaxStage { get; set; }
+}
+
+public sealed class FarmAnimalState
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("productReady")]
+    public bool ProductReady { get; set; }
 }
 
 public sealed class HouseBuiltData

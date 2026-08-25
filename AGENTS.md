@@ -162,6 +162,48 @@ Homestead exterior uses the **2nd bottom** Tiny House example (orange cottage) p
 - **Collision:** cottage body blocks movement except door approach; interior has three connected rooms with wall colliders
 - **Safe haven:** house plot bounds disable PvP; monsters cannot enter the plot
 
+### Homestead farming (Stardew-style)
+
+Players till, plant, water, and harvest on their **fenced homestead yard**, and keep a few farm animals. Art is from the Tiny Farm RPG pack, installed without vendor path names.
+
+- **Install:** `python scripts/install_farm_rpg_farming.py`
+- **Runtime:** `Content/Crops/`, `Content/Tiles/farm/`, `Content/Characters/Animals/farm/`, `Content/Icons/farm/`
+- **Loop:** hoe tills grass in the plot → plant seeds on tilled soil → watering can wets the tile (~90s) → crops grow only while wet → harvest when ready (some crops regrow)
+- **Animals:** place chicken/cow/sheep/pig from inventory; wander in the yard; feed; collect eggs/milk/wool
+- **Starter kit:** granted with the homestead (hoe, watering can, seeds, chicken, cow, sheep, feed)
+- **Server:** `internal/game/farm.go`, `farm_world.go`; house `farm` JSONB (`migrations/0011_house_farm.sql`)
+- **Client:** `FarmCatalog`, `FarmRenderer`, `FarmCropSprites`, `FarmAnimalSprites`, `FarmIconAtlas`
+- **Wire:** `farm_action` (till/water/plant/harvest/place_animal/feed/collect/pet)
+
+Keep crop stage counts and item ids in sync between `FarmCatalog.cs` and `server/internal/game/farm.go`.
+
+### Shoreline fishing (Stardew-style)
+
+Cast from land into adjacent water with a **fishing rod**. The existing minigame lands a real fish; art is from the Tiny Farm RPG pack (icons, splash, wait/reel clips).
+
+- **Install:** `python scripts/install_farm_rpg_fishing.py` and `python scripts/install_farm_rpg_player.py` (adds `fish_wait` / `fish_reel` layers)
+- **Runtime:** `Content/Icons/fish/`, `Content/Props/water/splash.png`, `Characters/FarmRpg/layers/*/fish_*.png`
+- **Loop:** select fishing rod → click water from the shore → wait for a bite → keep the fish in the green bar → catch grants fish + Fishing XP. Worm bait is consumed on a successful catch and improves rares.
+- **Water:** inland lakes vs ocean (water connected to the map border) use different fish tables
+- **Starter:** fishing rod + worm bait on new characters; existing characters get the kit on next login if they have bag space
+- **Server:** `internal/game/fishing.go`, `fishing_world.go`; wire `fish_action` (`start` / `catch` / `cancel`)
+- **Client:** `FishCatalog`, `FishIconAtlas`, `FishingFx`, fishing poses on `CharacterClip.FishWait` / `FishReel`
+
+Keep fish item ids in sync between `FishCatalog.cs` and `server/internal/game/fishing.go`.
+
+### Homestead cooking
+
+Cook meals at a **kitchen pot** (starter furniture in the east kitchen room) or a placed **fireplace**. Art is from the Tiny Farm RPG pack (pot strip + food icons).
+
+- **Install:** `python scripts/install_farm_rpg_cooking.py`
+- **Runtime:** `Content/Furniture/kitchen.png`, `Content/Icons/cook/`
+- **Loop:** enter the cottage → select an egg, crop, or fish on the hotbar → click the pot (or E while in range) → meal + Cooking XP. Eat meals from the hotbar like potions (HP / stamina).
+- **Recipes:** fried egg (chicken egg), parsnip soup, baked potato, pumpkin pie, bread (wheat), jam (strawberry), baked fish (any fish)
+- **Server:** `internal/game/cooking.go`, `cooking_world.go`; wire `cook_action`
+- **Client:** `CookCatalog`, `CookIconAtlas`, `FurnitureSprites`
+
+Keep recipe result ids in sync between `CookCatalog.cs` and `server/internal/game/cooking.go`.
+
 ---
 
 ## Farm RPG terrain (elevated land & water)

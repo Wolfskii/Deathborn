@@ -105,6 +105,8 @@ public static class WorldZones
                     Type = f.Type,
                     Position = new Vector2((float)f.X, (float)f.Y),
                 }).ToList(),
+                Crops = h.Crops ?? [],
+                Animals = h.Animals ?? [],
             });
         }
     }

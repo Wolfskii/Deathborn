@@ -72,6 +72,7 @@ func main() {
 		log.Printf("loaded %d world item drops", len(drops))
 	}
 	hub := gnet.NewHub(world, database)
+	hub.PersistDirtyFurniture()
 	hub.ProcessExpiredWorldDrops()
 	var hubDone sync.WaitGroup
 	hubDone.Add(1)
@@ -92,6 +93,11 @@ func main() {
 		}
 		for _, b := range world.TickBuffs(dt) {
 			hub.Broadcast(gnet.BuildPlayerBuff(b.PlayerID, b.BuffID, b.Remaining, b.Duration, b.MarkTargetID))
+		}
+		world.TickFarm(dt)
+		if tick%staticRefreshTicks == 0 {
+			hub.PersistDirtyFarms()
+			hub.PersistDirtyFurniture()
 		}
 		if tick%snapshotEveryTicks != 0 {
 			return

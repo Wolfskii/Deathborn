@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Deathborn.Client.Net;
 using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Gameplay;
@@ -137,6 +138,8 @@ public sealed class HousePlotZone
     public required string OwnerName { get; init; }
     public required Vector2 Center { get; init; }
     public List<FurnitureItemState> Furniture { get; set; } = [];
+    public List<FarmCropState> Crops { get; set; } = [];
+    public List<FarmAnimalState> Animals { get; set; } = [];
 
     public bool Contains(Vector2 world) => HousingConstants.InPlot(world, Center);
 

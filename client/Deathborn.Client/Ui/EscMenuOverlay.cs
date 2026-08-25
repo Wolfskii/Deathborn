@@ -9,20 +9,20 @@ namespace Deathborn.Client.Ui;
 /// <summary>Esc menu with music volume, mute, and game info.</summary>
 public sealed class EscMenuOverlay
 {
-    private const int MinPanelW = 400;
-    private const int MinPanelH = 480;
-    private const int MaxPanelW = 460;
-    private const int MaxPanelH = 640;
-    private const float PanelAspect = 0.72f; // width / height
-    private const int ViewportMargin = 48;
-    private const int ContentPadX = 36;
-    private const int PanelInnerPad = 28;
-    private const int RibbonTop = 20;
-    private const int RibbonH = 38;
-    private const int ContentTopGap = 22;
-    private const int FooterPad = 20;
-    private const int MaxContentW = 380;
-    private const int MaxButtonW = 340;
+    private const int MinPanelW = 320;
+    private const int MinPanelH = 440;
+    private const int MaxPanelW = 520;
+    private const int MaxPanelH = 600;
+    private const float PanelAspect = 0.82f; // width / height
+    private const int ViewportMargin = 20;
+    private const int ContentPadX = 28;
+    private const int PanelInnerPad = 20;
+    private const int RibbonTop = 16;
+    private const int RibbonH = 36;
+    private const int ContentTopGap = 14;
+    private const int FooterPad = 14;
+    private const int MaxContentW = 450;
+    private const int MaxButtonW = 420;
     private const int SliderPctReserve = 56;
     private const int ScrollbarW = 12;
     private const int ScrollbarGap = 6;
@@ -193,7 +193,7 @@ public sealed class EscMenuOverlay
         DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height),
             new Color(0, 0, 0, 0.55f));
 
-        if (TinySwordsUi.IsLoaded)
+        if (FarmRpgUi.IsLoaded)
             DrawThemed(sb, font);
         else
             DrawLegacy(sb, font);
@@ -201,30 +201,29 @@ public sealed class EscMenuOverlay
 
     private void DrawThemed(SpriteBatch sb, SpriteFont font)
     {
-        TinySwordsUi.DrawPanel(sb, _panel, TinySwordsUi.PanelKind.Wood);
-        TinySwordsUi.DrawRibbon(sb, _titleRibbon, TinySwordsUi.RibbonKind.Gold, pointed: true);
+        FarmRpgUi.DrawWindowPanel(sb, _panel);
+        FarmRpgUi.DrawTitle(sb, _titleRibbon);
 
         var title = "Menu";
         var titleSize = font.MeasureString(title);
-        var titleArea = TinySwordsUi.MeasureRibbonTextArea(_titleRibbon);
         sb.DrawString(font, title,
-            new Vector2(titleArea.X + (titleArea.Width - titleSize.X) / 2f, titleArea.Y + 3),
-            new Color(255, 245, 210));
+            new Vector2(_titleRibbon.X + (_titleRibbon.Width - titleSize.X) / 2f,
+                _titleRibbon.Y + (_titleRibbon.Height - titleSize.Y) / 2f),
+            FarmRpgUi.Ink);
 
         var musicLabel = "Music volume";
-        DrawContentString(sb, font, musicLabel, _contentColumnX, 0, new Color(50, 38, 28));
+        DrawContentString(sb, font, musicLabel, _contentColumnX, 0, FarmRpgUi.Ink);
 
         if (Visible(_sliderTrack))
-            TinySwordsUi.DrawBar(sb, _sliderTrack, MusicPlayer.DisplayVolume, big: false, new Color(120, 190, 120));
+            DrawVolumeSlider(sb, _sliderTrack, MusicPlayer.DisplayVolume);
 
         var pct = $"{(int)(MusicPlayer.DisplayVolume * 100)}%";
         var pctY = _sliderTrack.Y + (_sliderTrack.Height - font.LineSpacing) / 2f;
         if (pctY + font.LineSpacing >= _contentArea.Y && pctY <= _contentArea.Bottom)
-            sb.DrawString(font, pct, new Vector2(_sliderTrack.Right + 10, pctY), new Color(60, 48, 36));
+            sb.DrawString(font, pct, new Vector2(_sliderTrack.Right + 10, pctY), FarmRpgUi.InkMuted);
 
-        var mute = new Checkbox { Label = "Mute music", Checked = MusicPlayer.IsMuted, BoxBounds = _muteBox };
         if (Visible(_muteBox))
-            mute.Draw(sb, font, _muteBox.Contains(Mouse.GetState().Position));
+            DrawMuteCheckbox(sb, font, _muteBox, _muteBox.Contains(Mouse.GetState().Position));
 
         var mousePos = Mouse.GetState().Position;
         DrawMenuButtonIfVisible(sb, font, _characterButton, "Character (C)", !_deathMenuMode && _characterButton.Contains(mousePos));
@@ -247,11 +246,11 @@ public sealed class EscMenuOverlay
 
         if (_infoLines is { Count: > 0 })
         {
-            DrawContentString(sb, font, "Info", _contentColumnX, _infoSectionY, new Color(90, 60, 35));
+            DrawContentString(sb, font, "Info", _contentColumnX, _infoSectionY, FarmRpgUi.Ink);
             var infoY = _infoSectionY + font.LineSpacing + 4;
             foreach (var line in _infoLines)
             {
-                DrawContentString(sb, font, line, _contentColumnX, infoY, new Color(70, 55, 40));
+                DrawContentString(sb, font, line, _contentColumnX, infoY, FarmRpgUi.InkMuted);
                 infoY += font.LineSpacing;
             }
         }
@@ -278,35 +277,32 @@ public sealed class EscMenuOverlay
             var size = font.MeasureString(line);
             sb.DrawString(font, line,
                 new Vector2(_footerArea.X + (_footerArea.Width - size.X) / 2f, y),
-                new Color(100, 80, 60));
+                FarmRpgUi.InkMuted);
             y += font.LineSpacing;
         }
     }
 
     private void DrawScrollbar(SpriteBatch sb)
     {
-        DrawPrimitives.FillRect(sb, _scrollbarTrack, new Color(28, 22, 18, 200));
-        DrawPrimitives.FillRect(sb, _scrollbarThumb, new Color(120, 95, 70));
-        DrawPrimitives.FillRect(sb, new Rectangle(_scrollbarThumb.X, _scrollbarThumb.Y, _scrollbarThumb.Width, 2),
-            new Color(180, 150, 110));
+        FarmRpgUi.DrawScrollbar(sb, _scrollbarTrack, _scrollbarThumb);
     }
 
     private void Layout(SpriteFont font)
     {
         var vw = GameViewport.Width;
         var vh = GameViewport.Height;
-        var maxW = vw - ViewportMargin * 2;
-        var maxH = vh - ViewportMargin * 2;
+        var maxW = Math.Max(1, vw - ViewportMargin * 2);
+        var maxH = Math.Max(1, vh - ViewportMargin * 2);
 
-        var panelH = Math.Min(maxH, Math.Min(MaxPanelH, (int)(vh * 0.78f)));
+        var panelH = Math.Min(maxH, Math.Min(MaxPanelH, (int)(vh * 0.86f)));
         var panelW = (int)(panelH * PanelAspect);
         if (panelW > maxW)
         {
             panelW = Math.Min(maxW, MaxPanelW);
             panelH = (int)(panelW / PanelAspect);
         }
-        panelW = Math.Clamp(panelW, MinPanelW, MaxPanelW);
-        panelH = Math.Clamp(panelH, MinPanelH, MaxPanelH);
+        panelW = Math.Clamp(panelW, Math.Min(MinPanelW, maxW), Math.Min(MaxPanelW, maxW));
+        panelH = Math.Clamp(panelH, Math.Min(MinPanelH, maxH), Math.Min(MaxPanelH, maxH));
 
         _panel = new Rectangle(vw / 2 - panelW / 2, vh / 2 - panelH / 2, panelW, panelH);
         _titleRibbon = new Rectangle(_panel.X + PanelInnerPad, _panel.Y + RibbonTop, _panel.Width - PanelInnerPad * 2, RibbonH);
@@ -324,9 +320,9 @@ public sealed class EscMenuOverlay
         var contentTop = _titleRibbon.Bottom + ContentTopGap;
         var contentH = Math.Max(1, _footerArea.Y - FooterPad - contentTop);
 
-        const int sliderH = 30;
+        const int sliderH = 24;
         const int buttonH = 36;
-        const int buttonGap = 10;
+        const int buttonGap = 8;
         const int sectionGap = 16;
 
         _contentHeight = MeasureContentHeight(font, sectionGap);
@@ -365,12 +361,12 @@ public sealed class EscMenuOverlay
 
     private int MeasureContentHeight(SpriteFont font, int sectionGap)
     {
-        const int sliderH = 30;
+        const int sliderH = 24;
         const int buttonH = 36;
-        const int buttonGap = 10;
+        const int buttonGap = 8;
         var y = font.LineSpacing + 6 + sliderH + sectionGap + 20 + sectionGap;
-        var liveButtons = _deathMenuMode ? 0 : 5;
-        y += (buttonH + buttonGap) * liveButtons;
+        if (!_deathMenuMode)
+            y += (buttonH + buttonGap) * 3;
         if (_showNewLifeButton)
             y += buttonH + buttonGap;
         y += buttonH + sectionGap;
@@ -390,13 +386,13 @@ public sealed class EscMenuOverlay
         y += 20 + sectionGap;
         if (!_deathMenuMode)
         {
-            _characterButton = ContentRect(buttonX, y, buttonW, buttonH);
+            var columnGap = Math.Min(10, Math.Max(6, buttonW / 30));
+            var halfW = Math.Max(1, (buttonW - columnGap) / 2);
+            _characterButton = ContentRect(buttonX, y, halfW, buttonH);
+            _spellBookButton = ContentRect(buttonX + halfW + columnGap, y, buttonW - halfW - columnGap, buttonH);
             y += buttonH + buttonGap;
-            _spellBookButton = ContentRect(buttonX, y, buttonW, buttonH);
-            y += buttonH + buttonGap;
-            _inventoryButton = ContentRect(buttonX, y, buttonW, buttonH);
-            y += buttonH + buttonGap;
-            _skillsButton = ContentRect(buttonX, y, buttonW, buttonH);
+            _inventoryButton = ContentRect(buttonX, y, halfW, buttonH);
+            _skillsButton = ContentRect(buttonX + halfW + columnGap, y, buttonW - halfW - columnGap, buttonH);
             y += buttonH + buttonGap;
             if (_destroyHouseEnabled)
             {
@@ -444,7 +440,7 @@ public sealed class EscMenuOverlay
     private void DrawContentString(SpriteBatch sb, SpriteFont font, string text, int x, int localY, Color color)
     {
         var y = _contentArea.Y + localY - _scrollY;
-        if (y + font.LineSpacing < _contentArea.Y || y > _contentArea.Bottom) return;
+        if (y < _contentArea.Y || y + font.LineSpacing > _contentArea.Bottom) return;
         sb.DrawString(font, text, new Vector2(x, y), color);
     }
 
@@ -456,7 +452,7 @@ public sealed class EscMenuOverlay
     }
 
     private bool Visible(Rectangle rect) =>
-        rect.Bottom > _contentArea.Y && rect.Y < _contentArea.Bottom;
+        rect.Y >= _contentArea.Y && rect.Bottom <= _contentArea.Bottom;
 
     private bool HitVisible(Rectangle rect) =>
         Visible(rect) && rect.Contains(Mouse.GetState().Position);
@@ -503,18 +499,29 @@ public sealed class EscMenuOverlay
 
     private static void DrawMenuButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover, bool disabled = false)
     {
-        if (TinySwordsUi.IsLoaded)
+        if (FarmRpgUi.IsLoaded)
         {
-            TinySwordsUi.DrawButton(sb, rect, TinySwordsUi.ButtonKind.Blue, pressed: hover && !disabled, disabled ? 0.55f : 1f);
+            FarmRpgUi.DrawButton(sb, rect, pressed: hover, disabled: disabled, danger: label == "Log out");
             var size = font.MeasureString(label);
             sb.DrawString(font, label,
                 new Vector2(rect.X + (rect.Width - size.X) / 2f, rect.Y + (rect.Height - size.Y) / 2f),
-                disabled ? new Color(120, 115, 110) : new Color(255, 250, 235));
+                disabled ? FarmRpgUi.InkMuted * 0.65f : FarmRpgUi.Ink);
             return;
         }
 
         DrawPrimitives.FillRect(sb, rect, disabled ? new Color(32, 28, 24) : hover ? new Color(68, 56, 38) : new Color(48, 40, 30));
         var sz = font.MeasureString(label);
         sb.DrawString(font, label, new Vector2(rect.X + (rect.Width - sz.X) / 2f, rect.Y + (rect.Height - sz.Y) / 2f), Color.White);
+    }
+
+    private static void DrawVolumeSlider(SpriteBatch sb, Rectangle rect, float value)
+    {
+        FarmRpgUi.DrawBar(sb, rect, value, new Color(201, 100, 53));
+    }
+
+    private static void DrawMuteCheckbox(SpriteBatch sb, SpriteFont font, Rectangle rect, bool hover)
+    {
+        FarmRpgUi.DrawToggle(sb, rect, MusicPlayer.IsMuted, hover);
+        sb.DrawString(font, "Mute music", new Vector2(rect.Right + 8, rect.Y + 1), FarmRpgUi.Ink);
     }
 }

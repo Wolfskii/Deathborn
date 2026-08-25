@@ -215,6 +215,32 @@ func (h *Hub) gracefulShutdownAll(reason string) {
 	log.Println("graceful shutdown complete")
 }
 
+// PersistDirtyFarms writes homestead crop/animal blobs that changed since last save.
+func (h *Hub) PersistDirtyFarms() {
+	if h.world == nil || h.db == nil {
+		return
+	}
+	ctx := context.Background()
+	for _, row := range h.world.TakeDirtyFarms() {
+		if err := h.db.SaveHouseFarm(ctx, row.HouseID, row.Farm); err != nil {
+			log.Printf("save house farm %d: %v", row.HouseID, err)
+		}
+	}
+}
+
+// PersistDirtyFurniture writes starter kitchens added on house load/build.
+func (h *Hub) PersistDirtyFurniture() {
+	if h.world == nil || h.db == nil {
+		return
+	}
+	ctx := context.Background()
+	for _, row := range h.world.TakeDirtyFurniture() {
+		if err := h.db.SaveHouseFurniture(ctx, row.CharacterID, dbFurnitureToDB(row.Items)); err != nil {
+			log.Printf("save house furniture character=%d: %v", row.CharacterID, err)
+		}
+	}
+}
+
 // spawnXY is the default position for newly created characters on Realik.
 func (h *Hub) spawnXY() (float64, float64) {
 	if h.world != nil {

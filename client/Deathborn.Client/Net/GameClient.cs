@@ -68,6 +68,8 @@ public sealed class GameClient : IDisposable
     public event Action<HouseRemovedData>? HouseRemoved;
     public event Action<HouseUpdatedData>? HouseUpdated;
     public event Action<InventoryData>? InventoryUpdated;
+    public event Action<FishResultData>? FishResult;
+    public event Action<CookResultData>? CookResult;
     public event Action<WorldItemRemovedData>? WorldItemRemoved;
     public event Action<WorldItemDropState>? WorldItemAdded;
     public event Action<string>? ServerError;
@@ -337,6 +339,24 @@ public sealed class GameClient : IDisposable
     {
         if (LocalCharacterId < 0 || string.IsNullOrEmpty(type)) return;
         Send("place_furniture", new { type, x, y });
+    }
+
+    public void SendFarmAction(string action, int tileX = 0, int tileY = 0, string? itemId = null, int slot = -1, long animalId = 0)
+    {
+        if (LocalCharacterId < 0 || string.IsNullOrEmpty(action)) return;
+        Send("farm_action", new { action, tileX, tileY, itemId, slot, animalId });
+    }
+
+    public void SendFishAction(string action, int tileX, int tileY)
+    {
+        if (LocalCharacterId < 0 || string.IsNullOrEmpty(action)) return;
+        Send("fish_action", new { action, tileX, tileY });
+    }
+
+    public void SendCookAction(string itemId, int slot)
+    {
+        if (LocalCharacterId < 0 || string.IsNullOrEmpty(itemId)) return;
+        Send("cook_action", new { itemId, slot });
     }
 
     public void SendPickupItem(long dropId)
@@ -618,6 +638,14 @@ public sealed class GameClient : IDisposable
             case "inventory":
                 var inventory = env.Data.Deserialize<InventoryData>(JsonOpts);
                 if (inventory != null) InventoryUpdated?.Invoke(inventory);
+                break;
+            case "fish_result":
+                var fishResult = env.Data.Deserialize<FishResultData>(JsonOpts);
+                if (fishResult != null) FishResult?.Invoke(fishResult);
+                break;
+            case "cook_result":
+                var cookResult = env.Data.Deserialize<CookResultData>(JsonOpts);
+                if (cookResult != null) CookResult?.Invoke(cookResult);
                 break;
             case "world_item_removed":
                 var itemRemoved = env.Data.Deserialize<WorldItemRemovedData>(JsonOpts);

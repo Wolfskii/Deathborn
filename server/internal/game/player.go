@@ -28,6 +28,9 @@ type player struct {
 	insideHouseID           int64
 	headCosmetic            string
 	houseTransitionCooldown float64
+	fishing                 bool
+	fishingTx, fishingTy    int
+	fishingAt               float64
 }
 
 // PlayerState is the immutable view of a player included in snapshots sent to

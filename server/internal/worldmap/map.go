@@ -54,6 +54,7 @@ type Map struct {
 	DefaultSpawnX         float64
 	DefaultSpawnY         float64
 	walkable              []bool
+	sea                   []bool
 	elevation             *elevationGrid
 	foliage               *foliageIndex
 }
@@ -89,6 +90,7 @@ func parse(data []byte) (*Map, error) {
 		TileHeight: th,
 		TileSize:   tileSize,
 		walkable:   walk,
+		sea:        buildSeaMask(walk, tw, th),
 	}
 	m.WorldWidth = float64(tw) * tileSize
 	m.WorldHeight = float64(th) * tileSize
@@ -134,6 +136,74 @@ func (m *Map) isLand(tx, ty int) bool {
 		return false
 	}
 	return m.walkable[ty*m.TileWidth+tx]
+}
+
+// IsLandTile reports walkable land at a tile.
+func (m *Map) IsLandTile(tx, ty int) bool {
+	return m.isLand(tx, ty)
+}
+
+// IsWaterTile reports non-land (ocean / lake) at a tile inside the map.
+func (m *Map) IsWaterTile(tx, ty int) bool {
+	if tx < 0 || ty < 0 || tx >= m.TileWidth || ty >= m.TileHeight {
+		return false
+	}
+	return !m.walkable[ty*m.TileWidth+tx]
+}
+
+// IsSeaTile is water connected to the map border (open ocean).
+func (m *Map) IsSeaTile(tx, ty int) bool {
+	if tx < 0 || ty < 0 || tx >= m.TileWidth || ty >= m.TileHeight || len(m.sea) == 0 {
+		return false
+	}
+	return m.sea[ty*m.TileWidth+tx]
+}
+
+// TileCoords converts world pixels to tile indices.
+func (m *Map) TileCoords(worldX, worldY float64) (int, int) {
+	return int(math.Floor(worldX / m.TileSize)), int(math.Floor(worldY / m.TileSize))
+}
+
+func buildSeaMask(walk []bool, tw, th int) []bool {
+	sea := make([]bool, tw*th)
+	q := make([]int, 0, 4096)
+	push := func(tx, ty int) {
+		if tx < 0 || ty < 0 || tx >= tw || ty >= th {
+			return
+		}
+		i := ty*tw + tx
+		if walk[i] || sea[i] {
+			return
+		}
+		sea[i] = true
+		q = append(q, i)
+	}
+	for ty := 0; ty < th; ty++ {
+		push(0, ty)
+		push(tw-1, ty)
+	}
+	for tx := 0; tx < tw; tx++ {
+		push(tx, 0)
+		push(tx, th-1)
+	}
+	dirs := [4][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}
+	for head := 0; head < len(q); head++ {
+		i := q[head]
+		tx, ty := i%tw, i/tw
+		for _, d := range dirs {
+			nx, ny := tx+d[0], ty+d[1]
+			if nx < 0 || ny < 0 || nx >= tw || ny >= th {
+				continue
+			}
+			ni := ny*tw + nx
+			if walk[ni] || sea[ni] {
+				continue
+			}
+			sea[ni] = true
+			q = append(q, ni)
+		}
+	}
+	return sea
 }
 
 func (m *Map) hasClearance(tx, ty, radius int) bool {

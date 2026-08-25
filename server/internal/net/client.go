@@ -155,6 +155,13 @@ func (c *Client) spawn(ch db.Character) {
 		_ = c.hub.db.SaveCharacterInventory(ctx, ch.ID, inv)
 	}
 	gameInv := game.InventoryFromDB(inv)
+	if !game.InventoryHasItem(gameInv, "fishing_rod") {
+		next := game.AppendItems(gameInv, game.FishingStarterKit())
+		if game.InventoryHasItem(next, "fishing_rod") {
+			gameInv = next
+			_ = c.hub.db.SaveCharacterInventory(ctx, ch.ID, game.InventoryToDB(gameInv))
+		}
+	}
 	cosmetics, _ := c.hub.db.GetCharacterCosmetics(ctx, ch.ID)
 	vitals := game.PlayerVitals{}
 	if ch.Hp != nil {
@@ -275,6 +282,7 @@ func (c *Client) persistSpawnedState(database *db.DB) {
 		}
 		_ = database.SaveCharacterCosmetics(ctx, c.characterID, cosmetics)
 		_ = database.SaveCharacterActiveBuffs(ctx, c.characterID, gameBuffsToDB(c.hub.world.BuffsForSave(c.characterID)))
+		c.hub.PersistDirtyFarms()
 		log.Printf("saved account_id=%d character_id=%d pos=(%.0f,%.0f)",
 			c.accountID, c.characterID, x, y)
 		return
@@ -729,9 +737,103 @@ func (c *Client) readPump(database *db.DB) {
 				continue
 			}
 			gameInv := game.InventoryFromDB(inv)
+			gameInv = game.AppendItems(gameInv, game.FarmStarterKit())
+			_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(gameInv))
 			c.hub.world.SetPlayerInventory(c.characterID, gameInv)
 			c.safeSend(BuildInventory(gameInv))
+			c.hub.PersistDirtyFurniture()
 			c.hub.Broadcast(BuildHouseBuilt(state))
+
+		case "farm_action":
+			if !c.spawned {
+				continue
+			}
+			var d FarmActionSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.Action == "" {
+				continue
+			}
+			result, msg, ok := c.hub.world.ApplyFarmAction(c.characterID, d.Action, d.TileX, d.TileY, d.ItemID, d.Slot, d.AnimalID)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			if result.Inventory != nil {
+				_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(result.Inventory))
+				c.safeSend(BuildInventory(result.Inventory))
+			}
+			c.hub.PersistDirtyFarms()
+			c.hub.Broadcast(BuildHouseUpdated(result.House))
+			if result.PlayerAction != "" {
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, result.PlayerAction, result.DirX, result.DirY, ""))
+			}
+			if result.GrantedXP > 0 {
+				c.sendSkillXpGain(c.characterID, result.Skill, result.GrantedXP, game.SkillGrantResult{
+					SkillID: result.Skill, Xp: result.Xp, Level: result.Level, LeveledUp: result.LeveledUp,
+				})
+			}
+
+		case "fish_action":
+			if !c.spawned {
+				continue
+			}
+			var d FishActionSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.Action == "" {
+				continue
+			}
+			result, msg, ok := c.hub.world.ApplyFishAction(c.characterID, d.Action, d.TileX, d.TileY)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				if result.PlayerAction != "" {
+					c.hub.Broadcast(BuildPlayerAction(c.characterID, result.PlayerAction, result.DirX, result.DirY, ""))
+				}
+				continue
+			}
+			if result.Inventory != nil {
+				_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(result.Inventory))
+				c.safeSend(BuildInventory(result.Inventory))
+			}
+			if result.ItemID != "" {
+				c.safeSend(encode("fish_result", FishResultData{
+					ItemID: result.ItemID, Name: result.ItemName, BaitUsed: result.BaitUsed,
+				}))
+			}
+			if result.PlayerAction != "" {
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, result.PlayerAction, result.DirX, result.DirY, ""))
+			}
+			if result.GrantedXP > 0 {
+				c.sendSkillXpGain(c.characterID, result.Skill, result.GrantedXP, game.SkillGrantResult{
+					SkillID: result.Skill, Xp: result.Xp, Level: result.Level, LeveledUp: result.LeveledUp,
+				})
+			}
+
+		case "cook_action":
+			if !c.spawned {
+				continue
+			}
+			var d CookActionSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.ItemID == "" {
+				continue
+			}
+			result, msg, ok := c.hub.world.ApplyCookAction(c.characterID, d.ItemID, d.Slot)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			if result.Inventory != nil {
+				_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(result.Inventory))
+				c.safeSend(BuildInventory(result.Inventory))
+			}
+			c.safeSend(encode("cook_result", CookResultData{
+				ItemID: result.ResultID, Name: result.ResultName,
+			}))
+			if result.PlayerAction != "" {
+				c.hub.Broadcast(BuildPlayerAction(c.characterID, result.PlayerAction, 0, 0, ""))
+			}
+			if result.GrantedXP > 0 {
+				c.sendSkillXpGain(c.characterID, result.Skill, result.GrantedXP, game.SkillGrantResult{
+					SkillID: result.Skill, Xp: result.Xp, Level: result.Level, LeveledUp: result.LeveledUp,
+				})
+			}
 
 		case "destroy_house":
 			if !c.spawned {

@@ -52,6 +52,15 @@ func maxStack(itemID string) int {
 	if IsCosmeticItem(itemID) || itemID == "house_key" {
 		return 1
 	}
+	if n := FarmItemMaxStack(itemID); n > 0 {
+		return n
+	}
+	if n := FishingItemMaxStack(itemID); n > 0 {
+		return n
+	}
+	if n := CookingItemMaxStack(itemID); n > 0 {
+		return n
+	}
 	switch itemID {
 	case "bandage", "antidote":
 		return 10
@@ -307,4 +316,80 @@ func FirstEmptyInventorySlot(items []InventoryItem) int {
 		}
 	}
 	return -1
+}
+
+func takeItemsFromSlots(slots [InventorySlotCount]InventoryItem, itemID string, count, preferSlot int) ([InventorySlotCount]InventoryItem, bool) {
+	if count <= 0 || itemID == "" {
+		return slots, true
+	}
+	have := 0
+	for i := 0; i < InventorySlotCount; i++ {
+		if slots[i].ItemID == itemID {
+			have += slots[i].Count
+		}
+	}
+	if have < count {
+		return slots, false
+	}
+	remaining := count
+	if preferSlot >= 0 && preferSlot < InventorySlotCount && slots[preferSlot].ItemID == itemID {
+		take := slots[preferSlot].Count
+		if take > remaining {
+			take = remaining
+		}
+		slots[preferSlot].Count -= take
+		remaining -= take
+		if slots[preferSlot].Count <= 0 {
+			slots[preferSlot] = InventoryItem{}
+		}
+	}
+	for i := 0; i < InventorySlotCount && remaining > 0; i++ {
+		if slots[i].ItemID != itemID {
+			continue
+		}
+		take := slots[i].Count
+		if take > remaining {
+			take = remaining
+		}
+		slots[i].Count -= take
+		remaining -= take
+		if slots[i].Count <= 0 {
+			slots[i] = InventoryItem{}
+		}
+	}
+	return slots, remaining == 0
+}
+
+func inventoryHasRoom(slots [InventorySlotCount]InventoryItem, item InventoryItem) bool {
+	if item.Count <= 0 || item.ItemID == "" {
+		return true
+	}
+	remaining := item.Count
+	for i := 0; i < InventorySlotCount && remaining > 0; i++ {
+		if !itemsMatch(slots[i], item) || slots[i].ItemID == "" {
+			continue
+		}
+		cap := maxStack(item.ItemID) - slots[i].Count
+		if cap > 0 {
+			if remaining <= cap {
+				return true
+			}
+			remaining -= cap
+		}
+	}
+	for i := 0; i < InventorySlotCount && remaining > 0; i++ {
+		if slots[i].ItemID == "" {
+			return true
+		}
+	}
+	return remaining <= 0
+}
+
+// AppendItems adds extra stacks into a snapshot (starter kits, rewards).
+func AppendItems(items []InventoryItem, extra []InventoryItem) []InventoryItem {
+	slots := itemsToSlots(items)
+	for _, it := range extra {
+		slots = addItemToSlots(slots, it)
+	}
+	return slotsToItems(slots)
 }

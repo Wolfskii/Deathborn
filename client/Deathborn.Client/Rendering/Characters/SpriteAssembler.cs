@@ -28,7 +28,10 @@ public sealed class SpriteAssembler
             appearance.EyePalette);
         TryAddEquipment(equipment.ChestId, clip);
         TryAddEquipment(appearance.HairStyleId, clip, appearance.HairPalette);
-        TryAddEquipment(equipment.WeaponId, clip);
+        if (clip is CharacterClip.FishWait or CharacterClip.FishReel)
+            TryAddFarmTexture("weapon-fishing-rod", clip, CharacterLayerId.Weapon);
+        else
+            TryAddEquipment(equipment.WeaponId, clip);
 
         if (clip == CharacterClip.Cast)
         {

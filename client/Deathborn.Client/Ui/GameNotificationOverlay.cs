@@ -13,7 +13,7 @@ public enum NotificationKind
     Quest,
 }
 
-/// <summary>Stacked toast notifications (top-right) using Tiny Swords ribbons and parchment panels.</summary>
+/// <summary>Stacked Farm RPG toast notifications in the top-right corner.</summary>
 public sealed class GameNotificationOverlay
 {
     private sealed class Toast
@@ -58,7 +58,7 @@ public sealed class GameNotificationOverlay
 
     public void Draw(SpriteBatch sb, SpriteFont font)
     {
-        if (_toasts.Count == 0 || !TinySwordsUi.IsLoaded) return;
+        if (_toasts.Count == 0) return;
 
         var x = GameViewport.Width - Margin;
         var y = Margin + 52;
@@ -68,31 +68,27 @@ public sealed class GameNotificationOverlay
             var alpha = ToastAlpha(toast);
             if (alpha <= 0.01f) continue;
 
-            var (ribbonKind, pointed) = StyleFor(toast.Kind);
             var titleSize = SpriteFontSafe.MeasureString(font, toast.Title);
             var subSize = string.IsNullOrEmpty(toast.Subtitle) ? Vector2.Zero : SpriteFontSafe.MeasureString(font, toast.Subtitle);
-            var bodyW = (int)MathF.Max(titleSize.X, subSize.X) + 36;
-            var bodyH = (int)(titleSize.Y + (subSize.Y > 0 ? subSize.Y + 6 : 0) + 28);
-            var ribbonH = 34;
-            var totalW = Math.Clamp(bodyW, 200, 360);
-            var totalH = ribbonH + bodyH - 8;
+            var bodyW = (int)MathF.Max(titleSize.X, subSize.X * 0.86f) + 40;
+            var maxW = Math.Max(180, Math.Min(360, GameViewport.Width - Margin * 2));
+            var totalW = Math.Min(Math.Max(bodyW, Math.Min(200, maxW)), maxW);
+            var totalH = string.IsNullOrEmpty(toast.Subtitle) ? 58 : 88;
+            if (y + totalH > GameViewport.Height - Margin)
+                break;
+
             var panel = new Rectangle(x - totalW, y, totalW, totalH);
 
-            TinySwordsUi.DrawPanel(sb, panel, TinySwordsUi.PanelKind.Banner, alpha * 0.95f);
-            var ribbon = new Rectangle(panel.X + 8, panel.Y + 6, panel.Width - 16, ribbonH);
-            TinySwordsUi.DrawRibbon(sb, ribbon, ribbonKind, pointed, alpha);
-
-            var titleColor = TitleColor(toast.Kind) * alpha;
-            var textArea = TinySwordsUi.MeasureRibbonTextArea(ribbon, 10);
-            SpriteFontSafe.DrawString(sb, font, toast.Title,
-                new Vector2(textArea.X, textArea.Y + 2), titleColor, 0f, Vector2.Zero, 0.92f, SpriteEffects.None, 0f);
+            FarmRpgUi.DrawWindowPanel(sb, panel, alpha * 0.96f);
+            var titlePanel = new Rectangle(panel.X + 8, panel.Y + 7, panel.Width - 16, 34);
+            FarmRpgUi.DrawTitle(sb, titlePanel, alpha);
+            DrawFittedText(sb, font, toast.Title, titlePanel, TitleColor(toast.Kind) * alpha, 0.92f);
 
             if (!string.IsNullOrEmpty(toast.Subtitle))
             {
-                var subY = panel.Y + ribbonH + 8;
-                SpriteFontSafe.DrawString(sb, font, toast.Subtitle,
-                    new Vector2(panel.X + 18, subY), new Color(235, 228, 210) * alpha, 0f, Vector2.Zero, 0.82f,
-                    SpriteEffects.None, 0f);
+                var subtitlePanel = new Rectangle(panel.X + 12, titlePanel.Bottom + 5, panel.Width - 24, 34);
+                FarmRpgUi.DrawInsetPanel(sb, subtitlePanel, alpha);
+                DrawFittedText(sb, font, toast.Subtitle, subtitlePanel, FarmRpgUi.InkMuted * alpha, 0.82f);
             }
 
             y += totalH + Gap;
@@ -107,21 +103,23 @@ public sealed class GameNotificationOverlay
         return fadeIn * fadeOut;
     }
 
-    private static (TinySwordsUi.RibbonKind kind, bool pointed) StyleFor(NotificationKind kind) => kind switch
-    {
-        NotificationKind.Success => (TinySwordsUi.RibbonKind.Teal, false),
-        NotificationKind.Warning => (TinySwordsUi.RibbonKind.Gold, true),
-        NotificationKind.Danger => (TinySwordsUi.RibbonKind.Red, true),
-        NotificationKind.Quest => (TinySwordsUi.RibbonKind.Purple, true),
-        _ => (TinySwordsUi.RibbonKind.Steel, false),
-    };
-
     private static Color TitleColor(NotificationKind kind) => kind switch
     {
-        NotificationKind.Success => new Color(210, 255, 220),
-        NotificationKind.Warning => new Color(255, 240, 180),
-        NotificationKind.Danger => new Color(255, 210, 200),
-        NotificationKind.Quest => new Color(230, 210, 255),
-        _ => new Color(230, 235, 245),
+        NotificationKind.Success => new Color(52, 108, 66),
+        NotificationKind.Warning => new Color(137, 86, 36),
+        NotificationKind.Danger => FarmRpgUi.Rust,
+        NotificationKind.Quest => new Color(104, 62, 112),
+        _ => FarmRpgUi.Ink,
     };
+
+    private static void DrawFittedText(
+        SpriteBatch sb, SpriteFont font, string text, Rectangle area, Color color, float preferredScale)
+    {
+        var size = SpriteFontSafe.MeasureString(font, text);
+        var scale = MathF.Min(preferredScale, Math.Max(1, area.Width - 20) / MathF.Max(1f, size.X));
+        var pos = new Vector2(
+            area.X + (area.Width - size.X * scale) * 0.5f,
+            area.Y + (area.Height - size.Y * scale) * 0.5f);
+        SpriteFontSafe.DrawString(sb, font, text, pos, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+    }
 }

@@ -8,18 +8,20 @@ namespace Deathborn.Client.Ui;
 /// <summary>Draggable OS-style UI window with title bar, close button, and optional shortcut.</summary>
 public abstract class UiWindow
 {
-    protected static readonly Color PanelFill = new(28, 24, 18);
-    protected static readonly Color PanelBorder = new(210, 170, 80);
-    protected static readonly Color TitleFill = new(40, 34, 26);
-    protected static readonly Color GoldDim = new(130, 105, 55);
+    protected static readonly Color PanelFill = new(250, 181, 140);
+    protected static readonly Color PanelBorder = FarmRpgUi.Ink;
+    protected static readonly Color TitleFill = new(231, 140, 96);
+    protected static readonly Color GoldDim = FarmRpgUi.InkMuted;
 
-    private const int TitleBarHeight = 28;
-    private const int CloseSize = 22;
-    private const int Border = 2;
+    private const int TitleBarHeight = 44;
+    private const int CloseSize = 24;
+    private const int Border = 8;
+    private const int ViewportPad = 8;
 
     private bool _dragging;
     private Point _dragMouseOffset;
     private readonly Point _defaultPosition;
+    private readonly Point _defaultSize;
 
     public string Title { get; }
     public Keys? ShortcutKey { get; }
@@ -33,17 +35,18 @@ public abstract class UiWindow
         Bounds.Y + (TitleBarHeight - CloseSize) / 2,
         CloseSize,
         CloseSize);
-    private Rectangle ContentArea => new(
+    protected Rectangle ContentBounds => new(
         Bounds.X + Border,
-        Bounds.Y + TitleBarHeight + Border,
-        Bounds.Width - Border * 2,
-        Bounds.Height - TitleBarHeight - Border * 2);
+        Bounds.Y + TitleBarHeight + 4,
+        Math.Max(1, Bounds.Width - Border * 2),
+        Math.Max(1, Bounds.Height - TitleBarHeight - Border - 4));
 
     protected UiWindow(string title, int width, int height, Keys? shortcutKey, Point defaultPosition)
     {
         Title = title;
         ShortcutKey = shortcutKey;
         _defaultPosition = defaultPosition;
+        _defaultSize = new Point(width, height);
         Bounds = new Rectangle(defaultPosition.X, defaultPosition.Y, width, height);
     }
 
@@ -55,7 +58,9 @@ public abstract class UiWindow
 
     public void Open()
     {
-        Bounds = new Rectangle(_defaultPosition.X, _defaultPosition.Y, Bounds.Width, Bounds.Height);
+        var width = Math.Min(_defaultSize.X, Math.Max(1, GameViewport.Width - ViewportPad * 2));
+        var height = Math.Min(_defaultSize.Y, Math.Max(1, GameViewport.Height - ViewportPad * 2));
+        Bounds = new Rectangle(_defaultPosition.X, _defaultPosition.Y, width, height);
         ClampToViewport();
         IsOpen = true;
     }
@@ -120,20 +125,22 @@ public abstract class UiWindow
     {
         if (!IsOpen) return;
 
-        if (TinySwordsUi.IsLoaded)
+        if (FarmRpgUi.IsLoaded)
         {
-            TinySwordsUi.DrawPanel(sb, Bounds, TinySwordsUi.PanelKind.Wood);
+            FarmRpgUi.DrawWindowPanel(sb, Bounds);
             var close = CloseButton;
-            var ribbonW = Math.Max(120, Bounds.Width - 16 - (Bounds.Right - close.X) - 4);
-            var ribbon = new Rectangle(Bounds.X + 8, Bounds.Y + 6, ribbonW, TitleBarHeight + 4);
-            TinySwordsUi.DrawRibbon(sb, ribbon, TinySwordsUi.RibbonKind.Gold, pointed: true);
-            var titlePos = new Vector2(Bounds.X + 16, Bounds.Y + 10);
-            sb.DrawString(font, Title, titlePos, new Color(255, 245, 220));
+            var ribbonW = Math.Max(80, close.X - Bounds.X - 20);
+            var ribbon = new Rectangle(Bounds.X + 10, Bounds.Y + 8, ribbonW, 32);
+            FarmRpgUi.DrawTitle(sb, ribbon);
+            var titleSize = font.MeasureString(Title);
+            var titlePos = new Vector2(
+                ribbon.X + (ribbon.Width - titleSize.X) * 0.5f,
+                ribbon.Y + (ribbon.Height - titleSize.Y) * 0.5f);
+            sb.DrawString(font, Title, titlePos, FarmRpgUi.Ink);
 
             var hover = close.Contains(Mouse.GetState().Position);
-            TinySwordsUi.DrawCloseButton(sb, close, hover, 0.95f);
-            DrawCloseGlyph(sb, close, hover);
-            DrawContent(sb, font, ContentArea);
+            FarmRpgUi.DrawCloseButton(sb, close, hover);
+            DrawContent(sb, font, ContentBounds);
             return;
         }
 
@@ -148,7 +155,7 @@ public abstract class UiWindow
 
         DrawCloseButton(sb, font, CloseButton, CloseButton.Contains(Mouse.GetState().Position));
 
-        DrawContent(sb, font, ContentArea);
+        DrawContent(sb, font, ContentBounds);
     }
 
     private static void DrawCloseGlyph(SpriteBatch sb, Rectangle rect, bool hover)
@@ -187,17 +194,17 @@ public abstract class UiWindow
         SpriteBatch sb, SpriteFont font, Rectangle area, string label, float current, float max, Color fill,
         string? valueText = null, int barHeight = 14)
     {
-        sb.DrawString(font, label, new Vector2(area.X, area.Y), new Color(210, 205, 195));
+        sb.DrawString(font, label, new Vector2(area.X, area.Y), FarmRpgUi.Ink);
 
         var text = valueText ?? $"{(int)current}/{(int)max}";
         var size = font.MeasureString(text);
-        sb.DrawString(font, text, new Vector2(area.Right - size.X, area.Y), new Color(200, 200, 210));
+        sb.DrawString(font, text, new Vector2(area.Right - size.X, area.Y), FarmRpgUi.InkMuted);
 
         var barY = area.Y + font.LineSpacing + 2;
         var bar = new Rectangle(area.X, (int)barY, area.Width, barHeight);
-        if (TinySwordsUi.IsLoaded)
+        if (FarmRpgUi.IsLoaded)
         {
-            TinySwordsUi.DrawBar(sb, bar, max > 0f ? current / max : 0f, big: false, fill);
+            FarmRpgUi.DrawBar(sb, bar, max > 0f ? current / max : 0f, fill);
             return;
         }
 
@@ -211,6 +218,24 @@ public abstract class UiWindow
     }
 
     protected abstract void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle contentArea);
+
+    protected static void DrawThemedButton(
+        SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover, bool enabled = true, bool danger = false)
+    {
+        if (FarmRpgUi.IsLoaded)
+            FarmRpgUi.DrawButton(sb, rect, pressed: hover && enabled, disabled: !enabled, danger: danger);
+        else
+        {
+            DrawPrimitives.FillRect(sb, rect,
+                !enabled ? new Color(50, 45, 40) : hover ? new Color(90, 72, 38) : new Color(55, 45, 28));
+            DrawBorder(sb, rect, GoldDim, 1);
+        }
+
+        var size = font.MeasureString(label);
+        sb.DrawString(font, label,
+            new Vector2(rect.X + (rect.Width - size.X) * 0.5f, rect.Y + (rect.Height - size.Y) * 0.5f),
+            enabled ? FarmRpgUi.Ink : new Color(130, 105, 95));
+    }
 
     private void ClampToViewport()
     {

@@ -93,14 +93,13 @@ public sealed class PlayerContextMenuOverlay
         _itemRects.Clear();
         var mouse = Mouse.GetState().Position;
 
-        if (TinySwordsUi.IsLoaded)
+        if (FarmRpgUi.IsLoaded)
         {
-            TinySwordsUi.DrawPanel(sb, _bounds, TinySwordsUi.PanelKind.Paper);
+            FarmRpgUi.DrawWindowPanel(sb, _bounds);
             var titleRibbon = new Rectangle(_bounds.X + 6, _bounds.Y + 6, _bounds.Width - 12, 28);
-            TinySwordsUi.DrawRibbon(sb, titleRibbon, TinySwordsUi.RibbonKind.Steel, pointed: false);
-            var name = TargetName.Length > 16 ? TargetName[..13] + "..." : TargetName;
-            sb.DrawString(font, SpriteFontSafe.Filter(name), new Vector2(titleRibbon.X + 10, titleRibbon.Y + 5),
-                new Color(240, 235, 220));
+            FarmRpgUi.DrawTitle(sb, titleRibbon);
+            var name = FitText(font, SpriteFontSafe.Filter(TargetName), titleRibbon.Width - 20);
+            sb.DrawString(font, name, new Vector2(titleRibbon.X + 10, titleRibbon.Y + 5), FarmRpgUi.Ink);
 
             var y = _bounds.Y + Pad + 30;
             foreach (var item in _items)
@@ -108,10 +107,9 @@ public sealed class PlayerContextMenuOverlay
                 var rect = new Rectangle(_bounds.X + 6, y, _bounds.Width - 12, ItemHeight - 2);
                 _itemRects.Add(rect);
                 var hover = item.Enabled && rect.Contains(mouse);
-                if (hover)
-                    TinySwordsUi.DrawRibbon(sb, rect, TinySwordsUi.RibbonKind.Gold, pointed: false, 0.85f);
+                FarmRpgUi.DrawButton(sb, rect, pressed: hover, disabled: !item.Enabled);
                 sb.DrawString(font, item.Label, new Vector2(rect.X + 10, rect.Y + 7),
-                    item.Enabled ? (hover ? Color.White : new Color(55, 42, 30)) : new Color(130, 120, 110));
+                    item.Enabled ? FarmRpgUi.Ink : FarmRpgUi.InkMuted * 0.65f);
                 y += ItemHeight;
             }
             return;
@@ -126,5 +124,14 @@ public sealed class PlayerContextMenuOverlay
             sb.DrawString(font, item.Label, new Vector2(rect.X + 8, rect.Y + 5), Color.White);
             ly += ItemHeight;
         }
+    }
+
+    private static string FitText(SpriteFont font, string text, int maxWidth)
+    {
+        if (font.MeasureString(text).X <= maxWidth) return text;
+        const string suffix = "...";
+        while (text.Length > 0 && font.MeasureString(text + suffix).X > maxWidth)
+            text = text[..^1];
+        return text + suffix;
     }
 }

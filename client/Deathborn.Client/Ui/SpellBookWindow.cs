@@ -9,7 +9,7 @@ namespace Deathborn.Client.Ui;
 public sealed class SpellBookWindow : UiWindow
 {
     private const int Width = 340;
-    private const int Height = 400;
+    private const int Height = 420;
     private const int Cols = 4;
     private const int Rows = 3;
     private const int CellSize = 64;
@@ -91,7 +91,7 @@ public sealed class SpellBookWindow : UiWindow
         var pageName = AbilityCatalog.PageOrder[_pageIndex];
         var abilities = CurrentPageAbilities();
 
-        sb.DrawString(font, pageName, new Vector2(area.X + 8, area.Y + 4), PanelBorder);
+        sb.DrawString(font, pageName, new Vector2(area.X + 8, area.Y + 4), FarmRpgUi.Ink);
 
         for (var i = 0; i < _cellRects.Count; i++)
         {
@@ -109,7 +109,8 @@ public sealed class SpellBookWindow : UiWindow
         DrawPageButton(sb, font, _nextButton, "Next >", _pageIndex < AbilityCatalog.PageOrder.Length - 1);
 
         var footer = $"Page {_pageIndex + 1} / {AbilityCatalog.PageOrder.Length}  -  drag to hotbar";
-        SpriteFontSafe.DrawOutlined(sb, font, footer, new Vector2(area.X + 8, Bounds.Bottom - 10), Color.White, Color.Black);
+        sb.DrawString(font, footer,
+            new Vector2(area.X + 8, area.Bottom - font.LineSpacing - 4), FarmRpgUi.InkMuted);
 
         if (_hoverAbilityId != null)
         {
@@ -133,7 +134,9 @@ public sealed class SpellBookWindow : UiWindow
     private void LayoutCells()
     {
         _cellRects.Clear();
-        var content = new Rectangle(Bounds.X + 10, Bounds.Y + 56, Bounds.Width - 20, Bounds.Height - 100);
+        var content = FarmRpgUi.Inset(ContentBounds, 10);
+        content.Y += 24;
+        content.Height = Math.Max(1, content.Height - 70);
         var gridW = Cols * CellSize + (Cols - 1) * CellGap;
         var x0 = content.X + (content.Width - gridW) / 2;
         var y0 = content.Y + 8;
@@ -146,26 +149,25 @@ public sealed class SpellBookWindow : UiWindow
             _cellRects.Add(new Rectangle(x, y, CellSize, CellSize));
         }
 
-        var navY = Bounds.Bottom - 52;
-        _prevButton = new Rectangle(Bounds.X + 16, navY, 90, 26);
-        _nextButton = new Rectangle(Bounds.Right - 106, navY, 90, 26);
+        var navY = ContentBounds.Bottom - 52;
+        _prevButton = new Rectangle(ContentBounds.X + 8, navY, 90, 26);
+        _nextButton = new Rectangle(ContentBounds.Right - 98, navY, 90, 26);
     }
 
     private static void DrawCell(SpriteBatch sb, Rectangle rect, bool hover)
     {
-        DrawPrimitives.FillRect(sb, rect, hover ? new Color(42, 38, 32) : new Color(22, 20, 18));
-        DrawBorder(sb, rect, hover ? PanelBorder : GoldDim);
+        if (FarmRpgInventoryUi.IsLoaded)
+            FarmRpgInventoryUi.DrawInventorySlot(sb, rect, hover);
+        else
+        {
+            DrawPrimitives.FillRect(sb, rect, hover ? new Color(42, 38, 32) : new Color(22, 20, 18));
+            DrawBorder(sb, rect, hover ? PanelBorder : GoldDim);
+        }
     }
 
     private static void DrawPageButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool enabled)
     {
-        var fill = enabled ? new Color(48, 40, 30) : new Color(30, 28, 26);
-        DrawPrimitives.FillRect(sb, rect, fill);
-        DrawBorder(sb, rect, enabled ? GoldDim : new Color(70, 65, 58));
-        var size = font.MeasureString(label);
-        sb.DrawString(font, label,
-            new Vector2(rect.X + (rect.Width - size.X) / 2f, rect.Y + (rect.Height - size.Y) / 2f),
-            enabled ? Color.White : new Color(100, 100, 105));
+        DrawThemedButton(sb, font, rect, label, enabled && rect.Contains(Mouse.GetState().Position), enabled);
     }
 
     private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color)

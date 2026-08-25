@@ -19,4 +19,11 @@ public static class PlayerActions
     public const string IronSkin = "iron_skin";
     public const string HunterMark = "hunter_mark";
     public const string SecondWind = "second_wind";
+    public const string Hoe = "hoe";
+    public const string Water = "water";
+    public const string FishWait = "fish_wait";
+    public const string FishReel = "fish_reel";
+    public const string FishCatch = "fish_catch";
+    public const string FishStop = "fish_stop";
+    public const string Cook = "cook";
 }

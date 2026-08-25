@@ -304,6 +304,42 @@ type PlaceFurnitureSendData struct {
 	Y    float64 `json:"y"`
 }
 
+// FarmActionSendData is sent when the player uses a farm tool or tends animals.
+type FarmActionSendData struct {
+	Action   string `json:"action"`
+	TileX    int    `json:"tileX"`
+	TileY    int    `json:"tileY"`
+	ItemID   string `json:"itemId,omitempty"`
+	Slot     int    `json:"slot"`
+	AnimalID int64  `json:"animalId,omitempty"`
+}
+
+// FishActionSendData is sent when the player starts, lands, or cancels a cast.
+type FishActionSendData struct {
+	Action string `json:"action"`
+	TileX  int    `json:"tileX"`
+	TileY  int    `json:"tileY"`
+}
+
+// CookActionSendData is sent when the player cooks an ingredient at a homestead station.
+type CookActionSendData struct {
+	ItemID string `json:"itemId"`
+	Slot   int    `json:"slot"`
+}
+
+// FishResultData tells the caster which fish they landed.
+type FishResultData struct {
+	ItemID   string `json:"itemId"`
+	Name     string `json:"name"`
+	BaitUsed bool   `json:"baitUsed,omitempty"`
+}
+
+// CookResultData tells the cook which meal they made.
+type CookResultData struct {
+	ItemID string `json:"itemId"`
+	Name   string `json:"name"`
+}
+
 // HouseEnterSendData requests entering a house through its door.
 type HouseEnterSendData struct {
 	HouseID int64 `json:"houseId"`

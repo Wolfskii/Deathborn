@@ -15,6 +15,7 @@ public sealed class FishingMinigameOverlay
     private const float BarHeight = 96f;
     private const float FishSize = 22f;
 
+    private Texture2D? _fishIcon;
     private Phase _phase = Phase.Idle;
     private string _spotId = "";
     private string _spotName = "";
@@ -30,13 +31,15 @@ public sealed class FishingMinigameOverlay
     private int _fishingLevel = 1;
 
     public bool IsActive => _phase != Phase.Idle;
+    public bool IsReeling => _phase == Phase.Playing;
     public event Action<string>? Caught;
     public event Action? Cancelled;
 
-    public void Start(string spotId, string spotName, int fishingLevel)
+    public void Start(string spotId, string spotName, int fishingLevel, Texture2D? fishIcon = null)
     {
         _spotId = spotId;
         _spotName = spotName;
+        _fishIcon = fishIcon;
         _fishingLevel = Math.Max(1, fishingLevel);
         _phase = Phase.Waiting;
         _waitTimer = 1.2f + Random.Shared.NextSingle() * 2.2f;
@@ -55,6 +58,12 @@ public sealed class FishingMinigameOverlay
         if (_phase == Phase.Idle) return;
         _phase = Phase.Idle;
         Cancelled?.Invoke();
+    }
+
+    public void Dismiss()
+    {
+        _phase = Phase.Idle;
+        _fishIcon = null;
     }
 
     public bool Update(float dt, KeyboardState kb, KeyboardState prevKb, MouseState mouse, MouseState prevMouse)
@@ -161,14 +170,12 @@ public sealed class FishingMinigameOverlay
     {
         if (_phase == Phase.Idle) return;
 
-        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, GameViewport.Width, GameViewport.Height),
-            new Color(0, 0, 0, 0.45f));
-
         var cx = GameViewport.Width / 2;
         var cy = GameViewport.Height / 2;
-        var panel = new Rectangle((int)(cx - 180), (int)(cy - TrackHeight / 2 - 40), 360, (int)(TrackHeight + 80));
-        DrawPrimitives.FillRect(sb, panel, new Color(22, 28, 38, 240));
-        DrawBorder(sb, panel, new Color(120, 170, 210), 2);
+        var panelW = Math.Min(360, Math.Max(240, GameViewport.Width - 32));
+        var panelH = Math.Min((int)TrackHeight + 112, Math.Max(260, GameViewport.Height - 32));
+        var panel = new Rectangle(cx - panelW / 2, cy - panelH / 2, panelW, panelH);
+        FarmRpgUi.DrawWindowPanel(sb, panel, 0.98f);
 
         var title = _phase switch
         {
@@ -179,53 +186,79 @@ public sealed class FishingMinigameOverlay
             Phase.Failed => "The fish got away...",
             _ => "Fishing",
         };
-        var titleSize = font.MeasureString(title);
-        sb.DrawString(font, title, new Vector2(cx - titleSize.X / 2f, panel.Y + 12), new Color(220, 230, 245));
+        var titlePanel = new Rectangle(panel.X + 12, panel.Y + 10, panel.Width - 24, 36);
+        FarmRpgUi.DrawTitle(sb, titlePanel);
+        DrawCenteredText(sb, font, title, titlePanel, FarmRpgUi.Ink, 1f);
 
         if (_phase is Phase.Waiting or Phase.Bite)
         {
             var hint = _phase == Phase.Waiting ? "Waiting for a bite..." : "Hook it now!";
-            var hintSize = font.MeasureString(hint);
-            sb.DrawString(font, hint, new Vector2(cx - hintSize.X / 2f, cy), new Color(180, 200, 220));
+            var hintPanel = new Rectangle(panel.X + 30, cy - 24, panel.Width - 60, 48);
+            FarmRpgUi.DrawInsetPanel(sb, hintPanel);
+            DrawCenteredText(sb, font, hint, hintPanel, FarmRpgUi.InkMuted, 0.95f);
             if (_phase == Phase.Bite)
             {
                 var pulse = 0.6f + MathF.Sin((float)Environment.TickCount64 * 0.01f) * 0.4f;
-                DrawPrimitives.FillCircle(sb, new Vector2(cx, cy + 40), 14 + pulse * 6, new Color(0.95f, 0.55f, 0.2f, 0.85f));
+                var pulseSize = (int)(28 + pulse * 12);
+                var pulseRect = new Rectangle(cx - pulseSize / 2, hintPanel.Bottom + 12, pulseSize, pulseSize);
+                FarmRpgUi.DrawButton(sb, pulseRect, pressed: pulse > 0.8f);
             }
             return;
         }
 
-        if (_phase is Phase.Success or Phase.Failed) return;
+        if (_phase is Phase.Success or Phase.Failed)
+        {
+            var resultPanel = new Rectangle(panel.X + 42, cy - 24, panel.Width - 84, 48);
+            FarmRpgUi.DrawInsetPanel(sb, resultPanel);
+            DrawCenteredText(sb, font,
+                _phase == Phase.Success ? "Nice catch!" : "Try again at the fishing spot.",
+                resultPanel, _phase == Phase.Success ? new Color(52, 108, 66) : FarmRpgUi.Rust, 0.9f);
+            return;
+        }
 
+        var displayTrackH = Math.Max(140, panel.Height - 116);
         var trackX = cx - TrackWidth / 2;
-        var trackY = cy - TrackHeight / 2;
-        var track = new Rectangle((int)trackX, (int)trackY, (int)TrackWidth, (int)TrackHeight);
-        DrawPrimitives.FillRect(sb, track, new Color(18, 24, 34));
-        DrawBorder(sb, track, new Color(70, 90, 110), 1);
+        var trackY = panel.Y + 50;
+        var track = new Rectangle((int)trackX, trackY, (int)TrackWidth, displayTrackH);
+        FarmRpgUi.DrawInsetPanel(sb, track);
 
-        var barRect = new Rectangle((int)trackX, (int)(trackY + _barY - BarHeight * 0.5f), (int)TrackWidth, (int)BarHeight);
-        DrawPrimitives.FillRect(sb, barRect, new Color(0.25f, 0.72f, 0.38f, 0.75f));
+        var displayScale = displayTrackH / TrackHeight;
+        var displayBarH = Math.Max(24, (int)(BarHeight * displayScale));
+        var barRect = new Rectangle(
+            (int)trackX + 4,
+            (int)(trackY + _barY * displayScale - displayBarH * 0.5f),
+            (int)TrackWidth - 8,
+            displayBarH);
+        FarmRpgUi.DrawBar(sb, barRect, 1f, new Color(58, 145, 72));
 
-        var fishPos = new Vector2(trackX + TrackWidth / 2f, trackY + _fishY);
-        DrawPrimitives.FillCircle(sb, fishPos, FishSize * 0.5f, new Color(0.45f, 0.72f, 0.95f));
-        DrawPrimitives.DrawCircleOutline(sb, fishPos, FishSize * 0.5f, new Color(0.15f, 0.35f, 0.55f), 16, 2f);
+        var fishSize = Math.Max(16, (int)(FishSize * displayScale));
+        var fishRect = new Rectangle(
+            cx - fishSize / 2,
+            (int)(trackY + _fishY * displayScale - fishSize * 0.5f),
+            fishSize,
+            fishSize);
+        if (_fishIcon != null)
+            sb.Draw(_fishIcon, fishRect, Color.White);
+        else
+            FarmRpgUi.DrawButton(sb, fishRect);
 
-        var meterW = 200f;
-        var meter = new Rectangle((int)(cx - meterW / 2), panel.Bottom - 36, (int)meterW, 14);
-        DrawPrimitives.FillRect(sb, meter, new Color(30, 34, 42));
-        DrawPrimitives.FillRect(sb, new Rectangle(meter.X, meter.Y, (int)(meterW * _progress), meter.Height),
-            new Color(0.35f, 0.75f, 0.95f));
+        var meterW = Math.Min(200, panel.Width - 48);
+        var meter = new Rectangle(cx - meterW / 2, panel.Bottom - 28, meterW, 18);
+        FarmRpgUi.DrawBar(sb, meter, _progress, new Color(55, 120, 175));
 
         var ctrl = "Hold Space / Click to raise bar  |  Esc to cancel";
-        var ctrlSize = font.MeasureString(ctrl);
-        sb.DrawString(font, ctrl, new Vector2(cx - ctrlSize.X / 2f, panel.Bottom - 58), new Color(160, 170, 185));
+        var ctrlArea = new Rectangle(panel.X + 16, panel.Bottom - 52, panel.Width - 32, 22);
+        DrawCenteredText(sb, font, ctrl, ctrlArea, FarmRpgUi.InkMuted, 0.78f);
     }
 
-    private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color, int thickness)
+    private static void DrawCenteredText(
+        SpriteBatch sb, SpriteFont font, string text, Rectangle area, Color color, float preferredScale)
     {
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, thickness), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - thickness, rect.Width, thickness), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, thickness, rect.Height), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - thickness, rect.Y, thickness, rect.Height), color);
+        var size = SpriteFontSafe.MeasureString(font, text);
+        var scale = MathF.Min(preferredScale, Math.Max(1, area.Width - 12) / MathF.Max(1f, size.X));
+        var pos = new Vector2(
+            area.X + (area.Width - size.X * scale) * 0.5f,
+            area.Y + (area.Height - size.Y * scale) * 0.5f);
+        SpriteFontSafe.DrawString(sb, font, text, pos, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 }

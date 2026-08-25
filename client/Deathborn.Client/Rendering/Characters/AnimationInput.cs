@@ -9,6 +9,8 @@ public readonly struct AnimationInput
     public bool IsWhirlwinding { get; init; }
     public bool IsDashing { get; init; }
     public bool IsCasting { get; init; }
+    public bool IsFishing { get; init; }
+    public bool FishingReeling { get; init; }
     public bool IsMoving { get; init; }
     public bool IsRunning { get; init; }
     /// <summary>Cardinal movement direction for walk/run — never mouse aim.</summary>

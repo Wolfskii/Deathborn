@@ -9,14 +9,26 @@ namespace Deathborn.Client.Ui;
 public sealed class SkillsWindow : UiWindow
 {
     private const int Width = 300;
-    private const int Height = 420;
-    private const int RowHeight = 36;
+    private const int Height = 470;
+    private const int RowHeight = 34;
+    private const int ScrollStep = 28;
 
     private Func<PlayerSkills?>? _skills;
+    private int _scrollY;
+    private int _maxScroll;
+    private Rectangle _scrollView;
 
     public SkillsWindow() : base("Skills", Width, Height, Keys.L, new Point(760, 80)) { }
 
     public void Bind(Func<PlayerSkills?> skills) => _skills = skills;
+
+    protected override void UpdateContent(MouseState mouse, MouseState prevMouse)
+    {
+        if (!_scrollView.Contains(mouse.Position) || _maxScroll <= 0) return;
+        var wheel = mouse.ScrollWheelValue - prevMouse.ScrollWheelValue;
+        if (wheel != 0)
+            _scrollY = Math.Clamp(_scrollY - wheel / 120 * ScrollStep, 0, _maxScroll);
+    }
 
     protected override void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle area)
     {
@@ -27,27 +39,42 @@ public sealed class SkillsWindow : UiWindow
             return;
         }
 
-        sb.DrawString(font, $"Total level: {skills.TotalLevel}", new Vector2(area.X + 8, area.Y + 2), PanelBorder);
-        sb.DrawString(font, $"Total XP: {skills.TotalXp:N0}", new Vector2(area.X + 8, area.Y + 16), GoldDim);
+        var inner = FarmRpgUi.Inset(area, 8);
+        sb.DrawString(font, $"Total level: {skills.TotalLevel}", new Vector2(inner.X, inner.Y), PanelBorder);
+        sb.DrawString(font, $"Total XP: {skills.TotalXp:N0}",
+            new Vector2(inner.X, inner.Y + font.LineSpacing), GoldDim);
 
-        var y = area.Y + 36;
-        DrawSection(sb, font, "Combat", SkillDefinitions.Combat, skills, ref y, area);
-        DrawSection(sb, font, "Gathering", SkillDefinitions.Gathering, skills, ref y, area);
-        DrawSection(sb, font, "Production", SkillDefinitions.Production, skills, ref y, area);
+        var listTop = inner.Y + font.LineSpacing * 2 + 8;
+        _scrollView = new Rectangle(inner.X, listTop, inner.Width - 10, Math.Max(1, inner.Bottom - listTop));
+        var y = listTop - _scrollY;
+        DrawSection(sb, font, "Combat", SkillDefinitions.Combat, skills, ref y, _scrollView);
+        DrawSection(sb, font, "Gathering", SkillDefinitions.Gathering, skills, ref y, _scrollView);
+        DrawSection(sb, font, "Production", SkillDefinitions.Production, skills, ref y, _scrollView);
+
+        var contentHeight = y + _scrollY - listTop;
+        _maxScroll = Math.Max(0, contentHeight - _scrollView.Height);
+        _scrollY = Math.Clamp(_scrollY, 0, _maxScroll);
+        if (_maxScroll > 0)
+        {
+            var track = new Rectangle(inner.Right - 6, listTop, 6, _scrollView.Height);
+            var thumbH = Math.Max(24, (int)(track.Height * (_scrollView.Height / (float)contentHeight)));
+            var thumbY = track.Y + (int)((track.Height - thumbH) * (_scrollY / (float)_maxScroll));
+            FarmRpgUi.DrawScrollbar(sb, track, new Rectangle(track.X - 2, thumbY, 10, thumbH));
+        }
     }
 
     private static void DrawSection(
         SpriteBatch sb, SpriteFont font, string title, string[] ids, PlayerSkills skills,
         ref int y, Rectangle area)
     {
-        if (y > area.Bottom - RowHeight) return;
-        sb.DrawString(font, title, new Vector2(area.X + 8, y), new Color(200, 175, 110));
+        if (y + font.LineSpacing >= area.Y && y < area.Bottom)
+            sb.DrawString(font, title, new Vector2(area.X, y), FarmRpgUi.Ink);
         y += font.LineSpacing + 2;
 
         foreach (var id in ids)
         {
-            if (y > area.Bottom - RowHeight) break;
-            DrawSkillRow(sb, font, id, skills, area, y);
+            if (y >= area.Y && y + RowHeight <= area.Bottom)
+                DrawSkillRow(sb, font, id, skills, area, y);
             y += RowHeight;
         }
         y += 4;
@@ -60,12 +87,14 @@ public sealed class SkillsWindow : UiWindow
         var level = SkillDefinitions.LevelForXp(xp);
         var name = SkillDefinitions.DisplayName(id);
 
-        sb.DrawString(font, name, new Vector2(area.X + 10, y + 2), Color.White);
+        var row = new Rectangle(area.X, y, area.Width, RowHeight - 2);
+        FarmRpgUi.DrawInsetPanel(sb, row);
+        sb.DrawString(font, name, new Vector2(row.X + 8, y + 2), FarmRpgUi.Ink);
         var lvlText = level >= SkillDefinitions.MaxLevel ? "99" : level.ToString();
         var lvlSize = font.MeasureString(lvlText);
-        sb.DrawString(font, lvlText, new Vector2(area.Right - lvlSize.X - 10, y + 2), new Color(235, 220, 160));
+        sb.DrawString(font, lvlText, new Vector2(row.Right - lvlSize.X - 8, y + 2), FarmRpgUi.Ink);
 
-        var bar = new Rectangle(area.X + 10, y + 20, area.Width - 20, 8);
+        var bar = new Rectangle(row.X + 8, y + 19, row.Width - 16, 11);
         DrawStatBar(sb, bar, SkillDefinitions.ProgressToNext(xp), SkillColor(id));
     }
 
@@ -84,10 +113,6 @@ public sealed class SkillsWindow : UiWindow
 
     private static void DrawStatBar(SpriteBatch sb, Rectangle bar, float pct, Color fill)
     {
-        DrawPrimitives.FillRect(sb, bar, new Color(18, 16, 14));
-        DrawPrimitives.FillRect(sb, new Rectangle(bar.X, bar.Y, bar.Width, 1), GoldDim);
-        var fillW = (int)((bar.Width - 2) * Math.Clamp(pct, 0f, 1f));
-        if (fillW > 0)
-            DrawPrimitives.FillRect(sb, new Rectangle(bar.X + 1, bar.Y + 1, fillW, bar.Height - 2), fill);
+        FarmRpgUi.DrawBar(sb, bar, pct, fill);
     }
 }

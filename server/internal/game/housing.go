@@ -42,21 +42,28 @@ type FurnitureItem struct {
 
 // HouseState is the wire view of a player house.
 type HouseState struct {
-	ID        int64           `json:"id"`
-	OwnerID   int64           `json:"ownerId"`
-	OwnerName string          `json:"ownerName"`
-	X         float64         `json:"x"`
-	Y         float64         `json:"y"`
-	Furniture []FurnitureItem `json:"furniture,omitempty"`
+	ID        int64             `json:"id"`
+	OwnerID   int64             `json:"ownerId"`
+	OwnerName string            `json:"ownerName"`
+	X         float64           `json:"x"`
+	Y         float64           `json:"y"`
+	Furniture []FurnitureItem   `json:"furniture,omitempty"`
+	Crops     []FarmCropState   `json:"crops,omitempty"`
+	Animals   []FarmAnimalState `json:"animals,omitempty"`
 }
 
 type housePlot struct {
-	id          int64
-	characterID int64
-	ownerName   string
-	centerX     float64
-	centerY     float64
-	furniture   []FurnitureItem
+	id             int64
+	characterID    int64
+	ownerName      string
+	centerX        float64
+	centerY        float64
+	furniture      []FurnitureItem
+	crops          []farmTile
+	animals        []farmAnimal
+	nextAnimalID   int64
+	farmDirty      bool
+	furnitureDirty bool
 }
 
 // HousingIndex tracks all player house safe zones.
@@ -87,10 +94,16 @@ func dbHouseToPlot(row db.House) *housePlot {
 	for _, f := range row.Furniture {
 		items = append(items, FurnitureItem{Type: f.Type, X: f.X, Y: f.Y})
 	}
-	return &housePlot{
+	plot := &housePlot{
 		id: row.ID, characterID: row.CharacterID, ownerName: row.OwnerName,
 		centerX: row.CenterX, centerY: row.CenterY, furniture: items,
+		nextAnimalID: 1,
 	}
+	plot.loadFarm(decodeFarm(row.Farm))
+	if plot.ensureStarterKitchen() {
+		plot.furnitureDirty = true
+	}
+	return plot
 }
 
 func (h *HousingIndex) Snapshot() []HouseState {
@@ -102,9 +115,11 @@ func (h *HousingIndex) Snapshot() []HouseState {
 }
 
 func (p *housePlot) state() HouseState {
+	now := farmNow()
 	return HouseState{
 		ID: p.id, OwnerID: p.characterID, OwnerName: p.ownerName,
 		X: p.centerX, Y: p.centerY, Furniture: append([]FurnitureItem(nil), p.furniture...),
+		Crops: p.cropSnapshot(now), Animals: p.animalSnapshot(),
 	}
 }
 
@@ -272,7 +287,7 @@ func (h *HousingIndex) CanPlaceFurniture(characterID int64, item FurnitureItem) 
 		}
 	}
 	switch item.Type {
-	case "bed", "table", "chair", "chest", "fireplace", "rug":
+	case "bed", "table", "chair", "chest", "fireplace", "rug", "kitchen":
 		return ""
 	default:
 		return "Unknown furniture type."

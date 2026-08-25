@@ -10,7 +10,7 @@ namespace Deathborn.Client.Ui;
 public sealed class InventoryWindow : UiWindow
 {
     private const int Width = 280;
-    private const int Height = 340;
+    private const int Height = 360;
 
     private DragDropManager? _dragDrop;
     private PlayerInventory? _inventory;
@@ -85,7 +85,8 @@ public sealed class InventoryWindow : UiWindow
         var gridBounds = GridBounds();
         if (FarmRpgInventoryUi.IsLoaded)
             FarmRpgInventoryUi.DrawInventoryPanel(sb, gridBounds);
-        sb.DrawString(font, "Drag items to hotbar or drop in world", new Vector2(area.X + 8, area.Y + 2), GoldDim);
+        sb.DrawString(font, "Drag items to hotbar or drop in world",
+            new Vector2(area.X + 8, area.Y + 4), FarmRpgUi.InkMuted);
 
         for (var i = 0; i < _cellRects.Count; i++)
         {
@@ -170,7 +171,9 @@ public sealed class InventoryWindow : UiWindow
         _cellRects.Clear();
         var cols = PlayerInventory.Columns;
         var rows = PlayerInventory.SlotCount / cols;
-        var content = new Rectangle(Bounds.X + 12, Bounds.Y + 52, Bounds.Width - 24, Bounds.Height - 64);
+        var content = FarmRpgUi.Inset(ContentBounds, 12);
+        content.Y += 26;
+        content.Height = Math.Max(1, content.Height - 26);
         var gridW = cols * PlayerInventory.CellSize + (cols - 1) * PlayerInventory.CellGap;
         var x0 = content.X + (content.Width - gridW) / 2;
         var y0 = content.Y;

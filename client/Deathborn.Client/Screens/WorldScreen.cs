@@ -30,6 +30,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private readonly ServerDisconnectOverlay _disconnectOverlay = new();
     private readonly BuffTracker _buffTracker = new();
     private readonly BuffBarOverlay _buffBar = new();
+    private readonly PlayerStatusHud _statusHud = new();
     private readonly Dictionary<long, float> _hunterMarks = new();
     private readonly DragDropManager _dragDrop = new();
     private readonly PlayerInventory _inventory = new();
@@ -91,10 +92,20 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private readonly List<PlayerEntity> _exteriorPlayers = [];
     private readonly List<WorldNpcEntity> _exteriorNpcs = [];
+    private readonly List<FarmAnimalState> _exteriorFarmAnimals = [];
     private readonly List<FoliageInstance> _visibleFoliage = [];
     private readonly List<Vector2> _entityPositionScratch = [];
+    private int _farmHoverTx;
+    private int _farmHoverTy;
+    private bool _farmHoverOk;
+    private int _fishHoverTx;
+    private int _fishHoverTy;
+    private bool _fishHoverOk;
+    private int _fishCastTx;
+    private int _fishCastTy;
+    private bool _fishAwaitingResult;
 
-    private enum ExteriorDrawableKind : byte { Foliage, Player, Npc }
+    private enum ExteriorDrawableKind : byte { Foliage, Player, Npc, FarmAnimal }
 
     private struct ExteriorDrawable
     {
@@ -131,6 +142,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.HouseRemoved += OnHouseRemoved;
         net.HouseUpdated += OnHouseUpdated;
         net.InventoryUpdated += OnInventoryUpdated;
+        net.FishResult += OnFishResult;
+        net.CookResult += OnCookResult;
         net.WorldItemRemoved += OnWorldItemRemoved;
         net.WorldItemAdded += OnWorldItemAdded;
         net.ServerError += OnServerError;
@@ -173,6 +186,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         WorldFoliage.Initialize(WorldMap.SwaroviaMainland);
         WorldClouds.Initialize(WorldMap.SwaroviaMainland);
         SeedHotbar();
+        TryAssignFarmToolsHotbar();
+        TryAssignItemToEmptyHotbar("fishing_rod");
         TextField.ReleaseFocus();
 
         // Seed edge detection so keys held from character create / login (Enter) do not
@@ -205,7 +220,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _screens.SetNewLifeHandler(OnNewLifeRequested);
         UpdateBuildHouseEnabled();
         _fishing.Caught += OnFishCaught;
-        _fishing.Cancelled += () => _status = "Fishing cancelled.";
+        _fishing.Cancelled += OnFishingCancelled;
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -226,6 +241,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.HouseRemoved -= OnHouseRemoved;
         net.HouseUpdated -= OnHouseUpdated;
         net.InventoryUpdated -= OnInventoryUpdated;
+        net.FishResult -= OnFishResult;
+        net.CookResult -= OnCookResult;
         net.WorldItemRemoved -= OnWorldItemRemoved;
         net.WorldItemAdded -= OnWorldItemAdded;
         net.ServerError -= OnServerError;
@@ -248,6 +265,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _disconnectOverlay.ReturnToLoginRequested -= OnReturnToLoginRequested;
         _playerContextMenu.ItemChosen -= OnPlayerContextMenu;
         _fishing.Caught -= OnFishCaught;
+        _fishing.Cancelled -= OnFishingCancelled;
         _chat.Submitted -= OnChatSubmitted;
         _chat.TypingChanged -= OnChatTypingChanged;
         if (_chat.IsOpen) _chat.Close(submit: false);
@@ -421,6 +439,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         UpdateDoorTransition(dt, localEntity);
         if (fishingActive)
             _fishing.Update(dt, kb, _prevKb, mouse, _prevMouse);
+        SyncLocalFishingPose(localEntity);
 
         DevPerfLog.Mark("move");
         _moveDir = blockGameplay ? Vector2.Zero : ReadMoveDir(kb);
@@ -521,6 +540,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         {
             UpdateInteractFocus(mouse.Position);
             UpdatePlayerHover(mouse.Position);
+            UpdateFarmHover(mouse.Position);
+            UpdateFishingHover(mouse.Position);
             UpdateInteractPrompt();
 
             if (!_housingDecorate.IsActive && !_housePlacing)
@@ -555,21 +576,23 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         UpdateDragDrop(mouse, _prevMouse, uiCapturesMouse);
 
-        if (_debugHudVisible || _screens.EscMenuOpen)
+        if (_debugHudVisible)
         {
             _debugLines =
             [
                 $"FPS: {DeathbornGame.Instance.Fps}",
                 _status,
-                _debugHudVisible
-                    ? "F12: collider debug ON (green solid, yellow ghost, red terrain)"
-                    : "F12: debug HUD",
+                "F12: collider debug ON (green solid, yellow ghost, red terrain)",
                 TiledMapPreview.IsActive
                     ? $"F11: Tiled preview ON ({TiledMapPreview.ActiveMapId})"
                     : "F11: Tiled map preview",
                 $"Pos: ({(int)_camera.X}, {(int)_camera.Y})  Input: ({_moveDir.X:+#0.0;-#0.0;+0.0}, {_moveDir.Y:+#0.0;-#0.0;+0.0})  {MovementLabel(localEntity)}",
                 $"id={_screens.Net.LocalCharacterId}  players={_players.Count}  ws={(_screens.Net.WsConnected ? "open" : "closed")}",
             ];
+        }
+        else if (_debugLines.Length > 0)
+        {
+            _debugLines = [];
         }
 
         if (_deathPrompt && windowActive && !_screens.EscMenuOpen)
@@ -676,6 +699,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (!_ghostMode)
         {
+            _statusHud.Draw(sb, font, FindLocalPlayer(), _skills);
             _hotbar.Draw(sb, font, _inventory, _hotbar.SelectedIndex);
             if (!IsLocalDyingOrDead() && !_dragDrop.IsDragging)
                 DrawHotbarTooltip(sb, font);
@@ -754,6 +778,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         _bg.Draw(sb, game.GraphicsDevice, gameTime, _camera, ScreenCenter, transformZoom);
         HouseRenderer.Draw(sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses);
+        DrawFarmTileHover(sb, transformZoom);
+        DrawFishingHover(sb, transformZoom, gameTime);
         HouseRenderer.DrawDoorHighlights(
             sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses, _hoveredDoorHouse);
 
@@ -766,7 +792,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         foreach (var corpse in _corpses)
             corpse.Draw(sb, WorldToScreen(corpse.Position), visualZoom);
 
-        DrawExteriorFoliageAndPlayers(sb, font, transformZoom, visualZoom);
+        DrawExteriorFoliageAndPlayers(sb, font, transformZoom, visualZoom, gameTime);
 
         if (_housePlacing)
             HouseRenderer.DrawPlacementGhost(
@@ -842,6 +868,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         _exteriorPlayers.Clear();
         _exteriorNpcs.Clear();
+        _exteriorFarmAnimals.Clear();
         foreach (var p in _players.Values)
         {
             if (p.InsideHouseId <= 0)
@@ -850,6 +877,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         foreach (var n in _npcs.Values)
             _exteriorNpcs.Add(n);
+
+        foreach (var house in WorldZones.Houses)
+        {
+            foreach (var animal in house.Animals)
+                _exteriorFarmAnimals.Add(animal);
+        }
 
         // Cloud/foliage fade only for living local players — veil spectators pass through untouched.
         _entityPositionScratch.Clear();
@@ -861,11 +894,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         SpriteBatch sb,
         SpriteFont font,
         float transformZoom,
-        float visualZoom)
+        float visualZoom,
+        GameTime gameTime)
     {
         CollectExteriorEntities();
         var localOcclusionPositions = CollectionsMarshal.AsSpan(_entityPositionScratch);
         _exteriorDrawOrder.Clear();
+        var time = gameTime.TotalGameTime.TotalSeconds;
 
         WorldFoliage.GetVisible(WorldMap.SwaroviaMainland, _camera, ScreenCenter, transformZoom, _visibleFoliage);
         for (var i = 0; i < _visibleFoliage.Count; i++)
@@ -901,6 +936,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             });
         }
 
+        for (var i = 0; i < _exteriorFarmAnimals.Count; i++)
+        {
+            var pos = FarmRenderer.AnimalWorldPos(_exteriorFarmAnimals[i], time);
+            _exteriorDrawOrder.Add(new ExteriorDrawable
+            {
+                SortY = pos.Y,
+                Kind = ExteriorDrawableKind.FarmAnimal,
+                Index = i,
+            });
+        }
+
         _exteriorDrawOrder.Sort(static (a, b) => a.SortY.CompareTo(b.SortY));
 
         foreach (var entry in _exteriorDrawOrder)
@@ -927,6 +973,21 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 {
                     var npc = _exteriorNpcs[entry.Index];
                     npc.Draw(sb, font, WorldToScreen(npc.Position), visualZoom);
+                    break;
+                }
+                case ExteriorDrawableKind.FarmAnimal:
+                {
+                    var animal = _exteriorFarmAnimals[entry.Index];
+                    var pos = FarmRenderer.AnimalWorldPos(animal, time);
+                    var facing = FarmRenderer.AnimalFacing(animal, time);
+                    var moving = FarmRenderer.AnimalMoving(time, animal.Id);
+                    var screen = WorldToScreen(pos);
+                    FarmAnimalSprites.Draw(sb, animal.Type, screen, Color.White, visualZoom, facing, moving, (float)time);
+                    if (animal.ProductReady)
+                    {
+                        var bob = (float)Math.Sin(time * 4.0) * 2f * visualZoom;
+                        DrawPrimitives.FillCircle(sb, screen + new Vector2(0, -18 * visualZoom + bob), 2.4f * visualZoom, new Color(1f, 0.92f, 0.35f));
+                    }
                     break;
                 }
             }
@@ -961,6 +1022,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         {
             _interiorHouseId = insideId;
             _interiorFade = 0f;
+            SyncHouseInteractables();
         }
 
         if (insideId > 0)
@@ -1612,6 +1674,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (_focused != null)
             _interactPrompt = $"[E] Interact with {_focused.DisplayName}  (or click)";
+        else if (_farmHoverOk)
+            _interactPrompt = FarmHoverPrompt();
+        else if (_fishHoverOk)
+            _interactPrompt = "[Click] Cast into the water";
         else if (_hovered != null)
         {
             _interactPrompt = _hovered.IsInRange(_camera)
@@ -1740,6 +1806,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         var world = ScreenToWorld(mouseScreen);
         if (TryHouseDoorInteract(world)) return;
+        if (TryFarmAtWorld(world, fromClick: true)) return;
+        if (TryFishAtWorld(world)) return;
+        if (TryCookAtWorld(world)) return;
         var target = FindAtPoint(world);
         if (target != null && target.IsInRange(_camera))
             PerformInteract(target);
@@ -2434,8 +2503,31 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (target.Kind == InteractableKind.Fishing)
         {
+            if (TryFishAtWorld(target.Position))
+            {
+                _status = $"Casting at {target.DisplayName}...";
+                return;
+            }
             _fishing.Start(target.Id, target.DisplayName, _skills.Level("fishing"));
             _status = $"Casting at {target.DisplayName}...";
+            return;
+        }
+
+        if (target.Kind == InteractableKind.FarmPlot)
+        {
+            TryFarmInteractable(target);
+            return;
+        }
+
+        if (target.Kind == InteractableKind.FarmAnimal)
+        {
+            TryFarmInteractable(target);
+            return;
+        }
+
+        if (target.Kind == InteractableKind.CookingFire)
+        {
+            TryCookAtStation(target);
             return;
         }
 
@@ -2445,17 +2537,211 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void OnFishCaught(string spotId)
     {
-        _lastInteractWorldPos = null;
-        foreach (var spot in _interactables)
+        _screens.Net.SendFishAction("catch", _fishCastTx, _fishCastTy);
+        _fishAwaitingResult = true;
+        _status = "You set the hook...";
+    }
+
+    private void OnFishingCancelled()
+    {
+        _screens.Net.SendFishAction("cancel", _fishCastTx, _fishCastTy);
+        _fishAwaitingResult = false;
+        var local = FindLocalPlayer();
+        if (local != null)
         {
-            if (spot.Id == spotId)
+            local.IsFishing = false;
+            local.FishingReeling = false;
+        }
+        _status = "Fishing cancelled.";
+    }
+
+    private void OnFishResult(FishResultData data)
+    {
+        _fishAwaitingResult = false;
+        var local = FindLocalPlayer();
+        if (local != null)
+        {
+            local.IsFishing = false;
+            local.FishingReeling = false;
+        }
+        var bait = data.BaitUsed ? " (used bait)" : "";
+        _status = $"You caught {data.Name}!{bait}";
+        _notifications.Push("Catch", $"You caught a {data.Name}.", NotificationKind.Success);
+    }
+
+    private void OnCookResult(CookResultData data)
+    {
+        var name = string.IsNullOrEmpty(data.Name) ? data.ItemId : data.Name;
+        _status = $"You cooked {name}.";
+        _notifications.Push("Cooking", $"You made {name}.", NotificationKind.Success);
+    }
+
+    private void TryCookAtStation(InteractableEntity target)
+    {
+        var itemId = SelectedHotbarItemId();
+        if (string.IsNullOrEmpty(itemId) || !CookCatalog.IsIngredient(itemId))
+        {
+            _status = "Select an egg, crop, or fish on the hotbar, then cook at the pot.";
+            return;
+        }
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead) return;
+        if (Vector2.Distance(local.Position, target.Position) > CookCatalog.ActionRange)
+        {
+            _status = "Stand next to the kitchen or fireplace.";
+            return;
+        }
+        SendCookAction(itemId, SelectedHotbarInventorySlot());
+    }
+
+    private bool TryCookIngredient(Dictionary<string, object> entry)
+    {
+        var itemId = entry.GetValueOrDefault("itemId") as string
+            ?? entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+        if (!CookCatalog.IsIngredient(itemId)) return false;
+        if (entry.GetValueOrDefault("fromInventory") is true && !HasLinkedInventoryItem(entry))
+        {
+            _status = "You no longer have that ingredient.";
+            return false;
+        }
+
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead) return false;
+        if (InteriorHouse() == null)
+        {
+            _status = "Cook inside the homestead kitchen.";
+            return false;
+        }
+
+        var station = FindNearestCookingStation(local.Position);
+        if (station == null || Vector2.Distance(local.Position, station.Position) > CookCatalog.ActionRange)
+        {
+            _status = "Stand next to the kitchen or fireplace.";
+            return false;
+        }
+
+        var slot = -1;
+        if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+        {
+            slot = slotObj switch
             {
-                _lastInteractWorldPos = spot.Position;
-                break;
+                int i => i,
+                long l => (int)l,
+                _ => -1,
+            };
+        }
+        SendCookAction(itemId!, slot);
+        return true;
+    }
+
+    private bool TryCookAtWorld(Vector2 world)
+    {
+        var itemId = SelectedHotbarItemId();
+        if (string.IsNullOrEmpty(itemId) || !CookCatalog.IsIngredient(itemId)) return false;
+        var house = InteriorHouse();
+        if (house == null) return false;
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead) return true;
+
+        FurnitureItemState? station = null;
+        var best = float.MaxValue;
+        foreach (var piece in house.Furniture)
+        {
+            if (!CookCatalog.IsCookingStation(piece.Type)) continue;
+            var d = Vector2.DistanceSquared(piece.Position, world);
+            if (d < best)
+            {
+                best = d;
+                station = piece;
             }
         }
-        _screens.Net.SendInteract(spotId);
-        _status = "You caught a fish! +Fishing XP.";
+        if (station == null || MathF.Sqrt(best) > 22f) return false;
+        if (Vector2.Distance(local.Position, station.Position) > CookCatalog.ActionRange)
+        {
+            _status = "Stand next to the kitchen or fireplace.";
+            return true;
+        }
+        SendCookAction(itemId, SelectedHotbarInventorySlot());
+        return true;
+    }
+
+    private FurnitureItemState? FindNearestCookingStation(Vector2 from)
+    {
+        var house = InteriorHouse();
+        if (house == null) return null;
+        FurnitureItemState? best = null;
+        var bestDist = float.MaxValue;
+        foreach (var piece in house.Furniture)
+        {
+            if (!CookCatalog.IsCookingStation(piece.Type)) continue;
+            var d = Vector2.DistanceSquared(piece.Position, from);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = piece;
+            }
+        }
+        return best;
+    }
+
+    private void SendCookAction(string itemId, int slot)
+    {
+        _screens.Net.SendCookAction(itemId, slot);
+        PlayLocalFarmSwing();
+        var recipe = CookCatalog.RecipeFor(itemId);
+        _status = recipe != null ? $"You cook {recipe.Name}..." : "You cook...";
+    }
+
+    private bool UseFoodFromEntry(Dictionary<string, object> entry, string itemId)
+    {
+        if (string.IsNullOrEmpty(itemId)) return false;
+        if (entry.GetValueOrDefault("fromInventory") is true && !HasLinkedInventoryItem(entry))
+        {
+            _status = "You don't have that meal in your inventory.";
+            return false;
+        }
+
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead) return false;
+        var info = ItemCatalog.Get(itemId);
+        if (info == null) return false;
+
+        var parts = new List<string>();
+        if (info.Heal is int heal and > 0)
+        {
+            local.Stats.Hp = MathF.Min(local.Stats.HpMax, local.Stats.Hp + heal);
+            _feedback.SpawnHeal(local.Id, heal);
+            SfxPlayer.PlayHeal();
+            parts.Add($"+{heal} HP");
+        }
+        if (info.StaminaRestore is float stamina and > 0f)
+        {
+            local.Stats.Stamina = MathF.Min(local.Stats.StaminaMax, local.Stats.Stamina + stamina);
+            parts.Add($"+{stamina:0} stamina");
+        }
+        if (parts.Count == 0) return false;
+
+        if (entry.GetValueOrDefault("fromInventory") is true)
+        {
+            if (entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+            {
+                var slotIdx = slotObj switch
+                {
+                    int i => i,
+                    long l => (int)l,
+                    _ => -1,
+                };
+                if (slotIdx >= 0)
+                    _inventory.ConsumeAt(slotIdx);
+                else
+                    _inventory.Consume(itemId);
+            }
+            else
+                _inventory.Consume(itemId);
+        }
+
+        _status = $"{info.Name}: {string.Join(", ", parts)}.";
+        return true;
     }
 
     private void OnWorldSnapshot(SnapshotData snap)
@@ -2583,8 +2869,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (data.House.OwnerId == _screens.Net.LocalCharacterId)
         {
             _housePlacing = false;
-            _notifications.Push("Homestead Built", "Your fenced safe haven is ready. Press H inside to decorate.", NotificationKind.Success);
-            _status = "Homestead built! You received a Homestead Key. Press H inside to decorate.";
+            _notifications.Push("Homestead Built", "Farm the south yard, then cook eggs, crops, and fish at the kitchen pot in the east room.", NotificationKind.Success);
+            _status = "Homestead built! Till the yard, then cook at the kitchen pot inside.";
         }
     }
 
@@ -2606,6 +2892,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         _inventory.ApplyFromServer(data.Items);
         RefreshHotbarInventoryLinks();
+        TryAssignFarmToolsHotbar();
+        TryAssignItemToEmptyHotbar("fishing_rod");
         UpdateBuildHouseEnabled();
     }
 
@@ -2712,7 +3000,18 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         return playerPos + new Vector2(8f, 10f);
     }
 
-    private void OnServerError(string message) => _status = message;
+    private void OnServerError(string message)
+    {
+        _status = message;
+        if (_fishing.IsActive)
+            _fishing.Dismiss();
+        if (!_fishAwaitingResult && FindLocalPlayer() is not { IsFishing: true }) return;
+        _fishAwaitingResult = false;
+        var local = FindLocalPlayer();
+        if (local == null) return;
+        local.IsFishing = false;
+        local.FishingReeling = false;
+    }
 
     private HousePlotZone? LocalHomestead() =>
         WorldZones.HomesteadFor(_screens.Net.LocalCharacterId, _inventory.HouseKeyId());
@@ -2767,8 +3066,69 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void SyncHouseInteractables()
     {
-        // Homesteads are house-only for now (no garden plot interactables).
-        _interactables.RemoveAll(i => i.Id.StartsWith("house_", StringComparison.Ordinal) && i.Id.Contains("_crop_", StringComparison.Ordinal));
+        _interactables.RemoveAll(i =>
+            i.Id.StartsWith("house_", StringComparison.Ordinal)
+            && (i.Kind is InteractableKind.FarmPlot or InteractableKind.FarmAnimal or InteractableKind.CookingFire
+                || i.Id.Contains("_crop_", StringComparison.Ordinal)
+                || i.Id.Contains("_tile_", StringComparison.Ordinal)
+                || i.Id.Contains("_animal_", StringComparison.Ordinal)
+                || i.Id.Contains("_cook_", StringComparison.Ordinal)));
+
+        foreach (var house in WorldZones.Houses)
+        {
+            foreach (var tile in house.Crops)
+            {
+                var crop = FarmCatalog.Crop(tile.Crop);
+                var name = string.IsNullOrEmpty(tile.Crop)
+                    ? (tile.Watered ? "Watered soil" : "Tilled soil")
+                    : tile.Ready
+                        ? $"Ready {crop?.Name ?? tile.Crop}"
+                        : $"{crop?.Name ?? tile.Crop} (stage {tile.Stage + 1})";
+                _interactables.Add(new InteractableEntity
+                {
+                    Id = FarmCatalog.CropInteractId(house.Id, tile.Tx, tile.Ty),
+                    DisplayName = name,
+                    Position = FarmCatalog.TileCenter(tile.Tx, tile.Ty),
+                    Kind = InteractableKind.FarmPlot,
+                    PickRadius = 11f,
+                    InteractRange = FarmCatalog.ActionRange + 8f,
+                });
+            }
+
+            foreach (var animal in house.Animals)
+            {
+                var info = FarmCatalog.Animal(animal.Type);
+                var name = animal.ProductReady && info is { ProductName: not "" }
+                    ? $"{info.Name} — {info.ProductName} ready"
+                    : info?.Name ?? animal.Type;
+                _interactables.Add(new InteractableEntity
+                {
+                    Id = FarmCatalog.AnimalInteractId(house.Id, animal.Id),
+                    DisplayName = name,
+                    Position = new Vector2((float)animal.X, (float)animal.Y),
+                    Kind = InteractableKind.FarmAnimal,
+                    PickRadius = 16f,
+                    InteractRange = FarmCatalog.ActionRange + 8f,
+                });
+            }
+        }
+
+        var inside = InteriorHouse();
+        if (inside == null) return;
+        for (var i = 0; i < inside.Furniture.Count; i++)
+        {
+            var piece = inside.Furniture[i];
+            if (!CookCatalog.IsCookingStation(piece.Type)) continue;
+            _interactables.Add(new InteractableEntity
+            {
+                Id = $"house_{inside.Id}_cook_{i}",
+                DisplayName = piece.Type == "kitchen" ? "Kitchen pot" : "Hearth",
+                Position = piece.Position,
+                Kind = InteractableKind.CookingFire,
+                PickRadius = 22f,
+                InteractRange = CookCatalog.ActionRange + 8f,
+            });
+        }
     }
 
     private void BeginHousePlacement()
@@ -3176,6 +3536,22 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             }
             used = TryMeleeAttackInternal(GetAimDirection());
         }
+        else if (FarmCatalog.IsFarmHotbarItem(id) || FarmCatalog.IsFarmHotbarItem(entry.GetValueOrDefault("itemId") as string))
+        {
+            used = TryFarmSelectedTool();
+        }
+        else if (FishCatalog.IsRod(id) || FishCatalog.IsRod(entry.GetValueOrDefault("itemId") as string))
+        {
+            used = TryFishSelectedRod();
+        }
+        else if (CookCatalog.IsMeal(id) || CookCatalog.IsMeal(entry.GetValueOrDefault("itemId") as string))
+        {
+            used = UseFoodFromEntry(entry, id ?? entry.GetValueOrDefault("itemId") as string ?? "");
+        }
+        else if (CookCatalog.IsIngredient(id) || CookCatalog.IsIngredient(entry.GetValueOrDefault("itemId") as string))
+        {
+            used = TryCookIngredient(entry);
+        }
         else if (id == "health_potion")
             used = UseHealthPotion(entry);
         else if (id == "mana_potion")
@@ -3380,5 +3756,382 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return true;
         }
         return false;
+    }
+
+    private string? SelectedHotbarItemId()
+    {
+        var entry = _hotbar.Slots[_hotbar.SelectedIndex].Entry;
+        if (entry == null) return null;
+        if (entry.GetValueOrDefault("itemId") is string itemId && itemId.Length > 0)
+            return itemId;
+        return entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
+    }
+
+    private int SelectedHotbarInventorySlot()
+    {
+        var entry = _hotbar.Slots[_hotbar.SelectedIndex].Entry;
+        if (entry == null) return -1;
+        if (!entry.TryGetValue(HotbarEntry.InventorySlotKey, out var slotObj))
+            return -1;
+        return slotObj switch
+        {
+            int i => i,
+            long l => (int)l,
+            _ => -1,
+        };
+    }
+
+    private void UpdateFarmHover(Point mouseScreen)
+    {
+        _farmHoverOk = false;
+        if (InteriorHouse() != null) return;
+        var itemId = SelectedHotbarItemId();
+        if (!FarmCatalog.IsTool(itemId) && !FarmCatalog.IsSeed(itemId))
+            return;
+        var house = LocalHomestead();
+        if (house == null) return;
+        var world = ScreenToWorld(mouseScreen);
+        var tx = FarmCatalog.WorldTileX(world.X);
+        var ty = FarmCatalog.WorldTileY(world.Y);
+        var center = FarmCatalog.TileCenter(tx, ty);
+        if (!HousingConstants.InPlot(center, house.Center)) return;
+        if (HousingCollision.OverlapsHouseBody(center, 4f, house.Center)) return;
+        _farmHoverTx = tx;
+        _farmHoverTy = ty;
+        _farmHoverOk = true;
+    }
+
+    private string FarmHoverPrompt()
+    {
+        var itemId = SelectedHotbarItemId();
+        var tile = FindFarmTile(_farmHoverTx, _farmHoverTy);
+        if (itemId == "hoe")
+        {
+            if (tile == null) return "[Click] Till soil";
+            if (tile.Ready) return "[Click] Harvest crop";
+            return "Soil is already tilled";
+        }
+        if (itemId == "watering_can")
+            return tile == null ? "Till soil first" : "[Click] Water soil";
+        if (FarmCatalog.IsSeed(itemId))
+        {
+            if (tile == null) return "Till soil before planting";
+            if (!string.IsNullOrEmpty(tile.Crop)) return "Something is already growing here";
+            return $"[Click] Plant {ItemCatalog.Get(itemId ?? "")?.Name ?? "seeds"}";
+        }
+        return "";
+    }
+
+    private FarmCropState? FindFarmTile(int tx, int ty)
+    {
+        foreach (var house in WorldZones.Houses)
+        foreach (var tile in house.Crops)
+            if (tile.Tx == tx && tile.Ty == ty)
+                return tile;
+        return null;
+    }
+
+    private void DrawFarmTileHover(SpriteBatch sb, float zoom)
+    {
+        if (!_farmHoverOk) return;
+        FarmRenderer.DrawTileHighlight(
+            sb, _farmHoverTx, _farmHoverTy, _camera, ScreenCenter, zoom,
+            new Color(1f, 0.95f, 0.4f, 0.18f), new Color(1f, 0.92f, 0.4f, 0.9f));
+    }
+
+    private bool TryFarmSelectedTool()
+    {
+        var local = FindLocalPlayer();
+        if (local == null || local.InsideHouseId > 0) return false;
+        var dir = GetAimDirection();
+        var target = local.Position + dir * FarmCatalog.TileSize;
+        return TryFarmAtWorld(target, fromClick: false);
+    }
+
+    private bool TryFarmAtWorld(Vector2 world, bool fromClick)
+    {
+        var itemId = SelectedHotbarItemId();
+        var farmItem = FarmCatalog.IsFarmHotbarItem(itemId);
+        if (!farmItem && fromClick)
+        {
+            var tile = FindFarmTile(FarmCatalog.WorldTileX(world.X), FarmCatalog.WorldTileY(world.Y));
+            if (tile is { Ready: true })
+            {
+                SendFarmAction("harvest", FarmCatalog.WorldTileX(world.X), FarmCatalog.WorldTileY(world.Y));
+                _status = "You harvest the crop.";
+                return true;
+            }
+            return false;
+        }
+        if (!farmItem) return false;
+
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead) return true;
+        if (local.InsideHouseId > 0)
+        {
+            _status = "Farm outside, in the homestead yard.";
+            return true;
+        }
+
+        var house = LocalHomestead();
+        if (house == null)
+        {
+            _status = "Build a homestead to farm.";
+            return true;
+        }
+
+        var slot = SelectedHotbarInventorySlot();
+        if (FarmCatalog.IsAnimalItem(itemId))
+        {
+            SendFarmAction("place_animal", 0, 0, itemId, slot);
+            _status = $"You settle a {ItemCatalog.Get(itemId ?? "")?.Name ?? itemId} into the yard.";
+            PlayLocalFarmSwing();
+            return true;
+        }
+        if (FarmCatalog.IsFeed(itemId))
+        {
+            SendFarmAction("feed", 0, 0, itemId, slot);
+            _status = "You toss out some feed.";
+            PlayLocalFarmSwing();
+            return true;
+        }
+
+        var tx = FarmCatalog.WorldTileX(world.X);
+        var ty = FarmCatalog.WorldTileY(world.Y);
+        var center = FarmCatalog.TileCenter(tx, ty);
+        if (Vector2.Distance(local.Position, center) > FarmCatalog.ActionRange)
+        {
+            _status = "Move closer to that soil.";
+            return true;
+        }
+
+        var existing = FindFarmTile(tx, ty);
+        if (itemId == "hoe")
+        {
+            if (existing is { Ready: true })
+            {
+                SendFarmAction("harvest", tx, ty);
+                _status = "You harvest the crop.";
+            }
+            else
+            {
+                SendFarmAction("till", tx, ty);
+                _status = "You till the soil.";
+            }
+            PlayLocalFarmSwing();
+            return true;
+        }
+        if (itemId == "watering_can")
+        {
+            SendFarmAction("water", tx, ty);
+            _status = "You water the soil.";
+            PlayLocalFarmSwing();
+            return true;
+        }
+        if (FarmCatalog.IsSeed(itemId))
+        {
+            SendFarmAction("plant", tx, ty, itemId, slot);
+            _status = $"You plant {ItemCatalog.Get(itemId ?? "")?.Name ?? "seeds"}.";
+            PlayLocalFarmSwing();
+            return true;
+        }
+        return true;
+    }
+
+    private void TryFarmInteractable(InteractableEntity target)
+    {
+        var itemId = SelectedHotbarItemId();
+        if (target.Kind == InteractableKind.FarmAnimal)
+        {
+            if (!FarmCatalog.TryParseAnimalInteract(target.Id, out _, out var animalId))
+                return;
+            if (FarmCatalog.IsFeed(itemId))
+            {
+                SendFarmAction("feed", 0, 0, itemId, SelectedHotbarInventorySlot(), animalId);
+                _status = "You toss out some feed.";
+            }
+            else if (target.DisplayName.Contains("ready", StringComparison.OrdinalIgnoreCase))
+            {
+                SendFarmAction("collect", animalId: animalId);
+                _status = $"You collect from {target.DisplayName}.";
+            }
+            else
+            {
+                SendFarmAction("pet", animalId: animalId);
+                _status = $"You pet the {target.DisplayName}.";
+            }
+            PlayLocalFarmSwing();
+            return;
+        }
+
+        if (!FarmCatalog.TryParseCropInteract(target.Id, out _, out var tx, out var ty))
+            return;
+        if (itemId == "watering_can")
+        {
+            SendFarmAction("water", tx, ty);
+            _status = "You water the soil.";
+        }
+        else if (FarmCatalog.IsSeed(itemId))
+        {
+            SendFarmAction("plant", tx, ty, itemId, SelectedHotbarInventorySlot());
+            _status = $"You plant {ItemCatalog.Get(itemId ?? "")?.Name ?? "seeds"}.";
+        }
+        else
+        {
+            var tile = FindFarmTile(tx, ty);
+            if (tile is { Ready: true } || itemId == "hoe")
+            {
+                SendFarmAction(tile is { Ready: true } ? "harvest" : "till", tx, ty);
+                _status = tile is { Ready: true } ? "You harvest the crop." : "You till the soil.";
+            }
+            else
+            {
+                SendFarmAction("harvest", tx, ty);
+                _status = target.InteractMessage();
+            }
+        }
+        PlayLocalFarmSwing();
+    }
+
+    private void SendFarmAction(string action, int tileX = 0, int tileY = 0, string? itemId = null, int slot = -1, long animalId = 0)
+    {
+        _screens.Net.SendFarmAction(action, tileX, tileY, itemId, slot, animalId);
+    }
+
+    private void PlayLocalFarmSwing()
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return;
+        local.StartAttack(GetAimDirection());
+    }
+
+    private void SyncLocalFishingPose(PlayerEntity? local)
+    {
+        if (local == null) return;
+        var fishing = _fishing.IsActive || _fishAwaitingResult;
+        local.IsFishing = fishing;
+        local.FishingReeling = _fishing.IsReeling;
+        if (!fishing) return;
+        var center = FarmCatalog.TileCenter(_fishCastTx, _fishCastTy);
+        var dir = center - local.Position;
+        if (dir.LengthSquared() > 0.01f)
+            local.MoveDir = PlayerEntity.CardinalFacing(dir);
+    }
+
+    private void UpdateFishingHover(Point mouseScreen)
+    {
+        _fishHoverOk = false;
+        if (InteriorHouse() != null || _fishing.IsActive) return;
+        if (!FishCatalog.IsRod(SelectedHotbarItemId())) return;
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead) return;
+        var world = ScreenToWorld(mouseScreen);
+        var tx = FarmCatalog.WorldTileX(world.X);
+        var ty = FarmCatalog.WorldTileY(world.Y);
+        if (!CanFishTile(local, tx, ty)) return;
+        _fishHoverTx = tx;
+        _fishHoverTy = ty;
+        _fishHoverOk = true;
+    }
+
+    private void DrawFishingHover(SpriteBatch sb, float zoom, GameTime gameTime)
+    {
+        if (_fishing.IsActive || _fishAwaitingResult)
+        {
+            FishingFx.DrawBobber(sb, _fishCastTx, _fishCastTy, _camera, ScreenCenter, zoom,
+                (float)gameTime.TotalGameTime.TotalSeconds);
+            return;
+        }
+        if (!_fishHoverOk) return;
+        FishingFx.DrawTileHighlight(
+            sb, _fishHoverTx, _fishHoverTy, _camera, ScreenCenter, zoom,
+            new Color(0.35f, 0.7f, 1f, 0.18f), new Color(0.55f, 0.85f, 1f, 0.9f));
+    }
+
+    private bool TryFishSelectedRod()
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return false;
+        var dir = GetAimDirection();
+        return TryFishAtWorld(local.Position + dir * FishCatalog.TileSize);
+    }
+
+    private bool TryFishAtWorld(Vector2 world)
+    {
+        if (_fishing.IsActive) return true;
+        if (!FishCatalog.IsRod(SelectedHotbarItemId())) return false;
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead) return true;
+        if (local.InsideHouseId > 0)
+        {
+            _status = "Fish from the shore, not indoors.";
+            return true;
+        }
+
+        var tx = FarmCatalog.WorldTileX(world.X);
+        var ty = FarmCatalog.WorldTileY(world.Y);
+        if (!CanFishTile(local, tx, ty))
+        {
+            _status = "Stand on the shore and click the water.";
+            return true;
+        }
+
+        _fishCastTx = tx;
+        _fishCastTy = ty;
+        var map = WorldMap.SwaroviaMainland;
+        var preview = FishCatalog.PreviewFish(map.IsSea(tx, ty), _skills.Level("fishing"));
+        FishIconAtlas.TryGet(preview?.Id, out var icon);
+        _screens.Net.SendFishAction("start", tx, ty);
+        _fishing.Start($"water_{tx}_{ty}", map.IsSea(tx, ty) ? "the sea" : "the lake", _skills.Level("fishing"), icon);
+        _status = "You cast a line.";
+        SyncLocalFishingPose(local);
+        return true;
+    }
+
+    private static bool CanFishTile(PlayerEntity local, int tx, int ty)
+    {
+        var map = WorldMap.SwaroviaMainland;
+        if (!map.IsWater(tx, ty)) return false;
+        var ptx = FarmCatalog.WorldTileX(local.Position.X);
+        var pty = FarmCatalog.WorldTileY(local.Position.Y);
+        if (!map.IsLand(ptx, pty)) return false;
+        if (Math.Abs(tx - ptx) > FishCatalog.MaxChebyshev || Math.Abs(ty - pty) > FishCatalog.MaxChebyshev)
+            return false;
+        var center = FarmCatalog.TileCenter(tx, ty);
+        return Vector2.Distance(local.Position, center) <= FishCatalog.ActionRange;
+    }
+
+    private void TryAssignFarmToolsHotbar()
+    {
+        TryAssignItemToEmptyHotbar("hoe");
+        TryAssignItemToEmptyHotbar("watering_can");
+        TryAssignItemToEmptyHotbar("fishing_rod");
+    }
+
+    private void TryAssignItemToEmptyHotbar(string itemId)
+    {
+        for (var i = 0; i < _hotbar.Slots.Length; i++)
+        {
+            var entry = _hotbar.Slots[i].Entry;
+            if (entry?.GetValueOrDefault("itemId") as string == itemId
+                || entry?.GetValueOrDefault(HotbarEntry.IdKey) as string == itemId)
+                return;
+        }
+        var invSlot = -1;
+        for (var i = 0; i < PlayerInventory.SlotCount; i++)
+        {
+            if (_inventory.Slots[i].ItemId == itemId)
+            {
+                invSlot = i;
+                break;
+            }
+        }
+        if (invSlot < 0) return;
+        for (var i = 0; i < _hotbar.Slots.Length; i++)
+        {
+            if (_hotbar.Slots[i].Entry != null) continue;
+            _hotbar.AssignSlot(i, ItemCatalog.ToHotbarEntry(itemId, invSlot));
+            return;
+        }
     }
 }

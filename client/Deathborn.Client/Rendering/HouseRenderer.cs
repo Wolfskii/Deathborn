@@ -24,7 +24,9 @@ public static class HouseRenderer
         foreach (var house in houses)
         {
             FarmRpgFenceSprites.DrawPlot(sb, house.Center, camera, screenCenter, positionZoom, visualZoom);
+            FarmRenderer.DrawSoil(sb, house, camera, screenCenter, positionZoom);
             DrawHouseStructure(sb, house.Center, camera, screenCenter, positionZoom, visualZoom);
+            FarmRenderer.DrawCrops(sb, house, camera, screenCenter, positionZoom);
             foreach (var item in house.Furniture)
                 DrawFurniture(sb, item, camera, screenCenter, positionZoom, visualZoom);
         }
@@ -283,6 +285,14 @@ public static class HouseRenderer
                 DrawPrimitives.FillRect(sb, CenteredRect(screen, 16 * z, 20 * z), new Color(0.35f, 0.32f, 0.3f));
                 DrawPrimitives.FillRect(sb, CenteredRect(screen + new Vector2(0, -4 * z), 10 * z, 8 * z),
                     new Color(0.92f, 0.42f, 0.12f, 0.85f));
+                break;
+            case "kitchen":
+                if (!FurnitureSprites.TryDrawKitchen(sb, screen, z, Environment.TickCount64 / 1000f))
+                {
+                    DrawPrimitives.FillRect(sb, CenteredRect(screen, 18 * z, 16 * z), new Color(0.42f, 0.38f, 0.34f));
+                    DrawPrimitives.FillRect(sb, CenteredRect(screen + new Vector2(0, -6 * z), 10 * z, 8 * z),
+                        new Color(0.55f, 0.58f, 0.62f));
+                }
                 break;
             case "rug":
                 DrawPrimitives.FillRect(sb, CenteredRect(screen, 40 * z, 24 * z), new Color(0.62f, 0.22f, 0.22f, 0.75f));

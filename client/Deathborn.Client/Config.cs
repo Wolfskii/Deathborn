@@ -139,7 +139,7 @@ public static class Config
     public const float SecondWindCooldown = 15f;
 
     public const float BuffBarDefaultX = 14f;
-    public const float BuffBarDefaultY = 88f;
+    public const float BuffBarDefaultY = 128f;
 
     public const float ChatBubbleDuration = 10f;
     public const int ChatMaxLength = 120;

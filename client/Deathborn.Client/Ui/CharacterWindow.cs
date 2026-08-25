@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Deathborn.Client;
 using Deathborn.Client.Gameplay;
+using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Ui;
 
@@ -11,11 +12,11 @@ public sealed class CharacterWindow : UiWindow
     private const int Width = 240;
     private const int ContentPad = 10;
     private const int BarRowGap = 6;
-    private const int BarHeight = 14;
+    private const int BarHeight = 16;
     private const int SectionGap = 8;
 
     // Sized for ~22px line spacing with slack at the bottom.
-    private const int Height = 284;
+    private const int Height = 320;
 
     private static readonly Color HpFill = new(0.78f, 0.22f, 0.2f);
     private static readonly Color StaminaFill = new(0.82f, 0.72f, 0.18f);
@@ -38,7 +39,7 @@ public sealed class CharacterWindow : UiWindow
         _skillsProvider = skills;
     }
 
-    private static Point DefaultPosition() => new(Config.MinimapMargin, Config.MinimapMargin);
+    private static Point DefaultPosition() => new(Config.MinimapMargin, 140);
 
     protected override void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle area)
     {
@@ -53,16 +54,16 @@ public sealed class CharacterWindow : UiWindow
             area.Height - ContentPad * 2);
 
         var y = inner.Y;
-        sb.DrawString(font, name, new Vector2(inner.X, y), Color.White);
+        sb.DrawString(font, name, new Vector2(inner.X, y), FarmRpgUi.Ink);
         y += font.LineSpacing + 4;
 
         var lvl = _skillsProvider?.Invoke() is { } skills
             ? $"Total level {skills.TotalLevel}"
             : $"Lvl {stats.Level}";
-        sb.DrawString(font, lvl, new Vector2(inner.X, y), new Color(210, 185, 130));
+        sb.DrawString(font, lvl, new Vector2(inner.X, y), FarmRpgUi.InkMuted);
         y += font.LineSpacing + 2;
         if (_skillsProvider?.Invoke() is { } sk)
-            sb.DrawString(font, $"Total XP: {sk.TotalXp:N0}", new Vector2(inner.X, y), new Color(225, 205, 150));
+            sb.DrawString(font, $"Total XP: {sk.TotalXp:N0}", new Vector2(inner.X, y), FarmRpgUi.InkMuted);
         y += font.LineSpacing + SectionGap;
 
         var rowH = font.LineSpacing + BarHeight;

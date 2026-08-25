@@ -62,10 +62,13 @@ public sealed class HotbarSlot
         HotbarIconDraw.Draw(sb, spellId, icon);
 
         var keySize = font.MeasureString(KeyLabel);
-        DrawPrimitives.FillRect(sb,
-            new Rectangle(bounds.X + 2, bounds.Y + 2, (int)keySize.X + 6, (int)keySize.Y + 2),
-            new Color(0, 0, 0, 0.62f));
-        sb.DrawString(font, KeyLabel, new Vector2(bounds.X + 5, bounds.Y + 3), new Color(215, 215, 190));
+        var keyBadge = new Rectangle(bounds.X + 2, bounds.Y + 2, (int)keySize.X + 7, (int)keySize.Y + 3);
+        if (FarmRpgUi.IsLoaded)
+            FarmRpgUi.DrawButton(sb, keyBadge);
+        else
+            DrawPrimitives.FillRect(sb, keyBadge, new Color(0, 0, 0, 0.62f));
+        sb.DrawString(font, KeyLabel, new Vector2(bounds.X + 5, bounds.Y + 3),
+            FarmRpgUi.IsLoaded ? FarmRpgUi.Ink : new Color(215, 215, 190));
 
         if (inventory != null && Entry != null)
         {

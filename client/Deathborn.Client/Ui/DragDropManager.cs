@@ -53,28 +53,27 @@ public sealed class DragDropManager
         if (Active == null) return;
 
         const int size = 48;
-        var rect = new Rectangle(mouse.X - size / 2, mouse.Y - size / 2, size, size);
-        DrawPrimitives.FillRect(sb, rect, new Color(20, 22, 30, 210));
-        DrawBorder(sb, rect, new Color(210, 170, 80));
+        var rect = new Rectangle(
+            Math.Clamp(mouse.X - size / 2, 2, Math.Max(2, GameViewport.Width - size - 2)),
+            Math.Clamp(mouse.Y - size / 2, 2, Math.Max(2, GameViewport.Height - size - 2)),
+            size,
+            size);
+        FarmRpgUi.DrawInsetPanel(sb, rect, 0.9f);
 
         var icon = HotbarIconDraw.FitSquare(rect, top: 6, bottom: 6, horizontalPad: 6);
         HotbarIconDraw.Draw(sb, Active.IconId, icon);
 
-        var name = Active.DisplayName ?? "?";
-        if (name.Length > 14) name = name[..12] + "…";
+        var name = SpriteFontSafe.Filter(Active.DisplayName ?? "?");
+        if (name.Length > 14) name = name[..11] + "...";
         var ts = font.MeasureString(name);
-        var labelPos = new Vector2(mouse.X - ts.X / 2f, rect.Bottom + 4);
-        DrawPrimitives.FillRect(sb,
-            new Rectangle((int)labelPos.X - 3, (int)labelPos.Y - 1, (int)ts.X + 6, (int)ts.Y + 2),
-            new Color(0, 0, 0, 0.65f));
-        sb.DrawString(font, name, labelPos, Color.White);
-    }
-
-    private static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color)
-    {
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, 1), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Bottom - 1, rect.Width, 1), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, 1, rect.Height), color);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - 1, rect.Y, 1, rect.Height), color);
+        var labelW = (int)MathF.Ceiling(ts.X) + 10;
+        var labelH = (int)MathF.Ceiling(ts.Y) + 6;
+        var labelX = Math.Clamp(mouse.X - labelW / 2, 2, Math.Max(2, GameViewport.Width - labelW - 2));
+        var labelY = rect.Bottom + 4;
+        if (labelY + labelH > GameViewport.Height - 2)
+            labelY = rect.Y - labelH - 4;
+        var labelRect = new Rectangle(labelX, Math.Max(2, labelY), labelW, labelH);
+        FarmRpgUi.DrawInsetPanel(sb, labelRect, 0.9f);
+        sb.DrawString(font, name, new Vector2(labelRect.X + 5, labelRect.Y + 3), FarmRpgUi.Ink);
     }
 }

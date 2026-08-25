@@ -29,6 +29,12 @@ public sealed class AnimationController
   private int _castFrame;
   private FacingDirection _castFacing = FacingDirection.Down;
 
+  private bool _fishingPlaying;
+  private CharacterClip _fishingClip = CharacterClip.FishWait;
+  private float _fishingTimer;
+  private int _fishingFrame;
+  private FacingDirection _fishingFacing = FacingDirection.Down;
+
   private bool _hurtPlaying;
   private float _hurtTimer;
   private int _hurtFrame;
@@ -48,6 +54,7 @@ public sealed class AnimationController
 
   public bool IsAttackPlaying => _attackPlaying;
   public bool IsCastPlaying => _castPlaying;
+  public bool IsFishingPlaying => _fishingPlaying;
   public bool IsHurtPlaying => _hurtPlaying;
   public bool IsDeathPlaying => _deathPlaying;
   public bool IsDeathComplete => _deathComplete;
@@ -63,6 +70,7 @@ public sealed class AnimationController
     _deathComplete = false;
     _attackPlaying = false;
     _castPlaying = false;
+    _fishingPlaying = false;
     _hurtPlaying = false;
   }
 
@@ -95,7 +103,28 @@ public sealed class AnimationController
     _lastLocomotionFacing = _facing;
     _attackPlaying = false;
     _castPlaying = false;
+    _fishingPlaying = false;
     _hurtPlaying = false;
+  }
+
+  public void StartFishing(Vector2 facingDir, bool reeling)
+  {
+    _fishingFacing = ResolveFacing(facingDir);
+    var next = reeling ? CharacterClip.FishReel : CharacterClip.FishWait;
+    if (!_fishingPlaying || next != _fishingClip)
+    {
+      _fishingFrame = 0;
+      _fishingTimer = 0;
+    }
+    _fishingClip = next;
+    _fishingPlaying = true;
+    _attackPlaying = false;
+    _castPlaying = false;
+  }
+
+  public void StopFishing()
+  {
+    _fishingPlaying = false;
   }
 
   public void StartAttack(Vector2 facingDir, CharacterClip clip = CharacterClip.Attack)
@@ -138,6 +167,15 @@ public sealed class AnimationController
       UpdateAttack(dt);
       return;
     }
+
+    if (input.IsFishing)
+    {
+      StartFishing(input.FacingDir, input.FishingReeling);
+      UpdateFishing(dt, input.FacingDir);
+      return;
+    }
+
+    _fishingPlaying = false;
 
     if (input.IsCasting)
     {
@@ -185,6 +223,12 @@ public sealed class AnimationController
       return new AnimationDrawState(CharacterClip.Cast, castSpec, _castFrame, _castFacing);
     }
 
+    if (_fishingPlaying)
+    {
+      var fishSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, _fishingClip);
+      return new AnimationDrawState(_fishingClip, fishSpec, _fishingFrame, _fishingFacing);
+    }
+
     var clip = _locomotionClip switch
     {
       CharacterClip.Run => CharacterClip.Run,
@@ -193,6 +237,20 @@ public sealed class AnimationController
     };
     var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, clip);
     return new AnimationDrawState(clip, spec, _locomotionFrame, _facing);
+  }
+
+  private void UpdateFishing(float dt, Vector2 faceDir)
+  {
+    var spec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, _fishingClip);
+    if (faceDir.LengthSquared() > 0.01f)
+      _fishingFacing = ResolveFacing(faceDir);
+
+    _fishingTimer += dt;
+    while (_fishingTimer >= spec.FrameDuration)
+    {
+      _fishingTimer -= spec.FrameDuration;
+      _fishingFrame = (_fishingFrame + 1) % spec.FramesPerDirection;
+    }
   }
 
   private void UpdateIdle(float dt, Vector2 faceDir)

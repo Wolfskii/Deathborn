@@ -202,6 +202,8 @@ public sealed class PlayerEntity
 
     public bool IsAttacking => _visual.Controller.IsAttackPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
+    public bool IsFishing { get; set; }
+    public bool FishingReeling { get; set; }
     public bool IsDashing => _isDashing;
     public bool IsPostDashSettling => _postDashSettle > 0f;
     public bool IsWhirlwinding => _whirlwindTimer > 0f;
@@ -481,6 +483,29 @@ public sealed class PlayerEntity
             case PlayerActions.MeleeAttack:
                 StartAttack(facingDir);
                 break;
+            case PlayerActions.Hoe:
+            case PlayerActions.Water:
+            case PlayerActions.Cook:
+                StartAttack(facingDir);
+                StartAbilityLock(0.28f);
+                break;
+            case PlayerActions.FishWait:
+                IsFishing = true;
+                FishingReeling = false;
+                if (facingDir.LengthSquared() > 0.01f)
+                    MoveDir = CardinalFacing(facingDir);
+                break;
+            case PlayerActions.FishReel:
+            case PlayerActions.FishCatch:
+                IsFishing = true;
+                FishingReeling = true;
+                if (facingDir.LengthSquared() > 0.01f)
+                    MoveDir = CardinalFacing(facingDir);
+                break;
+            case PlayerActions.FishStop:
+                IsFishing = false;
+                FishingReeling = false;
+                break;
             case PlayerActions.CastFireball:
             case PlayerActions.CastIceShard:
             case PlayerActions.CastPoisonBolt:
@@ -676,6 +701,8 @@ public sealed class PlayerEntity
         IsWhirlwinding = IsWhirlwinding,
         IsDashing = _isDashing,
         IsCasting = IsCasting,
+        IsFishing = IsFishing,
+        FishingReeling = FishingReeling,
         IsMoving = IsMoving,
         IsRunning = IsRunning,
         LocomotionDir = LocomotionDir,
@@ -751,6 +778,9 @@ public sealed class PlayerEntity
         DrawHoverOutlinePass(sb, screenPos, new Color(255, 252, 185, 1f), scale, innerThick);
         DrawHoverOutlinePass(sb, screenPos, new Color(255, 238, 120, 0.92f), scale, innerThick * 0.72f);
     }
+
+    public void DrawHudPortrait(SpriteBatch sb, Vector2 feetScreenPos, float scale) =>
+        _visual.DrawIdlePortrait(sb, feetScreenPos, Color.White, scale);
 
     private void DrawHoverOutlinePass(
         SpriteBatch sb, Vector2 screenPos, Color outline, float scale, float thickness)

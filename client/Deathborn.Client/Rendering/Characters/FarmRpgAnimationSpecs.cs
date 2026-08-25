@@ -32,6 +32,8 @@ internal static class FarmRpgAnimationSpecs
         CharacterClip.ShieldBash => ShieldBash,
         CharacterClip.Hurt => Hurt,
         CharacterClip.Death => Death,
+        CharacterClip.FishWait => FishWait,
+        CharacterClip.FishReel => FishReel,
         _ => Idle,
     };
 
@@ -61,6 +63,8 @@ internal static class FarmRpgAnimationSpecs
     };
     public static AnimationSpecification Hurt => Strip(4, HurtFrameDuration);
     public static AnimationSpecification Death => Strip(4, DeathFrameDuration);
+    public static AnimationSpecification FishWait => Strip(4, 0.16f);
+    public static AnimationSpecification FishReel => Strip(4, 0.09f);
 
     private static AnimationSpecification Strip(int framesPerDirection, float frameDuration) => new()
     {
