@@ -9,9 +9,11 @@
 A top-down 2D real-time sandbox MMORPG: permadeath, full-loot, PvP-driven survival.
 The server is fully authoritative; the client only sends input and renders state.
 
-This repository currently contains the **Walking Skeleton (M0)** — the thinnest
-end-to-end vertical slice. See [docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md) for the
-full phased plan toward the MVP.
+The core loop is playable: accounts, characters, a persistent multiplayer world,
+combat, farming, fishing, cooking, housing, chat, and full-loot drops on death.
+Permadeath and character history are partly built. See
+[docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md) for the status of each milestone and
+what remains before the MVP.
 
 <p align="center">
   <img src="docs/assets/readme-player-run.gif" alt="Player character running" width="128">
@@ -19,15 +21,23 @@ full phased plan toward the MVP.
 
 <p align="center"><em>“Run like you’ve got another life — you don’t.”</em></p>
 
-## What works today (M0)
+## What works today
 
-- Register / log in with email + password (HTTP, returns a JWT).
+- Register / log in with email + password (HTTP, returns a JWT), with remember-me login.
 - Create a character (one active character per account).
-- Connect to the world over WebSocket and move freely (velocity-based).
-- See other connected players move in real time.
-- Server-authoritative position: the client sends only an input direction; the
-  server integrates positions on a fixed tick and broadcasts snapshots.
-- Hotbar (keys 1–9, 0), interactables (click or E), remember-me login.
+- Move freely in a shared world over WebSocket. Movement, combat, and damage are
+  server-authoritative and run on a fixed 20 Hz tick.
+- Global chat with typing indicators.
+- Safe towns (Starter Town, Northhaven, Westmere, Eastwatch, Southport). PvP is
+  allowed everywhere else.
+- Combat with data-driven abilities and boss encounters.
+- Usage-based skills, with farming, fishing, and cooking.
+- Player housing, with fences and farm plots.
+- Inventory, hotbar, friends, cosmetics, and buffs.
+- On death, the character dies and its inventory drops as lootable items.
+
+Still to build: the death history view, highscores, Google login, and zone
+names beyond the safe towns. Full status: [docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md).
 
 ## Tech stack
 
@@ -44,13 +54,17 @@ The **client is C#** — all gameplay UI, rendering, and networking are plain C#
 
 ```
 server/                     Go authoritative game server
+  cmd/deathborn/            entry point
+  internal/                 auth, db, game, net, protocol, skills, worldmap, ...
+  migrations/               PostgreSQL migrations (run on startup)
 client/
   Deathborn.Client.sln
   Deathborn.Client/         MonoGame C# client
     Net/GameClient.cs       HTTP auth + WebSocket
-    Screens/                Login, CharacterCreate, World
-    Game/                   players, interactables, hotbar
-docs/MVP_ROADMAP.md         phased roadmap toward full MVP
+    Screens/                Login, CharacterCreate, World, debug screens
+    Game/                   players, NPCs, interactables, hotbar
+shared/                     protocol and combat data shared by client and server
+docs/MVP_ROADMAP.md         milestone status and remaining work
 Taskfile.yml                task runner (server + client commands)
 ```
 
