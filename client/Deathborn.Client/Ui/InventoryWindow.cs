@@ -9,8 +9,14 @@ namespace Deathborn.Client.Ui;
 
 public sealed class InventoryWindow : UiWindow
 {
-    private const int Width = 280;
+    private const int GridPad = 10;
+    private const int GridWidth = PlayerInventory.Columns * PlayerInventory.CellSize
+        + (PlayerInventory.Columns - 1) * PlayerInventory.CellGap;
+    private const int GridRows = PlayerInventory.SlotCount / PlayerInventory.Columns;
+    private const int GridHeight = GridRows * PlayerInventory.CellSize + (GridRows - 1) * PlayerInventory.CellGap;
+    private const int Width = GridWidth + GridPad * 2 + 40;
     private const int Height = 360;
+    private const string Hint = "Drag items to the hotbar, or out of the window to drop them.";
 
     private DragDropManager? _dragDrop;
     private PlayerInventory? _inventory;
@@ -85,8 +91,13 @@ public sealed class InventoryWindow : UiWindow
         var gridBounds = GridBounds();
         if (FarmRpgInventoryUi.IsLoaded)
             FarmRpgInventoryUi.DrawInventoryPanel(sb, gridBounds);
-        sb.DrawString(font, "Drag items to hotbar or drop in world",
-            new Vector2(area.X + 8, area.Y + 4), FarmRpgUi.InkMuted);
+
+        var hintY = gridBounds.Bottom + 12;
+        foreach (var line in UiText.Wrap(font, Hint, area.Width))
+        {
+            UiText.DrawCentered(sb, font, line, new Rectangle(area.X, hintY, area.Width, font.LineSpacing), FarmRpgUi.InkMuted);
+            hintY += font.LineSpacing;
+        }
 
         for (var i = 0; i < _cellRects.Count; i++)
         {
@@ -128,6 +139,9 @@ public sealed class InventoryWindow : UiWindow
         }
     }
 
+    protected override int? MeasureContentHeight(SpriteFont font) =>
+        GridHeight + GridPad * 2 + 12 + UiText.Wrap(font, Hint, Width - 40).Count * font.LineSpacing;
+
     public bool TryGetSlotAt(Point p, out int index)
     {
         LayoutCells();
@@ -162,8 +176,7 @@ public sealed class InventoryWindow : UiWindow
         var bounds = _cellRects[0];
         for (var i = 1; i < _cellRects.Count; i++)
             bounds = Rectangle.Union(bounds, _cellRects[i]);
-        const int pad = 10;
-        return new Rectangle(bounds.X - pad, bounds.Y - pad, bounds.Width + pad * 2, bounds.Height + pad * 2);
+        return new Rectangle(bounds.X - GridPad, bounds.Y - GridPad, bounds.Width + GridPad * 2, bounds.Height + GridPad * 2);
     }
 
     private void LayoutCells()
@@ -171,12 +184,9 @@ public sealed class InventoryWindow : UiWindow
         _cellRects.Clear();
         var cols = PlayerInventory.Columns;
         var rows = PlayerInventory.SlotCount / cols;
-        var content = FarmRpgUi.Inset(ContentBounds, 12);
-        content.Y += 26;
-        content.Height = Math.Max(1, content.Height - 26);
-        var gridW = cols * PlayerInventory.CellSize + (cols - 1) * PlayerInventory.CellGap;
-        var x0 = content.X + (content.Width - gridW) / 2;
-        var y0 = content.Y;
+        var content = ContentBounds;
+        var x0 = content.X + (content.Width - GridWidth) / 2;
+        var y0 = content.Y + GridPad;
 
         for (var row = 0; row < rows; row++)
         for (var col = 0; col < cols; col++)

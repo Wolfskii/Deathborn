@@ -10,11 +10,14 @@ namespace Deathborn.Client.Ui;
 
 public sealed class FriendsWindow : UiWindow
 {
-    private const int WinWidth = 440;
-    private const int WinHeight = 420;
-    private const int ListWidth = 168;
-    private const int RowHeight = 26;
+    private const int WinWidth = 560;
+    private const int WinHeight = 440;
+    private const int ListWidth = 190;
+    private const int ColumnGap = 16;
+    private const int ListPad = 6;
+    private const int RowHeight = 30;
     private const int ChatInputHeight = 32;
+    private const int ActionButtonWidth = 104;
 
     private PlayerFriends? _friends;
     private Func<long>? _localCharacterId;
@@ -71,14 +74,14 @@ public sealed class FriendsWindow : UiWindow
         var listArea = new Rectangle(area.X, area.Y, ListWidth, area.Height);
         if (listArea.Contains(mouse.Position))
         {
-            var maxScroll = Math.Max(0, _friends.Entries.Count * RowHeight - listArea.Height);
+            var maxScroll = Math.Max(0, _friends.Entries.Count * RowHeight - (listArea.Height - ListPad * 2));
             var wheel = mouse.ScrollWheelValue - prevMouse.ScrollWheelValue;
             if (wheel != 0)
                 _listScroll = Math.Clamp(_listScroll - wheel / 120 * RowHeight, 0, maxScroll);
         }
         if (listArea.Contains(mouse.Position))
         {
-            var localY = mouse.Y - listArea.Y + _listScroll;
+            var localY = mouse.Y - (listArea.Y + ListPad) + _listScroll;
             var index = localY / RowHeight;
             if (index >= 0 && index < _friends.Entries.Count)
                 _hoverRow = index;
@@ -152,21 +155,21 @@ public sealed class FriendsWindow : UiWindow
     {
         if (_friends == null)
         {
-            sb.DrawString(font, "Loading...", new Vector2(area.X + 8, area.Y + 8), GoldDim);
+            UiText.Draw(sb, font, "Loading...", new Vector2(area.X, area.Y), FarmRpgUi.InkMuted);
             return;
         }
 
         var listArea = new Rectangle(area.X, area.Y, ListWidth, area.Height);
         FarmRpgUi.DrawInsetPanel(sb, listArea);
 
-        var chatArea = new Rectangle(area.X + ListWidth + 8, area.Y, area.Width - ListWidth - 8, area.Height);
+        var chatArea = ChatArea();
         DrawChatPanel(sb, font, chatArea);
 
-        var y = listArea.Y - _listScroll;
+        var y = listArea.Y + ListPad - _listScroll;
         for (var i = 0; i < _friends.Entries.Count; i++)
         {
             var entry = _friends.Entries[i];
-            var row = new Rectangle(listArea.X + 2, y, listArea.Width - 4, RowHeight);
+            var row = new Rectangle(listArea.X + ListPad, y, listArea.Width - ListPad * 2, RowHeight);
             if (row.Y < listArea.Y || row.Bottom > listArea.Bottom)
             {
                 y += RowHeight;
@@ -175,53 +178,63 @@ public sealed class FriendsWindow : UiWindow
 
             var selected = _friends.SelectedWhisper?.AccountId == entry.AccountId
                 || (_friends.SelectedWhisper?.CharacterId > 0 && _friends.SelectedWhisper.CharacterId == entry.CharacterId);
-            var hover = _hoverRow == i;
-            if (selected || hover)
-            {
-                FarmRpgUi.DrawButton(sb, row, pressed: selected || hover);
-            }
+            if (selected)
+                DrawPrimitives.FillRoundedRect(sb, row, FarmRpgUi.InkFaint * 0.45f, 4);
+            else if (_hoverRow == i)
+                DrawPrimitives.FillRoundedRect(sb, row, FarmRpgUi.Paper, 4);
 
-            var dotColor = entry.Online ? new Color(80, 200, 90) : new Color(90, 90, 95);
-            DrawPrimitives.FillCircle(sb, new Vector2(row.X + 10, row.Y + RowHeight * 0.5f), 4f, dotColor);
+            var dotColor = entry.Online ? new Color(70, 170, 80) : new Color(140, 120, 110);
+            DrawPrimitives.FillCircle(sb, new Vector2(row.X + 12, row.Y + RowHeight * 0.5f), 4f, dotColor);
 
             var label = entry.Name;
             if (entry.PendingIn) label += " (request)";
             else if (entry.PendingOut) label += " (pending)";
-            sb.DrawString(font, label, new Vector2(row.X + 20, row.Y + 4),
+            var textY = row.Y + (RowHeight - font.LineSpacing) / 2f;
+            UiText.Draw(sb, font, UiText.Truncate(font, label, row.Width - 30), new Vector2(row.X + 24, textY),
                 entry.Online ? FarmRpgUi.Ink : FarmRpgUi.InkMuted);
 
             y += RowHeight;
         }
 
         if (_friends.Entries.Count == 0)
-            sb.DrawString(font, "No friends yet.", new Vector2(listArea.X + 8, listArea.Y + 8), GoldDim);
+        {
+            var hintY = listArea.Y + 12;
+            UiText.Draw(sb, font, "No friends yet.", new Vector2(listArea.X + 12, hintY), FarmRpgUi.InkMuted);
+            hintY += font.LineSpacing + 6;
+            foreach (var line in UiText.Wrap(font, "Right-click a player to add them.", listArea.Width - 24))
+            {
+                UiText.Draw(sb, font, line, new Vector2(listArea.X + 12, hintY), FarmRpgUi.InkFaint);
+                hintY += font.LineSpacing;
+            }
+        }
     }
 
     private void DrawChatPanel(SpriteBatch sb, SpriteFont font, Rectangle chatArea)
     {
         var target = _friends?.SelectedWhisper;
-        var header = target != null ? $"Whisper: {target.Name}" : "Select a friend or whisper a player";
-        sb.DrawString(font, header, new Vector2(chatArea.X, chatArea.Y), FarmRpgUi.Ink);
+        var header = target != null ? $"Whisper: {target.Name}" : "Pick a friend to chat";
+        UiText.Draw(sb, font, UiText.Truncate(font, header, chatArea.Width), new Vector2(chatArea.X, chatArea.Y), FarmRpgUi.Ink);
 
         var entry = SelectedEntry();
-        var btnY = chatArea.Y + font.LineSpacing + 4;
+        var btnY = chatArea.Y + font.LineSpacing + 10;
+        _acceptBtn = _declineBtn = _removeBtn = Rectangle.Empty;
         if (entry is { PendingIn: true })
         {
-            _acceptBtn = new Rectangle(chatArea.X, btnY, 72, 24);
-            _declineBtn = new Rectangle(chatArea.X + 78, btnY, 72, 24);
+            _acceptBtn = new Rectangle(chatArea.X, btnY, ActionButtonWidth, FarmRpgUi.ButtonHeight);
+            _declineBtn = new Rectangle(_acceptBtn.Right + 10, btnY, ActionButtonWidth, FarmRpgUi.ButtonHeight);
             DrawActionButton(sb, font, _acceptBtn, "Accept", _acceptBtn.Contains(Mouse.GetState().Position));
             DrawActionButton(sb, font, _declineBtn, "Decline", _declineBtn.Contains(Mouse.GetState().Position));
-            btnY += 30;
+            btnY += FarmRpgUi.ButtonHeight + 10;
         }
         else if (entry is { IsConfirmedFriend: true })
         {
-            _removeBtn = new Rectangle(chatArea.X, btnY, 88, 24);
+            _removeBtn = new Rectangle(chatArea.X, btnY, ActionButtonWidth, FarmRpgUi.ButtonHeight);
             DrawActionButton(sb, font, _removeBtn, "Remove", _removeBtn.Contains(Mouse.GetState().Position));
-            btnY += 30;
+            btnY += FarmRpgUi.ButtonHeight + 10;
         }
 
         var logTop = btnY;
-        var logHeight = chatArea.Height - (logTop - chatArea.Y) - ChatInputHeight - 8;
+        var logHeight = chatArea.Height - (logTop - chatArea.Y) - ChatInputHeight - 10;
         if (logHeight < 20) logHeight = 20;
         var logRect = new Rectangle(chatArea.X, logTop, chatArea.Width, logHeight);
         FarmRpgUi.DrawInsetPanel(sb, logRect);
@@ -229,22 +242,21 @@ public sealed class FriendsWindow : UiWindow
         if (target is { CharacterId: > 0 })
         {
             var lines = _friends!.MessagesFor(target.CharacterId);
-            var y = (float)logRect.Bottom - 4f;
+            var y = (float)logRect.Bottom - 6f;
             for (var i = lines.Count - 1; i >= 0; i--)
             {
                 var line = lines[i];
                 var prefix = line.Outgoing ? "You: " : $"{line.FromName}: ";
                 var text = prefix + line.Text;
-                var size = font.MeasureString(text);
-                y -= size.Y;
-                if (y < logRect.Y + 2) break;
-                sb.DrawString(font, text, new Vector2(logRect.X + 6, y),
+                y -= font.LineSpacing;
+                if (y < logRect.Y + 6) break;
+                UiText.Draw(sb, font, UiText.Truncate(font, text, logRect.Width - 20), new Vector2(logRect.X + 10, y),
                     line.Outgoing ? new Color(92, 80, 145) : FarmRpgUi.Ink);
             }
         }
         else if (target != null)
         {
-            sb.DrawString(font, "Player is offline.", new Vector2(logRect.X + 8, logRect.Y + 8), GoldDim);
+            UiText.Draw(sb, font, "Player is offline.", new Vector2(logRect.X + 10, logRect.Y + 10), FarmRpgUi.InkMuted);
         }
 
         var inputRect = new Rectangle(chatArea.X, chatArea.Bottom - ChatInputHeight, chatArea.Width, ChatInputHeight);
@@ -270,7 +282,7 @@ public sealed class FriendsWindow : UiWindow
     private Rectangle ChatArea()
     {
         var area = ContentAreaInternal();
-        return new Rectangle(area.X + ListWidth + 8, area.Y, area.Width - ListWidth - 8, area.Height);
+        return new Rectangle(area.X + ListWidth + ColumnGap, area.Y, area.Width - ListWidth - ColumnGap, area.Height);
     }
 
     private static void DrawActionButton(SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover)

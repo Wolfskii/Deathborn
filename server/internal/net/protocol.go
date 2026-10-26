@@ -46,9 +46,12 @@ type CastFireballData struct {
 
 // CastSpellData is sent when the player casts a spell from the hotbar.
 type CastSpellData struct {
-	SpellID string  `json:"spellId"`
-	DirX    float64 `json:"dirX"`
-	DirY    float64 `json:"dirY"`
+	// StartX/StartY are the client position the dash began from (optional).
+	StartX  *float64 `json:"startX,omitempty"`
+	StartY  *float64 `json:"startY,omitempty"`
+	SpellID string   `json:"spellId"`
+	DirX    float64  `json:"dirX"`
+	DirY    float64  `json:"dirY"`
 }
 
 // PlayerActionSendData is sent when the player performs a visible action.
@@ -250,14 +253,14 @@ type GatherSendData struct {
 
 // GatherResultData tells the gatherer what they got.
 type GatherResultData struct {
-	NodeID    int64   `json:"nodeId"`
-	ItemID    string  `json:"itemId"`
-	Count     int     `json:"count"`
-	Skill     string  `json:"skill"`
-	Xp        int64   `json:"xp"`
-	Level     int     `json:"level"`
-	LeveledUp bool    `json:"leveledUp"`
-	Depleted  bool    `json:"depleted"`
+	NodeID    int64  `json:"nodeId"`
+	ItemID    string `json:"itemId"`
+	Count     int    `json:"count"`
+	Skill     string `json:"skill"`
+	Xp        int64  `json:"xp"`
+	Level     int    `json:"level"`
+	LeveledUp bool   `json:"leveledUp"`
+	Depleted  bool   `json:"depleted"`
 }
 
 // NodeStateData tells everyone a resource node is depleted or available again.

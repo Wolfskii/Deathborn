@@ -338,10 +338,14 @@ public sealed class GameClient : IDisposable
 
     public void SendCastFireball(float dirX, float dirY) => SendCastSpell("fireball", dirX, dirY);
 
-    public void SendCastSpell(string spellId, float dirX, float dirY)
+    /// <summary>
+    /// Casts a spell. startX/startY (optional) is where the local player was when a
+    /// dash began, so the server lands the dash where the client showed it.
+    /// </summary>
+    public void SendCastSpell(string spellId, float dirX, float dirY, float? startX = null, float? startY = null)
     {
         if (LocalCharacterId < 0 || string.IsNullOrEmpty(spellId)) return;
-        Send("cast_spell", new { spellId, dirX, dirY });
+        Send("cast_spell", new { spellId, dirX, dirY, startX, startY });
     }
 
     public void SendPlayerAction(string action, float dirX = 0, float dirY = 0, string? targetId = null)

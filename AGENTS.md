@@ -25,6 +25,34 @@ Client-only presentation (cooldowns, names, VFX timing) may stay in `AbilityCata
 - **Mob and boss loot:** `npcDef.drops` and the shared `bossLoot` table in `game/loot_tables.go`. Loot rolls on the killing blow in `net/mob_loot.go` and lands as ground drops. Item ids must exist in `ItemCatalog.cs` (materials use `ItemKind.Produce`).
 - **Respawn:** killed mobs return 90 s later at their spawn point (`mobRespawn` in `npcs.go`). Bosses do not respawn here.
 
+## UI kit (Farm RPG chrome)
+
+All windows, menus, toasts and tooltips use `Rendering/FarmRpgUi.cs`, cut from the Farm RPG UI sheets in `Content/Ui/FarmRpg/` and drawn at whole-pixel scale.
+
+- **Panels:** `DrawWindowPanel` (full window, 2x frame), `DrawCompactPanel` (tooltips, toasts, menus, buff cards), `DrawInsetPanel` (recessed wells for lists and logs).
+- **Titles and rules:** `DrawTitlePlate` (pill on a window's top edge), `DrawSectionHeader` (label plus rule), `DrawDivider` (ornamental rule).
+- **Controls:** `DrawButton` (tan, or rose for danger; `ButtonHeight` = 32), `DrawIconButton` / `DrawCloseButton`, `DrawToggle` (checkbox), `DrawSlider`, `DrawBar`, `DrawScrollbar`.
+- **Spacing:** use `Gap`, `SectionGap` and `ButtonHeight` rather than new magic numbers. Windows get 20px side padding from `UiWindow`.
+- **Text:** draw through `Rendering/UiText.cs` (`Draw`, `DrawRight`, `DrawCentered`, `Wrap`, `Truncate`, `Number`). It filters characters the font lacks, and `Number` formats with the invariant culture (OS-locale separators crashed the font before). Wrap or truncate anything that can be long; never let text run past a panel.
+- **Windows:** subclass `Ui/UiWindow.cs`. Override `MeasureContentHeight` to size the window to its content, and `DrawOverlay` for hover tooltips (`Ui/UiTooltip.cs`).
+- **Toasts:** `GameNotificationOverlay.Push` merges repeats of the same title and subtitle into one card with a count, so pushing on every event is fine.
+- **Zone banner:** `WorldScreen.UpdateZonePresence` only switches zones after `ZoneSettleSeconds` and announces a zone at most once per `ZoneRepeatCooldownSeconds`.
+
+### Previewing UI without a server
+
+Set `DEATHBORN_UI_PREVIEW` to a folder and run a Debug build. The client draws every window and overlay with sample data into PNGs and exits (`Dev/UiPreview.cs`):
+
+```bash
+cd client/Deathborn.Client && dotnet build -c Debug
+cd bin/Debug/net8.0 && DEATHBORN_UI_PREVIEW="C:/temp/ui" DEATHBORN_SKIP_UPDATE=1 dotnet Deathborn.Client.dll
+```
+
+Add a scene there when you add a window or overlay.
+
+### Material icons
+
+`scripts/install_farm_rpg_materials.py` crops icons for logs, ores, bars and mob loot into `Content/Icons/materials/` and registers them; `Rendering/MaterialIconAtlas.cs` loads them. Add new material item ids to both.
+
 ## Asset drop zone (`import/`)
 
 Repo-root [`import/`](import/) is the **staging inbox** for raw drops: sound effects, music, sprites, tiles, fonts, UI art, etc.

@@ -16,8 +16,18 @@ public static class SpriteFontSafe
         {
             if (c is >= (char)32 and <= (char)126)
                 sb.Append(c);
-            else if (c is '\n' or '\r' or '\t')
+            else if (c is '\n' or '\r' or '\t' or ' ' or ' ' or ' ')
                 sb.Append(' ');
+            else if (c is '—' or '–' or '−')
+                sb.Append('-');
+            else if (c is '‘' or '’')
+                sb.Append('\'');
+            else if (c is '“' or '”')
+                sb.Append('"');
+            else if (c == '…')
+                sb.Append("...");
+            else if (c == '·')
+                sb.Append('-');
         }
         return sb.ToString();
     }

@@ -515,6 +515,9 @@ func (c *Client) readPump(database *db.DB) {
 				dirX, dirY = cardinalDir(dirX, dirY)
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "whirlwind", dirX, dirY, ""))
 			case "warrior_dash":
+				if d.StartX != nil && d.StartY != nil {
+					c.hub.world.AdoptDashStart(c.characterID, *d.StartX, *d.StartY, dashStartMaxDrift)
+				}
 				c.hub.world.DashPlayer(c.characterID, dirX, dirY, game.AbilityHitRange("warrior_dash"))
 				c.hub.Broadcast(BuildPlayerAction(c.characterID, "warrior_dash", dirX, dirY, ""))
 			default:
@@ -1247,3 +1250,7 @@ func (c *Client) writePump() {
 		}
 	}
 }
+
+// dashStartMaxDrift is how far the client's dash start may sit from the server
+// position and still be accepted (covers a round trip of walking).
+const dashStartMaxDrift = 48.0

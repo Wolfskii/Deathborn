@@ -29,62 +29,38 @@ public sealed class ServerDisconnectOverlay
 
     public void Draw(SpriteBatch sb, SpriteFont font)
     {
+        const int pad = 28;
         var vw = GameViewport.Width;
         var vh = GameViewport.Height;
+        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, vw, vh), new Color(0, 0, 0, 0.5f));
 
-        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, vw, vh), new Color(0, 0, 0, 0.55f));
+        var width = Math.Min(460, vw - 32);
+        var textW = width - pad * 2;
+        var message = UiText.Wrap(font, _message, textW);
+        var hint = UiText.Wrap(font, "Your progress was saved. Log in again when the realm returns.", textW);
+        var height = 56 + message.Count * font.LineSpacing + 10 + hint.Count * font.LineSpacing
+            + FarmRpgUi.SectionGap + FarmRpgUi.ButtonHeight + 24;
+        _panel = new Rectangle(vw / 2 - width / 2, vh / 2 - height / 2, width, height);
 
-        _panel = new Rectangle(vw / 2 - 220, vh / 2 - 110, 440, 200);
-        DrawPrimitives.FillRect(sb, _panel, new Color(18, 16, 24, 235));
-        DrawPrimitives.FillRect(sb, new Rectangle(_panel.X, _panel.Y, _panel.Width, 2), new Color(180, 90, 90));
-        DrawPrimitives.FillRect(sb, new Rectangle(_panel.X, _panel.Bottom - 2, _panel.Width, 2), new Color(80, 45, 45));
+        FarmRpgUi.DrawWindowPanel(sb, _panel);
+        FarmRpgUi.DrawTitlePlate(sb, font, "Disconnected", _panel.Center.X, _panel.Y + 12);
 
-        var title = "Server disconnected";
-        var titleSize = font.MeasureString(title);
-        sb.DrawString(font, title, new Vector2(_panel.Center.X - titleSize.X / 2f, _panel.Y + 20), new Color(235, 200, 200));
-
-        DrawWrapped(sb, font, _message, new Rectangle(_panel.X + 24, _panel.Y + 52, _panel.Width - 48, 56),
-            new Color(185, 175, 170));
-
-        var hint = "Your progress was saved. Log in again when the realm returns.";
-        var hintSize = font.MeasureString(hint);
-        sb.DrawString(font, hint, new Vector2(_panel.Center.X - hintSize.X / 2f, _panel.Y + 112), new Color(140, 135, 145));
-
-        _button = new Rectangle(_panel.Center.X - 120, _panel.Bottom - 48, 240, 36);
-        var btnFill = _hover ? new Color(72, 42, 42) : new Color(48, 30, 30);
-        DrawPrimitives.FillRect(sb, _button, btnFill);
-        DrawPrimitives.FillRect(sb, new Rectangle(_button.X, _button.Y, _button.Width, 2), new Color(200, 130, 95));
-        var label = "Return to login";
-        var labelSize = font.MeasureString(label);
-        sb.DrawString(font, label, new Vector2(_button.Center.X - labelSize.X / 2f, _button.Center.Y - labelSize.Y / 2f),
-            new Color(245, 230, 210));
-    }
-
-    private static void DrawWrapped(SpriteBatch sb, SpriteFont font, string text, Rectangle bounds, Color color)
-    {
-        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length == 0)
-            return;
-
-        var line = words[0];
-        var y = bounds.Y;
-        for (var i = 1; i < words.Length; i++)
+        var y = _panel.Y + 56;
+        foreach (var line in message)
         {
-            var next = line + " " + words[i];
-            if (font.MeasureString(next).X > bounds.Width)
-            {
-                var size = font.MeasureString(line);
-                sb.DrawString(font, line, new Vector2(bounds.X + (bounds.Width - size.X) / 2f, y), color);
-                y += font.LineSpacing;
-                line = words[i];
-            }
-            else
-            {
-                line = next;
-            }
+            UiText.DrawCentered(sb, font, line, new Rectangle(_panel.X, y, _panel.Width, font.LineSpacing), FarmRpgUi.Ink);
+            y += font.LineSpacing;
+        }
+        y += 10;
+        foreach (var line in hint)
+        {
+            UiText.DrawCentered(sb, font, line, new Rectangle(_panel.X, y, _panel.Width, font.LineSpacing), FarmRpgUi.InkMuted);
+            y += font.LineSpacing;
         }
 
-        var lastSize = font.MeasureString(line);
-        sb.DrawString(font, line, new Vector2(bounds.X + (bounds.Width - lastSize.X) / 2f, y), color);
+        _button = new Rectangle(_panel.Center.X - 120, _panel.Bottom - 24 - FarmRpgUi.ButtonHeight, 240, FarmRpgUi.ButtonHeight);
+        FarmRpgUi.DrawButton(sb, _button, pressed: _hover);
+        var textArea = _hover ? new Rectangle(_button.X, _button.Y + 2, _button.Width, _button.Height - 2) : _button;
+        UiText.DrawCentered(sb, font, "Return to login", textArea, FarmRpgUi.Ink);
     }
 }

@@ -5,17 +5,20 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Ui;
 
-/// <summary>Draggable OS-style UI window with title bar, close button, and optional shortcut.</summary>
+/// <summary>
+/// Draggable window: Farm RPG paper frame, a title plate on the top edge, a close
+/// button, and an optional shortcut key. Subclasses draw inside <see cref="ContentBounds"/>.
+/// </summary>
 public abstract class UiWindow
 {
-    protected static readonly Color PanelFill = new(250, 181, 140);
     protected static readonly Color PanelBorder = FarmRpgUi.Ink;
-    protected static readonly Color TitleFill = new(231, 140, 96);
     protected static readonly Color GoldDim = FarmRpgUi.InkMuted;
 
-    private const int TitleBarHeight = 44;
-    private const int CloseSize = 24;
-    private const int Border = 8;
+    /// <summary>Height of the strip at the top that holds the title and drags the window.</summary>
+    private const int HeaderHeight = 52;
+    private const int SidePadding = 20;
+    private const int BottomPadding = 20;
+    private const int TitleTop = 11;
     private const int ViewportPad = 8;
 
     private bool _dragging;
@@ -29,17 +32,26 @@ public abstract class UiWindow
     public Rectangle Bounds { get; private set; }
     public Action? OnBringToFront;
 
-    private Rectangle TitleBar => new(Bounds.X, Bounds.Y, Bounds.Width, TitleBarHeight);
-    private Rectangle CloseButton => new(
-        Bounds.Right - CloseSize - 6,
-        Bounds.Y + (TitleBarHeight - CloseSize) / 2,
-        CloseSize,
-        CloseSize);
+    private Rectangle HeaderBar => new(Bounds.X, Bounds.Y, Bounds.Width, HeaderHeight);
+
+    private Rectangle CloseButton
+    {
+        get
+        {
+            var size = FarmRpgUi.IconButtonSize;
+            return new Rectangle(Bounds.Right - size.X - 14, Bounds.Y + TitleTop, size.X, size.Y);
+        }
+    }
+
+    /// <summary>Area for window content, inside the frame and below the title.</summary>
     protected Rectangle ContentBounds => new(
-        Bounds.X + Border,
-        Bounds.Y + TitleBarHeight + 4,
-        Math.Max(1, Bounds.Width - Border * 2),
-        Math.Max(1, Bounds.Height - TitleBarHeight - Border - 4));
+        Bounds.X + SidePadding,
+        Bounds.Y + HeaderHeight,
+        Math.Max(1, Bounds.Width - SidePadding * 2),
+        Math.Max(1, Bounds.Height - HeaderHeight - BottomPadding));
+
+    /// <summary>Window height needed for <paramref name="contentHeight"/> pixels of content.</summary>
+    protected static int HeightForContent(int contentHeight) => HeaderHeight + contentHeight + BottomPadding;
 
     protected UiWindow(string title, int width, int height, Keys? shortcutKey, Point defaultPosition)
     {
@@ -71,6 +83,21 @@ public abstract class UiWindow
         _dragging = false;
     }
 
+    /// <summary>Moves the window's top-left corner, kept inside the viewport.</summary>
+    public void MoveTo(Point topLeft)
+    {
+        Bounds = new Rectangle(topLeft.X, topLeft.Y, Bounds.Width, Bounds.Height);
+        ClampToViewport();
+    }
+
+    /// <summary>Changes the window height (content that grows or shrinks), keeping it on screen.</summary>
+    protected void SetHeight(int height)
+    {
+        if (height == Bounds.Height) return;
+        Bounds = new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, Math.Min(height, GameViewport.Height - ViewportPad * 2));
+        ClampToViewport();
+    }
+
     /// <returns>True when this window wants mouse input (open and cursor over bounds).</returns>
     public bool Update(MouseState mouse, MouseState prevMouse, KeyboardState kb, KeyboardState prevKb, bool allowShortcut)
     {
@@ -93,10 +120,14 @@ public abstract class UiWindow
                 return true;
             }
 
-            if (TitleBar.Contains(pos) && !CloseButton.Contains(pos))
+            if (HeaderBar.Contains(pos))
             {
                 _dragging = true;
                 _dragMouseOffset = new Point(pos.X - Bounds.X, pos.Y - Bounds.Y);
+                OnBringToFront?.Invoke();
+            }
+            else if (Bounds.Contains(pos))
+            {
                 OnBringToFront?.Invoke();
             }
         }
@@ -125,62 +156,26 @@ public abstract class UiWindow
     {
         if (!IsOpen) return;
 
-        if (FarmRpgUi.IsLoaded)
-        {
-            FarmRpgUi.DrawWindowPanel(sb, Bounds);
-            var close = CloseButton;
-            var ribbonW = Math.Max(80, close.X - Bounds.X - 20);
-            var ribbon = new Rectangle(Bounds.X + 10, Bounds.Y + 8, ribbonW, 32);
-            FarmRpgUi.DrawTitle(sb, ribbon);
-            var titleSize = font.MeasureString(Title);
-            var titlePos = new Vector2(
-                ribbon.X + (ribbon.Width - titleSize.X) * 0.5f,
-                ribbon.Y + (ribbon.Height - titleSize.Y) * 0.5f);
-            sb.DrawString(font, Title, titlePos, FarmRpgUi.Ink);
+        if (MeasureContentHeight(font) is int contentHeight)
+            SetHeight(HeightForContent(contentHeight));
 
-            var hover = close.Contains(Mouse.GetState().Position);
-            FarmRpgUi.DrawCloseButton(sb, close, hover);
-            DrawContent(sb, font, ContentBounds);
-            return;
-        }
+        FarmRpgUi.DrawWindowPanel(sb, Bounds);
+        FarmRpgUi.DrawTitlePlate(sb, font, Title, Bounds.Center.X, Bounds.Y + TitleTop);
 
-        DrawPrimitives.FillRect(sb, Bounds, PanelFill);
-        DrawBorder(sb, Bounds, PanelBorder, Border);
-
-        DrawPrimitives.FillRect(sb, TitleBar, TitleFill);
-        DrawBorder(sb, TitleBar, GoldDim, 1);
-
-        var legacyTitlePos = new Vector2(Bounds.X + 10, Bounds.Y + 6);
-        sb.DrawString(font, Title, legacyTitlePos, PanelBorder);
-
-        DrawCloseButton(sb, font, CloseButton, CloseButton.Contains(Mouse.GetState().Position));
+        var close = CloseButton;
+        FarmRpgUi.DrawCloseButton(sb, close, close.Contains(Mouse.GetState().Position));
 
         DrawContent(sb, font, ContentBounds);
+        DrawOverlay(sb, font);
     }
 
-    private static void DrawCloseGlyph(SpriteBatch sb, Rectangle rect, bool hover)
-    {
-        var pad = Math.Max(5, rect.Width / 5);
-        var x = rect.X + pad;
-        var y = rect.Y + pad;
-        var col = hover ? Color.White : new Color(255, 230, 220);
-        var thick = Math.Max(1.5f, rect.Width / 14f);
-        DrawPrimitives.DrawLine(sb, new Vector2(x, y), new Vector2(rect.Right - pad, rect.Bottom - pad), col, thick);
-        DrawPrimitives.DrawLine(sb, new Vector2(rect.Right - pad, y), new Vector2(x, rect.Bottom - pad), col, thick);
-    }
+    /// <summary>Content height for windows that size themselves to their content; null keeps the fixed height.</summary>
+    protected virtual int? MeasureContentHeight(SpriteFont font) => null;
 
-    private void DrawCloseButton(SpriteBatch sb, SpriteFont font, Rectangle rect, bool hover)
-    {
-        var bg = hover ? new Color(120, 45, 40) : new Color(55, 40, 38);
-        DrawPrimitives.FillRect(sb, rect, bg);
-        DrawBorder(sb, rect, hover ? new Color(240, 180, 120) : GoldDim, 1);
+    protected abstract void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle contentArea);
 
-        var x = rect.X + 4;
-        var y = rect.Y + 4;
-        var col = Color.White;
-        DrawPrimitives.DrawLine(sb, new Vector2(x, y), new Vector2(rect.Right - 4, rect.Bottom - 4), col, 2f);
-        DrawPrimitives.DrawLine(sb, new Vector2(rect.Right - 4, y), new Vector2(x, rect.Bottom - 4), col, 2f);
-    }
+    /// <summary>Drawn after the content, for hover tooltips that may extend past the window.</summary>
+    protected virtual void DrawOverlay(SpriteBatch sb, SpriteFont font) { }
 
     protected static void DrawBorder(SpriteBatch sb, Rectangle rect, Color color, int thickness)
     {
@@ -190,51 +185,29 @@ public abstract class UiWindow
         DrawPrimitives.FillRect(sb, new Rectangle(rect.Right - thickness, rect.Y, thickness, rect.Height), color);
     }
 
+    /// <summary>Height used by <see cref="DrawStatBar"/> for one labelled bar.</summary>
+    protected static int StatBarHeight(SpriteFont font, int barHeight = 10) => font.LineSpacing + 4 + barHeight;
+
+    /// <summary>Label on the left, value on the right, bar underneath.</summary>
     protected static void DrawStatBar(
         SpriteBatch sb, SpriteFont font, Rectangle area, string label, float current, float max, Color fill,
-        string? valueText = null, int barHeight = 14)
+        string? valueText = null, int barHeight = 10)
     {
-        sb.DrawString(font, label, new Vector2(area.X, area.Y), FarmRpgUi.Ink);
+        UiText.Draw(sb, font, label, new Vector2(area.X, area.Y), FarmRpgUi.Ink);
+        var text = valueText ?? $"{(int)current} / {(int)max}";
+        UiText.DrawRight(sb, font, text, area.Right, area.Y, FarmRpgUi.InkMuted);
 
-        var text = valueText ?? $"{(int)current}/{(int)max}";
-        var size = font.MeasureString(text);
-        sb.DrawString(font, text, new Vector2(area.Right - size.X, area.Y), FarmRpgUi.InkMuted);
-
-        var barY = area.Y + font.LineSpacing + 2;
-        var bar = new Rectangle(area.X, (int)barY, area.Width, barHeight);
-        if (FarmRpgUi.IsLoaded)
-        {
-            FarmRpgUi.DrawBar(sb, bar, max > 0f ? current / max : 0f, fill);
-            return;
-        }
-
-        DrawPrimitives.FillRect(sb, bar, new Color(18, 16, 14));
-        DrawBorder(sb, bar, GoldDim, 1);
-
-        var pct = max > 0f ? MathHelper.Clamp(current / max, 0f, 1f) : 0f;
-        var fillW = (int)((bar.Width - 2) * pct);
-        if (fillW > 0)
-            DrawPrimitives.FillRect(sb, new Rectangle(bar.X + 1, bar.Y + 1, fillW, bar.Height - 2), fill);
+        var bar = new Rectangle(area.X, area.Y + font.LineSpacing + 4, area.Width, barHeight);
+        FarmRpgUi.DrawBar(sb, bar, max > 0f ? current / max : 0f, fill);
     }
-
-    protected abstract void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle contentArea);
 
     protected static void DrawThemedButton(
         SpriteBatch sb, SpriteFont font, Rectangle rect, string label, bool hover, bool enabled = true, bool danger = false)
     {
-        if (FarmRpgUi.IsLoaded)
-            FarmRpgUi.DrawButton(sb, rect, pressed: hover && enabled, disabled: !enabled, danger: danger);
-        else
-        {
-            DrawPrimitives.FillRect(sb, rect,
-                !enabled ? new Color(50, 45, 40) : hover ? new Color(90, 72, 38) : new Color(55, 45, 28));
-            DrawBorder(sb, rect, GoldDim, 1);
-        }
-
-        var size = font.MeasureString(label);
-        sb.DrawString(font, label,
-            new Vector2(rect.X + (rect.Width - size.X) * 0.5f, rect.Y + (rect.Height - size.Y) * 0.5f),
-            enabled ? FarmRpgUi.Ink : new Color(130, 105, 95));
+        var pressed = hover && enabled;
+        FarmRpgUi.DrawButton(sb, rect, pressed: pressed, disabled: !enabled, danger: danger);
+        var textArea = pressed ? new Rectangle(rect.X, rect.Y + 2, rect.Width, rect.Height - 2) : rect;
+        UiText.DrawCentered(sb, font, label, textArea, enabled ? FarmRpgUi.Ink : FarmRpgUi.InkFaint);
     }
 
     private void ClampToViewport()

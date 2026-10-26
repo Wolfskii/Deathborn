@@ -17,20 +17,20 @@ const runSpeed = 195.0
 // World is the authoritative set of players and their positions. All access is
 // guarded by a mutex so client read goroutines and the tick loop are safe.
 type World struct {
-	mu       sync.RWMutex
-	players  map[int64]*player
-	speed    float64
-	runSpeed float64
-	terrain  *worldmap.Map
-	zones    *ZoneIndex
-	bossMgr  *bossManager
-	mobMgr   *mobManager
+	mu        sync.RWMutex
+	players   map[int64]*player
+	speed     float64
+	runSpeed  float64
+	terrain   *worldmap.Map
+	zones     *ZoneIndex
+	bossMgr   *bossManager
+	mobMgr    *mobManager
 	nodes     map[int64]*resourceNode
 	nodeClock float64
-	housing  *HousingIndex
-	drops    *WorldDropIndex
-	houseRev uint64
-	dropRev  uint64
+	housing   *HousingIndex
+	drops     *WorldDropIndex
+	houseRev  uint64
+	dropRev   uint64
 }
 
 func NewWorld(terrain *worldmap.Map) *World {
@@ -239,6 +239,24 @@ func (w *World) TickBuffs(dt float64) []BuffEvent {
 	return w.tickPlayerBuffs(dt)
 }
 
+// AdoptDashStart moves a player to the point their client dashed from, when that
+// point is within maxDrift of the server position and walkable. Without this the
+// server dash starts from a few pixels behind the client and the landing spot
+// differs, which shows up as the player sliding back after the charge.
+func (w *World) AdoptDashStart(id int64, x, y, maxDrift float64) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, ok := w.players[id]
+	if !ok || p.dead || p.insideHouseID > 0 {
+		return false
+	}
+	if math.Hypot(p.x-x, p.y-y) > maxDrift || !w.CanWalk(x, y) {
+		return false
+	}
+	p.x, p.y = x, y
+	return true
+}
+
 // DashPlayer moves a player forward along dir, respecting terrain collision.
 func (w *World) DashPlayer(id int64, dirX, dirY, distance float64) (newX, newY float64, ok bool) {
 	w.mu.Lock()
@@ -253,7 +271,6 @@ func (w *World) DashPlayer(id int64, dirX, dirY, distance float64) (newX, newY f
 	} else {
 		dirX, dirY = 0, 1
 	}
-	p.dirX, p.dirY = dirX, dirY
 	dx := dirX * distance
 	dy := dirY * distance
 	if p.insideHouseID > 0 && w.housing != nil {

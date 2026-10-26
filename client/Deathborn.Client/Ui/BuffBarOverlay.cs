@@ -7,167 +7,106 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Ui;
 
-/// <summary>Draggable panel listing active buffs with countdown and descriptions.</summary>
+/// <summary>
+/// Active buffs as compact cards under the player HUD: icon, name, time left and a
+/// thin bar. The description shows on hover. Drag any card to move the stack.
+/// </summary>
 public sealed class BuffBarOverlay
 {
-    private const int TitleHeight = 30;
-    private const int RowHeight = 64;
-    private const int RowGap = 6;
-    private const int Pad = 8;
-    private const int RowInnerPad = 8;
-    private const int AccentWidth = 4;
-    private const int BarHeight = 14;
-    private const int BarGapAbove = 6;
-    private const int Width = 248;
+    private const int CardWidth = 220;
+    private const int CardHeight = 52;
+    private const int CardGap = 8;
+    private const int Pad = 10;
+    private const int IconSize = 32;
+    private const int BarHeight = 6;
 
     private bool _dragging;
     private Point _dragOffset;
-    private Rectangle _bounds;
+    private Point _origin = new((int)Config.BuffBarDefaultX, (int)Config.BuffBarDefaultY);
+    private Point _mouse;
 
-    public BuffBarOverlay()
-    {
-        _bounds = new Rectangle((int)Config.BuffBarDefaultX, (int)Config.BuffBarDefaultY, Width, TitleHeight + Pad);
-    }
+    private Rectangle StackBounds(int count) => count <= 0
+        ? Rectangle.Empty
+        : new Rectangle(_origin.X, _origin.Y, CardWidth, count * CardHeight + (count - 1) * CardGap);
 
+    /// <returns>True when the cursor is over the cards (blocks world clicks).</returns>
     public bool Update(MouseState mouse, MouseState prevMouse, BuffTracker tracker)
     {
-        var titleBar = new Rectangle(_bounds.X, _bounds.Y, _bounds.Width, TitleHeight);
-        var captures = false;
+        _mouse = mouse.Position;
+        var bounds = StackBounds(tracker.Active.Count);
+        if (bounds.IsEmpty)
+        {
+            _dragging = false;
+            return false;
+        }
 
         if (mouse.LeftButton == ButtonState.Pressed && prevMouse.LeftButton == ButtonState.Released
-            && titleBar.Contains(mouse.Position))
+            && bounds.Contains(mouse.Position))
         {
             _dragging = true;
-            _dragOffset = new Point(mouse.X - _bounds.X, mouse.Y - _bounds.Y);
+            _dragOffset = new Point(mouse.X - _origin.X, mouse.Y - _origin.Y);
         }
 
         if (_dragging)
         {
             if (mouse.LeftButton == ButtonState.Pressed)
             {
-                _bounds = new Rectangle(mouse.X - _dragOffset.X, mouse.Y - _dragOffset.Y, _bounds.Width, _bounds.Height);
-                ClampToViewport();
+                var x = Math.Clamp(mouse.X - _dragOffset.X, 0, Math.Max(0, GameViewport.Width - bounds.Width));
+                var y = Math.Clamp(mouse.Y - _dragOffset.Y, 0, Math.Max(0, GameViewport.Height - bounds.Height));
+                _origin = new Point(x, y);
             }
             else _dragging = false;
-            captures = true;
         }
 
-        ResizeForBuffCount(tracker.Active.Count);
-        return captures && _bounds.Contains(mouse.Position);
+        return _dragging || bounds.Contains(mouse.Position);
     }
 
     public void Draw(SpriteBatch sb, SpriteFont font, BuffTracker tracker)
     {
-        if (tracker.Active.Count == 0) return;
+        var count = tracker.Active.Count;
+        if (count == 0) return;
 
-        ResizeForBuffCount(tracker.Active.Count);
-
-        FarmRpgUi.DrawWindowPanel(sb, _bounds, 0.95f);
-
-        var titleBar = new Rectangle(_bounds.X + Pad, _bounds.Y + 4, _bounds.Width - Pad * 2, TitleHeight - 6);
-        FarmRpgUi.DrawTitle(sb, titleBar, 0.95f);
-        sb.DrawString(font, "Buffs", new Vector2(titleBar.X + 8, titleBar.Y + 4), FarmRpgUi.Ink);
-
-        var y = _bounds.Y + TitleHeight + Pad;
+        ActiveBuff? hovered = null;
+        var hoverRect = Rectangle.Empty;
+        var y = _origin.Y;
         foreach (var buff in tracker.Active)
         {
-            var row = new Rectangle(_bounds.X + Pad, y, _bounds.Width - Pad * 2, RowHeight);
-            var (name, desc, tint) = BuffCatalog.Describe(buff.Id);
-
-            FarmRpgUi.DrawInsetPanel(sb, row, 0.92f);
-            DrawPrimitives.FillRect(sb,
-                new Rectangle(row.X + 6, row.Y + 6, AccentWidth, row.Height - 12), tint * 0.9f);
-
-            var textLeft = row.X + AccentWidth + RowInnerPad + 4;
-            var textTop = row.Y + RowInnerPad;
-            var time = FormatRemaining(buff.Remaining);
-            var timeRight = row.Right - RowInnerPad;
-
-            sb.DrawString(font, name, new Vector2(textLeft, textTop), FarmRpgUi.Ink);
-            DrawFixedWidthTimer(sb, font, time, timeRight, textTop, FarmRpgUi.Rust);
-
-            var descY = textTop + font.LineSpacing + 2;
-            sb.DrawString(font, desc, new Vector2(textLeft, descY), FarmRpgUi.InkMuted);
-
-            var barY = row.Bottom - RowInnerPad - BarHeight;
-            // Keep the timer bar below description text (not through it).
-            var minBarY = descY + font.LineSpacing + BarGapAbove;
-            if (barY < minBarY)
-                barY = minBarY;
-
-            var bar = new Rectangle(textLeft, barY, row.Right - RowInnerPad - textLeft, BarHeight);
-            var pct = buff.Duration > 0f ? buff.Remaining / buff.Duration : 0f;
-            FarmRpgUi.DrawBar(sb, bar, pct, tint * 0.85f);
-
-            y += RowHeight + RowGap;
+            var card = new Rectangle(_origin.X, y, CardWidth, CardHeight);
+            DrawCard(sb, font, buff, card);
+            if (!_dragging && card.Contains(_mouse))
+            {
+                hovered = buff;
+                hoverRect = card;
+            }
+            y += CardHeight + CardGap;
         }
-    }
 
-    /// <summary>Minutes:seconds for long buffs (e.g. 9:45); bare seconds under one minute.</summary>
-    private static string FormatRemaining(float seconds)
-    {
-        seconds = MathF.Max(0f, seconds);
-        if (seconds >= 60f)
+        if (hovered != null)
         {
-            var total = (int)MathF.Floor(seconds);
-            var m = total / 60;
-            var s = total % 60;
-            return $"{m}:{s:00}";
-        }
-
-        return seconds >= 1f ? $"{seconds:0}s" : $"{seconds:0.0}s";
-    }
-
-    /// <summary>
-    /// Draw timer glyphs in fixed-width cells anchored to the right so proportional
-    /// digit widths (and 9:59 → 10:00) don't shift the label horizontally.
-    /// </summary>
-    private static void DrawFixedWidthTimer(
-        SpriteBatch sb, SpriteFont font, string time, float rightX, float y, Color color)
-    {
-        EnsureDigitMetrics(font);
-        var x = rightX;
-        for (var i = time.Length - 1; i >= 0; i--)
-        {
-            var ch = time[i];
-            var cell = ch is ':' or '.' or 's' ? _specialWidth : _digitWidth;
-            x -= cell;
-            var glyph = ch.ToString();
-            var gw = font.MeasureString(glyph).X;
-            sb.DrawString(font, glyph, new Vector2(x + (cell - gw) * 0.5f, y), color);
+            var (name, desc, _) = BuffCatalog.Describe(hovered.Id);
+            UiTooltip.Draw(sb, font, name, [desc, $"{UiText.Duration(hovered.Remaining)} remaining"],
+                hoverRect, new Point(GameViewport.Width, GameViewport.Height));
         }
     }
 
-    private static float _digitWidth;
-    private static float _specialWidth;
-    private static SpriteFont? _metricsFont;
-
-    private static void EnsureDigitMetrics(SpriteFont font)
+    private static void DrawCard(SpriteBatch sb, SpriteFont font, ActiveBuff buff, Rectangle card)
     {
-        if (ReferenceEquals(_metricsFont, font) && _digitWidth > 0f)
-            return;
+        var (name, _, tint) = BuffCatalog.Describe(buff.Id);
+        FarmRpgUi.DrawCompactPanel(sb, card, 0.97f);
 
-        _metricsFont = font;
-        _digitWidth = 0f;
-        for (var d = 0; d <= 9; d++)
-            _digitWidth = MathF.Max(_digitWidth, font.MeasureString(d.ToString()).X);
-        _digitWidth = MathF.Ceiling(_digitWidth);
-        _specialWidth = MathF.Ceiling(MathF.Max(
-            font.MeasureString(":").X,
-            MathF.Max(font.MeasureString(".").X, font.MeasureString("s").X)));
-    }
+        var icon = new Rectangle(card.X + Pad, card.Y + (card.Height - IconSize) / 2, IconSize, IconSize);
+        HotbarIconDraw.Draw(sb, buff.Id, icon);
 
-    private void ResizeForBuffCount(int count)
-    {
-        if (count <= 0) return;
-        var h = TitleHeight + Pad + count * RowHeight + Math.Max(0, count - 1) * RowGap + Pad;
-        _bounds = new Rectangle(_bounds.X, _bounds.Y, Width, h);
-    }
+        var textX = icon.Right + 10;
+        var right = card.Right - Pad - 2;
+        var top = card.Y + Pad - 1;
+        var time = UiText.Duration(buff.Remaining);
+        var timeW = UiText.Measure(font, time).X;
+        UiText.Draw(sb, font, UiText.Truncate(font, name, right - textX - timeW - 8), new Vector2(textX, top), FarmRpgUi.Ink);
+        UiText.DrawRight(sb, font, time, right, top, FarmRpgUi.Rust);
 
-    private void ClampToViewport()
-    {
-        var x = Math.Clamp(_bounds.X, 0, Math.Max(0, GameViewport.Width - _bounds.Width));
-        var y = Math.Clamp(_bounds.Y, 0, Math.Max(0, GameViewport.Height - _bounds.Height));
-        _bounds = new Rectangle(x, y, _bounds.Width, _bounds.Height);
+        var bar = new Rectangle(textX, card.Bottom - Pad - BarHeight, right - textX, BarHeight);
+        var pct = buff.Duration > 0f ? buff.Remaining / buff.Duration : 0f;
+        FarmRpgUi.DrawBar(sb, bar, pct, tint);
     }
 }

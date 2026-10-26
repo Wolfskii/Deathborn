@@ -138,6 +138,12 @@ public sealed class DeathbornGame : Game
         Font = Content.Load<SpriteFont>("Fonts/Default");
         FontSmall = Content.Load<SpriteFont>("Fonts/Small");
         LoadGraphicsAssets();
+        if (Dev.UiPreview.OutputDir != null)
+        {
+            // Dev-only: render UI snapshots and quit before any screen or audio starts.
+            Dev.UiPreview.RenderAll(this);
+            Environment.Exit(0);
+        }
         AudioSettings.Load();
         MusicPlayer.ApplySavedSettings();
         SfxPlayer.Load(Content);
@@ -174,6 +180,7 @@ public sealed class DeathbornGame : Game
         FarmIconAtlas.Load(Content);
         FishIconAtlas.Load(Content);
         CookIconAtlas.Load(Content);
+        MaterialIconAtlas.Load(Content);
         FurnitureSprites.Load(Content);
         FishingFx.Load(Content);
         ProjectileSprites.Load(Content);

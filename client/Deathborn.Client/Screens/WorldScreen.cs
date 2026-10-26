@@ -427,7 +427,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         WorldClouds.Update(dt, WorldMap.SwaroviaMainland);
         WorldRain.Update(dt);
         DevPerfLog.Mark("zone");
-        UpdateZonePresence(localEntity);
+        UpdateZonePresence(localEntity, dt);
 
         DevPerfLog.Mark("hud");
         var decorateActive = _housingDecorate.IsActive;
@@ -2043,9 +2043,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!TryPayAbilityCost("warrior_dash")) return false;
         if (!_players.TryGetValue(_screens.Net.LocalCharacterId, out var local)) return false;
         var dir = GetInputAimDirection();
+        var start = local.Position;
         if (!local.StartDash(dir, Config.WarriorDashDistance, Config.WarriorDashDuration)) return false;
-        _effects.Add(new DashTrailEffect(local.Position, dir, local.Id, Config.WarriorDashDuration));
-        _screens.Net.SendCastSpell("warrior_dash", dir.X, dir.Y);
+        _effects.Add(new DashTrailEffect(start, dir, local.Id, Config.WarriorDashDuration));
+        _screens.Net.SendCastSpell("warrior_dash", dir.X, dir.Y, start.X, start.Y);
         _status = "Charge!";
         return true;
     }
@@ -2306,8 +2307,19 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _screens.Net.SendAbilityHit(targetId, damage, ability);
     }
 
-    private void UpdateZonePresence(PlayerEntity? local)
+    /// <summary>A new zone must hold this long before it counts, so walking a border does not flicker.</summary>
+    private const float ZoneSettleSeconds = 0.8f;
+    /// <summary>The same zone is not announced again within this window.</summary>
+    private const float ZoneRepeatCooldownSeconds = 45f;
+
+    private string? _pendingZoneId;
+    private float _pendingZoneSeconds;
+    private float _zoneClock;
+    private readonly Dictionary<string, float> _zoneAnnouncedAt = new();
+
+    private void UpdateZonePresence(PlayerEntity? local, float dt)
     {
+        _zoneClock += dt;
         if (local == null || local.IsDead || _ghostMode) return;
 
         var localId = _screens.Net.LocalCharacterId;
@@ -2337,33 +2349,51 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             safe = false;
         }
 
-        _zoneBanner.SetPersistentZone(name, safe);
-
         if (!_zonePresenceInitialized)
         {
             _zonePresenceInitialized = true;
             _currentZoneId = id;
+            _zoneBanner.SetPersistentZone(name, safe);
             if (safe)
-                _zoneBanner.ShowEnter(name, "PvP disabled - safe haven");
+                AnnounceZone(id, name, safe, wasSafe: true);
             return;
         }
 
-        if (id == _currentZoneId) return;
+        if (id == _currentZoneId)
+        {
+            _pendingZoneId = null;
+            return;
+        }
+
+        if (id != _pendingZoneId)
+        {
+            _pendingZoneId = id;
+            _pendingZoneSeconds = 0f;
+            return;
+        }
+
+        _pendingZoneSeconds += dt;
+        if (_pendingZoneSeconds < ZoneSettleSeconds) return;
 
         var wasSafe = _currentZoneId != WorldZones.WildernessId;
         _currentZoneId = id;
+        _pendingZoneId = null;
+        _zoneBanner.SetPersistentZone(name, safe);
+        _status = safe ? $"Entered {name}. PvP is off." : "Left the safe zone. PvP is on.";
+        AnnounceZone(id, name, safe, wasSafe);
+    }
+
+    /// <summary>Shows the entry banner unless this zone was announced recently.</summary>
+    private void AnnounceZone(string id, string name, bool safe, bool wasSafe)
+    {
+        if (_zoneAnnouncedAt.TryGetValue(id, out var at) && _zoneClock - at < ZoneRepeatCooldownSeconds)
+            return;
+        _zoneAnnouncedAt[id] = _zoneClock;
 
         if (safe)
-        {
             _zoneBanner.ShowEnter(name, "PvP disabled - safe haven");
-            _status = $"Entered {name}. PvP is off.";
-        }
         else if (wasSafe)
-        {
             _zoneBanner.ShowEnter("The Wilderness", "PvP enabled - watch your back", wilderness: true);
-            _notifications.Push("The Wilderness", "PvP enabled — watch your back.", NotificationKind.Warning);
-            _status = "Left safe zone. PvP is enabled.";
-        }
     }
 
     private void OnSkillXpGain(SkillXpGainData data)
@@ -2878,7 +2908,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (data.Active)
         {
             _zoneBanner.ShowEnter(data.Name ?? "World Boss Event", "PvP disabled - unite to defeat the threat!", boss: true);
-            _notifications.Push(data.Name ?? "World Boss Event", "PvP off — unite to defeat the threat!", NotificationKind.Quest);
+            _notifications.Push(data.Name ?? "World Boss Event", "PvP is off - unite to defeat the threat!", NotificationKind.Quest);
             _status = "World boss event! PvP is off. Find the boss on your map.";
         }
         else if (prev is { Active: true, PvPOff: true })

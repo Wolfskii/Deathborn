@@ -39,6 +39,9 @@ public static class HotbarIconDraw
         if (CookIconAtlas.TryDraw(sb, spellId, bounds))
             return;
 
+        if (MaterialIconAtlas.TryDraw(sb, spellId, bounds))
+            return;
+
         if (TryDrawFarmWeapon(sb, spellId, bounds))
             return;
 

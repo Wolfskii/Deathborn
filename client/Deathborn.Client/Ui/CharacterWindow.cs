@@ -9,14 +9,8 @@ namespace Deathborn.Client.Ui;
 
 public sealed class CharacterWindow : UiWindow
 {
-    private const int Width = 240;
-    private const int ContentPad = 10;
-    private const int BarRowGap = 6;
-    private const int BarHeight = 16;
-    private const int SectionGap = 8;
-
-    // Sized for ~22px line spacing with slack at the bottom.
-    private const int Height = 320;
+    private const int Width = 320;
+    private const int BarRowGap = 14;
 
     private static readonly Color HpFill = new(0.78f, 0.22f, 0.2f);
     private static readonly Color StaminaFill = new(0.82f, 0.72f, 0.18f);
@@ -28,7 +22,7 @@ public sealed class CharacterWindow : UiWindow
     private Func<PlayerSkills?>? _skillsProvider;
 
     public CharacterWindow()
-        : base("Character", Width, Height, Keys.C, DefaultPosition())
+        : base("Character", Width, 360, Keys.C, DefaultPosition())
     {
     }
 
@@ -41,39 +35,35 @@ public sealed class CharacterWindow : UiWindow
 
     private static Point DefaultPosition() => new(Config.MinimapMargin, 140);
 
+    protected override int? MeasureContentHeight(SpriteFont font) =>
+        font.LineSpacing * 2 + 6 + FarmRpgUi.SectionGap
+        + StatBarHeight(font) * 4 + BarRowGap * 3;
+
     protected override void DrawContent(SpriteBatch sb, SpriteFont font, Rectangle area)
     {
         var stats = _statsProvider?.Invoke();
         var name = _nameProvider?.Invoke() ?? "Player";
         if (stats == null) return;
 
-        var inner = new Rectangle(
-            area.X + ContentPad,
-            area.Y + ContentPad,
-            area.Width - ContentPad * 2,
-            area.Height - ContentPad * 2);
+        var y = area.Y;
+        UiText.Draw(sb, font, UiText.Truncate(font, name, area.Width), new Vector2(area.X, y), FarmRpgUi.Ink);
+        y += font.LineSpacing + 6;
 
-        var y = inner.Y;
-        sb.DrawString(font, name, new Vector2(inner.X, y), FarmRpgUi.Ink);
-        y += font.LineSpacing + 4;
+        var summary = _skillsProvider?.Invoke() is { } skills
+            ? $"Total level {skills.TotalLevel}  -  {UiText.Number(skills.TotalXp)} XP"
+            : $"Level {stats.Level}";
+        UiText.Draw(sb, font, UiText.Truncate(font, summary, area.Width), new Vector2(area.X, y), FarmRpgUi.InkMuted);
+        y += font.LineSpacing + FarmRpgUi.SectionGap;
 
-        var lvl = _skillsProvider?.Invoke() is { } skills
-            ? $"Total level {skills.TotalLevel}"
-            : $"Lvl {stats.Level}";
-        sb.DrawString(font, lvl, new Vector2(inner.X, y), FarmRpgUi.InkMuted);
-        y += font.LineSpacing + 2;
-        if (_skillsProvider?.Invoke() is { } sk)
-            sb.DrawString(font, $"Total XP: {sk.TotalXp:N0}", new Vector2(inner.X, y), FarmRpgUi.InkMuted);
-        y += font.LineSpacing + SectionGap;
-
-        var rowH = font.LineSpacing + BarHeight;
-        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "HP", stats.Hp, stats.HpMax, HpFill, barHeight: BarHeight);
+        var rowH = StatBarHeight(font);
+        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "Health", stats.Hp, stats.HpMax, HpFill);
         y += rowH + BarRowGap;
-        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "Stamina", stats.Stamina, stats.StaminaMax, StaminaFill, barHeight: BarHeight);
+        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "Stamina", stats.Stamina, stats.StaminaMax, StaminaFill);
         y += rowH + BarRowGap;
-        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "Mana", stats.Mana, stats.ManaMax, ManaFill, barHeight: BarHeight);
+        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "Mana", stats.Mana, stats.ManaMax, ManaFill);
         y += rowH + BarRowGap;
-        DrawStatBar(sb, font, new Rectangle(inner.X, y, inner.Width, rowH), "EXP",
-            stats.ExpPercent, 100f, ExpFill, $"{stats.ExpPercent:0.00}%", barHeight: BarHeight);
+        DrawStatBar(sb, font, new Rectangle(area.X, y, area.Width, rowH), "Experience",
+            stats.ExpPercent, 100f, ExpFill,
+            stats.ExpPercent.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "%");
     }
 }

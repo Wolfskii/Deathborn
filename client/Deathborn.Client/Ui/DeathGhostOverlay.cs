@@ -4,9 +4,13 @@ using Deathborn.Client.Rendering;
 
 namespace Deathborn.Client.Ui;
 
-/// <summary>Prompt after death — wander as a spirit or begin a new life.</summary>
+/// <summary>Prompt after death: wander as a spirit or begin a new life.</summary>
 public sealed class DeathGhostOverlay
 {
+    private const int PanelWidth = 480;
+    private const int Pad = 28;
+    private const int ButtonGap = 10;
+
     private Rectangle _panel;
     private Rectangle _spectateButton;
     private Rectangle _newLifeButton;
@@ -51,23 +55,19 @@ public sealed class DeathGhostOverlay
 
     private void DrawSpectatingBar(SpriteBatch sb, SpriteFont font)
     {
-        var vw = GameViewport.Width;
-        var vh = GameViewport.Height;
-        const int barH = 52;
-        const int margin = 14;
-        const int btnW = 148;
-        const int btnH = 32;
+        const int barH = 64;
+        const int margin = 16;
+        const int buttonW = 160;
+        var width = Math.Min(560, GameViewport.Width - margin * 2);
+        _panel = new Rectangle(GameViewport.Width / 2 - width / 2, GameViewport.Height - barH - margin, width, barH);
+        FarmRpgUi.DrawCompactPanel(sb, _panel);
 
-        _panel = new Rectangle(margin, vh - barH - margin, vw - margin * 2, barH);
-        DrawPrimitives.FillRect(sb, _panel, new Color(12, 10, 18, 210));
-        DrawPrimitives.FillRect(sb, new Rectangle(_panel.X, _panel.Y, _panel.Width, 2), new Color(140, 115, 80));
+        var textX = _panel.X + 18;
+        UiText.Draw(sb, font, "A shade upon the wind", new Vector2(textX, _panel.Y + 12), FarmRpgUi.Ink);
+        UiText.Draw(sb, font, "WASD to drift", new Vector2(textX, _panel.Y + 12 + font.LineSpacing), FarmRpgUi.InkMuted);
 
-        var title = "A shade upon the wind";
-        var hint = "WASD to drift";
-        sb.DrawString(font, title, new Vector2(_panel.X + 16, _panel.Y + 10), new Color(220, 210, 195));
-        sb.DrawString(font, hint, new Vector2(_panel.X + 16, _panel.Y + 28), new Color(150, 148, 160));
-
-        _newLifeButton = new Rectangle(_panel.Right - btnW - 12, _panel.Y + (barH - btnH) / 2, btnW, btnH);
+        _newLifeButton = new Rectangle(_panel.Right - buttonW - 16, _panel.Center.Y - FarmRpgUi.ButtonHeight / 2,
+            buttonW, FarmRpgUi.ButtonHeight);
         DrawButton(sb, font, _newLifeButton, _newLifeHover, "Begin anew");
         _spectateButton = Rectangle.Empty;
     }
@@ -76,55 +76,62 @@ public sealed class DeathGhostOverlay
     {
         var vw = GameViewport.Width;
         var vh = GameViewport.Height;
+        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, vw, vh), new Color(0, 0, 0, 0.4f));
 
-        DrawPrimitives.FillRect(sb, new Rectangle(0, 0, vw, vh), new Color(0, 0, 0, 0.35f));
+        var width = Math.Min(PanelWidth, vw - 32);
+        var textW = width - Pad * 2;
+        var lines = new List<(string Text, Color Color)>();
+        foreach (var line in UiText.Wrap(font, "Your spirit lingers above the mortal shell.", textW))
+            lines.Add((line, FarmRpgUi.InkMuted));
+        foreach (var line in UiText.Wrap(font, "Walk the veil to watch, or begin anew when ready.", textW))
+            lines.Add((line, FarmRpgUi.InkMuted));
 
-        const int panelH = 250;
-        _panel = new Rectangle(vw / 2 - 200, vh / 2 - panelH / 2, 400, panelH);
-        DrawPrimitives.FillRect(sb, _panel, new Color(18, 16, 24, 230));
-        DrawPrimitives.FillRect(sb, new Rectangle(_panel.X, _panel.Y, _panel.Width, 2), new Color(180, 140, 90));
-        DrawPrimitives.FillRect(sb, new Rectangle(_panel.X, _panel.Bottom - 2, _panel.Width, 2), new Color(80, 65, 45));
-
-        var title = "You have fallen";
-        var titleSize = font.MeasureString(title);
-        sb.DrawString(font, title, new Vector2(_panel.Center.X - titleSize.X / 2f, _panel.Y + 22), new Color(235, 220, 200));
-
-        var hint = "Your spirit lingers above the mortal shell.";
-        var hintSize = font.MeasureString(hint);
-        sb.DrawString(font, hint, new Vector2(_panel.Center.X - hintSize.X / 2f, _panel.Y + 52),
-            new Color(170, 165, 175));
-
-        var hint2 = "Walk the veil to watch, or begin anew when ready.";
-        var hint2Size = font.MeasureString(hint2);
-        sb.DrawString(font, hint2, new Vector2(_panel.Center.X - hint2Size.X / 2f, _panel.Y + 72),
-            new Color(140, 138, 150));
-
+        var details = new List<(string Text, Color Color)>();
         if (!string.IsNullOrWhiteSpace(_reason))
-            DrawCentered(sb, font, _reason, _panel.Y + 100, new Color(225, 180, 160));
+            details.Add((UiText.Truncate(font, _reason, textW), FarmRpgUi.Danger));
         if (!string.IsNullOrWhiteSpace(_summary))
-            DrawCentered(sb, font, _summary, _panel.Y + 120, new Color(170, 165, 175));
+            details.Add((UiText.Truncate(font, _summary, textW), FarmRpgUi.Ink));
 
-        _spectateButton = new Rectangle(_panel.Center.X - 120, _panel.Bottom - 92, 240, 36);
+        var height = 56 + lines.Count * font.LineSpacing
+            + (details.Count > 0 ? FarmRpgUi.SectionGap + details.Count * (font.LineSpacing + 2) : 0)
+            + FarmRpgUi.SectionGap + FarmRpgUi.ButtonHeight * 2 + ButtonGap + 24;
+        _panel = new Rectangle(vw / 2 - width / 2, vh / 2 - height / 2, width, height);
+
+        FarmRpgUi.DrawWindowPanel(sb, _panel);
+        FarmRpgUi.DrawTitlePlate(sb, font, "You have fallen", _panel.Center.X, _panel.Y + 12);
+
+        var y = _panel.Y + 56;
+        foreach (var (text, color) in lines)
+        {
+            UiText.DrawCentered(sb, font, text, new Rectangle(_panel.X, y, _panel.Width, font.LineSpacing), color);
+            y += font.LineSpacing;
+        }
+
+        if (details.Count > 0)
+        {
+            y += FarmRpgUi.SectionGap / 2;
+            var ruleW = Math.Min(180, textW);
+            FarmRpgUi.DrawDivider(sb, _panel.Center.X - ruleW / 2, y, ruleW);
+            y += FarmRpgUi.SectionGap / 2;
+            foreach (var (text, color) in details)
+            {
+                UiText.DrawCentered(sb, font, text, new Rectangle(_panel.X, y, _panel.Width, font.LineSpacing), color);
+                y += font.LineSpacing + 2;
+            }
+        }
+
+        var buttonW = Math.Min(260, textW);
+        var buttonX = _panel.Center.X - buttonW / 2;
+        _newLifeButton = new Rectangle(buttonX, _panel.Bottom - 24 - FarmRpgUi.ButtonHeight, buttonW, FarmRpgUi.ButtonHeight);
+        _spectateButton = new Rectangle(buttonX, _newLifeButton.Y - ButtonGap - FarmRpgUi.ButtonHeight, buttonW, FarmRpgUi.ButtonHeight);
         DrawButton(sb, font, _spectateButton, _spectateHover, "Walk the veil");
-
-        _newLifeButton = new Rectangle(_panel.Center.X - 120, _panel.Bottom - 48, 240, 36);
         DrawButton(sb, font, _newLifeButton, _newLifeHover, "Begin anew");
-    }
-
-    private void DrawCentered(SpriteBatch sb, SpriteFont font, string text, int y, Color color)
-    {
-        var size = SpriteFontSafe.MeasureString(font, text);
-        SpriteFontSafe.DrawString(sb, font, text, new Vector2(_panel.Center.X - size.X / 2f, y), color);
     }
 
     private static void DrawButton(SpriteBatch sb, SpriteFont font, Rectangle rect, bool hover, string label)
     {
-        var btnFill = hover ? new Color(72, 58, 42) : new Color(48, 40, 30);
-        DrawPrimitives.FillRect(sb, rect, btnFill);
-        DrawPrimitives.FillRect(sb, new Rectangle(rect.X, rect.Y, rect.Width, 2), new Color(200, 165, 95));
-        var labelSize = font.MeasureString(label);
-        sb.DrawString(font, label, new Vector2(rect.Center.X - labelSize.X / 2f, rect.Center.Y - labelSize.Y / 2f),
-            new Color(245, 235, 210));
+        FarmRpgUi.DrawButton(sb, rect, pressed: hover);
+        var textArea = hover ? new Rectangle(rect.X, rect.Y + 2, rect.Width, rect.Height - 2) : rect;
+        UiText.DrawCentered(sb, font, label, textArea, FarmRpgUi.Ink);
     }
 }
-

@@ -13,9 +13,9 @@ public enum PlayerContextAction
 
 public sealed class PlayerContextMenuOverlay
 {
-    private const int ItemHeight = 32;
-    private const int MinWidth = 168;
-    private const int Pad = 8;
+    private const int ItemHeight = 30;
+    private const int MinWidth = 180;
+    private const int Pad = 12;
 
     private readonly List<(PlayerContextAction Action, string Label, bool Enabled)> _items = [];
     private Rectangle _bounds;
@@ -93,45 +93,34 @@ public sealed class PlayerContextMenuOverlay
         _itemRects.Clear();
         var mouse = Mouse.GetState().Position;
 
-        if (FarmRpgUi.IsLoaded)
-        {
-            FarmRpgUi.DrawWindowPanel(sb, _bounds);
-            var titleRibbon = new Rectangle(_bounds.X + 6, _bounds.Y + 6, _bounds.Width - 12, 28);
-            FarmRpgUi.DrawTitle(sb, titleRibbon);
-            var name = FitText(font, SpriteFontSafe.Filter(TargetName), titleRibbon.Width - 20);
-            sb.DrawString(font, name, new Vector2(titleRibbon.X + 10, titleRibbon.Y + 5), FarmRpgUi.Ink);
+        // Size to the longest label (the target name may be long).
+        var name = SpriteFontSafe.Filter(TargetName);
+        var widest = UiText.Measure(font, name).X;
+        foreach (var item in _items)
+            widest = MathF.Max(widest, UiText.Measure(font, item.Label).X);
+        var width = Math.Clamp((int)widest + Pad * 2 + 20, MinWidth, 280);
+        var height = Pad * 2 + font.LineSpacing + 10 + _items.Count * ItemHeight;
+        var x = Math.Clamp(_bounds.X, 0, Math.Max(0, GameViewport.Width - width));
+        var y = Math.Clamp(_bounds.Y, 0, Math.Max(0, GameViewport.Height - height));
+        _bounds = new Rectangle(x, y, width, height);
 
-            var y = _bounds.Y + Pad + 30;
-            foreach (var item in _items)
-            {
-                var rect = new Rectangle(_bounds.X + 6, y, _bounds.Width - 12, ItemHeight - 2);
-                _itemRects.Add(rect);
-                var hover = item.Enabled && rect.Contains(mouse);
-                FarmRpgUi.DrawButton(sb, rect, pressed: hover, disabled: !item.Enabled);
-                sb.DrawString(font, item.Label, new Vector2(rect.X + 10, rect.Y + 7),
-                    item.Enabled ? FarmRpgUi.Ink : FarmRpgUi.InkMuted * 0.65f);
-                y += ItemHeight;
-            }
-            return;
-        }
+        FarmRpgUi.DrawCompactPanel(sb, _bounds);
+        var inner = new Rectangle(_bounds.X + Pad, _bounds.Y + Pad, _bounds.Width - Pad * 2, _bounds.Height - Pad * 2);
+        UiText.Draw(sb, font, UiText.Truncate(font, name, inner.Width), new Vector2(inner.X + 4, inner.Y), FarmRpgUi.Ink);
+        var ruleY = inner.Y + font.LineSpacing + 4;
+        DrawPrimitives.FillRect(sb, new Rectangle(inner.X, ruleY, inner.Width, 1), FarmRpgUi.InkFaint * 0.6f);
 
-        DrawPrimitives.FillRect(sb, _bounds, new Color(28, 24, 18));
-        var ly = _bounds.Y + Pad;
+        var rowY = ruleY + 6;
         foreach (var item in _items)
         {
-            var rect = new Rectangle(_bounds.X + 2, ly, _bounds.Width - 4, ItemHeight);
+            var rect = new Rectangle(inner.X, rowY, inner.Width, ItemHeight);
             _itemRects.Add(rect);
-            sb.DrawString(font, item.Label, new Vector2(rect.X + 8, rect.Y + 5), Color.White);
-            ly += ItemHeight;
+            if (item.Enabled && rect.Contains(mouse))
+                DrawPrimitives.FillRoundedRect(sb, rect, FarmRpgUi.PaperShade, 4);
+            var textY = rect.Y + (rect.Height - font.LineSpacing) / 2f;
+            UiText.Draw(sb, font, item.Label, new Vector2(rect.X + 8, textY),
+                item.Enabled ? FarmRpgUi.Ink : FarmRpgUi.InkFaint);
+            rowY += ItemHeight;
         }
-    }
-
-    private static string FitText(SpriteFont font, string text, int maxWidth)
-    {
-        if (font.MeasureString(text).X <= maxWidth) return text;
-        const string suffix = "...";
-        while (text.Length > 0 && font.MeasureString(text + suffix).X > maxWidth)
-            text = text[..^1];
-        return text + suffix;
     }
 }

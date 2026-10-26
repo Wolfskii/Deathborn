@@ -13,7 +13,10 @@ public enum NotificationKind
     Quest,
 }
 
-/// <summary>Stacked Farm RPG toast notifications in the top-right corner.</summary>
+/// <summary>
+/// Toasts stacked on the right, below the minimap. Repeats of the same message
+/// merge into one card with a count instead of piling up, and at most a few show.
+/// </summary>
 public sealed class GameNotificationOverlay
 {
     private sealed class Toast
@@ -22,26 +25,44 @@ public sealed class GameNotificationOverlay
         public string Subtitle = "";
         public NotificationKind Kind;
         public float Age;
-        public float Duration = 4.5f;
+        public float Duration;
+        public int Count = 1;
     }
 
-    private readonly List<Toast> _toasts = [];
-    private const int MaxVisible = 5;
-    private const int Margin = 14;
+    private const int MaxVisible = 4;
+    private const int Width = 280;
+    private const int Pad = 12;
+    private const int AccentWidth = 4;
     private const int Gap = 8;
+    private const int RightMargin = 14;
+    private const float FadeIn = 0.15f;
+    private const float FadeOut = 0.6f;
+
+    private readonly List<Toast> _toasts = [];
+
+    /// <summary>Top of the toast stack: just below the minimap and its compass letters.</summary>
+    private static int TopY => Config.MinimapTopMargin + (int)(Config.MinimapScreenRadius * 2) + 34;
 
     public void Push(string title, string? subtitle = null, NotificationKind kind = NotificationKind.Info, float duration = 4.5f)
     {
         if (string.IsNullOrWhiteSpace(title)) return;
         var safeTitle = SpriteFontSafe.Filter(title.Trim());
         if (safeTitle.Length == 0) return;
-        _toasts.Insert(0, new Toast
+        var safeSubtitle = SpriteFontSafe.Filter(subtitle?.Trim());
+
+        // Same message still on screen: refresh it and count the repeat.
+        var existing = _toasts.Find(t => t.Title == safeTitle && t.Subtitle == safeSubtitle);
+        if (existing != null)
         {
-            Title = safeTitle,
-            Subtitle = SpriteFontSafe.Filter(subtitle?.Trim()),
-            Kind = kind,
-            Duration = duration,
-        });
+            existing.Count++;
+            existing.Age = MathF.Min(existing.Age, FadeIn);
+            existing.Duration = MathF.Max(existing.Duration, duration);
+            _toasts.Remove(existing);
+            _toasts.Insert(0, existing);
+            return;
+        }
+
+        _toasts.Insert(0, new Toast { Title = safeTitle, Subtitle = safeSubtitle, Kind = kind, Duration = duration });
         while (_toasts.Count > MaxVisible)
             _toasts.RemoveAt(_toasts.Count - 1);
     }
@@ -60,66 +81,56 @@ public sealed class GameNotificationOverlay
     {
         if (_toasts.Count == 0) return;
 
-        var x = GameViewport.Width - Margin;
-        var y = Margin + 52;
+        var width = Math.Min(Width, GameViewport.Width - RightMargin * 2);
+        var x = GameViewport.Width - RightMargin - width;
+        var y = TopY;
+        var textW = width - Pad * 2 - AccentWidth - 6;
 
         foreach (var toast in _toasts)
         {
-            var alpha = ToastAlpha(toast);
-            if (alpha <= 0.01f) continue;
-
-            var titleSize = SpriteFontSafe.MeasureString(font, toast.Title);
-            var subSize = string.IsNullOrEmpty(toast.Subtitle) ? Vector2.Zero : SpriteFontSafe.MeasureString(font, toast.Subtitle);
-            var bodyW = (int)MathF.Max(titleSize.X, subSize.X * 0.86f) + 40;
-            var maxW = Math.Max(180, Math.Min(360, GameViewport.Width - Margin * 2));
-            var totalW = Math.Min(Math.Max(bodyW, Math.Min(200, maxW)), maxW);
-            var totalH = string.IsNullOrEmpty(toast.Subtitle) ? 58 : 88;
-            if (y + totalH > GameViewport.Height - Margin)
+            var alpha = Alpha(toast);
+            var lines = UiText.Wrap(font, toast.Subtitle, textW);
+            if (lines.Count > 2)
+                lines = [lines[0], UiText.Truncate(font, lines[1] + " " + lines[2], textW)];
+            var height = Pad * 2 + font.LineSpacing + lines.Count * (font.LineSpacing + 1) + (lines.Count > 0 ? 3 : 0);
+            if (y + height > GameViewport.Height - 100)
                 break;
 
-            var panel = new Rectangle(x - totalW, y, totalW, totalH);
+            var card = new Rectangle(x, y, width, height);
+            FarmRpgUi.DrawCompactPanel(sb, card, alpha);
+            DrawPrimitives.FillRect(sb,
+                new Rectangle(card.X + Pad, card.Y + Pad, AccentWidth, card.Height - Pad * 2),
+                AccentColor(toast.Kind) * alpha);
 
-            FarmRpgUi.DrawWindowPanel(sb, panel, alpha * 0.96f);
-            var titlePanel = new Rectangle(panel.X + 8, panel.Y + 7, panel.Width - 16, 34);
-            FarmRpgUi.DrawTitle(sb, titlePanel, alpha);
-            DrawFittedText(sb, font, toast.Title, titlePanel, TitleColor(toast.Kind) * alpha, 0.92f);
+            var textX = card.X + Pad + AccentWidth + 8;
+            var title = toast.Count > 1 ? $"{toast.Title}  x{toast.Count}" : toast.Title;
+            UiText.Draw(sb, font, UiText.Truncate(font, title, textW), new Vector2(textX, card.Y + Pad), FarmRpgUi.Ink * alpha);
 
-            if (!string.IsNullOrEmpty(toast.Subtitle))
+            var ly = card.Y + Pad + font.LineSpacing + 3;
+            foreach (var line in lines)
             {
-                var subtitlePanel = new Rectangle(panel.X + 12, titlePanel.Bottom + 5, panel.Width - 24, 34);
-                FarmRpgUi.DrawInsetPanel(sb, subtitlePanel, alpha);
-                DrawFittedText(sb, font, toast.Subtitle, subtitlePanel, FarmRpgUi.InkMuted * alpha, 0.82f);
+                UiText.Draw(sb, font, line, new Vector2(textX, ly), FarmRpgUi.InkMuted * alpha);
+                ly += font.LineSpacing + 1;
             }
 
-            y += totalH + Gap;
+            y += height + Gap;
         }
     }
 
-    private static float ToastAlpha(Toast toast)
+    private static float Alpha(Toast toast)
     {
-        var t = toast.Age / toast.Duration;
-        var fadeIn = MathF.Min(1f, toast.Age / 0.2f);
-        var fadeOut = t > 0.82f ? (1f - t) / 0.18f : 1f;
+        var fadeIn = MathF.Min(1f, toast.Age / FadeIn);
+        var remaining = toast.Duration - toast.Age;
+        var fadeOut = remaining < FadeOut ? MathF.Max(0f, remaining / FadeOut) : 1f;
         return fadeIn * fadeOut;
     }
 
-    private static Color TitleColor(NotificationKind kind) => kind switch
+    private static Color AccentColor(NotificationKind kind) => kind switch
     {
-        NotificationKind.Success => new Color(52, 108, 66),
-        NotificationKind.Warning => new Color(137, 86, 36),
-        NotificationKind.Danger => FarmRpgUi.Rust,
-        NotificationKind.Quest => new Color(104, 62, 112),
-        _ => FarmRpgUi.Ink,
+        NotificationKind.Success => FarmRpgUi.Positive,
+        NotificationKind.Warning => FarmRpgUi.Warning,
+        NotificationKind.Danger => FarmRpgUi.Danger,
+        NotificationKind.Quest => new Color(122, 78, 140),
+        _ => FarmRpgUi.InkMuted,
     };
-
-    private static void DrawFittedText(
-        SpriteBatch sb, SpriteFont font, string text, Rectangle area, Color color, float preferredScale)
-    {
-        var size = SpriteFontSafe.MeasureString(font, text);
-        var scale = MathF.Min(preferredScale, Math.Max(1, area.Width - 20) / MathF.Max(1f, size.X));
-        var pos = new Vector2(
-            area.X + (area.Width - size.X * scale) * 0.5f,
-            area.Y + (area.Height - size.Y * scale) * 0.5f);
-        SpriteFontSafe.DrawString(sb, font, text, pos, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
-    }
 }
