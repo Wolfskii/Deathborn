@@ -2,10 +2,27 @@
 
 > You are born to die. Only skill decides when.
 
-This document is the ordered plan from the current **Walking Skeleton** to the
-full MVP. Each milestone is a self-contained, shippable slice and lists the
-server packages, protocol messages, DB tables, and client code it touches so a
-future plan can pick it up cleanly.
+This document tracks the path from the current build to the full MVP. Each
+milestone is a self-contained, shippable slice. Status reflects the code on
+`develop` as of 2026-10-26. Milestones marked **Partial** list what is still
+missing.
+
+## Status at a glance
+
+| Milestone | Status |
+| --- | --- |
+| M0 Walking skeleton | ✅ Done |
+| M1 Global chat | ✅ Done (no persistence, by design) |
+| M2 World zones + safe zones | 🟡 Partial |
+| M3 Gathering + usage-based skills | 🟡 Partial |
+| M4 Real-time combat | 🟡 Largely built, needs balance and polish |
+| M5 Permadeath | 🟡 Partial |
+| M6 Full-loot drops + looting | 🟡 Partial |
+| M7 Death history (legacy view) | ⬜ Not started |
+| M8 Highscores / leaderboards | ⬜ Not started |
+| M9 Google OAuth login | ⬜ Not started |
+
+Built beyond the original plan: see [Built outside the original plan](#built-outside-the-original-plan).
 
 ## Guiding principles (do not violate)
 
@@ -16,165 +33,152 @@ future plan can pick it up cleanly.
 - **Working over perfect.** Each milestone must run end-to-end before the next.
 - Avoid microservices, premature optimization, and heavy abstraction.
 
-## Architecture baseline (established in M0)
+## Architecture baseline
 
 - **Client:** MonoGame 3.8 (**C#**, .NET 8, DesktopGL). `GameClient` owns HTTP
-  auth + the world WebSocket. Screens: `LoginScreen`, `CharacterCreateScreen`,
-  `WorldScreen` (code-only UI, no scene editor).
-- **Server:** Go monolith. Packages: `config`, `db`, `auth`, `net` (WS hub +
-  JSON protocol), `game` (world + fixed tick loop). Entry: `cmd/deathborn`.
-- **Wire protocol:** JSON envelope `{ "type": string, "data": {...} }`.
-- **Tick:** 20 Hz authoritative simulation; full snapshot broadcast each tick.
-- **DB:** `accounts`, `oauth_identities`, `characters`, `character_history`,
-  `highscores` (the last three exist now; most columns unused until later).
+  auth + the world WebSocket. Screens live in `Screens/` (`LoginScreen`,
+  `CharacterCreateScreen`, `WorldScreen`, and debug screens). UI and gameplay
+  are code-only, with no scene editor.
+- **Server:** Go monolith. Packages under `server/internal/`: `auth`, `clientupdate`,
+  `config`, `db`, `game` (world, tick loop, and gameplay systems), `net`
+  (WebSocket hub and handlers), `protocol`, `skills`, `worldmap`. Entry point:
+  `server/cmd/deathborn`.
+- **Wire protocol:** JSON envelope `{ "type": string, "data": {...} }`. Shared
+  combat and protocol data lives in `shared/` (single source of truth; see
+  `AGENTS.md`).
+- **Tick:** 20 Hz authoritative simulation.
+- **DB:** PostgreSQL. Migrations `0001`–`0011` run at startup.
+  - `accounts`, `oauth_identities`, `characters`, `character_history`,
+    `highscores` (the last three are schema only; see M7–M9).
+  - Gameplay tables added since M0: skills, houses and farms, inventory and
+    world item drops, friends, cosmetics, active buffs, vitals, and appearance.
 
 ---
 
-## M0 — Walking Skeleton  ✅ (current)
-
-Thinnest end-to-end vertical slice.
+## M0 — Walking Skeleton  ✅
 
 - [x] Register / login with email + password (HTTP, returns JWT).
 - [x] JWT-authenticated WebSocket connection (`/ws?token=`).
 - [x] Create a character (one living character per account, DB-enforced).
-- [x] Enter the world; free velocity-based movement (server-integrated).
+- [x] Enter the world; velocity-based movement, integrated on the server.
 - [x] See other players move in real time via tick snapshots.
 - [x] Position persisted on disconnect; resume on reconnect.
 - [x] Hotbar, interactables (E / click), dev quick-login (Debug builds).
 
-**Touches:** all baseline server packages; client `Net/`, `Screens/`, `Game/`.
-**Protocol:** `input`, `create_character`, `interact` (C→S); `welcome`,
-`need_character`, `snapshot`, `error` (S→C).
+---
+
+## M1 — Global chat  ✅
+
+- [x] `chat_message` (C→S) with server-side validation and broadcast (S→C).
+- [x] `chat_typing` indicator.
+- [x] Chat log and typing indicators in `WorldScreen`.
+- [ ] Per-client rate limiting on chat (see cross-cutting items).
+- No persistence, as planned.
 
 ---
 
-## M1 — Global chat
+## M2 — World zones + safe zones  🟡
 
-First social system; exercises broadcast in both directions.
+Server-side zones (`server/internal/game/zones.go`) gate PvP and spawning.
 
-- Client (C#): chat input + scrolling log in `WorldScreen`.
-- Protocol: `chat_send {text}` (C→S); `chat {from, text}` (S→C broadcast).
-- Server: `net` validates/trims/length-limits text, rate-limits per client,
-  broadcasts via hub. No persistence required for MVP.
-- DB: none.
-
----
-
-## M2 — World zones + safe zones
-
-Give the world structure and the first rule that makes PvP meaningful.
-
-- Define static zones: Starter Town (safe), Market (safe), Bank (safe), Forest,
-  Mine, Lake, Wilderness (full PvP). Data-driven (a zones config: rect/AABB +
-  `safe` flag + name).
-- Server: `game` gains a `zones` concept; `PlayerState`/snapshot may include the
-  current zone for the client HUD. Spawn point = Starter Town.
-- Client (C#): `WorldScreen` — zone backgrounds/labels; HUD shows zone + safe/danger.
-- DB: none (zones are static config); later, persist player zone if needed.
-- Protocol: extend `snapshot`/`welcome` with `zone`.
+- [x] Starter Town, Northhaven, Westmere, Eastwatch, Southport are safe zones.
+- [x] PvP is allowed outside safe zones (`PvPAllowed`), and bosses and NPCs respect safe areas.
+- [x] House interiors and safe-zone exclusion rules.
+- [ ] Market, Bank, and Forest / Mine / Lake / Wilderness as named zones. Only
+      safe zones are named today. Everything else is an unnamed PvP area.
+- [ ] Zone name and safe / danger flag in the HUD (`welcome` and `snapshot` do not carry a zone yet).
+- [ ] Zones are config-driven. They are currently hard-coded in `zones.go`.
 
 ---
 
-## M3 — Resource gathering + usage-based skills
+## M3 — Resource gathering + usage-based skills  🟡
 
-The progression backbone.
-
-- Resource nodes (trees, rocks, fishing spots) placed per zone (static config).
-- Protocol: `gather_start {nodeId}` / `gather_stop` (C→S); `inventory {items}`,
-  `skills {levels, xp}`, `gather_result` (S→C).
-- Server: `game` adds `ResourceNode`, gather timers on the tick loop, an
-  `inventory` per character, and a `skills` system (XP curve, level-up on
-  action). New package `internal/skills` (data-driven skill table:
-  Woodcutting, Mining, Fishing, Cooking, Smithing, Attack, Strength, Defense,
-  Hitpoints).
-- DB: add `inventories` (or JSONB column on `characters`) and persist
-  `skills` JSONB + `total_xp` on `characters`.
-- Client (C#): inventory + skills panels in `WorldScreen` or overlay screens.
+- [x] Usage-based skill XP (`GrantSkillXP`), levels, and `total_xp` persisted on `characters`.
+- [x] Skill-based activities: farming, fishing, and cooking (see [Built outside the original plan](#built-outside-the-original-plan)).
+- [x] Inventory panel, hotbar, and skills display on the client.
+- [ ] Woodcutting and mining resource nodes per zone.
+- [ ] Generic `gather_start` / `gather_stop` protocol. Farming and fishing use their own actions instead.
+- [ ] Smithing, Attack, Strength, Defense, and Hitpoints skill XP tied to actions. Combat XP
+      path to confirm.
 
 ---
 
-## M4 — Real-time combat
+## M4 — Real-time combat  🟡
 
-The core risk.
-
-- Combat skills consume the M3 skill system (Attack/Strength/Defense/Hitpoints).
-- Protocol: `attack {targetId}` (C→S); `combat_event {attacker, target, damage,
-  hp}` and `hp` updates folded into `snapshot` (S→C).
-- Server: `game`/new `internal/combat` resolves hits on the tick (range check,
-  hit/damage formula, HP, aggro). PvP allowed only outside safe zones (uses M2
-  zone flags). PvE mobs optional here or split to M4.5.
-- DB: persist HP on `characters`.
-- Client (C#): health bars, hit feedback in `WorldScreen`.
+- [x] Data-driven abilities (`server/internal/game/abilities/abilities.json`), shared with the client.
+- [x] Server-side hit range, damage, HP, and death.
+- [x] PvP gated by zones.
+- [x] Boss encounters with telegraphed abilities (`bosses.go`).
+- [x] Boss health bar and buff bar overlays on the client.
+- [ ] Combat balance pass across abilities, bosses, and HP.
+- [ ] Aggro and PvE mob behaviour beyond bosses (confirm before marking done).
+- [ ] Attack / Strength / Defense / Hitpoints XP from combat (confirm).
 
 ---
 
-## M5 — Permadeath
+## M5 — Permadeath  🟡
 
-The identity of the game.
+Death is implemented as a state change. Permanent records are not yet written.
 
-- On death (HP <= 0): server marks the character dead, removes it from the
-  world, and writes a `character_history` snapshot.
-- Protocol: `you_died {reason, summary}` (S→C); on next connect the account has
-  no living character so the existing `need_character` flow runs.
-- Server: `game` death handler; reuses `db` (`character_history` insert +
-  set `characters.alive = false`). The partial unique index already allows a new
-  living character afterward.
-- DB: write `character_history` (name, total_xp, skills, survival_seconds,
-  pvp_kills, wealth, died_at, death_reason).
-- Client (C#): `CharacterCreateScreen` flow after death message.
+- [x] On death (HP <= 0) the character is marked dead (`MarkCharacterDead`), removed from the world, and `you_died` is sent.
+- [x] Death is broadcast to other clients (`player_death`).
+- [x] The account can create a new character after death (`need_character` flow).
+- [ ] Write a `character_history` row on death. The table exists but nothing inserts into it.
+- [ ] Record `survival_seconds`, `pvp_kills`, and `death_reason` (tracked during play).
 
 ---
 
-## M6 — Full-loot drops + looting
+## M6 — Full-loot drops + looting  🟡
 
-Makes death hurt and PvP rewarding.
-
-- On death, all equipped + inventory items drop to the world at the death
-  position as a lootable pile.
-- Protocol: `loot_pickup {itemId}` (C→S); ground items included in `snapshot`
-  (or a `ground_items` message) (S→C).
-- Server: `game` ground-item entities; pickup validation (range, capacity).
-- DB: ground items can be in-memory (acceptable loss on restart) or persisted in
-  a `ground_items` table for durability — decide at implementation time.
-- Client (C#): render ground loot; pickup via interact system.
+- [x] On death, the inventory drops as persisted world items at the death position
+      (`dropInventoryOnDeath`, migration `0004`).
+- [x] Pickup flow (`pickup_item`) with a server-side range check.
+- [x] Ground items expire (`PruneExpiredDrops`).
+- [ ] Equipped gear drops on death. Only inventory is confirmed.
+- [ ] Verify full-loot behaviour end to end, including PvP kills.
 
 ---
 
-## M7 — Character death history surfacing
+## M7 — Character death history  ⬜
 
 Turn the M5 data into a legacy view.
 
-- Protocol/HTTP: `GET /history` (JWT) returns the account's past lives.
-- Server: `db` query over `character_history`; small HTTP handler in `auth`/new
-  `internal/account` package.
-- Client (C#): new `LegacyScreen` listing past lives.
-- DB: read-only over `character_history` (written in M5).
+- [ ] `GET /history` (JWT) returns the account's past lives.
+- [ ] Server query over `character_history` (depends on M5).
+- [ ] Client `LegacyScreen` listing past lives.
 
 ---
 
-## M8 — Highscores / leaderboards
+## M8 — Highscores / leaderboards  ⬜
 
-Long-term retention.
-
-- On death, update the account's `highscores` row (max of each stat).
-- HTTP: `GET /highscores` (top N per category) and `GET /highscores/me`.
-- Server: `db` upsert into `highscores` on death; query handlers.
-- Client (C#): `LeaderboardScreen`.
-- DB: `highscores` table (already created).
+- [ ] Upsert the `highscores` row on death (max of each stat). Table exists.
+- [ ] `GET /highscores` (top N per category) and `GET /highscores/me`.
+- [ ] Client `LeaderboardScreen`.
 
 ---
 
-## M9 — Google OAuth login
+## M9 — Google OAuth login  ⬜
 
-Account growth; schema is already OAuth-ready.
+- [ ] OAuth redirect and callback endpoints.
+- [ ] Find-or-create an account, link `oauth_identities`, issue the same JWT.
+- [ ] Provider-agnostic interface in `internal/auth`, with Google first.
+- [ ] "Sign in with Google" on `LoginScreen` (system browser flow).
+- Schema is ready: `accounts.password_hash` is nullable, and `oauth_identities` exists.
 
-- HTTP: OAuth redirect/callback endpoints; on callback, find-or-create an
-  account and link an `oauth_identities` row, then issue the same JWT used today.
-- Server: new `internal/auth` provider code (Google first; provider-agnostic
-  interface so Discord/Steam slot in later). `accounts.password_hash` is already
-  nullable for OAuth-only accounts.
-- Client (C#): "Sign in with Google" on `LoginScreen` (system browser flow).
-- DB: `oauth_identities` table (already created).
+---
+
+## Built outside the original plan
+
+These systems shipped without a roadmap entry. Listed so future planning starts from the real state.
+
+- **Farming and homesteads** (Stardew-style): house placement, fences, and farm plots (migration `0011`).
+- **Fishing** and **cooking**.
+- **Friends:** `friend_add`, `friend_respond`, `friend_remove` (migration `0005`).
+- **Cosmetics** (migration `0006`) and **active buffs** (migration `0007`).
+- **Terrain and rendering:** elevation, water, foliage occlusion, and Tiled map import and export (dungeons and the Swarovia mainland).
+- **Player appearance and modular character layers** (migration `0009`).
+- **Live-reload dev server** (Air) and **client self-update** (`clientupdate`).
+- **Import inbox** for art and content assets (`import/`, see `AGENTS.md`).
 
 ---
 
@@ -185,7 +189,8 @@ Account growth; schema is already OAuth-ready.
 - **Input sequence + reconciliation:** optional client-side prediction if
   movement feels laggy; keep server authoritative.
 - **Rate limiting / anti-abuse:** on chat, auth, and gather/attack actions.
+  No rate limiting was found in `server/internal/net/` for chat, auth, or actions.
 - **Observability:** structured logging and basic metrics (tick duration,
-  connected clients).
+  connected clients). Partial: performance logging exists on the client.
 - **Migrations tooling:** swap the startup runner for `golang-migrate` if schema
-  churn grows.
+  churn grows. Churn is high at 11 migrations, so this is worth revisiting.
