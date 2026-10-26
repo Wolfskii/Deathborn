@@ -101,8 +101,10 @@ Server-side zones (`server/internal/game/zones.go`) gate PvP and spawning.
 - [ ] Mining nodes. The rock kinds and their rewards are defined (`resourceDefs`), but no rock
       positions are placed yet. Needs a decision on where rocks go.
 - [ ] Depleted trees still look like trees; only the interaction is disabled.
-- [ ] Smithing skill (not in `skills.go` yet). Attack, Strength, Defense, and Hitpoints gain XP
-      from PvP and PvE combat (see M4).
+- [x] Smithing skill: copper and iron ore smelt into bars at a kitchen or fireplace (iron needs level 15).
+      Ores have no source until mining nodes exist, so smelting cannot be used in play yet.
+- [ ] Anvil or forge and smithing equipment. Not started; only bars exist.
+- [x] Attack, Strength, Defense, and Hitpoints gain XP from PvP and PvE combat (see M4).
 
 ---
 

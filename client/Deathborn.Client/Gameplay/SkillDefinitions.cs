@@ -8,12 +8,12 @@ public static class SkillDefinitions
     public static readonly string[] All =
     [
         "attack", "strength", "defense", "hitpoints",
-        "woodcutting", "mining", "fishing", "farming", "cooking",
+        "woodcutting", "mining", "fishing", "farming", "cooking", "smithing",
     ];
 
     public static readonly string[] Combat = ["attack", "strength", "defense", "hitpoints"];
     public static readonly string[] Gathering = ["woodcutting", "mining", "fishing", "farming"];
-    public static readonly string[] Production = ["cooking"];
+    public static readonly string[] Production = ["cooking", "smithing"];
 
     public static string DisplayName(string id) => id switch
     {
@@ -26,6 +26,7 @@ public static class SkillDefinitions
         "fishing" => "Fishing",
         "farming" => "Farming",
         "cooking" => "Cooking",
+        "smithing" => "Smithing",
         _ => id,
     };
 

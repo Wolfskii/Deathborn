@@ -1,5 +1,7 @@
 package game
 
+import "github.com/deathborn/server/internal/skills"
+
 const (
 	CookActionRange = 48.0
 )
@@ -13,6 +15,16 @@ type cookRecipe struct {
 	xp         int64
 	anyFish    bool
 	ingredient string
+	skill      string // trained skill; empty means cooking
+	minLevel   int    // level needed in skill
+}
+
+// trainedSkill returns the skill a recipe trains (cooking unless set).
+func (r cookRecipe) trainedSkill() string {
+	if r.skill == "" {
+		return skills.Cooking
+	}
+	return r.skill
 }
 
 var cookRecipes = []cookRecipe{
@@ -23,6 +35,9 @@ var cookRecipes = []cookRecipe{
 	{id: "bread", name: "Bread", result: "bread", ingredient: "wheat", heal: 18, stamina: 10, xp: 16},
 	{id: "jam", name: "Jam", result: "jam", ingredient: "strawberry", heal: 16, stamina: 18, xp: 22},
 	{id: "baked_fish", name: "Baked Fish", result: "baked_fish", anyFish: true, heal: 32, stamina: 8, xp: 24},
+	// Smelting: ore at a kitchen or fireplace becomes a bar, trained in smithing.
+	{id: "copper_bar", name: "Copper Bar", result: "copper_bar", ingredient: "copper_ore", xp: 40, skill: skills.Smithing, minLevel: 1},
+	{id: "iron_bar", name: "Iron Bar", result: "iron_bar", ingredient: "iron_ore", xp: 80, skill: skills.Smithing, minLevel: 15},
 }
 
 var cookByIngredient = func() map[string]cookRecipe {
@@ -51,7 +66,7 @@ func recipeForIngredient(itemID string) (cookRecipe, bool) {
 
 func IsMealItem(itemID string) bool {
 	for _, r := range cookRecipes {
-		if r.result == itemID {
+		if r.result == itemID && r.trainedSkill() == skills.Cooking {
 			return true
 		}
 	}

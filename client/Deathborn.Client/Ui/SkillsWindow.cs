@@ -108,6 +108,7 @@ public sealed class SkillsWindow : UiWindow
         "fishing" => new Color(55, 110, 170),
         "farming" => new Color(100, 150, 60),
         "cooking" => new Color(190, 120, 50),
+        "smithing" => new Color(150, 150, 160),
         _ => new Color(130, 130, 140),
     };
 

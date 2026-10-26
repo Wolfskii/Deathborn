@@ -9,6 +9,12 @@ public sealed class CookRecipeInfo
     public bool AnyFish { get; init; }
     public int Heal { get; init; }
     public int Stamina { get; init; }
+
+    /// <summary>Skill this recipe trains. Cooking unless it is smelting.</summary>
+    public string Skill { get; init; } = "cooking";
+
+    /// <summary>Level needed in <see cref="Skill"/> to use this recipe.</summary>
+    public int MinLevel { get; init; } = 1;
 }
 
 public static class CookCatalog
@@ -23,6 +29,9 @@ public static class CookCatalog
         R("pumpkin_pie", "Pumpkin Pie", "pumpkin", heal: 42, stamina: 12),
         R("bread", "Bread", "wheat", heal: 18, stamina: 10),
         R("jam", "Jam", "strawberry", heal: 16, stamina: 18),
+        // Smelting: ore at a kitchen or fireplace becomes a bar, trained in smithing.
+        new() { Id = "copper_bar", Name = "Copper Bar", Result = "copper_bar", Ingredient = "copper_ore", Skill = "smithing", MinLevel = 1 },
+        new() { Id = "iron_bar", Name = "Iron Bar", Result = "iron_bar", Ingredient = "iron_ore", Skill = "smithing", MinLevel = 15 },
         new()
         {
             Id = "baked_fish", Name = "Baked Fish", Result = "baked_fish",
@@ -34,7 +43,7 @@ public static class CookCatalog
         type is "kitchen" or "fireplace";
 
     public static bool IsMeal(string? id) =>
-        id != null && Recipes.Any(r => r.Result == id);
+        id != null && Recipes.Any(r => r.Result == id && r.Skill == "cooking");
 
     public static CookRecipeInfo? RecipeFor(string? itemId)
     {

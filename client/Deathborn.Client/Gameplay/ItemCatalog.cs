@@ -96,6 +96,16 @@ public static class ItemCatalog
             Id = "iron_ore", Name = "Iron Ore", MaxStack = 40, Kind = ItemKind.Produce,
             Description = "Heavy iron ore. Needs a mining level of 15.",
         },
+        ["copper_bar"] = new()
+        {
+            Id = "copper_bar", Name = "Copper Bar", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "Smelted copper. Smithing material.",
+        },
+        ["iron_bar"] = new()
+        {
+            Id = "iron_bar", Name = "Iron Bar", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "Smelted iron. Smithing material.",
+        },
         ["house_key"] = new()
         {
             Id = "house_key", Name = "Homestead Key", Kind = ItemKind.Key, MaxStack = 1, Cooldown = 0f,

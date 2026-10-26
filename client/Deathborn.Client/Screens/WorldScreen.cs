@@ -2641,7 +2641,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var itemId = SelectedHotbarItemId();
         if (string.IsNullOrEmpty(itemId) || !CookCatalog.IsIngredient(itemId))
         {
-            _status = "Select an egg, crop, or fish on the hotbar, then cook at the pot.";
+            _status = "Select food or ore on the hotbar, then use the kitchen or fireplace.";
             return;
         }
         var local = FindLocalPlayer();

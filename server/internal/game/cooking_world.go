@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/deathborn/server/internal/skills"
@@ -43,6 +44,10 @@ func (w *World) ApplyCookAction(playerID int64, itemID string, slot int) (CookAc
 	if !ok {
 		return CookActionResult{}, "You cannot cook that.", false
 	}
+	skill := recipe.trainedSkill()
+	if p.skills.Level(skill) < recipe.minLevel {
+		return CookActionResult{}, fmt.Sprintf("Your %s level is too low (need %d).", skill, recipe.minLevel), false
+	}
 
 	slots := itemsToSlots(p.inventory)
 	var took bool
@@ -62,7 +67,7 @@ func (w *World) ApplyCookAction(playerID int64, itemID string, slot int) (CookAc
 		ResultID:     recipe.result,
 		ResultName:   recipe.name,
 		GrantedXP:    recipe.xp,
-		Skill:        skills.Cooking,
+		Skill:        skill,
 		PlayerAction: "cook",
 	}
 	now := farmNow()
@@ -71,7 +76,7 @@ func (w *World) ApplyCookAction(playerID int64, itemID string, slot int) (CookAc
 		if p.skills == nil {
 			p.skills = skills.NewSet()
 		}
-		newXp, level, leveled := p.skills.Grant(skills.Cooking, recipe.xp)
+		newXp, level, leveled := p.skills.Grant(skill, recipe.xp)
 		p.totalXp = p.skills.TotalXP()
 		result.Xp = newXp
 		result.Level = level

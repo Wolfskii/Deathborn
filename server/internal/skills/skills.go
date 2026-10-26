@@ -17,13 +17,14 @@ const (
 	Mining      = "mining"
 	Farming     = "farming"
 	Cooking     = "cooking"
+	Smithing    = "smithing"
 )
 
 // All returns every skill id in display order.
 func All() []string {
 	return []string{
 		Attack, Strength, Defense, Hitpoints,
-		Woodcutting, Mining, Fishing, Farming, Cooking,
+		Woodcutting, Mining, Fishing, Farming, Cooking, Smithing,
 	}
 }
 

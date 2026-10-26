@@ -37,7 +37,7 @@ what remains before the MVP.
 - Inventory, hotbar, friends, cosmetics, and buffs.
 - On death, the character dies and its inventory drops as lootable items.
 
-Still to build: mining nodes and the Smithing skill. Full status:
+Still to build: mining nodes (so ores can be found), an anvil or forge, and smithing equipment. Full status:
 [docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md).
 
 ## Tech stack
