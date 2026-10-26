@@ -39,6 +39,8 @@ CLIP_FOLDERS: dict[str, str] = {
     "death": "11. Death",
     "fish_wait": "12.1. Fishing - Wait",
     "fish_reel": "12.3. Fishing - Reel",
+    "hoe": "4. Pickaxe, Hoe and Catching insects",
+    "water": "7. Watering",
 }
 
 # Starter modular character — Josh + farm overalls + sword (character-creator-ready ids).
@@ -71,6 +73,8 @@ LAYERS: dict[str, dict[str, str]] = {
     "fx-cast": {"tpl": "Fx.png", "clips": ["cast"]},
     "weapon-shield": {"generated": True, "clips": ["shield_bash"]},
     "weapon-fishing-rod": {"tpl": "Weapons/1.png", "clips": ["fish_wait", "fish_reel"]},
+    "tool-hoe": {"tpl": "Weapons/Hoe/1.png", "clips": ["hoe"]},
+    "tool-watering": {"tpl": "Weapons/Watering/1.png", "clips": ["water"]},
 }
 
 MAGIC_FX_SRC = PACK.parent / "Others/Arrow/Magic.png"
@@ -191,6 +195,8 @@ def write_manifest(installed: dict[str, list[str]]) -> None:
             "death": {"frames": 4, "folder": "11. Death"},
             "fish_wait": {"frames": 4, "folder": "12.1. Fishing - Wait"},
             "fish_reel": {"frames": 4, "folder": "12.3. Fishing - Reel"},
+            "hoe": {"frames": 6, "folder": "4. Pickaxe, Hoe and Catching insects"},
+            "water": {"frames": 8, "folder": "7. Watering"},
         },
         "starter_appearance": {
             "skin_layer": "skin-1",

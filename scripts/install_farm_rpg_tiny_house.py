@@ -61,6 +61,40 @@ def is_dirt_or_deep_grass(c: tuple[int, int, int, int]) -> bool:
     return False
 
 
+def fill_bridged_gaps(img: Image.Image) -> Image.Image:
+    """
+    Close transparent seams that have artwork on both sides, horizontally or vertically:
+    the roof tile seams, the gable and eave lines, and the gap between the wall and the
+    door frame. The flood fill above drops background-coloured pixels inside the house,
+    and a seam that reaches the sprite edge looks like outside to a flood fill, so this
+    works on the local neighbourhood instead. Each pass fills the average of the opaque
+    neighbours, and passes repeat until no seam is left.
+    """
+    w, h = img.size
+    px = img.load()
+
+    def opaque(x: int, y: int) -> bool:
+        return 0 <= x < w and 0 <= y < h and px[x, y][3] > 0
+
+    def bridged(x: int, y: int) -> bool:
+        return (opaque(x - 1, y) and opaque(x + 1, y)) or (opaque(x, y - 1) and opaque(x, y + 1))
+
+    while True:
+        seams = [(x, y) for y in range(h) for x in range(w) if px[x, y][3] == 0 and bridged(x, y)]
+        if not seams:
+            break
+        for x, y in seams:
+            near = [px[nx, ny] for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)) if opaque(nx, ny)]
+            n = len(near)
+            px[x, y] = (
+                sum(c[0] for c in near) // n,
+                sum(c[1] for c in near) // n,
+                sum(c[2] for c in near) // n,
+                255,
+            )
+    return img
+
+
 def extract(sheet: Image.Image) -> Image.Image:
     crop = sheet.crop(CROP).convert("RGBA")
     pix = crop.load()
@@ -132,7 +166,7 @@ def extract(sheet: Image.Image) -> Image.Image:
 
     xs = [x for x, _ in visited]
     ys = [y for _, y in visited]
-    return out.crop((min(xs), min(ys), max(xs) + 1, max(ys) + 1))
+    return fill_bridged_gaps(out.crop((min(xs), min(ys), max(xs) + 1, max(ys) + 1)))
 
 
 def register_mgcb() -> None:

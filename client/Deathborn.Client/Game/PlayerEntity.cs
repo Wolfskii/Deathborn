@@ -166,6 +166,8 @@ public sealed class PlayerEntity
     private readonly PlayerChatBubble _chatBubble = new();
     private readonly ThinkingBubble _thinking = new();
     private readonly HashSet<long> _meleeHitThisSwing = [];
+    /// <summary>The current swing is a farm tool: it plays like an attack but never deals damage.</summary>
+    private bool _toolSwing;
     private readonly HashSet<long> _whirlwindHit = [];
     private readonly HashSet<long> _dashHit = [];
     private MeleeAbilityDefinition? _activeMeleeDef;
@@ -293,7 +295,7 @@ public sealed class PlayerEntity
         IReadOnlyDictionary<long, PlayerEntity> players,
         Action<long, int, string> reportHit)
     {
-        if (!IsLocal || IsDead || !IsAttacking) return;
+        if (!IsLocal || IsDead || !IsAttacking || _toolSwing) return;
 
         var def = _activeMeleeDef ?? MeleeAbilityDefinitions.Slash;
         var frame = _visual.Controller.AttackFrame;
@@ -339,9 +341,18 @@ public sealed class PlayerEntity
     {
         if (IsBusy || IsDead) return false;
         _meleeHitThisSwing.Clear();
+        _toolSwing = false;
         var card = CardinalFacing(facing ?? FacingDir);
         MoveDir = card;
         _visual.StartAttack(card, clip);
+        return true;
+    }
+
+    /// <summary>Farm tool swing (hoe, watering can, planting): attack-style animation, no hits.</summary>
+    public bool StartToolSwing(Vector2? facing, CharacterClip clip)
+    {
+        if (!StartAttack(facing, clip)) return false;
+        _toolSwing = true;
         return true;
     }
 
@@ -417,7 +428,7 @@ public sealed class PlayerEntity
         IReadOnlyDictionary<long, WorldNpcEntity> npcs,
         Action<long, int, string> reportHit)
     {
-        if (!IsLocal || IsDead || !IsAttacking || npcs.Count == 0) return;
+        if (!IsLocal || IsDead || !IsAttacking || _toolSwing || npcs.Count == 0) return;
 
         var def = _activeMeleeDef ?? MeleeAbilityDefinitions.Slash;
         var frame = _visual.Controller.AttackFrame;
@@ -484,9 +495,15 @@ public sealed class PlayerEntity
                 StartAttack(facingDir);
                 break;
             case PlayerActions.Hoe:
+                StartToolSwing(facingDir, CharacterClip.Hoe);
+                StartAbilityLock(0.28f);
+                break;
             case PlayerActions.Water:
+                StartToolSwing(facingDir, CharacterClip.Water);
+                StartAbilityLock(0.28f);
+                break;
             case PlayerActions.Cook:
-                StartAttack(facingDir);
+                StartToolSwing(facingDir, CharacterClip.Plant);
                 StartAbilityLock(0.28f);
                 break;
             case PlayerActions.FishWait:

@@ -1001,6 +1001,24 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			c.hub.Broadcast(BuildHouseUpdated(state))
 
+		case "remove_furniture":
+			if !c.spawned {
+				continue
+			}
+			var d RemoveFurnitureSendData
+			if json.Unmarshal(env.Data, &d) != nil {
+				continue
+			}
+			state, msg, ok := c.hub.world.RemoveFurniture(c.characterID, d.X, d.Y)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			if items, ok := c.hub.world.FurnitureForSave(c.characterID); ok {
+				_ = database.SaveHouseFurniture(context.Background(), c.characterID, dbFurnitureToDB(items))
+			}
+			c.hub.Broadcast(BuildHouseUpdated(state))
+
 		case "house_enter":
 			if !c.spawned {
 				continue

@@ -30,6 +30,14 @@ public sealed class SpriteAssembler
         TryAddEquipment(appearance.HairStyleId, clip, appearance.HairPalette);
         if (clip is CharacterClip.FishWait or CharacterClip.FishReel)
             TryAddFarmTexture("weapon-fishing-rod", clip, CharacterLayerId.Weapon);
+        else if (clip == CharacterClip.Hoe)
+            TryAddFarmTexture("tool-hoe", clip, CharacterLayerId.Weapon);
+        else if (clip == CharacterClip.Water)
+            TryAddFarmTexture("tool-watering", clip, CharacterLayerId.Weapon);
+        else if (clip == CharacterClip.Plant)
+        {
+            // Empty-handed farm gesture: no weapon or tool layer.
+        }
         else
             TryAddEquipment(equipment.WeaponId, clip);
 

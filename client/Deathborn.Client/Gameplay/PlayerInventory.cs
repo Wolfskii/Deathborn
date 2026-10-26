@@ -142,6 +142,17 @@ public sealed class PlayerInventory
 
     public bool HasItem(string itemId, int count = 1) => CountOf(itemId) >= count;
 
+    /// <summary>First slot holding <paramref name="itemId"/>, or -1.</summary>
+    public int FindSlot(string itemId)
+    {
+        for (var i = 0; i < SlotCount; i++)
+        {
+            if (!Slots[i].IsEmpty && Slots[i].ItemId == itemId)
+                return i;
+        }
+        return -1;
+    }
+
     public void Update(float dt)
     {
         foreach (var slot in Slots)

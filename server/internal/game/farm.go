@@ -196,9 +196,23 @@ func (p *housePlot) inPlot(x, y float64) bool {
 		y >= p.centerY-PlotHalfH && y <= p.centerY+PlotHalfH
 }
 
+// fenceSoilInset keeps tilled soil this far inside the fence line so a tile never
+// pokes out past the posts.
+const fenceSoilInset = 2.0
+
+// tileInsideFence reports whether the whole tile lies inside the homestead fence.
+func (p *housePlot) tileInsideFence(tx, ty int) bool {
+	x0 := float64(tx) * FarmTileSize
+	y0 := float64(ty) * FarmTileSize
+	return x0 >= p.centerX-PlotHalfW+fenceSoilInset &&
+		x0+FarmTileSize <= p.centerX+PlotHalfW-fenceSoilInset &&
+		y0 >= p.centerY-PlotHalfH+fenceSoilInset &&
+		y0+FarmTileSize <= p.centerY+PlotHalfH-fenceSoilInset
+}
+
 func (p *housePlot) tileFarmable(tx, ty int) bool {
 	cx, cy := tileCenter(tx, ty)
-	if !p.inPlot(cx, cy) {
+	if !p.tileInsideFence(tx, ty) {
 		return false
 	}
 	// Keep the cottage footprint and door approach clear.
@@ -332,6 +346,10 @@ func (p *housePlot) farmPersist() FarmPersist {
 func (p *housePlot) loadFarm(data FarmPersist) {
 	p.crops = p.crops[:0]
 	for _, t := range data.Crops {
+		// Tiles saved before the fence rule (or a plot resize) can sit outside the fence.
+		if !p.tileFarmable(t.Tx, t.Ty) {
+			continue
+		}
 		p.crops = append(p.crops, farmTile{
 			tx: t.Tx, ty: t.Ty, crop: t.Crop, stage: t.Stage,
 			growAccum: t.GrowAccum, wateredUntil: t.WateredUntil,

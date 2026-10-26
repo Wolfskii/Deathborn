@@ -21,16 +21,24 @@ public static class HouseRenderer
         float visualZoom,
         IEnumerable<HousePlotZone> houses)
     {
+        // Ground layer only. Fence cells and the cottage are drawn in the exterior Y-sort with the
+        // players (DrawCottage / FarmRpgFenceSprites.AppendCells), so they hide whoever walks
+        // behind them. Furniture positions are interior coordinates (interior view only).
         foreach (var house in houses)
         {
-            FarmRpgFenceSprites.DrawPlot(sb, house.Center, camera, screenCenter, positionZoom, visualZoom);
             FarmRenderer.DrawSoil(sb, house, camera, screenCenter, positionZoom);
-            DrawHouseStructure(sb, house.Center, camera, screenCenter, positionZoom, visualZoom);
             FarmRenderer.DrawCrops(sb, house, camera, screenCenter, positionZoom);
-            foreach (var item in house.Furniture)
-                DrawFurniture(sb, item, camera, screenCenter, positionZoom, visualZoom);
         }
     }
+
+    /// <summary>Depth-sort Y for the cottage: a little above its foot so a player at the door stays in front.</summary>
+    public static float CottageSortY(Vector2 center) => center.Y - 4f;
+
+    /// <summary>Cottage sprite; <paramref name="alpha"/> below 1 fades it while the player is behind it.</summary>
+    public static void DrawCottage(
+        SpriteBatch sb, Vector2 center, Vector2 camera, Vector2 screenCenter,
+        float positionZoom, float visualZoom, float alpha) =>
+        DrawHouseStructure(sb, center, camera, screenCenter, positionZoom, visualZoom, alpha);
 
     public static void DrawInteriorFloors(
         SpriteBatch sb,
@@ -202,14 +210,14 @@ public static class HouseRenderer
 
     private static void DrawHouseStructure(
         SpriteBatch sb, Vector2 world,
-        Vector2 camera, Vector2 screenCenter, float positionZoom, float visualZoom)
+        Vector2 camera, Vector2 screenCenter, float positionZoom, float visualZoom, float alpha = 1f)
     {
         var screen = WorldToScreen(world, camera, screenCenter, positionZoom);
         var tex = FarmRpgHouseSprites.OrangeCottage;
         if (tex != null)
         {
             var scale = FarmRpgHouseSprites.DisplayScale * visualZoom;
-            sb.Draw(tex, screen, null, Color.White, 0f, FarmRpgHouseSprites.FootAnchor(), scale, SpriteEffects.None, 0f);
+            sb.Draw(tex, screen, null, Color.White * alpha, 0f, FarmRpgHouseSprites.FootAnchor(), scale, SpriteEffects.None, 0f);
             return;
         }
 
@@ -243,14 +251,6 @@ public static class HouseRenderer
             RoofLight, 2f);
     }
 
-    private static void DrawFurniture(
-        SpriteBatch sb, FurnitureItemState item,
-        Vector2 camera, Vector2 screenCenter, float positionZoom, float visualZoom)
-    {
-        var screen = WorldToScreen(item.Position, camera, screenCenter, positionZoom);
-        DrawFurnitureShape(sb, item.Type, screen, visualZoom);
-    }
-
     public static void DrawFurnitureItem(
         SpriteBatch sb,
         FurnitureItemState item,
@@ -258,46 +258,23 @@ public static class HouseRenderer
         Vector2 camera,
         Vector2 screenCenter,
         float worldZoom,
-        float zoomScale)
-    {
-        var z = worldZoom * zoomScale;
-        var screen = screenCenter + (item.Position - camera) * z;
-        DrawFurnitureShape(sb, item.Type, screen, z);
-    }
+        float zoomScale) =>
+        DrawFurniture(sb, item.Type, item.Position, camera, screenCenter, worldZoom * zoomScale, Color.White);
 
-    private static void DrawFurnitureShape(SpriteBatch sb, string type, Vector2 screen, float z)
+    /// <summary>Furniture piece at a world position (bottom-centre anchor); <paramref name="tint"/> for previews.</summary>
+    public static void DrawFurniture(
+        SpriteBatch sb, string type, Vector2 world, Vector2 camera, Vector2 screenCenter, float z, Color tint)
     {
-        switch (type)
-        {
-            case "bed":
-                DrawPrimitives.FillRect(sb, CenteredRect(screen, 36 * z, 18 * z), new Color(0.55f, 0.42f, 0.62f));
-                break;
-            case "table":
-                DrawPrimitives.FillRect(sb, CenteredRect(screen, 28 * z, 14 * z), new Color(0.48f, 0.32f, 0.18f));
-                break;
-            case "chair":
-                DrawPrimitives.FillRect(sb, CenteredRect(screen, 14 * z, 14 * z), new Color(0.42f, 0.28f, 0.16f));
-                break;
-            case "chest":
-                DrawPrimitives.FillRect(sb, CenteredRect(screen, 18 * z, 12 * z), new Color(0.52f, 0.34f, 0.18f));
-                break;
-            case "fireplace":
-                DrawPrimitives.FillRect(sb, CenteredRect(screen, 16 * z, 20 * z), new Color(0.35f, 0.32f, 0.3f));
-                DrawPrimitives.FillRect(sb, CenteredRect(screen + new Vector2(0, -4 * z), 10 * z, 8 * z),
-                    new Color(0.92f, 0.42f, 0.12f, 0.85f));
-                break;
-            case "kitchen":
-                if (!FurnitureSprites.TryDrawKitchen(sb, screen, z, Environment.TickCount64 / 1000f))
-                {
-                    DrawPrimitives.FillRect(sb, CenteredRect(screen, 18 * z, 16 * z), new Color(0.42f, 0.38f, 0.34f));
-                    DrawPrimitives.FillRect(sb, CenteredRect(screen + new Vector2(0, -6 * z), 10 * z, 8 * z),
-                        new Color(0.55f, 0.58f, 0.62f));
-                }
-                break;
-            case "rug":
-                DrawPrimitives.FillRect(sb, CenteredRect(screen, 40 * z, 24 * z), new Color(0.62f, 0.22f, 0.22f, 0.75f));
-                break;
-        }
+        var screen = screenCenter + (world - camera) * z;
+        if (FurnitureSprites.TryDraw(sb, type, screen, z, Environment.TickCount64 / 1000f, tint))
+            return;
+
+        // Placeholder block when the sprite is not installed.
+        var size = FurnitureSprites.Size(type);
+        var rect = FurnitureSprites.IsFloorPiece(type)
+            ? CenteredRect(screen, size.X * z, size.Y * z)
+            : CenteredRect(screen - new Vector2(0, size.Y * 0.5f * z), size.X * z, size.Y * z);
+        DrawPrimitives.FillRect(sb, rect, new Color(0.48f, 0.32f, 0.18f) * (tint.A / 255f));
     }
 
     private static Rectangle CenteredRect(Vector2 center, float w, float h) =>

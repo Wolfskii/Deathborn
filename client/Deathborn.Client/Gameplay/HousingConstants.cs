@@ -10,14 +10,15 @@ public static class HousingConstants
     private const float Hs = Config.WorldTileSize / Config.LegacyTileSize;
     private const float Es = Hs / Config.ExteriorTerrainFocusScale;
 
-    public const float PlotHalfW = 100f * Es;
-    public const float PlotHalfH = 88f * Es;
+    // Homestead yard: two tiles wider and taller than the original 100x88 half-sizes (server housing.go).
+    public const float PlotHalfW = 132f * Es;
+    public const float PlotHalfH = 120f * Es;
     public const float HouseHalfW = 52f * Es;
     public const float HouseHalfH = 44f * Es;
 
-    /// <summary>Instanced interior — three connected rooms (bedroom | hall | kitchen).</summary>
-    public const float InteriorHalfW = 210f * Hs;
-    public const float InteriorHalfH = 125f * Hs;
+    /// <summary>Instanced interior: 26 x 15 tiles, three rooms (see <see cref="HouseInteriorLayout"/>).</summary>
+    public const float InteriorHalfW = 208f * Hs;
+    public const float InteriorHalfH = 120f * Hs;
 
     public static readonly Vector2[] GardenCropOffsets =
     [
@@ -32,21 +33,54 @@ public static class HousingConstants
         world.X >= center.X - PlotHalfW && world.X <= center.X + PlotHalfW
         && world.Y >= center.Y - PlotHalfH && world.Y <= center.Y + PlotHalfH;
 
-    public static bool InHouseInterior(Vector2 world, Vector2 center) =>
-        world.X >= center.X - InteriorHalfW && world.X <= center.X + InteriorHalfW
-        && world.Y >= center.Y - InteriorHalfH && world.Y <= center.Y + InteriorHalfH - 8 * Hs;
+    /// <summary>Keeps tilled soil this far inside the fence line (server fenceSoilInset).</summary>
+    private const float FenceSoilInset = 2f;
 
-    /// <summary>Exterior door on the homestead building (right-side door on Farm RPG cottage).</summary>
-    public static Vector2 DoorWorldPosition(Vector2 center)
+    /// <summary>True when the whole farm tile lies inside the fence (server tileInsideFence).</summary>
+    public static bool TileInsideFence(int tx, int ty, Vector2 center)
     {
-        var door = FarmRpgHouseSprites.DoorOffsetFromFoot()
-            * FarmRpgHouseSprites.DisplayScale * Es;
-        return center + door;
+        var origin = FarmCatalog.TileOrigin(tx, ty);
+        var size = FarmCatalog.TileSize;
+        return origin.X >= center.X - PlotHalfW + FenceSoilInset
+            && origin.X + size <= center.X + PlotHalfW - FenceSoilInset
+            && origin.Y >= center.Y - PlotHalfH + FenceSoilInset
+            && origin.Y + size <= center.Y + PlotHalfH - FenceSoilInset;
     }
 
-    /// <summary>Exit door inside the instanced room (south wall).</summary>
-    public static Vector2 InteriorDoorWorldPosition(Vector2 center) =>
-        new(center.X, center.Y + InteriorHalfH - 20 * Hs);
+    /// <summary>On the interior floor, inside the outer walls (server InHouseInterior).</summary>
+    public static bool InHouseInterior(Vector2 world, Vector2 center)
+    {
+        var min = HouseInteriorLayout.TileWorld(center, 1, HouseInteriorLayout.NorthSolidRows + 1);
+        var max = HouseInteriorLayout.TileWorld(center, HouseInteriorLayout.Cols - 1, HouseInteriorLayout.Rows - 1);
+        return world.X >= min.X && world.X <= max.X && world.Y >= min.Y && world.Y <= max.Y;
+    }
+
+    /// <summary>World units per cottage art pixel (the sprite is drawn at DisplayScale × WorldZoom, world at 2 × WorldZoom).</summary>
+    private const float ArtToWorld = FarmRpgHouseSprites.DisplayScale * Es;
+
+    /// <summary>World AABB of the drawn cottage sprite (foot anchor at the plot centre).</summary>
+    public static void CottageWorldBounds(Vector2 center, out float left, out float right, out float top, out float bottom)
+    {
+        var tex = FarmRpgHouseSprites.OrangeCottage;
+        var artW = tex?.Width ?? 72f;
+        var artH = tex?.Height ?? 86f;
+        left = center.X - artW * 0.5f * ArtToWorld;
+        right = center.X + artW * 0.5f * ArtToWorld;
+        top = center.Y - artH * ArtToWorld;
+        bottom = center.Y;
+    }
+
+    /// <summary>Exterior door threshold on the homestead cottage (bottom-centre of the door plate).</summary>
+    public static Vector2 DoorWorldPosition(Vector2 center) =>
+        center + FarmRpgHouseSprites.DoorOffsetFromFoot() * ArtToWorld;
+
+    /// <summary>Exit door inside the instanced room: middle of the south wall gap (server HouseInteriorDoorPosition).</summary>
+    public static Vector2 InteriorDoorWorldPosition(Vector2 center)
+    {
+        var left = HouseInteriorLayout.TileWorld(center, HouseInteriorLayout.ExitLeft, HouseInteriorLayout.Rows - 1);
+        var right = HouseInteriorLayout.TileWorld(center, HouseInteriorLayout.ExitRight + 1, HouseInteriorLayout.Rows - 1);
+        return new Vector2((left.X + right.X) * 0.5f, left.Y + HouseInteriorLayout.Tile * 0.5f);
+    }
 
     /// <summary>Feet spawn just inside the south door (matches server HouseInteriorSpawn).</summary>
     public static Vector2 InteriorSpawnPosition(Vector2 center)
@@ -56,26 +90,21 @@ public static class HousingConstants
     }
 
     public static Vector2 InteriorLocalMin => new(-InteriorHalfW, -InteriorHalfH);
-    public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH - 8 * Hs);
+    public static Vector2 InteriorLocalMax => new(InteriorHalfW, InteriorHalfH);
 
     /// <summary>Legacy radius — prefer <see cref="DoorHitBounds"/> for click / highlight.</summary>
     public const float DoorInteractRadius = 38f * Es;
 
-    /// <summary>Exterior door click/highlight box (world units) — tall door plate on the cottage.</summary>
-    public const float DoorHitHalfW = 11f * Es;
-    public const float DoorHitHeight = 40f * Es;
-    public const float DoorHitBottomPad = 6f * Es;
-
     public const float InteriorWallInset = 16f * Hs;
 
-    /// <summary>World AABB of the exterior door plate (tall rectangle over the cottage door).</summary>
+    /// <summary>World AABB of the exterior door plate, so the highlight sits exactly on the sprite's door.</summary>
     public static void DoorHitBounds(Vector2 center, out float left, out float right, out float top, out float bottom)
     {
-        var door = DoorWorldPosition(center);
-        left = door.X - DoorHitHalfW;
-        right = door.X + DoorHitHalfW;
-        bottom = door.Y + DoorHitBottomPad;
-        top = bottom - DoorHitHeight;
+        FarmRpgHouseSprites.DoorHitArtBounds(out var l, out var t, out var r, out var b);
+        left = center.X + l * ArtToWorld;
+        right = center.X + r * ArtToWorld;
+        top = center.Y + t * ArtToWorld;
+        bottom = center.Y + b * ArtToWorld;
     }
 
     public static bool InDoorHit(Vector2 world, Vector2 center)
@@ -84,13 +113,15 @@ public static class HousingConstants
         return world.X >= left && world.X <= right && world.Y >= top && world.Y <= bottom;
     }
 
+    /// <summary>Safety box only (server clampToInterior); the interior walls do the real blocking.</summary>
     public static Vector2 ClampToInterior(Vector2 world, Vector2 center)
     {
-        var inset = InteriorWallInset;
-        var minX = center.X - InteriorHalfW + inset;
-        var maxX = center.X + InteriorHalfW - inset;
-        var minY = center.Y - InteriorHalfH + inset;
-        var maxY = center.Y + InteriorHalfH - 8 * Hs - inset;
+        var min = HouseInteriorLayout.TileWorld(center, 1, HouseInteriorLayout.NorthSolidRows);
+        var max = HouseInteriorLayout.TileWorld(center, HouseInteriorLayout.Cols - 1, HouseInteriorLayout.Rows);
+        var minX = min.X;
+        var maxX = max.X;
+        var minY = min.Y;
+        var maxY = max.Y - 2f;
         return new Vector2(
             Math.Clamp(world.X, minX, maxX),
             Math.Clamp(world.Y, minY, maxY));

@@ -48,6 +48,14 @@
     "fish_reel": {
       "frames": 4,
       "folder": "12.3. Fishing - Reel"
+    },
+    "hoe": {
+      "frames": 6,
+      "folder": "4. Pickaxe, Hoe and Catching insects"
+    },
+    "water": {
+      "frames": 8,
+      "folder": "7. Watering"
     }
   },
   "starter_appearance": {
@@ -68,7 +76,9 @@
       "Characters/FarmRpg/layers/skin-1/hurt.png",
       "Characters/FarmRpg/layers/skin-1/death.png",
       "Characters/FarmRpg/layers/skin-1/fish_wait.png",
-      "Characters/FarmRpg/layers/skin-1/fish_reel.png"
+      "Characters/FarmRpg/layers/skin-1/fish_reel.png",
+      "Characters/FarmRpg/layers/skin-1/hoe.png",
+      "Characters/FarmRpg/layers/skin-1/water.png"
     ],
     "skin-2": [
       "Characters/FarmRpg/layers/skin-2/idle.png",
@@ -80,7 +90,9 @@
       "Characters/FarmRpg/layers/skin-2/hurt.png",
       "Characters/FarmRpg/layers/skin-2/death.png",
       "Characters/FarmRpg/layers/skin-2/fish_wait.png",
-      "Characters/FarmRpg/layers/skin-2/fish_reel.png"
+      "Characters/FarmRpg/layers/skin-2/fish_reel.png",
+      "Characters/FarmRpg/layers/skin-2/hoe.png",
+      "Characters/FarmRpg/layers/skin-2/water.png"
     ],
     "skin-3": [
       "Characters/FarmRpg/layers/skin-3/idle.png",
@@ -92,7 +104,9 @@
       "Characters/FarmRpg/layers/skin-3/hurt.png",
       "Characters/FarmRpg/layers/skin-3/death.png",
       "Characters/FarmRpg/layers/skin-3/fish_wait.png",
-      "Characters/FarmRpg/layers/skin-3/fish_reel.png"
+      "Characters/FarmRpg/layers/skin-3/fish_reel.png",
+      "Characters/FarmRpg/layers/skin-3/hoe.png",
+      "Characters/FarmRpg/layers/skin-3/water.png"
     ],
     "skin-4": [
       "Characters/FarmRpg/layers/skin-4/idle.png",
@@ -104,7 +118,9 @@
       "Characters/FarmRpg/layers/skin-4/hurt.png",
       "Characters/FarmRpg/layers/skin-4/death.png",
       "Characters/FarmRpg/layers/skin-4/fish_wait.png",
-      "Characters/FarmRpg/layers/skin-4/fish_reel.png"
+      "Characters/FarmRpg/layers/skin-4/fish_reel.png",
+      "Characters/FarmRpg/layers/skin-4/hoe.png",
+      "Characters/FarmRpg/layers/skin-4/water.png"
     ],
     "eyes-male-brown": [
       "Characters/FarmRpg/layers/eyes-male-brown/idle.png",
@@ -116,7 +132,9 @@
       "Characters/FarmRpg/layers/eyes-male-brown/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-brown/death.png",
       "Characters/FarmRpg/layers/eyes-male-brown/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-male-brown/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-male-brown/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/hoe.png",
+      "Characters/FarmRpg/layers/eyes-male-brown/water.png"
     ],
     "eyes-male-blue": [
       "Characters/FarmRpg/layers/eyes-male-blue/idle.png",
@@ -128,7 +146,9 @@
       "Characters/FarmRpg/layers/eyes-male-blue/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-blue/death.png",
       "Characters/FarmRpg/layers/eyes-male-blue/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-male-blue/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-male-blue/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/hoe.png",
+      "Characters/FarmRpg/layers/eyes-male-blue/water.png"
     ],
     "eyes-male-green": [
       "Characters/FarmRpg/layers/eyes-male-green/idle.png",
@@ -140,7 +160,9 @@
       "Characters/FarmRpg/layers/eyes-male-green/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-green/death.png",
       "Characters/FarmRpg/layers/eyes-male-green/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-male-green/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-male-green/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-male-green/hoe.png",
+      "Characters/FarmRpg/layers/eyes-male-green/water.png"
     ],
     "eyes-male-black": [
       "Characters/FarmRpg/layers/eyes-male-black/idle.png",
@@ -152,7 +174,9 @@
       "Characters/FarmRpg/layers/eyes-male-black/hurt.png",
       "Characters/FarmRpg/layers/eyes-male-black/death.png",
       "Characters/FarmRpg/layers/eyes-male-black/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-male-black/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-male-black/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-male-black/hoe.png",
+      "Characters/FarmRpg/layers/eyes-male-black/water.png"
     ],
     "eyes-female-brown": [
       "Characters/FarmRpg/layers/eyes-female-brown/idle.png",
@@ -164,7 +188,9 @@
       "Characters/FarmRpg/layers/eyes-female-brown/hurt.png",
       "Characters/FarmRpg/layers/eyes-female-brown/death.png",
       "Characters/FarmRpg/layers/eyes-female-brown/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-female-brown/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-female-brown/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/hoe.png",
+      "Characters/FarmRpg/layers/eyes-female-brown/water.png"
     ],
     "eyes-female-blue": [
       "Characters/FarmRpg/layers/eyes-female-blue/idle.png",
@@ -176,7 +202,9 @@
       "Characters/FarmRpg/layers/eyes-female-blue/hurt.png",
       "Characters/FarmRpg/layers/eyes-female-blue/death.png",
       "Characters/FarmRpg/layers/eyes-female-blue/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-female-blue/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-female-blue/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/hoe.png",
+      "Characters/FarmRpg/layers/eyes-female-blue/water.png"
     ],
     "eyes-female-green": [
       "Characters/FarmRpg/layers/eyes-female-green/idle.png",
@@ -188,7 +216,9 @@
       "Characters/FarmRpg/layers/eyes-female-green/hurt.png",
       "Characters/FarmRpg/layers/eyes-female-green/death.png",
       "Characters/FarmRpg/layers/eyes-female-green/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-female-green/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-female-green/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-female-green/hoe.png",
+      "Characters/FarmRpg/layers/eyes-female-green/water.png"
     ],
     "eyes-female-black": [
       "Characters/FarmRpg/layers/eyes-female-black/idle.png",
@@ -200,7 +230,9 @@
       "Characters/FarmRpg/layers/eyes-female-black/hurt.png",
       "Characters/FarmRpg/layers/eyes-female-black/death.png",
       "Characters/FarmRpg/layers/eyes-female-black/fish_wait.png",
-      "Characters/FarmRpg/layers/eyes-female-black/fish_reel.png"
+      "Characters/FarmRpg/layers/eyes-female-black/fish_reel.png",
+      "Characters/FarmRpg/layers/eyes-female-black/hoe.png",
+      "Characters/FarmRpg/layers/eyes-female-black/water.png"
     ],
     "hair-josh-brown": [
       "Characters/FarmRpg/layers/hair-josh-brown/idle.png",
@@ -212,7 +244,9 @@
       "Characters/FarmRpg/layers/hair-josh-brown/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-brown/death.png",
       "Characters/FarmRpg/layers/hair-josh-brown/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-josh-brown/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-josh-brown/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/hoe.png",
+      "Characters/FarmRpg/layers/hair-josh-brown/water.png"
     ],
     "hair-josh-black": [
       "Characters/FarmRpg/layers/hair-josh-black/idle.png",
@@ -224,7 +258,9 @@
       "Characters/FarmRpg/layers/hair-josh-black/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-black/death.png",
       "Characters/FarmRpg/layers/hair-josh-black/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-josh-black/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-josh-black/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-josh-black/hoe.png",
+      "Characters/FarmRpg/layers/hair-josh-black/water.png"
     ],
     "hair-josh-blonde": [
       "Characters/FarmRpg/layers/hair-josh-blonde/idle.png",
@@ -236,7 +272,9 @@
       "Characters/FarmRpg/layers/hair-josh-blonde/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-blonde/death.png",
       "Characters/FarmRpg/layers/hair-josh-blonde/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-josh-blonde/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-josh-blonde/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/hoe.png",
+      "Characters/FarmRpg/layers/hair-josh-blonde/water.png"
     ],
     "hair-josh-ginger": [
       "Characters/FarmRpg/layers/hair-josh-ginger/idle.png",
@@ -248,7 +286,9 @@
       "Characters/FarmRpg/layers/hair-josh-ginger/hurt.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/death.png",
       "Characters/FarmRpg/layers/hair-josh-ginger/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-josh-ginger/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-josh-ginger/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/hoe.png",
+      "Characters/FarmRpg/layers/hair-josh-ginger/water.png"
     ],
     "hair-lyria-brown": [
       "Characters/FarmRpg/layers/hair-lyria-brown/idle.png",
@@ -260,7 +300,9 @@
       "Characters/FarmRpg/layers/hair-lyria-brown/hurt.png",
       "Characters/FarmRpg/layers/hair-lyria-brown/death.png",
       "Characters/FarmRpg/layers/hair-lyria-brown/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-lyria-brown/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-lyria-brown/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/hoe.png",
+      "Characters/FarmRpg/layers/hair-lyria-brown/water.png"
     ],
     "hair-lyria-black": [
       "Characters/FarmRpg/layers/hair-lyria-black/idle.png",
@@ -272,7 +314,9 @@
       "Characters/FarmRpg/layers/hair-lyria-black/hurt.png",
       "Characters/FarmRpg/layers/hair-lyria-black/death.png",
       "Characters/FarmRpg/layers/hair-lyria-black/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-lyria-black/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-lyria-black/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/hoe.png",
+      "Characters/FarmRpg/layers/hair-lyria-black/water.png"
     ],
     "hair-lyria-blonde": [
       "Characters/FarmRpg/layers/hair-lyria-blonde/idle.png",
@@ -284,7 +328,9 @@
       "Characters/FarmRpg/layers/hair-lyria-blonde/hurt.png",
       "Characters/FarmRpg/layers/hair-lyria-blonde/death.png",
       "Characters/FarmRpg/layers/hair-lyria-blonde/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-lyria-blonde/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-lyria-blonde/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/hoe.png",
+      "Characters/FarmRpg/layers/hair-lyria-blonde/water.png"
     ],
     "hair-lyria-ginger": [
       "Characters/FarmRpg/layers/hair-lyria-ginger/idle.png",
@@ -296,7 +342,9 @@
       "Characters/FarmRpg/layers/hair-lyria-ginger/hurt.png",
       "Characters/FarmRpg/layers/hair-lyria-ginger/death.png",
       "Characters/FarmRpg/layers/hair-lyria-ginger/fish_wait.png",
-      "Characters/FarmRpg/layers/hair-lyria-ginger/fish_reel.png"
+      "Characters/FarmRpg/layers/hair-lyria-ginger/fish_reel.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/hoe.png",
+      "Characters/FarmRpg/layers/hair-lyria-ginger/water.png"
     ],
     "outfit-farm-blue": [
       "Characters/FarmRpg/layers/outfit-farm-blue/idle.png",
@@ -308,7 +356,9 @@
       "Characters/FarmRpg/layers/outfit-farm-blue/hurt.png",
       "Characters/FarmRpg/layers/outfit-farm-blue/death.png",
       "Characters/FarmRpg/layers/outfit-farm-blue/fish_wait.png",
-      "Characters/FarmRpg/layers/outfit-farm-blue/fish_reel.png"
+      "Characters/FarmRpg/layers/outfit-farm-blue/fish_reel.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/hoe.png",
+      "Characters/FarmRpg/layers/outfit-farm-blue/water.png"
     ],
     "outfit-farm-green": [
       "Characters/FarmRpg/layers/outfit-farm-green/idle.png",
@@ -320,7 +370,9 @@
       "Characters/FarmRpg/layers/outfit-farm-green/hurt.png",
       "Characters/FarmRpg/layers/outfit-farm-green/death.png",
       "Characters/FarmRpg/layers/outfit-farm-green/fish_wait.png",
-      "Characters/FarmRpg/layers/outfit-farm-green/fish_reel.png"
+      "Characters/FarmRpg/layers/outfit-farm-green/fish_reel.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/hoe.png",
+      "Characters/FarmRpg/layers/outfit-farm-green/water.png"
     ],
     "outfit-farm-red": [
       "Characters/FarmRpg/layers/outfit-farm-red/idle.png",
@@ -332,7 +384,9 @@
       "Characters/FarmRpg/layers/outfit-farm-red/hurt.png",
       "Characters/FarmRpg/layers/outfit-farm-red/death.png",
       "Characters/FarmRpg/layers/outfit-farm-red/fish_wait.png",
-      "Characters/FarmRpg/layers/outfit-farm-red/fish_reel.png"
+      "Characters/FarmRpg/layers/outfit-farm-red/fish_reel.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/hoe.png",
+      "Characters/FarmRpg/layers/outfit-farm-red/water.png"
     ],
     "weapon-sword": [
       "Characters/FarmRpg/layers/weapon-sword/attack.png"
@@ -349,6 +403,12 @@
     "weapon-fishing-rod": [
       "Characters/FarmRpg/layers/weapon-fishing-rod/fish_wait.png",
       "Characters/FarmRpg/layers/weapon-fishing-rod/fish_reel.png"
+    ],
+    "tool-hoe": [
+      "Characters/FarmRpg/layers/tool-hoe/hoe.png"
+    ],
+    "tool-watering": [
+      "Characters/FarmRpg/layers/tool-watering/water.png"
     ]
   }
 }

@@ -24,8 +24,8 @@ func TestStarterKitchenOffset(t *testing.T) {
 	if item.Type != "kitchen" {
 		t.Fatalf("type %s", item.Type)
 	}
-	if item.X <= 100 || item.Y <= 200 {
-		t.Fatalf("kitchen should sit in the east kitchen room, got %+v", item)
+	if item.X <= interiorTileX(100, interiorDividerR+1) || !InHouseInterior(item.X, item.Y, 100, 200) {
+		t.Fatalf("kitchen should sit on the floor of the east kitchen room, got %+v", item)
 	}
 }
 

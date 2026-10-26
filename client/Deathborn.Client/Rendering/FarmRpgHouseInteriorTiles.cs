@@ -4,28 +4,17 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace Deathborn.Client.Rendering;
 
-/// <summary>Farm RPG Tileset House — floors + wall panels for homestead interiors.</summary>
+/// <summary>
+/// Farm RPG "Tileset House" sheet (16 px cells): floors in the top-right block, and wallpaper
+/// groups four columns wide below it. In each group the first column is a narrow piece and the
+/// next three are a left end, a repeatable middle and a right end. Wall rows come in pairs, an
+/// upper face over a lower skirting row (e.g. rows 10/11, 16/17, 22/23).
+/// </summary>
 public static class FarmRpgHouseInteriorTiles
 {
     public const int Cell = 16;
 
     private static Texture2D? _sheet;
-
-    // Top-row floors (16×16 cells).
-    public static readonly Rectangle FloorHall = CellRect(20, 0);
-    public static readonly Rectangle FloorHallAlt = CellRect(21, 0);
-    public static readonly Rectangle FloorBedroom = CellRect(48, 2);
-    public static readonly Rectangle FloorKitchen = CellRect(25, 0);
-
-    // Wall panel columns (peach / wood / teal-ish) — mid solid fill + wood trim.
-    // Sheet layout: after top misc, color columns; peach ≈ col 20, wood ≈ col 0 area of wall strip.
-    public static readonly Rectangle WallPeach = CellRect(20, 6);
-    public static readonly Rectangle WallPeachTrim = CellRect(20, 8);
-    public static readonly Rectangle WallWood = CellRect(1, 6);
-    public static readonly Rectangle WallWoodTrim = CellRect(1, 8);
-    public static readonly Rectangle WallTeal = CellRect(34, 6);
-    public static readonly Rectangle WallTealTrim = CellRect(34, 8);
-    public static readonly Rectangle Beam = CellRect(0, 6);
 
     public static bool IsLoaded => _sheet != null;
     public static Texture2D? Sheet => _sheet;
@@ -43,12 +32,13 @@ public static class FarmRpgHouseInteriorTiles
         }
     }
 
-    public static void DrawTile(SpriteBatch sb, Rectangle src, Vector2 screen, float scale, Color tint)
+    /// <summary>Draws one cell stretched to <paramref name="dest"/> (whole screen pixels, so tiles meet without seams).</summary>
+    public static void DrawCell(SpriteBatch sb, Rectangle src, Rectangle dest, Color tint)
     {
         if (_sheet == null) return;
-        sb.Draw(_sheet, screen, src, tint, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.Draw(_sheet, dest, src, tint);
     }
 
-    private static Rectangle CellRect(int col, int row) =>
+    public static Rectangle CellRect(int col, int row) =>
         new(col * Cell, row * Cell, Cell, Cell);
 }

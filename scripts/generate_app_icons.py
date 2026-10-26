@@ -7,13 +7,20 @@ import struct
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "client" / "Deathborn.Client"
 LOGO = CLIENT / "Content" / "Images" / "Logos" / "logo_v2.png"
 
 ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
+# Sizes at or below this use the reaper emblem instead of the full logo. The full
+# logo (two characters plus the wordmark) turns to mush at taskbar size.
+EMBLEM_MAX_SIZE = 48
+# Square crop of logo_v2.png around the hooded reaper's face.
+EMBLEM_BOX = (380, 170, 660, 450)
+EMBLEM_CORNER_RADIUS = 0.22
+EMBLEM_OUTLINE = (20, 12, 28, 255)
 LINUX_ICON_SIZE = 256
 # MonoGame DesktopGL loads Icon.bmp (embedded) for the SDL taskbar/window icon in dev builds.
 WINDOW_ICON_BMP_SIZE = 256
@@ -87,8 +94,31 @@ def clean_alpha(img: Image.Image) -> Image.Image:
     return cleaned
 
 
+def build_emblem(logo: Image.Image, size: int = 256) -> Image.Image:
+    """Reaper face in a rounded tile with a dark outline, so it reads on light and dark taskbars."""
+    face = logo.crop(EMBLEM_BOX).resize((size, size), Image.Resampling.BOX)
+    radius = int(size * EMBLEM_CORNER_RADIUS)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size - 1, size - 1), radius=radius, fill=255)
+    tile = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    tile.paste(face, (0, 0), mask)
+    outline = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    ImageDraw.Draw(outline).rounded_rectangle(
+        (0, 0, size - 1, size - 1), radius=radius, outline=EMBLEM_OUTLINE, width=max(2, size // 40)
+    )
+    tile.alpha_composite(outline)
+    return tile
+
+
 def resize_icon(logo: Image.Image, target: int) -> Image.Image:
-    """Downscale the painted logo with high-quality filtering for native icons."""
+    """
+    Small sizes: the emblem, box-filtered (averages whole source pixels) and lightly
+    sharpened so edges stay crisp. Large sizes: the full logo with Lanczos.
+    """
+    if target <= EMBLEM_MAX_SIZE:
+        small = build_emblem(logo).resize((target, target), Image.Resampling.BOX)
+        small = small.filter(ImageFilter.UnsharpMask(radius=0.6, percent=110, threshold=0))
+        return clean_alpha(small)
     source = normalize_square(logo)
     return clean_alpha(source.resize((target, target), Image.Resampling.LANCZOS))
 

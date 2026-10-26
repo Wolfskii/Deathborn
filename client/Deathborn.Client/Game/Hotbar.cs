@@ -177,6 +177,8 @@ public sealed class Hotbar
     public int SelectedIndex { get; private set; }
     public event Action<int, Dictionary<string, object>?>? SlotActivated;
     public event Action<int, float>? CooldownBlocked;
+    /// <summary>Raised when a slot's contents or the selection change (used to save the layout).</summary>
+    public event Action? Changed;
 
     public Hotbar()
     {
@@ -184,13 +186,18 @@ public sealed class Hotbar
             Slots[i] = new HotbarSlot { KeyLabel = KeyLabels[i] };
     }
 
-    public void SetSlot(int index, Dictionary<string, object>? entry) => Slots[index].Entry = entry;
+    public void SetSlot(int index, Dictionary<string, object>? entry)
+    {
+        Slots[index].Entry = entry;
+        Changed?.Invoke();
+    }
 
     public void AssignSlot(int index, Dictionary<string, object>? entry)
     {
         Slots[index].Entry = entry == null ? null : HotbarEntry.Clone(entry);
         Slots[index].CooldownRemaining = 0;
         Slots[index].CooldownTotal = 0;
+        Changed?.Invoke();
     }
 
     public static void GetBarLayout(out int x0, out int y)
@@ -224,7 +231,9 @@ public sealed class Hotbar
     {
         if (index < 0) index = 9;
         else if (index > 9) index = 0;
+        if (SelectedIndex == index) return;
         SelectedIndex = index;
+        Changed?.Invoke();
     }
 
     public void Update(float dt, KeyboardState kb, KeyboardState prevKb, MouseState mouse, MouseState prevMouse,

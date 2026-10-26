@@ -14,4 +14,9 @@ public enum CharacterClip
     Roll,
     FishWait,
     FishReel,
+    /// <summary>Farm swing (Farm RPG "Pickaxe, Hoe" strip) with the hoe in hand.</summary>
+    Hoe,
+    /// <summary>Same body strip as <see cref="Hoe"/> but empty-handed (planting, feeding).</summary>
+    Plant,
+    Water,
 }

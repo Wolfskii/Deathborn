@@ -38,7 +38,54 @@ public static class FarmRpgFenceSprites
         }
     }
 
-    /// <summary>Draw soft yard fill + wooden fence with a south entrance gate.</summary>
+    /// <summary>One fence sprite cell, anchored bottom-centre at <see cref="World"/> (its depth-sort Y).</summary>
+    public readonly record struct FenceCell(Rectangle Source, Vector2 World, float ArtScale);
+
+    /// <summary>
+    /// Fence cells for a plot (south entrance gate left open). Cells are drawn one by one in the
+    /// exterior Y-sort, so a player north of a rail is hidden behind it and one south of it is not.
+    /// </summary>
+    public static void AppendCells(Vector2 center, List<FenceCell> cells)
+    {
+        HomesteadFence.GetLayout(center, out var layout);
+        var artScale = layout.SpacingX / Cell;
+
+        void Add(Rectangle src, int i, int j) =>
+            cells.Add(new FenceCell(src, new Vector2(layout.Left + i * layout.SpacingX, layout.Top + j * layout.SpacingY), artScale));
+
+        // North: same front-facing rail style as south (no gate).
+        Add(CornerBL, 0, 0);
+        for (var i = 1; i < layout.Nx; i++)
+            Add(HorizRail, i, 0);
+        Add(CornerBR, layout.Nx, 0);
+
+        for (var j = 1; j < layout.Ny; j++)
+        {
+            Add(LeftEdge, 0, j);
+            Add(RightEdge, layout.Nx, j);
+        }
+
+        Add(CornerBL, 0, layout.Ny);
+        for (var i = 1; i < layout.Nx; i++)
+        {
+            if (i == layout.GateL)
+            {
+                Add(GateOpenL, i, layout.Ny);
+                continue;
+            }
+            if (i == layout.GateL + 1)
+                continue;
+            if (i == layout.GateR)
+            {
+                Add(GateOpenR, i, layout.Ny);
+                continue;
+            }
+            Add(HorizRail, i, layout.Ny);
+        }
+        Add(CornerBR, layout.Nx, layout.Ny);
+    }
+
+    /// <summary>Draw the whole fence at once (placement previews and other flat passes).</summary>
     public static void DrawPlot(
         SpriteBatch sb,
         Vector2 center,
@@ -47,78 +94,19 @@ public static class FarmRpgFenceSprites
         float positionZoom,
         float visualZoom)
     {
-        DrawLand(sb, center, camera, screenCenter, positionZoom);
         if (_sheet == null) return;
+        var cells = new List<FenceCell>(40);
+        AppendCells(center, cells);
+        foreach (var cell in cells)
+            DrawCell(sb, cell, camera, screenCenter, positionZoom);
+    }
 
-        HomesteadFence.GetLayout(center, out var layout);
-        var scale = (layout.SpacingX / Cell) * positionZoom;
+    public static void DrawCell(SpriteBatch sb, FenceCell cell, Vector2 camera, Vector2 screenCenter, float positionZoom)
+    {
+        if (_sheet == null) return;
+        var screen = WorldToScreen(cell.World, camera, screenCenter, positionZoom);
         var origin = new Vector2(Cell * 0.5f, Cell);
-
-        Vector2 Pos(int i, int j) =>
-            new(layout.Left + i * layout.SpacingX, layout.Top + j * layout.SpacingY);
-
-        // North: same front-facing rail style as south (no gate).
-        DrawCell(sb, CornerBL, Pos(0, 0), camera, screenCenter, positionZoom, scale, origin);
-        for (var i = 1; i < layout.Nx; i++)
-            DrawCell(sb, HorizRail, Pos(i, 0), camera, screenCenter, positionZoom, scale, origin);
-        DrawCell(sb, CornerBR, Pos(layout.Nx, 0), camera, screenCenter, positionZoom, scale, origin);
-
-        for (var j = 1; j < layout.Ny; j++)
-        {
-            DrawCell(sb, LeftEdge, Pos(0, j), camera, screenCenter, positionZoom, scale, origin);
-            DrawCell(sb, RightEdge, Pos(layout.Nx, j), camera, screenCenter, positionZoom, scale, origin);
-        }
-
-        DrawCell(sb, CornerBL, Pos(0, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
-        for (var i = 1; i < layout.Nx; i++)
-        {
-            if (i == layout.GateL)
-            {
-                DrawCell(sb, GateOpenL, Pos(i, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
-                continue;
-            }
-            if (i == layout.GateL + 1)
-                continue;
-            if (i == layout.GateR)
-            {
-                DrawCell(sb, GateOpenR, Pos(i, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
-                continue;
-            }
-            DrawCell(sb, HorizRail, Pos(i, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
-        }
-        DrawCell(sb, CornerBR, Pos(layout.Nx, layout.Ny), camera, screenCenter, positionZoom, scale, origin);
-    }
-
-    private static void DrawLand(
-        SpriteBatch sb,
-        Vector2 center,
-        Vector2 camera,
-        Vector2 screenCenter,
-        float zoom)
-    {
-        var tl = WorldToScreen(center + new Vector2(-HousingConstants.PlotHalfW, -HousingConstants.PlotHalfH), camera, screenCenter, zoom);
-        var br = WorldToScreen(center + new Vector2(HousingConstants.PlotHalfW, HousingConstants.PlotHalfH), camera, screenCenter, zoom);
-        var plot = new Rectangle(
-            (int)tl.X,
-            (int)tl.Y,
-            Math.Max(1, (int)(br.X - tl.X)),
-            Math.Max(1, (int)(br.Y - tl.Y)));
-        DrawPrimitives.FillRect(sb, plot, new Color(0.24f, 0.42f, 0.22f, 0.38f));
-    }
-
-    private static void DrawCell(
-        SpriteBatch sb,
-        Rectangle src,
-        Vector2 world,
-        Vector2 camera,
-        Vector2 screenCenter,
-        float zoom,
-        float scale,
-        Vector2 origin)
-    {
-        if (_sheet == null) return;
-        var screen = WorldToScreen(world, camera, screenCenter, zoom);
-        sb.Draw(_sheet, screen, src, Color.White, 0f, origin, scale, SpriteEffects.None, 0f);
+        sb.Draw(_sheet, screen, cell.Source, Color.White, 0f, origin, cell.ArtScale * positionZoom, SpriteEffects.None, 0f);
     }
 
     private static Vector2 WorldToScreen(Vector2 world, Vector2 camera, Vector2 screenCenter, float zoom) =>

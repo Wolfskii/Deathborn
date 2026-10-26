@@ -327,6 +327,12 @@ type BuildHouseSendData struct {
 	Y *float64 `json:"y,omitempty"`
 }
 
+// RemoveFurnitureSendData removes the owner's furniture piece nearest to (x,y).
+type RemoveFurnitureSendData struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
 // PlaceFurnitureSendData places one furniture item in the owner's house.
 type PlaceFurnitureSendData struct {
 	Type string  `json:"type"`

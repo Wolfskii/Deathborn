@@ -93,11 +93,12 @@ func MealName(itemID string) string {
 	return itemID
 }
 
+// starterKitchen stands against the north wall of the kitchen (east room).
 func starterKitchen(centerX, centerY float64) FurnitureItem {
 	return FurnitureItem{
 		Type: "kitchen",
-		X:    centerX + InteriorHalfW*0.52,
-		Y:    centerY + 16,
+		X:    interiorTileX(centerX, 21) + interiorTile/2,
+		Y:    interiorTileY(centerY, 4) + interiorTile/2,
 	}
 }
 

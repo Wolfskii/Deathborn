@@ -20,7 +20,8 @@ public static class HousingCollision
     /// <summary>Overall top of the collider AABB (roof peak).</summary>
     public const float BodyTop = RoofEave;
     public const float DoorGapHalfW = 20f / Config.ExteriorTerrainFocusScale;
-    public const float DoorApproachSouth = 36f / Config.ExteriorTerrainFocusScale;
+    /// <summary>Reaches past where the player's collider first touches the wall (~24), so walking north enters.</summary>
+    public const float DoorApproachSouth = 60f / Config.ExteriorTerrainFocusScale;
 
     public static void BodyBounds(Vector2 center, out float left, out float right, out float top, out float bottom)
     {
@@ -184,8 +185,9 @@ public static class HousingCollision
         if (list.Count == 0) return toFeet;
         if (Vector2.DistanceSquared(fromFeet, toFeet) < 0.0001f)
             return fromFeet;
+        // Already overlapping a solid (spawned or synced into one): walk out instead of pinning.
         if (BlocksAt(fromFeet, radius, list))
-            return fromFeet;
+            return toFeet;
 
         if (!BlocksAt(toFeet, radius, list))
             return toFeet;
@@ -226,32 +228,7 @@ public static class HousingCollision
     public static void GetInteriorWalls(Vector2 center, List<(float L, float R, float T, float B)> walls)
     {
         walls.Clear();
-        var hw = HousingConstants.InteriorHalfW;
-        var hh = HousingConstants.InteriorHalfH;
-        const float t = 18f;
-        var door = HousingConstants.InteriorDoorWorldPosition(center);
-        var exitHalf = 28f;
-        var midL = center.X - hw / 3f;
-        var midR = center.X + hw / 3f;
-        var openHalf = 26f;
-        var openY = center.Y;
-
-        // Outer walls
-        walls.Add((center.X - hw, center.X + hw, center.Y - hh, center.Y - hh + t)); // north
-        walls.Add((center.X - hw, center.X - hw + t, center.Y - hh, center.Y + hh)); // west
-        walls.Add((center.X + hw - t, center.X + hw, center.Y - hh, center.Y + hh)); // east
-
-        // South with exit gap
-        walls.Add((center.X - hw, door.X - exitHalf, center.Y + hh - t - 8f, center.Y + hh - 8f));
-        walls.Add((door.X + exitHalf, center.X + hw, center.Y + hh - t - 8f, center.Y + hh - 8f));
-
-        // Divider L|C with opening
-        walls.Add((midL - t * 0.5f, midL + t * 0.5f, center.Y - hh, openY - openHalf));
-        walls.Add((midL - t * 0.5f, midL + t * 0.5f, openY + openHalf, center.Y + hh - 8f));
-
-        // Divider C|R with opening
-        walls.Add((midR - t * 0.5f, midR + t * 0.5f, center.Y - hh, openY - openHalf));
-        walls.Add((midR - t * 0.5f, midR + t * 0.5f, openY + openHalf, center.Y + hh - 8f));
+        HouseInteriorLayout.AppendWalls(center, walls);
     }
 
     public static bool OverlapsInteriorWalls(Vector2 feet, Vector2 center)

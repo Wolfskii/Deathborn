@@ -406,6 +406,13 @@ public sealed class GameClient : IDisposable
         Send("place_furniture", new { type, x, y });
     }
 
+    /// <summary>Removes your furniture piece nearest to (x, y) (server furnitureRemoveRadius).</summary>
+    public void SendRemoveFurniture(float x, float y)
+    {
+        if (LocalCharacterId < 0) return;
+        Send("remove_furniture", new { x, y });
+    }
+
     public void SendFarmAction(string action, int tileX = 0, int tileY = 0, string? itemId = null, int slot = -1, long animalId = 0)
     {
         if (LocalCharacterId < 0 || string.IsNullOrEmpty(action)) return;

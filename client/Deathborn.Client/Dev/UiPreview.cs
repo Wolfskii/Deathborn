@@ -134,6 +134,63 @@ public static class UiPreview
 
         RenderWidgets(game, dir);
         RenderOverlays(game, dir);
+        RenderHomestead(game, dir);
+    }
+
+    /// <summary>Furnished interior (with decorate overlay) and the yard with a player behind the cottage.</summary>
+    private static void RenderHomestead(DeathbornGame game, string dir)
+    {
+        var house = new HousePlotZone
+        {
+            Id = 1, OwnerId = 1, OwnerName = "Akiru", Center = Vector2.Zero,
+            Furniture =
+            [
+                new() { Type = "rug", Position = new(0, 4) },
+                new() { Type = "bed", Position = new(-168, -36) },
+                new() { Type = "dresser", Position = new(-112, -56) },
+                new() { Type = "plant", Position = new(-96, 88) },
+                new() { Type = "bookshelf", Position = new(-48, -54) },
+                new() { Type = "sofa", Position = new(0, -24) },
+                new() { Type = "armchair", Position = new(40, -24) },
+                new() { Type = "lamp", Position = new(48, -52) },
+                new() { Type = "piano", Position = new(-16, 96) },
+                new() { Type = "kitchen", Position = new(136, -48) },
+                new() { Type = "table", Position = new(128, 24) },
+                new() { Type = "chair", Position = new(104, 24) },
+                new() { Type = "fireplace", Position = new(168, -48) },
+            ],
+        };
+        var player = new PlayerEntity { Id = 1, Name = "Akiru", IsLocal = true, Position = new(24, 60) };
+
+        Render(game, Path.Combine(dir, "9-interior.png"), (sb, font) =>
+        {
+            const float zoom = 2.5f;
+            var screenCenter = new Vector2(Width / 2f, Height / 2f + 20);
+            Rendering.HouseInteriorRenderer.Draw(sb, font, house, Vector2.Zero, screenCenter, zoom, false, "Your Homestead");
+            foreach (var item in house.Furniture)
+                Rendering.HouseRenderer.DrawFurnitureItem(sb, item, house.Center, Vector2.Zero, screenCenter, zoom, 1f);
+            player.Draw(sb, font, screenCenter + player.Position * zoom, zoom);
+            var decorate = new HousingDecorateOverlay();
+            decorate.Activate();
+            decorate.Draw(sb, font);
+        });
+
+        Render(game, Path.Combine(dir, "10-yard.png"), (sb, font) =>
+        {
+            const float positionZoom = 6f;
+            const float visualZoom = positionZoom * 0.5f;
+            var camera = new Vector2(0, -10);
+            var screenCenter = new Vector2(Width / 2f, Height / 2f);
+            Rendering.HouseRenderer.Draw(sb, camera, screenCenter, positionZoom, visualZoom, [house]);
+            var cells = new List<Rendering.FarmRpgFenceSprites.FenceCell>();
+            Rendering.FarmRpgFenceSprites.AppendCells(house.Center, cells);
+            foreach (var cell in cells)
+                Rendering.FarmRpgFenceSprites.DrawCell(sb, cell, camera, screenCenter, positionZoom);
+            // Player behind the cottage, cottage faded as the game does.
+            var behind = new PlayerEntity { Id = 2, Name = "Akiru", IsLocal = true, Position = new(6, -30) };
+            behind.Draw(sb, font, screenCenter + (behind.Position - camera) * positionZoom, visualZoom);
+            Rendering.HouseRenderer.DrawCottage(sb, house.Center, camera, screenCenter, positionZoom, visualZoom, 0.45f);
+        });
     }
 
     private static void RenderWidgets(DeathbornGame game, string dir)

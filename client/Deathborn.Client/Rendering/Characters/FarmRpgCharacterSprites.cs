@@ -81,6 +81,8 @@ public static class FarmRpgCharacterSprites
         CharacterClip.Death => "death",
         CharacterClip.FishWait => "fish_wait",
         CharacterClip.FishReel => "fish_reel",
+        CharacterClip.Hoe or CharacterClip.Plant => "hoe",
+        CharacterClip.Water => "water",
         _ => "idle",
     };
 }

@@ -191,10 +191,15 @@ Homestead exterior uses the **2nd bottom** Tiny House example (orange cottage) p
 - **House install:** `python scripts/install_farm_rpg_tiny_house.py`
 - **Fence install:** `python scripts/install_farm_rpg_fence.py`
 - **Interior tiles:** `python scripts/install_farm_rpg_house_tileset.py`
+- **Furniture:** `python scripts/install_farm_rpg_furniture.py` crops beds, sofas, shelves, curtains etc. into `Content/Furniture/`. Placeable ids must match server `furnitureTypes` (`game/housing.go`) and `FurnitureSprites.PlaceableTypes`.
 - **Runtime:** `tiny_house_orange.png`, `fence_wood.png`, `tileset_house.png`
-- **Client:** `FarmRpgHouseSprites`, `FarmRpgFenceSprites`, `FarmRpgHouseInteriorTiles`, `HousingCollision`
-- **Enter:** click door when in range, or walk north into the south/right doorway
-- **Collision:** cottage body blocks movement except door approach; interior has three connected rooms with wall colliders
+- **Client:** `FarmRpgHouseSprites`, `FarmRpgFenceSprites`, `FarmRpgHouseInteriorTiles`, `HouseInteriorRenderer`, `FurnitureSprites`, `HousingCollision`
+- **Enter:** click door when in range, or walk north into the door
+- **Interior layout:** 26 x 15 tiles, bedroom | hall | kitchen, defined twice and kept in sync: server `game/interior_layout.go` and client `Gameplay/HouseInteriorLayout.cs` (walls, doorways, exit gap)
+- **Decorate:** H inside your own house; Tab / wheel picks a piece, left click places (snapped to 8 px), right click removes (`remove_furniture`)
+- **Collision:** cottage body blocks movement except door approach; interior walls come from the layout above
+- **Depth:** the cottage and each fence cell are Y-sorted with players outside, and the cottage fades while the local player is behind it; furniture is Y-sorted with players inside
+- **Preview:** `DEATHBORN_UI_PREVIEW=<folder>` renders `9-interior.png` and `10-yard.png` without a server
 - **Safe haven:** house plot bounds disable PvP; monsters cannot enter the plot
 
 ### Homestead farming (Stardew-style)

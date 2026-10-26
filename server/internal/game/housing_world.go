@@ -150,6 +150,20 @@ func (w *World) PlaceFurniture(characterID int64, item FurnitureItem) (HouseStat
 	return p.state(), "", true
 }
 
+// RemoveFurniture takes away the owner's furniture piece at (x,y).
+func (w *World) RemoveFurniture(characterID int64, x, y float64) (HouseState, string, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.housing == nil || w.housing.ByCharacter(characterID) == nil {
+		return HouseState{}, "You do not have a house.", false
+	}
+	if !w.housing.RemoveFurnitureNear(characterID, x, y) {
+		return HouseState{}, "No furniture there.", false
+	}
+	w.houseRev++
+	return w.housing.ByCharacter(characterID).state(), "", true
+}
+
 func (w *World) RemoveHouseByID(houseID int64) (HouseState, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -271,7 +285,9 @@ func (w *World) EnterHouse(characterID, houseID int64) (string, bool) {
 	if p.insideHouseID > 0 {
 		return "You are already inside.", false
 	}
-	if !NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) &&
+	// Clicking the door is allowed from the same range the client uses to start the
+	// transition (Config.InteractRange), plus slack for movement that is still in flight.
+	if math.Hypot(p.x-plot.doorX(), p.y-plot.doorY()) > houseEnterClickRange &&
 		!inDoorApproach(p.x, p.y, plot.centerX, plot.centerY) {
 		return "Move closer to the door.", false
 	}
@@ -297,7 +313,9 @@ func (w *World) ExitHouse(characterID int64) (string, bool) {
 		p.insideHouseID = 0
 		return "You step outside.", true
 	}
-	if !NearInteriorExit(p.x, p.y, plot.centerX, plot.centerY) {
+	doorX, doorY := HouseInteriorDoorPosition(plot.centerX, plot.centerY)
+	if math.Hypot(p.x-doorX, p.y-doorY) > houseExitRange &&
+		!NearInteriorExit(p.x, p.y, plot.centerX, plot.centerY) {
 		return "Move to the door to exit.", false
 	}
 	p.insideHouseID = 0

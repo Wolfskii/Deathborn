@@ -8,15 +8,17 @@ import (
 )
 
 const (
-	PlotHalfW          = 50.0
-	PlotHalfH          = 44.0
+	PlotHalfW          = 66.0 // two tiles wider than the original 50 (8px per side)
+	PlotHalfH          = 60.0 // two tiles taller than the original 44
 	HouseHalfW         = 26.0
 	HouseHalfH         = 22.0
-	InteriorHalfW      = 210.0
-	InteriorHalfH      = 125.0
+	InteriorHalfW      = 208.0 // 26 tiles (see interior_layout.go)
+	InteriorHalfH      = 120.0 // 15 tiles
 	HouseMinSeparation = 110.0
 	HouseMaxPlaceDist  = 80.0
-	MaxFurniture       = 24
+	MaxFurniture       = 40
+	// FurnitureMinSpacing keeps standing pieces from stacking; rugs may sit under anything.
+	FurnitureMinSpacing = 14.0
 
 	// Exterior cottage collision (matches client HousingCollision).
 	houseBodyHalfW     = 25.0
@@ -24,7 +26,7 @@ const (
 	houseRoofEave      = -20.0
 	houseRoofApex      = -54.0
 	houseDoorGapHalfW  = 10.0
-	houseDoorApproachS = 18.0
+	houseDoorApproachS = 30.0 // reaches past where the player's collider first touches the wall (~24)
 
 	// Homestead fence AABBs (matches client HomesteadFence).
 	fenceThickness          = 7.0
@@ -149,9 +151,10 @@ func (h *HousingIndex) PvPAllowedBetween(ax, ay, tx, ty float64) bool {
 	return h.PvPAllowed(ax, ay) && h.PvPAllowed(tx, ty)
 }
 
+// InHouseInterior reports whether (x,y) lies on the interior floor (inside the outer walls).
 func InHouseInterior(x, y float64, centerX, centerY float64) bool {
-	return x >= centerX-InteriorHalfW && x <= centerX+InteriorHalfW &&
-		y >= centerY-InteriorHalfH && y <= centerY+InteriorHalfH-16
+	return x >= interiorTileX(centerX, 1) && x <= interiorTileX(centerX, interiorCols-1) &&
+		y >= interiorTileY(centerY, interiorNorthSolidRows+1) && y <= interiorTileY(centerY, interiorRows-1)
 }
 
 // GardenCropOffsets returns local offsets for 6 farm tiles in the garden.
@@ -282,16 +285,50 @@ func (h *HousingIndex) CanPlaceFurniture(characterID int64, item FurnitureItem) 
 		return "Furniture must go inside your house."
 	}
 	for _, f := range p.furniture {
-		if math.Hypot(f.X-item.X, f.Y-item.Y) < 36 {
+		if f.Type == "rug" || item.Type == "rug" {
+			continue
+		}
+		if math.Hypot(f.X-item.X, f.Y-item.Y) < FurnitureMinSpacing {
 			return "Too close to other furniture."
 		}
 	}
-	switch item.Type {
-	case "bed", "table", "chair", "chest", "fireplace", "rug", "kitchen":
-		return ""
-	default:
+	if !IsFurnitureType(item.Type) {
 		return "Unknown furniture type."
 	}
+	return ""
+}
+
+// furnitureTypes are the pieces a player can place (client HousingDecorateOverlay lists the same).
+var furnitureTypes = map[string]bool{
+	"bed": true, "table": true, "chair": true, "chest": true, "fireplace": true, "rug": true,
+	"kitchen": true, "sofa": true, "armchair": true, "bookshelf": true, "dresser": true,
+	"plant": true, "lamp": true, "piano": true,
+}
+
+func IsFurnitureType(t string) bool { return furnitureTypes[t] }
+
+// furnitureRemoveRadius is how close a remove click must be to a piece's anchor.
+const furnitureRemoveRadius = 24.0
+
+// RemoveFurnitureNear removes the owner's furniture piece closest to (x,y), if one is within
+// furnitureRemoveRadius. Returns false when there is nothing there.
+func (h *HousingIndex) RemoveFurnitureNear(characterID int64, x, y float64) bool {
+	p := h.byCharacter[characterID]
+	if p == nil {
+		return false
+	}
+	best := -1
+	bestD := furnitureRemoveRadius
+	for i, f := range p.furniture {
+		if d := math.Hypot(f.X-x, f.Y-y); d <= bestD {
+			best, bestD = i, d
+		}
+	}
+	if best < 0 {
+		return false
+	}
+	p.furniture = append(p.furniture[:best], p.furniture[best+1:]...)
+	return true
 }
 
 func (h *HousingIndex) AddFurniture(characterID int64, item FurnitureItem) bool {
@@ -308,12 +345,35 @@ func CropTargetID(houseID int64, index int) string {
 }
 
 // Door and interior layout (matches client FarmRpgHouseSprites orange cottage).
-// Door is on the right facade; offsets are art px × DisplayScale (1.55).
+// The door plate spans art x 3..19 and y -24..0 from the foot anchor (see
+// client FarmRpgHouseSprites.DoorPlate*); the threshold is its bottom-centre.
+// World units per art px = DisplayScale (1.55) × 0.5 (client Es).
 func HouseDoorPosition(centerX, centerY float64) (float64, float64) {
 	const displayScale = 1.55
-	const artW = 72.0
-	const artH = 86.0
-	return centerX + artW*0.22*displayScale/2, centerY - artH*0.12*displayScale/2
+	const worldPerArtPx = displayScale * 0.5
+	const doorCenterArtX = (3.0 + 19.0) / 2
+	return centerX + doorCenterArtX*worldPerArtPx, centerY
+}
+
+// houseEnterClickRange is how far from the door a click may start an enter. It matches
+// the client's Config.InteractRange (72px) with slack for latency. Walking through the
+// door still needs to be inside the approach zone.
+const houseEnterClickRange = 80.0
+
+// houseExitRange is how far from the interior door an exit request is accepted. The
+// client starts the exit as soon as its predicted feet reach the exit zone and then
+// stops moving, so the server position is usually a few pixels short of it.
+const houseExitRange = 44.0
+
+// doorX and doorY are the door threshold for this plot.
+func (p *housePlot) doorX() float64 {
+	x, _ := HouseDoorPosition(p.centerX, p.centerY)
+	return x
+}
+
+func (p *housePlot) doorY() float64 {
+	_, y := HouseDoorPosition(p.centerX, p.centerY)
+	return y
 }
 
 func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
@@ -322,13 +382,17 @@ func HouseInteriorSpawn(centerX, centerY float64) (float64, float64) {
 	return dx, dy - 18
 }
 
+// HouseInteriorDoorPosition is the middle of the exit gap in the south wall.
 func HouseInteriorDoorPosition(centerX, centerY float64) (float64, float64) {
-	return centerX, centerY + InteriorHalfH - 20
+	gapMid := (interiorTileX(centerX, interiorExitLeft) + interiorTileX(centerX, interiorExitRight+1)) / 2
+	return gapMid, interiorTileY(centerY, interiorRows-1) + interiorTile/2
 }
 
+// HouseExteriorSpawn puts the player just south of the door approach, on open ground,
+// so stepping out never lands them inside the zone that walks them back in.
 func HouseExteriorSpawn(centerX, centerY float64) (float64, float64) {
 	dx, dy := HouseDoorPosition(centerX, centerY)
-	return dx, dy + 18
+	return dx, dy + houseBodyBottom + houseDoorApproachS + 4
 }
 
 const houseTransitionCooldownSec = 1.1
@@ -361,11 +425,12 @@ func NearInteriorExit(x, y, centerX, centerY float64) bool {
 }
 
 func clampToInterior(x, y, centerX, centerY float64) (float64, float64) {
-	const inset = 16.0
-	minX := centerX - InteriorHalfW + inset
-	maxX := centerX + InteriorHalfW - inset
-	minY := centerY - InteriorHalfH + inset
-	maxY := centerY + InteriorHalfH - 16 - inset
+	// Safety box only; interiorWallRects does the real blocking. The bottom reaches into the
+	// exit gap so players can walk out through the door.
+	minX := interiorTileX(centerX, 1)
+	maxX := interiorTileX(centerX, interiorCols-1)
+	minY := interiorTileY(centerY, interiorNorthSolidRows)
+	maxY := interiorTileY(centerY, interiorRows) - 2
 	if x < minX {
 		x = minX
 	}
@@ -603,8 +668,10 @@ func (h *HousingIndex) ResolveAgainstHouses(fromX, fromY, toX, toY float64) (flo
 	if math.Abs(toX-fromX) < 0.0001 && math.Abs(toY-fromY) < 0.0001 {
 		return toX, toY
 	}
+	// Already overlapping a solid (spawned or synced into one): let the player walk
+	// out instead of pinning them in place.
 	if h.blocksFeet(fromX, fromY) {
-		return fromX, fromY
+		return toX, toY
 	}
 	if !h.blocksFeet(toX, toY) {
 		return toX, toY
@@ -641,41 +708,6 @@ func (h *HousingIndex) ResolveAgainstHouses(fromX, fromY, toX, toY float64) (flo
 		}
 	}
 	return bestX, bestY
-}
-
-func interiorWallRects(centerX, centerY float64) [][4]float64 {
-	const t = 18.0
-	hw := InteriorHalfW
-	hh := InteriorHalfH
-	doorX, doorY := HouseInteriorDoorPosition(centerX, centerY)
-	_ = doorY
-	exitHalf := 28.0
-	midL := centerX - hw/3
-	midR := centerX + hw/3
-	openHalf := 26.0
-	openY := centerY
-	return [][4]float64{
-		{centerX - hw, centerX + hw, centerY - hh, centerY - hh + t},
-		{centerX - hw, centerX - hw + t, centerY - hh, centerY + hh},
-		{centerX + hw - t, centerX + hw, centerY - hh, centerY + hh},
-		{centerX - hw, doorX - exitHalf, centerY + hh - t - 8, centerY + hh - 8},
-		{doorX + exitHalf, centerX + hw, centerY + hh - t - 8, centerY + hh - 8},
-		{midL - t*0.5, midL + t*0.5, centerY - hh, openY - openHalf},
-		{midL - t*0.5, midL + t*0.5, openY + openHalf, centerY + hh - 8},
-		{midR - t*0.5, midR + t*0.5, centerY - hh, openY - openHalf},
-		{midR - t*0.5, midR + t*0.5, openY + openHalf, centerY + hh - 8},
-	}
-}
-
-func feetHitWalls(x, y float64, walls [][4]float64) bool {
-	rx, ry := 12.0, 16.0
-	cy := y - 7*1.5*1.35 - ry + 2
-	for _, w := range walls {
-		if ellipseOverlapsHouseRect(x, cy, rx, ry, w[0], w[1], w[2], w[3]) {
-			return true
-		}
-	}
-	return false
 }
 
 func resolveInteriorMove(fromX, fromY, toX, toY, centerX, centerY float64) (float64, float64) {

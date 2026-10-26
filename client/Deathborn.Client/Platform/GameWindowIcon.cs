@@ -5,7 +5,8 @@ using Microsoft.Xna.Framework;
 namespace Deathborn.Client.Platform;
 
 /// <summary>
-/// MonoGame/SDL sets a single low-res <c>Icon.bmp</c> on the HWND; override with crisp ICO sizes for the taskbar.
+/// MonoGame/SDL sets a single <c>Icon.bmp</c> on the HWND; override it with the ICO frames that
+/// match the taskbar and title bar sizes at the window's DPI, so Windows never rescales them.
 /// </summary>
 internal static class GameWindowIcon
 {
@@ -41,11 +42,14 @@ internal static class GameWindowIcon
             if (icoBytes is null)
                 return;
 
-            var taskbarPx = TaskbarPixels(hwnd);
-            var smallSize = PickIcoSize(taskbarPx);
+            var dpi = WindowDpi(hwnd);
+            var taskbarSize = PickIcoSize((int)Math.Round(TaskbarIconPixels * dpi / 96.0));
+            var titleBarSize = PickIcoSize((int)Math.Round(TitleBarIconPixels * dpi / 96.0));
 
-            TrySetFromIco(hwnd, icoBytes, IconSmall, smallSize, 48, 32, 64, 24, 16);
-            TrySetFromIco(hwnd, icoBytes, IconBig, 256, 128, 64, 48, 32);
+            // The taskbar draws the big icon. Hand it the frame that already matches its
+            // pixel size; a 256px frame gets shrunk by Windows and comes out blurry.
+            TrySetFromIco(hwnd, icoBytes, IconBig, taskbarSize, 32, 24, 48, 16);
+            TrySetFromIco(hwnd, icoBytes, IconSmall, titleBarSize, 16, 24, 32);
         }
         catch
         {
@@ -53,13 +57,15 @@ internal static class GameWindowIcon
         }
     }
 
-    private static int TaskbarPixels(IntPtr hwnd)
+    /// <summary>Taskbar button icon size at 96 DPI (Windows 10/11).</summary>
+    private const double TaskbarIconPixels = 24.0;
+    /// <summary>Title bar icon size at 96 DPI.</summary>
+    private const double TitleBarIconPixels = 16.0;
+
+    private static uint WindowDpi(IntPtr hwnd)
     {
         var dpi = GetDpiForWindow(hwnd);
-        if (dpi == 0)
-            dpi = 96;
-
-        return (int)Math.Round(24.0 * dpi / 96.0);
+        return dpi == 0 ? 96u : dpi;
     }
 
     private static int PickIcoSize(int targetPixels)

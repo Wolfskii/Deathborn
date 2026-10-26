@@ -36,11 +36,24 @@ public static class FarmRpgHouseSprites
         return new Vector2(_orangeCottage.Width * 0.5f, _orangeCottage.Height);
     }
 
-    /// <summary>Door interact offset from foot anchor in unscaled art px (right-side door).</summary>
-    public static Vector2 DoorOffsetFromFoot()
+    // Door plate in unscaled art px, relative to the foot anchor (measured from tiny_house_orange.png:
+    // the plate spans x 39..54 and y 62..85 of a 72x86 sprite whose foot anchor is (36, 86)).
+    public const float DoorPlateLeft = 3f;
+    public const float DoorPlateRight = 19f;
+    public const float DoorPlateTop = -24f;
+    public const float DoorPlateBottom = 0f;
+
+    /// <summary>Door threshold: bottom-centre of the door plate, relative to the foot anchor (art px).</summary>
+    public static Vector2 DoorOffsetFromFoot() =>
+        new((DoorPlateLeft + DoorPlateRight) * 0.5f, DoorPlateBottom);
+
+    /// <summary>Door click/highlight box in art px relative to the foot anchor: the plate plus a 1px margin.</summary>
+    public static void DoorHitArtBounds(out float left, out float top, out float right, out float bottom)
     {
-        var h = _orangeCottage?.Height ?? 86;
-        var w = _orangeCottage?.Width ?? 72;
-        return new Vector2(w * 0.22f, -h * 0.12f);
+        const float margin = 1f;
+        left = DoorPlateLeft - margin;
+        right = DoorPlateRight + margin;
+        top = DoorPlateTop - margin;
+        bottom = DoorPlateBottom + margin;
     }
 }

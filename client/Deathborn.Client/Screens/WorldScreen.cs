@@ -105,7 +105,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private int _fishCastTy;
     private bool _fishAwaitingResult;
 
-    private enum ExteriorDrawableKind : byte { Foliage, Player, Npc, FarmAnimal }
+    private enum ExteriorDrawableKind : byte { Foliage, Player, Npc, FarmAnimal, Cottage, Fence }
 
     private struct ExteriorDrawable
     {
@@ -189,9 +189,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         WorldZones.SetServerZones(_screens.Net.SpawnZones);
         WorldFoliage.Initialize(WorldMap.SwaroviaMainland);
         WorldClouds.Initialize(WorldMap.SwaroviaMainland);
-        SeedHotbar();
-        TryAssignFarmToolsHotbar();
-        TryAssignItemToEmptyHotbar("fishing_rod");
+        // A saved layout wins over defaults; tools are only auto-added for a brand new character.
+        if (!HotbarLayoutStore.TryRestore(_screens.Net.LocalCharacterId, _hotbar, _inventory))
+        {
+            SeedHotbar();
+            TryAssignFarmToolsHotbar();
+        }
+        RememberInventoryItems();
+        _hotbarDirty = false;
+        _hotbar.Changed -= OnHotbarChanged;
+        _hotbar.Changed += OnHotbarChanged;
         TextField.ReleaseFocus();
 
         // Seed edge detection so keys held from character create / login (Enter) do not
@@ -231,6 +238,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     public void OnExit()
     {
+        SaveHotbarIfDirty(0f, force: true);
+        _hotbar.Changed -= OnHotbarChanged;
         _doorTransition.Cancel();
         MusicPlayer.Stop();
 
@@ -417,6 +426,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             || (_deathPrompt && !menuOpen) || _doorTransition.IsBusy;
 
         _buffTracker.Update(dt);
+        SaveHotbarIfDirty(dt);
         _inventory.Update(dt);
         UpdateHunterMarks(dt);
         _zoneBanner.Update(dt);
@@ -542,6 +552,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         UpdateInteriorFade(dt, localEntity);
 
         DevPerfLog.Mark("look");
+        // Hover highlights only update while the cursor is over the game. Clear them every
+        // frame first, or the last tile stays lit after the cursor leaves the game area.
+        _farmHoverOk = false;
+        _fishHoverOk = false;
         if (!blockGameplay && windowActive && !uiCapturesMouse && !_dragDrop.IsDragging)
         {
             UpdateInteractFocus(mouse.Position);
@@ -786,8 +800,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         HouseRenderer.Draw(sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses);
         DrawFarmTileHover(sb, transformZoom);
         DrawFishingHover(sb, transformZoom, gameTime);
-        HouseRenderer.DrawDoorHighlights(
-            sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses, _hoveredDoorHouse);
 
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), visualZoom);
@@ -799,6 +811,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             corpse.Draw(sb, WorldToScreen(corpse.Position), visualZoom);
 
         DrawExteriorFoliageAndPlayers(sb, font, transformZoom, visualZoom, gameTime);
+        // After the Y-sorted pass, which now draws the cottage itself.
+        HouseRenderer.DrawDoorHighlights(
+            sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses, _hoveredDoorHouse);
 
         if (_housePlacing)
             HouseRenderer.DrawPlacementGhost(
@@ -859,7 +874,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         HouseInteriorRenderer.Draw(sb, font, house, _camera, ScreenCenter, zoom, exitHighlight,
             house.DisplayName(_screens.Net.LocalCharacterId));
 
-        DrawPlayers(sb, font, zoom, house.Id);
+        DrawInteriorFurnitureAndPlayers(sb, font, house, zoom);
 
         foreach (var effect in _effects.Where(e => e.DrawUnderEntities))
             effect.Draw(sb, WorldToScreen(effect.Position), zoom);
@@ -942,6 +957,31 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             });
         }
 
+        _exteriorHouses.Clear();
+        _fenceCells.Clear();
+        foreach (var house in WorldZones.Houses)
+        {
+            _exteriorDrawOrder.Add(new ExteriorDrawable
+            {
+                SortY = HouseRenderer.CottageSortY(house.Center),
+                Kind = ExteriorDrawableKind.Cottage,
+                Index = _exteriorHouses.Count,
+            });
+            _exteriorHouses.Add(house);
+
+            var firstCell = _fenceCells.Count;
+            FarmRpgFenceSprites.AppendCells(house.Center, _fenceCells);
+            for (var c = firstCell; c < _fenceCells.Count; c++)
+            {
+                _exteriorDrawOrder.Add(new ExteriorDrawable
+                {
+                    SortY = _fenceCells[c].World.Y,
+                    Kind = ExteriorDrawableKind.Fence,
+                    Index = c,
+                });
+            }
+        }
+
         for (var i = 0; i < _exteriorFarmAnimals.Count; i++)
         {
             var pos = FarmRenderer.AnimalWorldPos(_exteriorFarmAnimals[i], time);
@@ -959,6 +999,16 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         {
             switch (entry.Kind)
             {
+                case ExteriorDrawableKind.Cottage:
+                {
+                    var house = _exteriorHouses[entry.Index];
+                    var alpha = UpdateCottageFade(house, (float)gameTime.ElapsedGameTime.TotalSeconds);
+                    HouseRenderer.DrawCottage(sb, house.Center, _camera, ScreenCenter, transformZoom, visualZoom, alpha);
+                    break;
+                }
+                case ExteriorDrawableKind.Fence:
+                    FarmRpgFenceSprites.DrawCell(sb, _fenceCells[entry.Index], _camera, ScreenCenter, transformZoom);
+                    break;
                 case ExteriorDrawableKind.Foliage:
                     WorldFoliage.DrawInstance(
                         sb, _visibleFoliage[entry.Index], _camera, ScreenCenter,
@@ -998,6 +1048,101 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                 }
             }
         }
+    }
+
+    private readonly List<HousePlotZone> _exteriorHouses = [];
+    private readonly List<FarmRpgFenceSprites.FenceCell> _fenceCells = [];
+    private readonly Dictionary<long, float> _cottageAlpha = [];
+
+    /// <summary>Opacity of a cottage while the local player stands behind it (like tree canopies).</summary>
+    private const float CottageBehindAlpha = 0.45f;
+
+    /// <summary>Eases the cottage toward see-through while the local player is hidden behind it.</summary>
+    private float UpdateCottageFade(HousePlotZone house, float dt)
+    {
+        var target = LocalBehindCottage(house) ? CottageBehindAlpha : 1f;
+        var alpha = _cottageAlpha.TryGetValue(house.Id, out var a) ? a : 1f;
+        var step = dt * 4f;
+        alpha = alpha < target ? MathF.Min(target, alpha + step) : MathF.Max(target, alpha - step);
+        _cottageAlpha[house.Id] = alpha;
+        return alpha;
+    }
+
+    private bool LocalBehindCottage(HousePlotZone house)
+    {
+        var local = FindLocalPlayer();
+        if (local == null || local.InsideHouseId > 0 || _ghostMode) return false;
+        if (local.SortY >= HouseRenderer.CottageSortY(house.Center)) return false;
+
+        HousingConstants.CottageWorldBounds(house.Center, out var left, out var right, out var top, out var bottom);
+        // Rough character sprite box above the feet.
+        const float halfW = 8f;
+        const float height = 30f;
+        var feet = local.Position;
+        return feet.X + halfW > left && feet.X - halfW < right
+            && feet.Y > top && feet.Y - height < bottom;
+    }
+
+    /// <summary>
+    /// Rugs lie flat under everything; standing furniture and players are depth-sorted by their
+    /// feet so a player can walk behind a bookshelf or in front of the bed.
+    /// </summary>
+    private void DrawInteriorFurnitureAndPlayers(SpriteBatch sb, SpriteFont font, HousePlotZone house, float zoom)
+    {
+        var furniture = house.Furniture ?? [];
+        foreach (var item in furniture)
+        {
+            if (item != null && FurnitureSprites.IsFloorPiece(item.Type))
+                HouseRenderer.DrawFurnitureItem(sb, item, house.Center, _camera, ScreenCenter, zoom, 1f);
+        }
+
+        var ghost = DecorateGhost(house);
+        if (ghost is { } floorGhost && FurnitureSprites.IsFloorPiece(floorGhost.Type))
+            HouseRenderer.DrawFurniture(sb, floorGhost.Type, floorGhost.Position, _camera, ScreenCenter, zoom, floorGhost.Tint);
+
+        _interiorDrawOrder.Clear();
+        for (var i = 0; i < furniture.Count; i++)
+        {
+            var item = furniture[i];
+            if (item == null || string.IsNullOrEmpty(item.Type) || FurnitureSprites.IsFloorPiece(item.Type)) continue;
+            _interiorDrawOrder.Add((item.Position.Y, i, null));
+        }
+        foreach (var p in _players.Values)
+        {
+            if (p.InsideHouseId == house.Id)
+                _interiorDrawOrder.Add((p.SortY, -1, p));
+        }
+        _interiorDrawOrder.Sort(static (a, b) => a.SortY.CompareTo(b.SortY));
+
+        foreach (var (_, index, player) in _interiorDrawOrder)
+        {
+            if (player == null)
+            {
+                HouseRenderer.DrawFurnitureItem(sb, furniture[index], house.Center, _camera, ScreenCenter, zoom, 1f);
+                continue;
+            }
+            var screenPos = WorldToScreen(player.Position);
+            if (player == _hoveredPlayer)
+                player.DrawHoverHighlight(sb, screenPos, zoom);
+            player.Draw(sb, font, screenPos, zoom);
+            if (_hunterMarks.ContainsKey(player.Id))
+                PlayerEntity.DrawHunterMark(sb, screenPos, zoom);
+        }
+
+        if (ghost is { } standingGhost && !FurnitureSprites.IsFloorPiece(standingGhost.Type))
+            HouseRenderer.DrawFurniture(sb, standingGhost.Type, standingGhost.Position, _camera, ScreenCenter, zoom, standingGhost.Tint);
+    }
+
+    private readonly List<(float SortY, int FurnitureIndex, PlayerEntity? Player)> _interiorDrawOrder = [];
+
+    /// <summary>Decorate preview at the cursor: see-through, red where it cannot be placed.</summary>
+    private (string Type, Vector2 Position, Color Tint)? DecorateGhost(HousePlotZone house)
+    {
+        if (!_housingDecorate.IsActive || house.Id != LocalHomestead()?.Id) return null;
+        var world = HousingDecorateOverlay.Snap(ScreenToWorld(Mouse.GetState().Position));
+        var type = _housingDecorate.SelectedType;
+        var ok = CanPlaceFurnitureAt(house, world, type);
+        return (type, world, ok ? Color.White * 0.65f : new Color(1f, 0.35f, 0.35f) * 0.6f);
     }
 
     private void DrawPlayers(SpriteBatch sb, SpriteFont font, float drawZoom, long? houseId)
@@ -1064,10 +1209,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void UpdateDoorTransition(float dt, PlayerEntity? local)
     {
+        _doorTransition.TickCooldown(dt);
         if (!_doorTransition.IsBusy) return;
 
         var serverInside = local?.InsideHouseId ?? 0;
         _doorTransition.Update(dt, serverInside, out var sendEnter, out var sendExit);
+        if (_doorTransition.ConsumeTimeout())
+            _status = "Could not go through the door. Walk up to it and try again.";
 
         if (sendEnter && _doorTransition.PendingBuildingId > 0)
             _screens.Net.SendHouseEnter(_doorTransition.PendingBuildingId);
@@ -1087,7 +1235,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     /// </summary>
     private void TryAutoDoorTransition(PlayerEntity? local, bool inputBlocked)
     {
-        if (local == null || local.IsDead || inputBlocked || _doorTransition.IsBusy)
+        if (local == null || local.IsDead || inputBlocked || !_doorTransition.CanAutoStart)
             return;
 
         if (local.InsideHouseId > 0)
@@ -1635,8 +1783,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void UpdateInteractFocus(Point mouseScreen)
     {
         var mouseWorld = ScreenToWorld(mouseScreen);
+        // Crop tiles get the square mouse-hover highlight only: no proximity ring, no extra hover ring.
         var nearest = FindNearestInRange(_camera);
+        if (nearest is { Kind: InteractableKind.FarmPlot })
+            nearest = null;
         var underMouse = FindAtPoint(mouseWorld);
+        if (underMouse is { Kind: InteractableKind.FarmPlot })
+            underMouse = null;
         _hoveredDoorHouse = InteriorHouse() == null
             ? HousingConstants.FindDoorAt(WorldZones.Houses, mouseWorld)
             : null;
@@ -2982,8 +3135,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         _inventory.ApplyFromServer(data.Items);
         RefreshHotbarInventoryLinks();
-        TryAssignFarmToolsHotbar();
-        TryAssignItemToEmptyHotbar("fishing_rod");
+        // Only tools picked up just now go to an empty slot; one the player removed stays removed.
+        foreach (var tool in AutoHotbarTools)
+        {
+            if (!_knownInventoryItems.Contains(tool) && _inventory.HasItem(tool))
+                TryAssignItemToEmptyHotbar(tool);
+        }
+        RememberInventoryItems();
         UpdateBuildHouseEnabled();
     }
 
@@ -3002,11 +3160,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     long l => (int)l,
                     _ => -1,
                 };
-                if (slot < 0 || slot >= PlayerInventory.SlotCount) continue;
-                var invSlot = _inventory.Slots[slot];
                 var itemId = entry.GetValueOrDefault("itemId") as string
                     ?? entry.GetValueOrDefault(HotbarEntry.IdKey) as string;
-                if (invSlot.IsEmpty || invSlot.ItemId != itemId)
+                if (slot >= 0 && slot < PlayerInventory.SlotCount
+                    && !_inventory.Slots[slot].IsEmpty && _inventory.Slots[slot].ItemId == itemId)
+                    continue;
+
+                // The item moved to another bag slot: follow it instead of emptying the hotbar slot.
+                var moved = itemId != null ? _inventory.FindSlot(itemId) : -1;
+                if (moved >= 0 && itemId != null && ItemCatalog.Get(itemId) != null)
+                    _hotbar.AssignSlot(i, ItemCatalog.ToHotbarEntry(itemId, moved));
+                else
                     _hotbar.AssignSlot(i, null);
             }
         }
@@ -3356,28 +3520,80 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         if (local is { IsDead: false })
         {
+            // Interior coordinates overlap the yard, so check the player is really inside their own house.
             var ownHouse = LocalHomestead();
-            if (ownHouse != null
-                && HousingConstants.InHouseInterior(local.Position, ownHouse.Center)
-                && kb.IsKeyDown(Keys.H) && !prevKb.IsKeyDown(Keys.H))
+            var insideOwn = ownHouse != null && local.InsideHouseId == ownHouse.Id;
+            if (insideOwn && kb.IsKeyDown(Keys.H) && !prevKb.IsKeyDown(Keys.H))
             {
                 _housingDecorate.Toggle();
                 _status = _housingDecorate.IsActive
-                    ? "Decorate mode — Tab to cycle, click to place, H/Esc to exit."
+                    ? "Decorate mode - pick a piece, left click to place, right click to remove."
                     : "Decorate mode off.";
             }
+            if (!insideOwn && _housingDecorate.IsActive)
+                _housingDecorate.Deactivate();
         }
 
         if (!_housingDecorate.IsActive) return;
 
-        _housingDecorate.Update(kb, prevKb, mouse, inputBlocked);
+        _housingDecorate.Update(kb, prevKb, mouse, _prevMouse, inputBlocked);
 
-        if (_housingDecorate.TryConsumePlaceClick(mouse, _prevMouse, inputBlocked || uiCapturesMouse))
+        var blocked = inputBlocked || uiCapturesMouse;
+        if (_housingDecorate.TryConsumePlaceClick(mouse, _prevMouse, blocked))
+        {
+            var world = HousingDecorateOverlay.Snap(ScreenToWorld(mouse.Position));
+            _screens.Net.SendPlaceFurniture(_housingDecorate.SelectedType, world.X, world.Y);
+            _status = $"Placing {FurnitureSprites.DisplayName(_housingDecorate.SelectedType)}...";
+        }
+        else if (_housingDecorate.TryConsumeRemoveClick(mouse, _prevMouse, blocked))
         {
             var world = ScreenToWorld(mouse.Position);
-            _screens.Net.SendPlaceFurniture(_housingDecorate.SelectedType, world.X, world.Y);
-            _status = $"Placing {_housingDecorate.SelectedType}...";
+            if (FindFurnitureAt(world) is { } item)
+            {
+                _screens.Net.SendRemoveFurniture(item.Position.X, item.Position.Y);
+                _status = $"Removed {FurnitureSprites.DisplayName(item.Type)}.";
+            }
         }
+    }
+
+    /// <summary>Your furniture piece whose sprite is under the cursor (or whose anchor is closest).</summary>
+    private FurnitureItemState? FindFurnitureAt(Vector2 world)
+    {
+        var house = LocalHomestead();
+        if (house?.Furniture == null) return null;
+        FurnitureItemState? best = null;
+        var bestD = float.MaxValue;
+        foreach (var item in house.Furniture)
+        {
+            if (item == null || string.IsNullOrEmpty(item.Type)) continue;
+            var size = FurnitureSprites.Size(item.Type);
+            var top = FurnitureSprites.IsFloorPiece(item.Type) ? item.Position.Y - size.Y * 0.5f : item.Position.Y - size.Y;
+            var bottom = FurnitureSprites.IsFloorPiece(item.Type) ? item.Position.Y + size.Y * 0.5f : item.Position.Y;
+            var inside = world.X >= item.Position.X - size.X * 0.5f && world.X <= item.Position.X + size.X * 0.5f
+                && world.Y >= top && world.Y <= bottom;
+            if (!inside) continue;
+            var d = Vector2.DistanceSquared(world, item.Position);
+            // Prefer standing pieces over a rug underneath them.
+            if (FurnitureSprites.IsFloorPiece(item.Type)) d += 1e6f;
+            if (d < bestD)
+            {
+                bestD = d;
+                best = item;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>True when the decorate preview could be placed here (server CanPlaceFurniture rules).</summary>
+    private static bool CanPlaceFurnitureAt(HousePlotZone house, Vector2 world, string type)
+    {
+        if (!HousingConstants.InHouseInterior(world, house.Center)) return false;
+        foreach (var f in house.Furniture)
+        {
+            if (f.Type == "rug" || type == "rug") continue;
+            if (Vector2.Distance(f.Position, world) < 14f) return false;
+        }
+        return house.Furniture.Count < 40;
     }
 
     private void OnSnapshotPlayers(List<PlayerState> players)
@@ -3884,8 +4100,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var tx = FarmCatalog.WorldTileX(world.X);
         var ty = FarmCatalog.WorldTileY(world.Y);
         var center = FarmCatalog.TileCenter(tx, ty);
-        if (!HousingConstants.InPlot(center, house.Center)) return;
+        if (!HousingConstants.TileInsideFence(tx, ty, house.Center)) return;
         if (HousingCollision.OverlapsHouseBody(center, 4f, house.Center)) return;
+        if (HousingCollision.InDoorApproach(center, house.Center)) return;
         _farmHoverTx = tx;
         _farmHoverTy = ty;
         _farmHoverOk = true;
@@ -4092,7 +4309,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         var local = FindLocalPlayer();
         if (local == null) return;
-        local.StartAttack(GetAimDirection());
+        // Tool animation for the item in hand; never the sword swing (that also runs melee hits).
+        var clip = SelectedHotbarItemId() switch
+        {
+            "hoe" => Rendering.Characters.CharacterClip.Hoe,
+            "watering_can" => Rendering.Characters.CharacterClip.Water,
+            _ => Rendering.Characters.CharacterClip.Plant,
+        };
+        local.StartToolSwing(GetAimDirection(), clip);
     }
 
     private void SyncLocalFishingPose(PlayerEntity? local)
@@ -4191,11 +4415,38 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         return Vector2.Distance(local.Position, center) <= FishCatalog.ActionRange;
     }
 
+    private static readonly string[] AutoHotbarTools = ["hoe", "watering_can", "fishing_rod"];
+    private readonly HashSet<string> _knownInventoryItems = new(StringComparer.Ordinal);
+    private bool _hotbarDirty;
+    private float _hotbarSaveDelay;
+
     private void TryAssignFarmToolsHotbar()
     {
-        TryAssignItemToEmptyHotbar("hoe");
-        TryAssignItemToEmptyHotbar("watering_can");
-        TryAssignItemToEmptyHotbar("fishing_rod");
+        foreach (var tool in AutoHotbarTools)
+            TryAssignItemToEmptyHotbar(tool);
+    }
+
+    private void RememberInventoryItems()
+    {
+        _knownInventoryItems.Clear();
+        for (var i = 0; i < PlayerInventory.SlotCount; i++)
+        {
+            if (_inventory.Slots[i].ItemId is { Length: > 0 } itemId && !_inventory.Slots[i].IsEmpty)
+                _knownInventoryItems.Add(itemId);
+        }
+    }
+
+    private void OnHotbarChanged() => _hotbarDirty = true;
+
+    /// <summary>Writes the hotbar layout shortly after it changes (batches drag/scroll bursts).</summary>
+    private void SaveHotbarIfDirty(float dt, bool force = false)
+    {
+        if (!_hotbarDirty) return;
+        _hotbarSaveDelay -= dt;
+        if (!force && _hotbarSaveDelay > 0f) return;
+        _hotbarDirty = false;
+        _hotbarSaveDelay = 0.5f;
+        HotbarLayoutStore.Save(_screens.Net.LocalCharacterId, _hotbar);
     }
 
     private void TryAssignItemToEmptyHotbar(string itemId)
