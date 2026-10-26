@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/deathborn/server/internal/db"
 	"github.com/deathborn/server/internal/protocol"
@@ -14,12 +15,33 @@ import (
 
 // Handler serves the register/login HTTP endpoints.
 type Handler struct {
-	db     *db.DB
-	secret string
+	db         *db.DB
+	secret     string
+	trustProxy bool
+	attempts   *ipLimiter
 }
 
-func NewHandler(database *db.DB, secret string) *Handler {
-	return &Handler{db: database, secret: secret}
+// NewHandler builds the auth handlers. trustProxy controls whether the
+// X-Forwarded-For header decides the client IP for rate limiting.
+func NewHandler(database *db.DB, secret string, trustProxy bool) *Handler {
+	return &Handler{
+		db:         database,
+		secret:     secret,
+		trustProxy: trustProxy,
+		attempts:   newIPLimiter(authAttemptsPerMinute, time.Minute),
+	}
+}
+
+// authAttemptsPerMinute is shared by /register and /login per client IP.
+const authAttemptsPerMinute = 10
+
+// allowAttempt reports whether this request may proceed. It writes a 429 when not.
+func (h *Handler) allowAttempt(w http.ResponseWriter, r *http.Request) bool {
+	if h.attempts.Allow(clientIP(r, h.trustProxy), time.Now()) {
+		return true
+	}
+	writeError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
+	return false
 }
 
 type credentials struct {
@@ -35,6 +57,9 @@ type tokenResponse struct {
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if !h.allowAttempt(w, r) {
 		return
 	}
 	creds, ok := decodeCredentials(w, r)
@@ -69,6 +94,9 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if !h.allowAttempt(w, r) {
 		return
 	}
 	creds, ok := decodeCredentials(w, r)

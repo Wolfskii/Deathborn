@@ -46,6 +46,8 @@ type Client struct {
 	characterID int64
 	spawned     bool
 
+	limits *limiterSet
+
 	sessionOnce sync.Once
 }
 
@@ -116,12 +118,15 @@ func ServeWS(hub *Hub, database *db.DB, secret string) http.HandlerFunc {
 			return // upgrader already wrote the response
 		}
 
+		conn.SetReadLimit(64 * 1024)
+
 		c := &Client{
 			hub:       hub,
 			conn:      conn,
 			send:      make(chan []byte, sendBuffer),
 			closed:    make(chan struct{}),
 			accountID: accountID,
+			limits:    newLimiterSet(),
 		}
 
 		hub.register <- c
@@ -293,7 +298,13 @@ func (c *Client) persistSpawnedState(database *db.DB) {
 func (c *Client) endSession(database *db.DB, unregister bool) {
 	c.sessionOnce.Do(func() {
 		if c.spawned {
-			c.persistSpawnedState(database)
+			// Died just before disconnecting: record the death instead of saving
+			// a living character. HandlePlayerDeath is a no-op if already claimed.
+			if c.hub.world.IsDead(c.characterID) {
+				c.hub.HandlePlayerDeath(database, c.characterID, 0)
+			} else {
+				c.persistSpawnedState(database)
+			}
 			c.hub.world.RemovePlayer(c.characterID)
 			c.hub.ClearOnline(c.accountID)
 		} else {
@@ -322,6 +333,12 @@ func (c *Client) readPump(database *db.DB) {
 
 		var env Envelope
 		if json.Unmarshal(raw, &env) != nil {
+			continue
+		}
+		if !c.limits.allow(env.Type, time.Now()) {
+			if env.Type == "chat_message" || env.Type == "pm_send" {
+				c.safeSend(encode("error", MessageData{Message: "You are sending messages too fast."}))
+			}
 			continue
 		}
 
@@ -497,10 +514,11 @@ func (c *Client) readPump(database *db.DB) {
 			if json.Unmarshal(env.Data, &d) != nil {
 				continue
 			}
-			text := strings.TrimSpace(d.Text)
-			if text == "" || len(text) > 120 {
+			text, ok := sanitizeChat(d.Text)
+			if !ok {
 				continue
 			}
+			c.hub.world.SetLastChat(c.characterID, text)
 			c.hub.Broadcast(encode("chat_message", ChatMessageData{
 				PlayerID: c.characterID,
 				Text:     text,
@@ -601,6 +619,7 @@ func (c *Client) readPump(database *db.DB) {
 				HpMax:      hpMax,
 			}))
 			if justDied {
+				_ = database.AddPvPKill(context.Background(), c.characterID)
 				c.hub.HandlePlayerDeath(database, d.TargetID, c.characterID)
 			}
 			c.grantCombatSkillXP(c.characterID, d.TargetID, d.Ability, damage)

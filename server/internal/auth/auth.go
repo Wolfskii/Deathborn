@@ -5,6 +5,8 @@ package auth
 
 import (
 	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -43,6 +45,16 @@ func IssueToken(secret string, accountID int64) (string, error) {
 }
 
 // ParseToken validates a token and returns the account id.
+// AccountFromRequest reads "Authorization: Bearer <jwt>" and returns the account id.
+func AccountFromRequest(secret string, r *http.Request) (int64, error) {
+	header := r.Header.Get("Authorization")
+	token, ok := strings.CutPrefix(header, "Bearer ")
+	if !ok || token == "" {
+		return 0, errors.New("missing bearer token")
+	}
+	return ParseToken(secret, strings.TrimSpace(token))
+}
+
 func ParseToken(secret, tokenStr string) (int64, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {

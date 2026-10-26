@@ -168,18 +168,53 @@ func (h *Hub) ProcessExpiredWorldDrops() {
 	}
 }
 
-// HandlePlayerDeath removes a player from the world and notifies clients.
+// HandlePlayerDeath records a death, drops the inventory, and notifies clients.
+// Only the first caller per death does anything (see World.ClaimDeath).
 func (h *Hub) HandlePlayerDeath(database *db.DB, playerID, killerID int64) {
-	x, y, dirX, dirY, ok := h.world.DeathPose(playerID)
+	x, y, dirX, dirY, ok := h.world.ClaimDeath(playerID)
 	if !ok {
 		return
 	}
 	ctx := context.Background()
+
+	// Read everything from the in-memory world before the drop and removal.
+	set, totalXP, _ := h.world.PlayerSkillsSnapshot(playerID)
+	inv, _ := h.world.PlayerInventory(playerID)
+	reason, killerName := h.deathReasonFor(killerID)
+
 	h.dropInventoryOnDeath(ctx, database, playerID, x, y)
-	_ = database.MarkCharacterDead(ctx, playerID)
+
+	outcome, err := database.RecordDeath(ctx, db.DeathRecord{
+		CharacterID: playerID,
+		TotalXP:     totalXP,
+		Skills:      set,
+		SkillLevel:  set.HighestSkillLevel(),
+		Wealth:      inventoryWealth(inv),
+		Reason:      reason,
+		KillerName:  killerName,
+		Epitaph:     h.world.LastChat(playerID),
+	})
+	if err != nil {
+		log.Printf("record death character_id=%d: %v", playerID, err)
+		_ = database.MarkCharacterDead(ctx, playerID) // never leave a dead character alive
+	}
+
+	summary := deathSummary(set.TotalLevel(), outcome.SurvivalSeconds, outcome.PvPKills)
 	h.Broadcast(BuildPlayerDeath(playerID, killerID, x, y, dirX, dirY))
-	h.SendToCharacter(playerID, BuildYouDied(x, y, dirX, dirY), true)
+	h.SendToCharacter(playerID, BuildYouDied(x, y, dirX, dirY, reason, summary), true)
 	h.world.RemovePlayer(playerID)
+}
+
+// deathReasonFor names the killer. Players have positive ids, bosses and mobs negative.
+func (h *Hub) deathReasonFor(killerID int64) (reason, killerName string) {
+	switch {
+	case killerID > 0:
+		killerName, _ = h.world.PlayerName(killerID)
+	case killerID < 0:
+		killerName, _ = h.world.NpcName(killerID)
+	}
+	reason, killerName = deathReason(killerID, killerName)
+	return reason, killerName
 }
 
 func (h *Hub) gracefulShutdownAll(reason string) {

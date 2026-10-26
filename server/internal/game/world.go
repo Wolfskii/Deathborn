@@ -111,14 +111,25 @@ func clampResource(v, max float64) float64 {
 	return v
 }
 
-// DeathPose returns a dead player's position and facing for the death broadcast.
-func (w *World) DeathPose(id int64) (x, y, dirX, dirY float64, ok bool) {
+// IsDead reports whether a player has died and is still in the world.
+func (w *World) IsDead(id int64) bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	p, ok := w.players[id]
-	if !ok {
+	return ok && p.dead
+}
+
+// ClaimDeath gives the caller exclusive responsibility for handling a death.
+// It succeeds once per death and returns the position and facing for the death
+// broadcast. Later or concurrent callers get ok == false.
+func (w *World) ClaimDeath(id int64) (x, y, dirX, dirY float64, ok bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	p, found := w.players[id]
+	if !found || !p.dead || p.deathClaimed {
 		return 0, 0, 0, 0, false
 	}
+	p.deathClaimed = true
 	dirX, dirY = p.dirX, p.dirY
 	if dirX == 0 && dirY == 0 {
 		dirY = 1

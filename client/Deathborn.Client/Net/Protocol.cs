@@ -658,6 +658,69 @@ public sealed class YouDiedData
 
     [JsonPropertyName("dirY")]
     public double DirY { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("summary")]
+    public string? Summary { get; set; }
+}
+
+public sealed class HistoryResponse
+{
+    [JsonPropertyName("lives")]
+    public List<HistoryLife> Lives { get; set; } = [];
+}
+
+public sealed class HistoryLife
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+
+    [JsonPropertyName("killerName")]
+    public string KillerName { get; set; } = "";
+
+    [JsonPropertyName("epitaph")]
+    public string Epitaph { get; set; } = "";
+
+    [JsonPropertyName("totalXp")]
+    public long TotalXp { get; set; }
+
+    [JsonPropertyName("survivalSeconds")]
+    public long SurvivalSeconds { get; set; }
+
+    [JsonPropertyName("pvpKills")]
+    public int PvpKills { get; set; }
+
+    [JsonPropertyName("wealth")]
+    public long Wealth { get; set; }
+
+    [JsonPropertyName("diedAt")]
+    public DateTime DiedAt { get; set; }
+}
+
+public sealed class HighscoreResponse
+{
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = "";
+
+    [JsonPropertyName("entries")]
+    public List<HighscoreEntry> Entries { get; set; } = [];
+}
+
+public sealed class HighscoreEntry
+{
+    [JsonPropertyName("rank")]
+    public int Rank { get; set; }
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("value")]
+    public long Value { get; set; }
 }
 
 public sealed class PlayerHealData

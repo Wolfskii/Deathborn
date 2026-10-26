@@ -33,6 +33,7 @@ public sealed class LoginScreen : IScreen
     private readonly Checkbox _remember = new() { Label = "Remember email and password", Checked = true };
     private readonly Button _loginBtn = new() { Label = "Login" };
     private readonly Button _registerBtn = new() { Label = "Create account" };
+    private readonly Button _leaderboardBtn = new() { Label = "Leaderboard" };
     private string _status = "";
     private bool _busy;
     private KeyboardState _prevKb;
@@ -160,6 +161,8 @@ public sealed class LoginScreen : IScreen
 
             if (_loginBtn.Contains(_mouse)) _ = LoginAsync();
             if (_registerBtn.Contains(_mouse)) _ = RegisterAsync();
+            if (_leaderboardBtn.Contains(_mouse))
+                _screens.Change(new LeaderboardScreen(_screens, () => new LoginScreen(_screens)));
         }
 
         if (kb.IsKeyDown(Keys.Tab) && !_prevKb.IsKeyDown(Keys.Tab))
@@ -207,6 +210,7 @@ public sealed class LoginScreen : IScreen
         _remember.Draw(sb, font, _remember.ContainsBox(_mouse));
         _loginBtn.Draw(sb, font, _loginBtn.Contains(_mouse));
         _registerBtn.Draw(sb, font, _registerBtn.Contains(_mouse));
+        _leaderboardBtn.Draw(sb, font, _leaderboardBtn.Contains(_mouse));
 
         if (!string.IsNullOrEmpty(_status))
         {
@@ -275,6 +279,7 @@ public sealed class LoginScreen : IScreen
 
         const int toggleSize = 40;
         _musicToggleBounds = new Rectangle(viewportWidth - toggleSize - 18, 16, toggleSize, toggleSize);
+        _leaderboardBtn.Bounds = new Rectangle(16, 16, 170, 34);
     }
 
     private void DrawMusicToggle(SpriteBatch sb, SpriteFont font)

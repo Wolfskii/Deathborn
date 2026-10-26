@@ -195,10 +195,12 @@ type PlayerDeathData struct {
 
 // YouDiedData tells the victim their character is dead and they may create a new one.
 type YouDiedData struct {
-	X    float64 `json:"x"`
-	Y    float64 `json:"y"`
-	DirX float64 `json:"dirX"`
-	DirY float64 `json:"dirY"`
+	X       float64 `json:"x"`
+	Y       float64 `json:"y"`
+	DirX    float64 `json:"dirX"`
+	DirY    float64 `json:"dirY"`
+	Reason  string  `json:"reason,omitempty"`
+	Summary string  `json:"summary,omitempty"`
 }
 
 // PlayerHealData is broadcast when a player heals themselves.
@@ -397,8 +399,8 @@ func BuildPlayerDeath(playerID, killerID int64, x, y, dirX, dirY float64) []byte
 }
 
 // BuildYouDied serializes the victim-only death notice.
-func BuildYouDied(x, y, dirX, dirY float64) []byte {
-	return encode("you_died", YouDiedData{X: x, Y: y, DirX: dirX, DirY: dirY})
+func BuildYouDied(x, y, dirX, dirY float64, reason, summary string) []byte {
+	return encode("you_died", YouDiedData{X: x, Y: y, DirX: dirX, DirY: dirY, Reason: reason, Summary: summary})
 }
 
 // BuildServerShutdown notifies clients before the server closes the socket.

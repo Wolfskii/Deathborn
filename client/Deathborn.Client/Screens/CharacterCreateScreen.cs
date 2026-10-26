@@ -21,6 +21,8 @@ public sealed class CharacterCreateScreen : IScreen
     private readonly ScreenManager _screens;
     private readonly TextField _name = new() { Placeholder = "Enter your character's name..." };
     private readonly Button _nextBtn = new() { Label = "CONFIRM" };
+    private readonly Button _pastLivesBtn = new() { Label = "Past lives" };
+    private readonly Button _leaderboardBtn = new() { Label = "Leaderboard" };
     private readonly CharacterVisual _preview = new();
     private readonly CharacterVisual[] _racePortraits = [new(), new(), new(), new(), new(), new()];
     private readonly Rectangle[] _raceBounds = new Rectangle[CharacterCreationCatalog.Races.Length];
@@ -121,6 +123,10 @@ public sealed class CharacterCreateScreen : IScreen
         {
             _name.Focused = _name.Bounds.Contains(_mouse);
             HandleClick(_mouse);
+            if (_pastLivesBtn.Contains(_mouse))
+                _screens.Change(new LegacyScreen(_screens, () => new CharacterCreateScreen(_screens)));
+            if (_leaderboardBtn.Contains(_mouse))
+                _screens.Change(new LeaderboardScreen(_screens, () => new CharacterCreateScreen(_screens)));
         }
 
         if (!_busy && kb.IsKeyDown(Keys.Enter) && !_prevKb.IsKeyDown(Keys.Enter))
@@ -146,6 +152,8 @@ public sealed class CharacterCreateScreen : IScreen
         var confirmHover = _nextBtn.Contains(_mouse);
         DrawRoundedButton(sb, _nextBtn.Bounds, confirmHover ? new Color(57, 93, 119) : new Color(37, 67, 91), Gold);
         DrawFittedCentered(sb, font, _nextBtn.Label, _nextBtn.Bounds.Center.ToVector2(), _nextBtn.Bounds.Width - 16, Color.White, 0.85f);
+        DrawSecondaryButton(sb, font, _pastLivesBtn);
+        DrawSecondaryButton(sb, font, _leaderboardBtn);
         if (!string.IsNullOrEmpty(_status))
             DrawCentered(sb, font, _status, new Vector2(_mainPanel.Center.X, _mainPanel.Bottom - 30), _status.StartsWith("Error") ? new Color(255, 130, 110) : new Color(220, 180, 120));
         sb.End();
@@ -174,6 +182,8 @@ public sealed class CharacterCreateScreen : IScreen
         _name.Bounds = new Rectangle(_namePanel.X + 18, _namePanel.Y + 32, _namePanel.Width - 58, 36);
         _nameRandomizeBounds = new Rectangle(_namePanel.Right - 34, _namePanel.Y + 32, 22, 36);
         _nextBtn.Bounds = new Rectangle(_mainPanel.Right - 156, _mainPanel.Bottom - 72, 128, 42);
+        _pastLivesBtn.Bounds = new Rectangle(16, _viewportH - 50, 150, 34);
+        _leaderboardBtn.Bounds = new Rectangle(176, _viewportH - 50, 150, 34);
 
         var cardHeight = Math.Max(44, upperHeight / 10);
         for (var i = 0; i < _raceBounds.Length; i++)
@@ -570,6 +580,14 @@ public sealed class CharacterCreateScreen : IScreen
         FillRoundedRect(sb, panel, GoldDim, 6);
         FillRoundedRect(sb, new Rectangle(panel.X + 2, panel.Y + 2, panel.Width - 4, panel.Height - 4), Panel, 5);
         DrawPrimitives.DrawRectOutline(sb, new Rectangle(panel.X + 5, panel.Y + 5, panel.Width - 10, panel.Height - 10), new Color(33, 45, 54));
+    }
+
+    private void DrawSecondaryButton(SpriteBatch sb, SpriteFont font, Button button)
+    {
+        var fill = button.Contains(_mouse) ? new Color(57, 93, 119) : new Color(37, 67, 91);
+        DrawRoundedButton(sb, button.Bounds, fill, GoldDim);
+        DrawFittedCentered(sb, font, button.Label, button.Bounds.Center.ToVector2(), button.Bounds.Width - 16,
+            Color.White, 0.85f);
     }
 
     private static void DrawRoundedButton(SpriteBatch sb, Rectangle bounds, Color fill, Color border)

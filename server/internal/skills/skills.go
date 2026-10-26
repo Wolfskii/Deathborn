@@ -123,6 +123,17 @@ func (s Set) TotalLevel() int {
 	return total
 }
 
+// HighestSkillLevel returns the level of the player's best single skill.
+func (s Set) HighestSkillLevel() int {
+	best := 0
+	for _, id := range All() {
+		if lvl := s.Level(id); lvl > best {
+			best = lvl
+		}
+	}
+	return best
+}
+
 // Grant adds XP to a skill and returns new xp, level, and whether a level-up occurred.
 func (s Set) Grant(skill string, amount int64) (newXp int64, level int, leveledUp bool) {
 	if amount <= 0 {

@@ -15,7 +15,11 @@ type player struct {
 	stamina float64
 	mana    float64
 	dead    bool
-	hot     *healOverTime
+	// deathClaimed is set by ClaimDeath so only one caller handles the death.
+	deathClaimed bool
+	// lastChat is the most recent chat line, shown as the epitaph on death.
+	lastChat string
+	hot          *healOverTime
 	buffs   []playerBuff
 	// desired movement direction (unit-clamped), set from client input and
 	// integrated each tick.

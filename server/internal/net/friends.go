@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"strings"
 
 	"github.com/deathborn/server/internal/db"
 )
@@ -181,8 +180,8 @@ func (c *Client) handlePmSend(database *db.DB, targetCharacterID int64, text str
 	if !c.spawned || targetCharacterID <= 0 || targetCharacterID == c.characterID {
 		return
 	}
-	text = strings.TrimSpace(text)
-	if text == "" || len(text) > 120 {
+	text, ok := sanitizeChat(text)
+	if !ok {
 		return
 	}
 	ctx := context.Background()

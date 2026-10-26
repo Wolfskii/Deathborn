@@ -1287,6 +1287,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void OnYouDied(YouDiedData data)
     {
         _corpsePosition = new Vector2((float)data.X, (float)data.Y);
+        _deathOverlay.SetDeathInfo(data.Reason, data.Summary);
         _ghostModePending = true;
         _inventory.ApplyFromServer([]);
         UpdateBuildHouseEnabled();

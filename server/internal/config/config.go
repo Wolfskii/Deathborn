@@ -9,6 +9,9 @@ type Config struct {
 	JWTSecret   string
 	Port        string
 	ListenHost  string
+	// TrustProxy makes X-Forwarded-For decide the client IP for rate limits.
+	// Enable only when a reverse proxy sets that header.
+	TrustProxy bool
 }
 
 func Load() Config {
@@ -17,6 +20,7 @@ func Load() Config {
 		JWTSecret:   getenv("JWT_SECRET", "dev-secret-change-me"),
 		Port:        getenv("PORT", "8080"),
 		ListenHost:  getenv("LISTEN_HOST", ""),
+		TrustProxy:  getenv("TRUST_PROXY", "") == "true",
 	}
 }
 

@@ -77,6 +77,43 @@ public sealed class GameClient : IDisposable
     public event Action<FriendsData>? FriendsUpdated;
     public event Action<PmData>? PrivateMessage;
 
+    /// <summary>Past lives for the signed-in account. Returns null on any failure.</summary>
+    public async Task<HistoryResponse?> GetHistoryAsync(int limit = 20)
+    {
+        if (string.IsNullOrEmpty(_token))
+            return null;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{Config.HttpBase}/history?limit={limit}");
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _token);
+            using var resp = await _http.SendAsync(req);
+            if (!resp.IsSuccessStatusCode)
+                return null;
+            return await resp.Content.ReadFromJsonAsync<HistoryResponse>(JsonOpts);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Public leaderboard for one category. Returns null on any failure.</summary>
+    public async Task<HighscoreResponse?> GetHighscoresAsync(string category, int limit = 20)
+    {
+        try
+        {
+            var url = $"{Config.HttpBase}/highscores?category={Uri.EscapeDataString(category)}&limit={limit}";
+            using var resp = await _http.GetAsync(url);
+            if (!resp.IsSuccessStatusCode)
+                return null;
+            return await resp.Content.ReadFromJsonAsync<HighscoreResponse>(JsonOpts);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static HttpClient CreateHttpClient()
     {
         var http = new HttpClient();

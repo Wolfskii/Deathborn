@@ -16,10 +16,10 @@ missing.
 | M2 World zones + safe zones | 🟡 Partial |
 | M3 Gathering + usage-based skills | 🟡 Partial |
 | M4 Real-time combat | 🟡 Largely built, needs balance and polish |
-| M5 Permadeath | 🟡 Partial |
+| M5 Permadeath | ✅ Done |
 | M6 Full-loot drops + looting | 🟡 Partial |
-| M7 Death history (legacy view) | ⬜ Not started |
-| M8 Highscores / leaderboards | ⬜ Not started |
+| M7 Death history (legacy view) | ✅ Done |
+| M8 Highscores / leaderboards | ✅ Done |
 | M9 Google OAuth login | ⬜ Not started |
 
 Built beyond the original plan: see [Built outside the original plan](#built-outside-the-original-plan).
@@ -47,7 +47,7 @@ Built beyond the original plan: see [Built outside the original plan](#built-out
   combat and protocol data lives in `shared/` (single source of truth; see
   `AGENTS.md`).
 - **Tick:** 20 Hz authoritative simulation.
-- **DB:** PostgreSQL. Migrations `0001`–`0011` run at startup.
+- **DB:** PostgreSQL. Migrations `0001`–`0012` run at startup.
   - `accounts`, `oauth_identities`, `characters`, `character_history`,
     `highscores` (the last three are schema only; see M7–M9).
   - Gameplay tables added since M0: skills, houses and farms, inventory and
@@ -72,7 +72,7 @@ Built beyond the original plan: see [Built outside the original plan](#built-out
 - [x] `chat_message` (C→S) with server-side validation and broadcast (S→C).
 - [x] `chat_typing` indicator.
 - [x] Chat log and typing indicators in `WorldScreen`.
-- [ ] Per-client rate limiting on chat (see cross-cutting items).
+- [x] Per-client rate limiting on chat (per message type, `net/ratelimit.go`).
 - No persistence, as planned.
 
 ---
@@ -118,13 +118,14 @@ Server-side zones (`server/internal/game/zones.go`) gate PvP and spawning.
 
 ## M5 — Permadeath  🟡
 
-Death is implemented as a state change. Permanent records are not yet written.
+Death writes a permanent record in one transaction (`db.RecordDeath`).
 
-- [x] On death (HP <= 0) the character is marked dead (`MarkCharacterDead`), removed from the world, and `you_died` is sent.
+- [x] On death (HP <= 0) the character is marked dead, removed from the world, and `you_died` is sent.
 - [x] Death is broadcast to other clients (`player_death`).
 - [x] The account can create a new character after death (`need_character` flow).
-- [ ] Write a `character_history` row on death. The table exists but nothing inserts into it.
-- [ ] Record `survival_seconds`, `pvp_kills`, and `death_reason` (tracked during play).
+- [x] A `character_history` row is written on death (reason, killer, epitaph, skills, XP, wealth).
+- [x] `survival_seconds` (wall-clock since creation, so it includes offline time) and `pvp_kills` are recorded.
+- [x] Death is handled once even if the victim disconnects at the same moment (`World.ClaimDeath`).
 
 ---
 
@@ -143,17 +144,18 @@ Death is implemented as a state change. Permanent records are not yet written.
 
 Turn the M5 data into a legacy view.
 
-- [ ] `GET /history` (JWT) returns the account's past lives.
-- [ ] Server query over `character_history` (depends on M5).
-- [ ] Client `LegacyScreen` listing past lives.
+- [x] `GET /history` (JWT) returns the account's past lives.
+- [x] Server query over `character_history` (`db.ListCharacterHistory`).
+- [x] Client `LegacyScreen` ("Past Lives") listing past lives, opened from the character screen.
+- [x] The death panel shows the cause of death and a life summary.
 
 ---
 
 ## M8 — Highscores / leaderboards  ⬜
 
-- [ ] Upsert the `highscores` row on death (max of each stat). Table exists.
-- [ ] `GET /highscores` (top N per category) and `GET /highscores/me`.
-- [ ] Client `LeaderboardScreen`.
+- [x] Upsert the `highscores` row on death (max of each stat).
+- [x] `GET /highscores?category=` (top N per category) and `GET /highscores/me`.
+- [x] Client `LeaderboardScreen`, opened from the login and character screens.
 
 ---
 
@@ -188,8 +190,10 @@ These systems shipped without a roadmap entry. Listed so future planning starts 
   entities instead of the whole world (per-zone or grid-based culling).
 - **Input sequence + reconciliation:** optional client-side prediction if
   movement feels laggy; keep server authoritative.
-- **Rate limiting / anti-abuse:** on chat, auth, and gather/attack actions.
-  No rate limiting was found in `server/internal/net/` for chat, auth, or actions.
+- **Rate limiting / anti-abuse:** Done for WebSocket messages (per type,
+  `server/internal/net/ratelimit.go`), login and register (10 per minute per IP,
+  `server/internal/auth/limit.go`), and a 64 KB socket read limit. Still open for
+  gather actions (Phase 6 of the plan).
 - **Observability:** structured logging and basic metrics (tick duration,
   connected clients). Partial: performance logging exists on the client.
 - **Migrations tooling:** swap the startup runner for `golang-migrate` if schema

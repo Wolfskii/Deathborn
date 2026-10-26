@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/deathborn/server/internal/account"
 	"github.com/deathborn/server/internal/auth"
 	"github.com/deathborn/server/internal/clientupdate"
 	"github.com/deathborn/server/internal/config"
@@ -116,12 +117,17 @@ func main() {
 		hub.Broadcast(gnet.BuildSnapshot(tick, world.Snapshot(), world.NpcSnapshot(), houses, drops, world.WorldEventSnapshot()))
 	})
 
-	authH := auth.NewHandler(database, cfg.JWTSecret)
+	authH := auth.NewHandler(database, cfg.JWTSecret, cfg.TrustProxy)
 	updateH := clientupdate.NewHandler()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/register", authH.Register)
 	mux.HandleFunc("/login", authH.Login)
+
+	accountH := account.NewHandler(database, cfg.JWTSecret)
+	mux.HandleFunc("/history", accountH.History)
+	mux.HandleFunc("/highscores", accountH.Highscores)
+	mux.HandleFunc("/highscores/me", accountH.MyHighscores)
 	mux.HandleFunc("/ws", gnet.ServeWS(hub, database, cfg.JWTSecret))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
