@@ -12,6 +12,12 @@ public sealed class InteractableEntity
     public string DisplayName = "";
     public string ItemId = "";
     public long DropId;
+
+    /// <summary>Server resource node id for tree/rock interactables; 0 for everything else.</summary>
+    public long NodeId;
+
+    /// <summary>Hit-test only: the sprite is drawn by the world, so this draws nothing.</summary>
+    public bool Invisible;
     public Vector2 Position;
     public InteractableKind Kind;
     public Color Tint = new(0.55f, 0.45f, 0.32f);
@@ -50,6 +56,7 @@ public sealed class InteractableEntity
 
     public void Draw(SpriteBatch sb, SpriteFont font, Vector2 screenPos, float zoom)
     {
+        if (Invisible) return;
         var body = Highlighted ? Tint * 1.25f : Tint;
         var outline = Highlighted ? new Color(1f, 0.92f, 0.55f, 0.95f) : new Color(0, 0, 0, 0.55f);
         var r = PickRadius * zoom;

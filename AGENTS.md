@@ -18,6 +18,13 @@ Client-only presentation (cooldowns, names, VFX timing) may stay in `AbilityCata
 
 ---
 
+## Zones, resource nodes, mob loot (server-authoritative)
+
+- **Zones:** `shared/zones.json` lists the safe towns (`kind`, `safe`, tile centre or `"anchor": "spawn"`, half size in tiles). Sync with `py -3 scripts/sync_shared_embeds.py`; `TestZonesEmbedMatchesShared` fails when the copy is stale. The server sends zones in `welcome`. Client towns come from `WorldZones.SetServerZones`.
+- **Woodcutting nodes:** one node per tree from `worldmap.Map.TreePositions()`, built in `game.NewWorld`. Gather with `gather {nodeId}`; the server checks reach, level, depletion, and bag space. Rock kinds are defined in `resourceDefs` but not placed yet. The client draws nothing for nodes (`InteractableEntity.Invisible`); the tree sprites come from `WorldFoliage`.
+- **Mob and boss loot:** `npcDef.drops` and the shared `bossLoot` table in `game/loot_tables.go`. Loot rolls on the killing blow in `net/mob_loot.go` and lands as ground drops. Item ids must exist in `ItemCatalog.cs` (materials use `ItemKind.Produce`).
+- **Respawn:** killed mobs return 90 s later at their spawn point (`mobRespawn` in `npcs.go`). Bosses do not respawn here.
+
 ## Asset drop zone (`import/`)
 
 Repo-root [`import/`](import/) is the **staging inbox** for raw drops: sound effects, music, sprites, tiles, fonts, UI art, etc.

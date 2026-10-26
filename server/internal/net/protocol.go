@@ -239,6 +239,31 @@ type WelcomeData struct {
 	HpMax       float64               `json:"hpMax,omitempty"`
 	Stamina     float64               `json:"stamina,omitempty"`
 	Mana        float64               `json:"mana,omitempty"`
+	Nodes       []game.NodeInfo       `json:"nodes,omitempty"`
+	Zones       []game.ZoneInfo       `json:"zones,omitempty"`
+}
+
+// GatherSendData asks the server to gather from a resource node.
+type GatherSendData struct {
+	NodeID int64 `json:"nodeId"`
+}
+
+// GatherResultData tells the gatherer what they got.
+type GatherResultData struct {
+	NodeID    int64   `json:"nodeId"`
+	ItemID    string  `json:"itemId"`
+	Count     int     `json:"count"`
+	Skill     string  `json:"skill"`
+	Xp        int64   `json:"xp"`
+	Level     int     `json:"level"`
+	LeveledUp bool    `json:"leveledUp"`
+	Depleted  bool    `json:"depleted"`
+}
+
+// NodeStateData tells everyone a resource node is depleted or available again.
+type NodeStateData struct {
+	ID       int64 `json:"id"`
+	Depleted bool  `json:"depleted"`
 }
 
 // LogoutData may include client-side vitals so they persist with the logout save.
@@ -485,6 +510,25 @@ func BuildHouseRemoved(houseID, ownerID int64) []byte {
 
 func BuildHouseUpdated(h game.HouseState) []byte {
 	return encode("house_updated", HouseUpdatedData{House: h})
+}
+
+// BuildGatherResult serializes a successful gather for the gatherer.
+func BuildGatherResult(res game.GatherResult) []byte {
+	return encode("gather_result", GatherResultData{
+		NodeID:    res.NodeID,
+		ItemID:    res.Item.ItemID,
+		Count:     res.Item.Count,
+		Skill:     res.Grant.SkillID,
+		Xp:        res.Grant.Xp,
+		Level:     res.Grant.Level,
+		LeveledUp: res.Grant.LeveledUp,
+		Depleted:  true,
+	})
+}
+
+// BuildNodeState announces a node's depleted state to all clients.
+func BuildNodeState(id int64, depleted bool) []byte {
+	return encode("node_state", NodeStateData{ID: id, Depleted: depleted})
 }
 
 func BuildInventory(items []game.InventoryItem) []byte {

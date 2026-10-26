@@ -25,6 +25,8 @@ type World struct {
 	zones    *ZoneIndex
 	bossMgr  *bossManager
 	mobMgr   *mobManager
+	nodes     map[int64]*resourceNode
+	nodeClock float64
 	housing  *HousingIndex
 	drops    *WorldDropIndex
 	houseRev uint64
@@ -41,6 +43,7 @@ func NewWorld(terrain *worldmap.Map) *World {
 		bossMgr:  newBossManager(),
 		mobMgr:   newMobManager(),
 		housing:  NewHousingIndex(),
+		nodes:    buildTreeNodes(terrain),
 	}
 }
 

@@ -214,6 +214,8 @@ func (c *Client) spawn(ch db.Character) {
 		HpMax:       hpMax,
 		Stamina:     stamina,
 		Mana:        mana,
+		Nodes:       c.hub.world.NodeList(),
+		Zones:       c.hub.world.ZoneList(),
 	}))
 	if savedBuffs, err := c.hub.db.GetCharacterActiveBuffs(ctx, ch.ID); err == nil && len(savedBuffs) > 0 {
 		restored := c.hub.world.RestorePlayerBuffs(ch.ID, dbBuffsToGame(savedBuffs))
@@ -420,15 +422,28 @@ func (c *Client) readPump(database *db.DB) {
 				continue
 			}
 			log.Printf("interact account_id=%d character_id=%d target=%q", c.accountID, c.characterID, d.TargetID)
+			// Interact only animates. Gathering XP comes from the gather message,
+			// which the server validates against a real resource node.
 			c.hub.Broadcast(BuildPlayerAction(c.characterID, "interact", 0, 0, d.TargetID))
-			if skill, xp, ok := skills.InteractSkill(d.TargetID); ok {
-				now := float64(time.Now().UnixMilli()) / 1000
-				if c.hub.world.CanInteractSkill(c.characterID, now, 2.0) {
-					if r, granted := c.hub.world.GrantSkillXP(c.characterID, skill, xp); granted {
-						c.sendSkillXpGain(c.characterID, skill, xp, r)
-					}
-				}
+
+		case "gather":
+			if !c.spawned {
+				continue
 			}
+			var d GatherSendData
+			if json.Unmarshal(env.Data, &d) != nil || d.NodeID == 0 {
+				continue
+			}
+			res, msg, ok := c.hub.world.ApplyGather(c.characterID, d.NodeID)
+			if !ok {
+				c.safeSend(encode("error", MessageData{Message: msg}))
+				continue
+			}
+			c.hub.Broadcast(BuildNodeState(d.NodeID, true))
+			c.safeSend(BuildGatherResult(res))
+			c.safeSend(BuildInventory(res.Inventory))
+			c.sendSkillXpGain(c.characterID, res.Grant.SkillID, res.Grant.Xp, res.Grant)
+			_ = database.SaveCharacterInventory(context.Background(), c.characterID, game.InventoryToDB(res.Inventory))
 
 		case "player_action":
 			if !c.spawned {
@@ -646,16 +661,13 @@ func (c *Client) readPump(database *db.DB) {
 			if damage <= 0 {
 				continue
 			}
-			hp, hpMax, justDied, ok := c.hub.world.ApplyDamageToNpc(d.TargetNpcID, damage)
+			hit, ok := c.hub.world.ApplyDamageToNpc(d.TargetNpcID, damage)
 			if !ok {
 				continue
 			}
-			c.hub.Broadcast(BuildNpcHit(c.characterID, d.TargetNpcID, damage, d.Ability, hp, hpMax))
+			c.hub.Broadcast(BuildNpcHit(c.characterID, d.TargetNpcID, damage, d.Ability, hit.HP, hit.HPMax))
 			c.hub.ProcessBossEvents(c.hub.world.DrainPendingBossEvents())
-			if justDied {
-				// Boss death events already queued in ApplyDamageToNpc.
-				_ = justDied
-			}
+			c.grantPvEXP(database, d.Ability, damage, hit)
 
 		case "ability_use":
 			if !c.spawned {
@@ -1199,6 +1211,26 @@ func (c *Client) grantCombatSkillXP(attackerID, defenderID int64, ability string
 			c.sendSkillXpGain(defenderID, skill, amt, r)
 		}
 	}
+}
+
+// grantPvEXP rewards the attacker for hitting a mob or boss: per-hit combat XP,
+// plus a kill bonus and loot when the hit was the killing blow.
+func (c *Client) grantPvEXP(database *db.DB, ability string, damage int, hit game.NpcHit) {
+	att, _ := skills.CombatXP(ability, damage)
+	for skill, amt := range att {
+		if r, ok := c.hub.world.GrantSkillXP(c.characterID, skill, amt); ok {
+			c.sendSkillXpGain(c.characterID, skill, amt, r)
+		}
+	}
+	if !hit.Died {
+		return
+	}
+	if bonus := game.NpcKillXP(hit.DefID); bonus > 0 {
+		if r, ok := c.hub.world.GrantSkillXP(c.characterID, skills.Strength, bonus); ok {
+			c.sendSkillXpGain(c.characterID, skills.Strength, bonus, r)
+		}
+	}
+	c.hub.dropNpcLoot(context.Background(), database, hit.DefID, hit.X, hit.Y)
 }
 
 func (c *Client) writePump() {

@@ -35,6 +35,8 @@ todos:
 isProject: false
 ---
 
+> **Historical:** this plan describes the original Godot client. The game now uses MonoGame (C#) and the status lives in `docs/MVP_ROADMAP.md`.
+
 # DEATHBORN — Walking Skeleton + MVP Roadmap
 
 ## Goal of this milestone (M0)

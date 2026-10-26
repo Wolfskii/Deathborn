@@ -2,7 +2,6 @@ package skills
 
 import (
 	"math"
-	"strings"
 )
 
 const MaxLevel = 99
@@ -144,33 +143,6 @@ func (s Set) Grant(skill string, amount int64) (newXp int64, level int, leveledU
 	newXp = s[skill]
 	level = s.Level(skill)
 	return newXp, level, level > oldLevel
-}
-
-// InteractSkill maps interactable target ids to skill training.
-func InteractSkill(targetID string) (skill string, xp int64, ok bool) {
-	switch {
-	case containsAny(targetID, "tree", "oak", "pine"):
-		return Woodcutting, 38, true
-	case containsAny(targetID, "rock", "iron", "copper", "mine"):
-		return Mining, 35, true
-	case containsAny(targetID, "fish"):
-		return Fishing, 30, true
-	case containsAny(targetID, "farm", "crop", "plot"):
-		return Farming, 28, true
-	case containsAny(targetID, "stove", "cooking", "fire_pit", "hearth"):
-		return Cooking, 32, true
-	default:
-		return "", 0, false
-	}
-}
-
-func containsAny(s string, parts ...string) bool {
-	for _, p := range parts {
-		if p != "" && strings.Contains(s, p) {
-			return true
-		}
-	}
-	return false
 }
 
 // CombatXP returns skill XP grants for a successful hit.

@@ -161,6 +161,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.SkillXpGain += OnSkillXpGain;
         net.FriendsUpdated += OnFriendsUpdated;
         net.PrivateMessage += OnPrivateMessage;
+        net.GatherResult += OnGatherResult;
+        net.NodeState += OnNodeState;
+        LoadResourceNodes();
 
         if (net.LocalCharacterId >= 0 && !_players.ContainsKey(net.LocalCharacterId))
         {
@@ -183,6 +186,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         DeathbornGame.Instance.IsMouseVisible = false;
 
         WorldZones.Initialize(WorldMap.SwaroviaMainland);
+        WorldZones.SetServerZones(_screens.Net.SpawnZones);
         WorldFoliage.Initialize(WorldMap.SwaroviaMainland);
         WorldClouds.Initialize(WorldMap.SwaroviaMainland);
         SeedHotbar();
@@ -260,6 +264,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         net.SkillXpGain -= OnSkillXpGain;
         net.FriendsUpdated -= OnFriendsUpdated;
         net.PrivateMessage -= OnPrivateMessage;
+        net.GatherResult -= OnGatherResult;
+        net.NodeState -= OnNodeState;
         _deathOverlay.NewLifeRequested -= OnNewLifeRequested;
         _deathOverlay.SpectateRequested -= OnSpectateRequested;
         _disconnectOverlay.ReturnToLoginRequested -= OnReturnToLoginRequested;
@@ -2331,7 +2337,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             safe = false;
         }
 
-        _zoneBanner.SetPersistentZone(safe ? name : null, safe);
+        _zoneBanner.SetPersistentZone(name, safe);
 
         if (!_zonePresenceInitialized)
         {
@@ -2532,8 +2538,61 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
+        if (target.NodeId > 0)
+        {
+            _status = $"You chop {target.DisplayName}...";
+            _screens.Net.SendGather(target.NodeId);
+            return;
+        }
+
         _status = target.InteractMessage();
         _screens.Net.SendInteract(target.Id);
+    }
+
+    /// <summary>Known resource nodes by server id. Depletion state is kept here as node_state arrives.</summary>
+    private readonly Dictionary<long, ResourceNodeState> _resourceNodes = new();
+
+    private void LoadResourceNodes()
+    {
+        _resourceNodes.Clear();
+        foreach (var node in _screens.Net.SpawnNodes)
+        {
+            _resourceNodes[node.Id] = node;
+            if (!node.Depleted)
+                AddResourceNodeInteractable(node);
+        }
+    }
+
+    private void AddResourceNodeInteractable(ResourceNodeState node)
+    {
+        if (node.Kind != "tree")
+            return; // rock nodes are not placed yet
+        _interactables.Add(new InteractableEntity
+        {
+            Id = $"node:{node.Id}",
+            NodeId = node.Id,
+            DisplayName = "Tree",
+            Kind = InteractableKind.Tree,
+            Position = new Vector2((float)node.X, (float)node.Y),
+            Invisible = true,
+        });
+    }
+
+    private void OnNodeState(NodeStateData data)
+    {
+        if (!_resourceNodes.TryGetValue(data.Id, out var node))
+            return;
+        node.Depleted = data.Depleted;
+        _interactables.RemoveAll(i => i.NodeId == data.Id);
+        if (!data.Depleted)
+            AddResourceNodeInteractable(node);
+    }
+
+    private void OnGatherResult(GatherResultData data)
+    {
+        var itemName = ItemCatalog.Get(data.ItemId)?.Name ?? data.ItemId;
+        _status = $"You gather {itemName}.";
+        _notifications.Push("Gathered", $"+{data.Count} {itemName}", NotificationKind.Info);
     }
 
     private void OnFishCaught(string spotId)

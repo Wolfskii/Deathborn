@@ -565,18 +565,35 @@ func (w *World) validateBossHitLocked(attackerID, npcID int64, ability string) b
 	return distSqPointToAabb(a.x, a.y, b.x, b.y, half, half) <= maxR*maxR
 }
 
-func (w *World) ApplyDamageToNpc(npcID int64, damage int) (hp, hpMax float64, justDied bool, ok bool) {
+// NpcHit is the outcome of damaging a boss or mob. When Died is true, DefID,
+// X and Y still describe the NPC so the caller can reward and loot the kill.
+type NpcHit struct {
+	HP, HPMax float64
+	Died      bool
+	DefID     string
+	X, Y      float64
+}
+
+func (w *World) ApplyDamageToNpc(npcID int64, damage int) (NpcHit, bool) {
 	if damage <= 0 {
-		return 0, 0, false, false
+		return NpcHit{}, false
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.bossMgr != nil {
 		if b, okB := w.bossMgr.bosses[npcID]; okB {
-			return w.applyBossDamageLocked(b, npcID, damage)
+			defID, x, y := b.defID, b.x, b.y
+			hp, hpMax, died, ok := w.applyBossDamageLocked(b, npcID, damage)
+			return NpcHit{HP: hp, HPMax: hpMax, Died: died, DefID: defID, X: x, Y: y}, ok
 		}
 	}
-	return w.applyMobDamageLocked(npcID, damage)
+	m, found := w.findMobLocked(npcID)
+	if !found {
+		return NpcHit{}, false
+	}
+	defID, x, y := m.defID, m.x, m.y
+	hp, hpMax, died, ok := w.applyMobDamageLocked(npcID, damage)
+	return NpcHit{HP: hp, HPMax: hpMax, Died: died, DefID: defID, X: x, Y: y}, ok
 }
 
 func (w *World) applyBossDamageLocked(b *boss, npcID int64, damage int) (hp, hpMax float64, justDied bool, ok bool) {

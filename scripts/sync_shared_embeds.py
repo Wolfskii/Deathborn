@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COPIES = [
     (ROOT / "shared" / "abilities.json", ROOT / "server" / "internal" / "game" / "abilities" / "abilities.json"),
     (ROOT / "shared" / "protocol.json", ROOT / "server" / "internal" / "protocol" / "protocol.json"),
+    (ROOT / "shared" / "zones.json", ROOT / "server" / "internal" / "game" / "zones.json"),
 ]
 
 

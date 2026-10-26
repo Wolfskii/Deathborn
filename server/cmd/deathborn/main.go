@@ -96,6 +96,9 @@ func main() {
 			hub.Broadcast(gnet.BuildPlayerBuff(b.PlayerID, b.BuffID, b.Remaining, b.Duration, b.MarkTargetID))
 		}
 		world.TickFarm(dt)
+		for _, id := range world.TickNodes(dt) {
+			hub.Broadcast(gnet.BuildNodeState(id, false))
+		}
 		if tick%staticRefreshTicks == 0 {
 			hub.PersistDirtyFarms()
 			hub.PersistDirtyFurniture()
@@ -118,6 +121,7 @@ func main() {
 	})
 
 	authH := auth.NewHandler(database, cfg.JWTSecret, cfg.TrustProxy)
+
 	updateH := clientupdate.NewHandler()
 
 	mux := http.NewServeMux()
@@ -128,6 +132,7 @@ func main() {
 	mux.HandleFunc("/history", accountH.History)
 	mux.HandleFunc("/highscores", accountH.Highscores)
 	mux.HandleFunc("/highscores/me", accountH.MyHighscores)
+	mux.HandleFunc("/fallen", accountH.Fallen)
 	mux.HandleFunc("/ws", gnet.ServeWS(hub, database, cfg.JWTSecret))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

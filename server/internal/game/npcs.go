@@ -50,15 +50,43 @@ type mob struct {
 }
 
 type mobManager struct {
-	nextID int64
-	mobs   map[int64]*mob
+	nextID      int64
+	mobs        map[int64]*mob
+	initialized bool         // the starting set has been spawned once
+	clock       float64      // seconds of simulated time, for respawn timers
+	respawns    []mobRespawn // killed mobs waiting to come back
 }
+
+// mobRespawn is a killed mob's spawn point and the clock time it returns at.
+type mobRespawn struct {
+	defID string
+	x, y  float64
+	at    float64
+}
+
+const (
+	mobRespawnSeconds      = 90.0  // delay after a mob dies
+	mobRespawnRetrySeconds = 10.0  // delay when a player stands on the spawn point
+	mobRespawnBlockRadius  = 300.0 // px; no respawn within this distance of a living player
+)
 
 func newMobManager() *mobManager {
 	return &mobManager{
 		nextID: mobIDStart,
 		mobs:   make(map[int64]*mob),
 	}
+}
+
+// dueRespawns splits pending respawns into those due at clock and those still waiting.
+func dueRespawns(pending []mobRespawn, clock float64) (due, rest []mobRespawn) {
+	for _, r := range pending {
+		if r.at <= clock {
+			due = append(due, r)
+		} else {
+			rest = append(rest, r)
+		}
+	}
+	return due, rest
 }
 
 type mobSpawnPoint struct {
@@ -97,9 +125,10 @@ func (w *World) ensureMobsInitialized() {
 	if w.mobMgr == nil {
 		w.mobMgr = newMobManager()
 	}
-	if len(w.mobMgr.mobs) > 0 {
+	if w.mobMgr.initialized {
 		return
 	}
+	w.mobMgr.initialized = true
 	w.spawnInitialMobsLocked()
 }
 
@@ -236,6 +265,8 @@ func (w *World) TickMobs(dt float64) []BossEvent {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.ensureMobsInitialized()
+	w.mobMgr.clock += dt
+	w.processRespawnsLocked()
 	var out []BossEvent
 	for _, m := range w.mobMgr.mobs {
 		out = append(out, w.tickMobLocked(m, dt)...)
@@ -642,8 +673,41 @@ func (w *World) applyMobDamageLocked(npcID int64, damage int) (hp, hpMax float64
 		hp = 0
 		justDied = true
 		delete(w.mobMgr.mobs, npcID)
+		w.mobMgr.respawns = append(w.mobMgr.respawns, mobRespawn{
+			defID: m.defID, x: m.spawnX, y: m.spawnY,
+			at: w.mobMgr.clock + mobRespawnSeconds,
+		})
 	}
 	return hp, hpMax, justDied, true
+}
+
+// processRespawnsLocked brings back mobs whose timer has expired. A spawn point
+// with a living player close by is retried shortly, so nobody is ambushed on arrival.
+func (w *World) processRespawnsLocked() {
+	due, rest := dueRespawns(w.mobMgr.respawns, w.mobMgr.clock)
+	w.mobMgr.respawns = rest
+	for _, r := range due {
+		if w.playerNearLocked(r.x, r.y, mobRespawnBlockRadius) {
+			w.mobMgr.respawns = append(w.mobMgr.respawns, mobRespawn{
+				defID: r.defID, x: r.x, y: r.y,
+				at: w.mobMgr.clock + mobRespawnRetrySeconds,
+			})
+			continue
+		}
+		if def, ok := lookupNpcDef(r.defID); ok {
+			w.spawnMobLocked(def, r.x, r.y)
+		}
+	}
+}
+
+// playerNearLocked reports whether a living player is within radius of (x, y).
+func (w *World) playerNearLocked(x, y, radius float64) bool {
+	for _, p := range w.players {
+		if !p.dead && math.Hypot(p.x-x, p.y-y) <= radius {
+			return true
+		}
+	}
+	return false
 }
 
 func (w *World) mobPositionLocked(npcID int64) (x, y float64, ok bool) {

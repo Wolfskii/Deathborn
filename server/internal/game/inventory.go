@@ -64,6 +64,10 @@ func maxStack(itemID string) int {
 	switch itemID {
 	case "bandage", "antidote":
 		return 10
+	case "boss_trophy":
+		return 5
+	case "slime_gel", "bat_wing", "bone", "orc_tusk", "logs", "copper_ore", "iron_ore":
+		return 40
 	default:
 		return 20
 	}

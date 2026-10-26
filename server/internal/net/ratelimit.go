@@ -41,6 +41,7 @@ var limitSpecs = map[string]limitSpec{
 	"ability_hit":     {20, 10},
 	"ability_hit_npc": {20, 10},
 	"ability_use":     {20, 10},
+	"gather":          {5, 1},
 }
 
 var defaultLimit = limitSpec{40, 20}

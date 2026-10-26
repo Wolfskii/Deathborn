@@ -1,11 +1,39 @@
 package game
 
-import "github.com/deathborn/server/internal/worldmap"
+import (
+	_ "embed"
+	"encoding/json"
+	"log"
+
+	"github.com/deathborn/server/internal/worldmap"
+)
 
 const safeExclusionPad = 96.0
 
+// Authoritative file: shared/zones.json (sync with: py -3 scripts/sync_shared_embeds.py).
+//
+//go:embed zones.json
+var zonesJSON []byte
+
+// zoneSpec is one entry in zones.json. Sizes are in tiles; NewZoneIndex converts them.
+type zoneSpec struct {
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	Kind       string     `json:"kind"`
+	Safe       bool       `json:"safe"`
+	Anchor     string     `json:"anchor"`     // "spawn" centres on the default spawn point
+	CenterTile [2]float64 `json:"centerTile"` // used when Anchor is not "spawn"
+	HalfWTiles float64    `json:"halfWTiles"`
+	HalfHTiles float64    `json:"halfHTiles"`
+}
+
+type zonesFile struct {
+	Zones []zoneSpec `json:"zones"`
+}
+
 type zoneDef struct {
 	id, name string
+	kind     string
 	safe     bool
 	centerX  float64
 	centerY  float64
@@ -19,28 +47,77 @@ type ZoneIndex struct {
 	exclusionPad float64
 }
 
+// ZoneInfo is a zone in world pixels, as sent to clients.
+type ZoneInfo struct {
+	ID    string  `json:"id"`
+	Name  string  `json:"name"`
+	Kind  string  `json:"kind"`
+	Safe  bool    `json:"safe"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	HalfW float64 `json:"halfW"`
+	HalfH float64 `json:"halfH"`
+}
+
+// NewZoneIndex builds the zone index from the embedded zones.json. A bad file
+// logs and leaves the world with no safe zones, rather than crashing the server.
 func NewZoneIndex(terrain *worldmap.Map) *ZoneIndex {
+	z := &ZoneIndex{exclusionPad: safeExclusionPad}
+	if terrain == nil {
+		return z
+	}
+	var file zonesFile
+	if err := json.Unmarshal(zonesJSON, &file); err != nil {
+		log.Printf("zones.json: %v (no zones loaded)", err)
+		return z
+	}
+
 	ts := terrain.TileSize
 	scale := ts / 16.0
-	tileCenter := func(tx, ty int) (float64, float64) {
-		return (float64(tx) + 0.5) * ts, (float64(ty) + 0.5) * ts
+	z.exclusionPad = safeExclusionPad * scale
+	for _, s := range file.Zones {
+		cx, cy := terrain.DefaultSpawnX, terrain.DefaultSpawnY
+		if s.Anchor != "spawn" {
+			cx = (s.CenterTile[0] + 0.5) * ts
+			cy = (s.CenterTile[1] + 0.5) * ts
+		}
+		z.zones = append(z.zones, zoneDef{
+			id: s.ID, name: s.Name, kind: s.Kind, safe: s.Safe,
+			centerX: cx, centerY: cy,
+			halfW: s.HalfWTiles * ts, halfH: s.HalfHTiles * ts,
+		})
 	}
-	nx, ny := tileCenter(234, 45)
-	wx, wy := tileCenter(39, 189)
-	ex, ey := tileCenter(229, 128)
-	sx, sy := tileCenter(112, 281)
+	return z
+}
 
-	return &ZoneIndex{
-		exclusionPad: safeExclusionPad * scale,
-		zones: []zoneDef{
-			{id: "starter_town", name: "Starter Town", safe: true,
-				centerX: terrain.DefaultSpawnX, centerY: terrain.DefaultSpawnY, halfW: 148 * scale, halfH: 128 * scale},
-			{id: "northhaven", name: "Northhaven", safe: true, centerX: nx, centerY: ny, halfW: 136 * scale, halfH: 118 * scale},
-			{id: "westmere", name: "Westmere", safe: true, centerX: wx, centerY: wy, halfW: 128 * scale, halfH: 112 * scale},
-			{id: "eastwatch", name: "Eastwatch", safe: true, centerX: ex, centerY: ey, halfW: 132 * scale, halfH: 116 * scale},
-			{id: "southport", name: "Southport", safe: true, centerX: sx, centerY: sy, halfW: 140 * scale, halfH: 120 * scale},
-		},
+// ZoneList returns every zone in world pixels, in file order.
+func (w *World) ZoneList() []ZoneInfo {
+	if w.zones == nil {
+		return nil
 	}
+	out := make([]ZoneInfo, 0, len(w.zones.zones))
+	for _, zd := range w.zones.zones {
+		out = append(out, ZoneInfo{
+			ID: zd.id, Name: zd.name, Kind: zd.kind, Safe: zd.safe,
+			X: zd.centerX, Y: zd.centerY, HalfW: zd.halfW, HalfH: zd.halfH,
+		})
+	}
+	return out
+}
+
+// ZoneAt returns the zone containing a position, if any.
+func (w *World) ZoneAt(x, y float64) (ZoneInfo, bool) {
+	if w.zones == nil {
+		return ZoneInfo{}, false
+	}
+	zd := w.zones.At(x, y)
+	if zd == nil {
+		return ZoneInfo{}, false
+	}
+	return ZoneInfo{
+		ID: zd.id, Name: zd.name, Kind: zd.kind, Safe: zd.safe,
+		X: zd.centerX, Y: zd.centerY, HalfW: zd.halfW, HalfH: zd.halfH,
+	}, true
 }
 
 func (z *ZoneIndex) At(x, y float64) *zoneDef {

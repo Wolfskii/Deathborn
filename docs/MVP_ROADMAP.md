@@ -20,7 +20,7 @@ missing.
 | M6 Full-loot drops + looting | 🟡 Partial |
 | M7 Death history (legacy view) | ✅ Done |
 | M8 Highscores / leaderboards | ✅ Done |
-| M9 Google OAuth login | ⬜ Not started |
+| M9 Google OAuth login | ⬜ Dropped |
 
 Built beyond the original plan: see [Built outside the original plan](#built-outside-the-original-plan).
 
@@ -84,10 +84,9 @@ Server-side zones (`server/internal/game/zones.go`) gate PvP and spawning.
 - [x] Starter Town, Northhaven, Westmere, Eastwatch, Southport are safe zones.
 - [x] PvP is allowed outside safe zones (`PvPAllowed`), and bosses and NPCs respect safe areas.
 - [x] House interiors and safe-zone exclusion rules.
-- [ ] Market, Bank, and Forest / Mine / Lake / Wilderness as named zones. Only
-      safe zones are named today. Everything else is an unnamed PvP area.
-- [ ] Zone name and safe / danger flag in the HUD (`welcome` and `snapshot` do not carry a zone yet).
-- [ ] Zones are config-driven. They are currently hard-coded in `zones.go`.
+- [ ] Market and Bank as named safe zones. Danger zones (forest, mine, lake) are dropped.
+- [x] Zone name and safe flag reach the client in `welcome` (`zones`). The HUD shows "Town name - Safe" in towns.
+- [x] Zones are config-driven: `shared/zones.json`, embedded with `py -3 scripts/sync_shared_embeds.py`.
 
 ---
 
@@ -96,10 +95,14 @@ Server-side zones (`server/internal/game/zones.go`) gate PvP and spawning.
 - [x] Usage-based skill XP (`GrantSkillXP`), levels, and `total_xp` persisted on `characters`.
 - [x] Skill-based activities: farming, fishing, and cooking (see [Built outside the original plan](#built-outside-the-original-plan)).
 - [x] Inventory panel, hotbar, and skills display on the client.
-- [ ] Woodcutting and mining resource nodes per zone.
-- [ ] Generic `gather_start` / `gather_stop` protocol. Farming and fishing use their own actions instead.
-- [ ] Smithing, Attack, Strength, Defense, and Hitpoints skill XP tied to actions. Combat XP
-      path to confirm.
+- [x] Woodcutting nodes: one per tree the map generates (`worldmap.TreePositions`). Server-authoritative
+      `gather` message with range, level, depletion and bag checks. Nodes deplete for 45 s.
+- [x] The old `interact` XP grant (any target id containing "tree" or "rock") is removed.
+- [ ] Mining nodes. The rock kinds and their rewards are defined (`resourceDefs`), but no rock
+      positions are placed yet. Needs a decision on where rocks go.
+- [ ] Depleted trees still look like trees; only the interaction is disabled.
+- [ ] Smithing skill (not in `skills.go` yet). Attack, Strength, Defense, and Hitpoints gain XP
+      from PvP and PvE combat (see M4).
 
 ---
 
@@ -111,8 +114,11 @@ Server-side zones (`server/internal/game/zones.go`) gate PvP and spawning.
 - [x] Boss encounters with telegraphed abilities (`bosses.go`).
 - [x] Boss health bar and buff bar overlays on the client.
 - [ ] Combat balance pass across abilities, bosses, and HP.
+- [x] PvE rewards: per-hit combat XP on mobs and bosses, plus a kill bonus in Strength
+      (half of max HP for mobs, a quarter for bosses).
+- [x] Mob loot tables (`loot_tables.go`) drop as ground items. Bosses drop a trophy and potions.
+- [x] Mobs respawn 90 s after dying, at their original spawn point, unless a player is within 300 px.
 - [ ] Aggro and PvE mob behaviour beyond bosses (confirm before marking done).
-- [ ] Attack / Strength / Defense / Hitpoints XP from combat (confirm).
 
 ---
 
@@ -159,13 +165,9 @@ Turn the M5 data into a legacy view.
 
 ---
 
-## M9 — Google OAuth login  ⬜
+## M9 — Google OAuth login  ⬜ Dropped
 
-- [ ] OAuth redirect and callback endpoints.
-- [ ] Find-or-create an account, link `oauth_identities`, issue the same JWT.
-- [ ] Provider-agnostic interface in `internal/auth`, with Google first.
-- [ ] "Sign in with Google" on `LoginScreen` (system browser flow).
-- Schema is ready: `accounts.password_hash` is nullable, and `oauth_identities` exists.
+Dropped. Sign-in stays username or email with a password. The `oauth_identities` table is left in place, unused.
 
 ---
 
@@ -179,6 +181,7 @@ These systems shipped without a roadmap entry. Listed so future planning starts 
 - **Cosmetics** (migration `0006`) and **active buffs** (migration `0007`).
 - **Terrain and rendering:** elevation, water, foliage occlusion, and Tiled map import and export (dungeons and the Swarovia mainland).
 - **Player appearance and modular character layers** (migration `0009`).
+- **Hall of the Fallen:** `GET /fallen` lists the latest deaths with last words. Opened from the login and character screens. A stone monument in Starter Town is still open, pending a location.
 - **Live-reload dev server** (Air) and **client self-update** (`clientupdate`).
 - **Import inbox** for art and content assets (`import/`, see `AGENTS.md`).
 
@@ -193,7 +196,7 @@ These systems shipped without a roadmap entry. Listed so future planning starts 
 - **Rate limiting / anti-abuse:** Done for WebSocket messages (per type,
   `server/internal/net/ratelimit.go`), login and register (10 per minute per IP,
   `server/internal/auth/limit.go`), and a 64 KB socket read limit. Still open for
-  gather actions (Phase 6 of the plan).
+  gather actions (`gather` is limited to 5 burst, 1 per second).
 - **Observability:** structured logging and basic metrics (tick duration,
   connected clients). Partial: performance logging exists on the client.
 - **Migrations tooling:** swap the startup runner for `golang-migrate` if schema

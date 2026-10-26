@@ -2,7 +2,9 @@
 // sensible local-development defaults.
 package config
 
-import "os"
+import (
+	"os"
+)
 
 type Config struct {
 	DatabaseURL string

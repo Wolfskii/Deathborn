@@ -52,7 +52,7 @@ public sealed class ZoneBannerOverlay
 
     public void Draw(SpriteBatch sb, SpriteFont font)
     {
-        if (InSafeZone && !string.IsNullOrEmpty(PersistentZoneName))
+        if (!string.IsNullOrEmpty(PersistentZoneName))
             DrawPersistentPill(sb, font);
 
         if (!_active || _fade <= 0.01f) return;
@@ -61,12 +61,13 @@ public sealed class ZoneBannerOverlay
 
     private void DrawPersistentPill(SpriteBatch sb, SpriteFont font)
     {
-        var label = SpriteFontSafe.Filter($"{PersistentZoneName} - Safe");
+        var label = SpriteFontSafe.Filter($"{PersistentZoneName} - {(InSafeZone ? "Safe" : "Danger")}");
         var size = SpriteFontSafe.MeasureString(font, label);
         var panelW = Math.Min((int)size.X + 32, Math.Max(120, GameViewport.Width - 24));
         var rect = new Rectangle(GameViewport.Width / 2 - panelW / 2, 6, panelW, 30);
         FarmRpgUi.DrawTitle(sb, rect, 0.94f);
-        DrawCenteredText(sb, font, label, rect, FarmRpgUi.Ink, 1f, 12);
+        var textColor = InSafeZone ? FarmRpgUi.Ink : new Color(140, 40, 30);
+        DrawCenteredText(sb, font, label, rect, textColor, 1f, 12);
     }
 
     private static void DrawCenterBanner(

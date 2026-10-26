@@ -23,6 +23,7 @@ public sealed class CharacterCreateScreen : IScreen
     private readonly Button _nextBtn = new() { Label = "CONFIRM" };
     private readonly Button _pastLivesBtn = new() { Label = "Past lives" };
     private readonly Button _leaderboardBtn = new() { Label = "Leaderboard" };
+    private readonly Button _fallenBtn = new() { Label = "Fallen" };
     private readonly CharacterVisual _preview = new();
     private readonly CharacterVisual[] _racePortraits = [new(), new(), new(), new(), new(), new()];
     private readonly Rectangle[] _raceBounds = new Rectangle[CharacterCreationCatalog.Races.Length];
@@ -127,6 +128,8 @@ public sealed class CharacterCreateScreen : IScreen
                 _screens.Change(new LegacyScreen(_screens, () => new CharacterCreateScreen(_screens)));
             if (_leaderboardBtn.Contains(_mouse))
                 _screens.Change(new LeaderboardScreen(_screens, () => new CharacterCreateScreen(_screens)));
+            if (_fallenBtn.Contains(_mouse))
+                _screens.Change(new FallenScreen(_screens, () => new CharacterCreateScreen(_screens)));
         }
 
         if (!_busy && kb.IsKeyDown(Keys.Enter) && !_prevKb.IsKeyDown(Keys.Enter))
@@ -154,6 +157,7 @@ public sealed class CharacterCreateScreen : IScreen
         DrawFittedCentered(sb, font, _nextBtn.Label, _nextBtn.Bounds.Center.ToVector2(), _nextBtn.Bounds.Width - 16, Color.White, 0.85f);
         DrawSecondaryButton(sb, font, _pastLivesBtn);
         DrawSecondaryButton(sb, font, _leaderboardBtn);
+        DrawSecondaryButton(sb, font, _fallenBtn);
         if (!string.IsNullOrEmpty(_status))
             DrawCentered(sb, font, _status, new Vector2(_mainPanel.Center.X, _mainPanel.Bottom - 30), _status.StartsWith("Error") ? new Color(255, 130, 110) : new Color(220, 180, 120));
         sb.End();
@@ -184,6 +188,7 @@ public sealed class CharacterCreateScreen : IScreen
         _nextBtn.Bounds = new Rectangle(_mainPanel.Right - 156, _mainPanel.Bottom - 72, 128, 42);
         _pastLivesBtn.Bounds = new Rectangle(16, _viewportH - 50, 150, 34);
         _leaderboardBtn.Bounds = new Rectangle(176, _viewportH - 50, 150, 34);
+        _fallenBtn.Bounds = new Rectangle(336, _viewportH - 50, 150, 34);
 
         var cardHeight = Math.Max(44, upperHeight / 10);
         for (var i = 0; i < _raceBounds.Length; i++)

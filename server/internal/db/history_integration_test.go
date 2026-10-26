@@ -98,6 +98,20 @@ func TestDeathRecordsIntegration(t *testing.T) {
 		t.Fatalf("skills not round-tripped: %+v", lives[0].Skills)
 	}
 
+	recent, err := database.ListRecentDeaths(ctx, 50)
+	if err != nil {
+		t.Fatalf("list recent deaths: %v", err)
+	}
+	var found bool
+	for _, d := range recent {
+		if d.Name == char.Name && d.Epitaph == "not today" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("the death should appear in the hall of the fallen")
+	}
+
 	mine, err := database.MyHighscores(ctx, acc.ID)
 	if err != nil {
 		t.Fatalf("my highscores: %v", err)

@@ -41,6 +41,7 @@ func TestEndpointsRejectNonGET(t *testing.T) {
 		"history":       h.History,
 		"highscores":    h.Highscores,
 		"highscores/me": h.MyHighscores,
+		"fallen":        h.Fallen,
 	} {
 		rec := httptest.NewRecorder()
 		fn(rec, httptest.NewRequest(http.MethodPost, "/x", nil))
@@ -59,5 +60,14 @@ func TestParseLimitClamps(t *testing.T) {
 	}
 	if got := parseLimit("0", 20, 1, 50); got != 1 {
 		t.Fatalf("zero = %d, want 1", got)
+	}
+}
+
+func TestFallenRejectsNonGET(t *testing.T) {
+	h := NewHandler(nil, "secret")
+	rec := httptest.NewRecorder()
+	h.Fallen(rec, httptest.NewRequest(http.MethodPost, "/fallen", nil))
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", rec.Code)
 	}
 }

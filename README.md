@@ -33,11 +33,12 @@ what remains before the MVP.
 - Combat with data-driven abilities and boss encounters.
 - Usage-based skills, with farming, fishing, and cooking.
 - Player housing, with fences and farm plots.
+- Past lives, a leaderboard, and the Hall of the Fallen (recent deaths with last words).
 - Inventory, hotbar, friends, cosmetics, and buffs.
 - On death, the character dies and its inventory drops as lootable items.
 
-Still to build: the death history view, highscores, Google login, and zone
-names beyond the safe towns. Full status: [docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md).
+Still to build: mining nodes and the Smithing skill. Full status:
+[docs/MVP_ROADMAP.md](docs/MVP_ROADMAP.md).
 
 ## Tech stack
 

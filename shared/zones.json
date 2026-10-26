@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "zones": [
+    {"id": "starter_town", "name": "Starter Town", "kind": "town", "safe": true, "anchor": "spawn", "halfWTiles": 9.25, "halfHTiles": 8.0},
+    {"id": "northhaven", "name": "Northhaven", "kind": "town", "safe": true, "centerTile": [234, 45], "halfWTiles": 8.5, "halfHTiles": 7.375},
+    {"id": "westmere", "name": "Westmere", "kind": "town", "safe": true, "centerTile": [39, 189], "halfWTiles": 8.0, "halfHTiles": 7.0},
+    {"id": "eastwatch", "name": "Eastwatch", "kind": "town", "safe": true, "centerTile": [229, 128], "halfWTiles": 8.25, "halfHTiles": 7.25},
+    {"id": "southport", "name": "Southport", "kind": "town", "safe": true, "centerTile": [112, 281], "halfWTiles": 8.75, "halfHTiles": 7.5}
+  ]
+}

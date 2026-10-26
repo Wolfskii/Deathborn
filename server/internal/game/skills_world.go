@@ -74,17 +74,3 @@ func (w *World) SkillsForSave(playerID int64) (skills.Set, int64, bool) {
 	return w.PlayerSkillsSnapshot(playerID)
 }
 
-// CanInteractSkill checks gather cooldown.
-func (w *World) CanInteractSkill(playerID int64, now float64, cooldownSec float64) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	p, ok := w.players[playerID]
-	if !ok {
-		return false
-	}
-	if now-p.lastSkillInteract < cooldownSec {
-		return false
-	}
-	p.lastSkillInteract = now
-	return true
-}

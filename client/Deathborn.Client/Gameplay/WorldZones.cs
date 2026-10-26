@@ -40,11 +40,28 @@ public static class WorldZones
     public static IReadOnlyList<(string A, string B)> PathLinks => _pathLinks;
     public static IReadOnlyList<HousePlotZone> Houses => _houses;
 
+    /// <summary>
+    /// Resets the path links. Towns are not touched: they come from the server
+    /// (see <see cref="SetServerZones"/>), and the minimap and world map call this too.
+    /// </summary>
     public static void Initialize(WorldMap map)
     {
         _ = map;
-        _towns = [];
         _pathLinks = [];
+    }
+
+    /// <summary>Replaces the zone list with the server's. Safe zones block PvP inside them.</summary>
+    public static void SetServerZones(IEnumerable<ZoneInfoDto> zones)
+    {
+        _towns = zones.Select(z => new WorldZone
+        {
+            Id = z.Id,
+            Name = z.Name,
+            Safe = z.Safe,
+            Center = new Vector2((float)z.X, (float)z.Y),
+            HalfWidth = (float)z.HalfW,
+            HalfHeight = (float)z.HalfH,
+        }).ToList();
     }
 
     public static WorldZone? Get(string id) =>

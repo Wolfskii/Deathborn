@@ -27,6 +27,12 @@ public sealed class GameClient : IDisposable
 
     public long LocalCharacterId { get; private set; } = -1;
     public string SpawnName { get; private set; } = "";
+
+    /// <summary>Gatherable nodes sent in welcome. Updated over time by node_state messages.</summary>
+    public IReadOnlyList<ResourceNodeState> SpawnNodes { get; private set; } = [];
+
+    /// <summary>Named safe and danger regions from welcome.</summary>
+    public IReadOnlyList<ZoneInfoDto> SpawnZones { get; private set; } = [];
     public string SpawnRace { get; private set; } = "human";
     public CharacterAppearanceData SpawnAppearance { get; private set; } = new();
     public float SpawnX { get; private set; }
@@ -69,6 +75,8 @@ public sealed class GameClient : IDisposable
     public event Action<HouseUpdatedData>? HouseUpdated;
     public event Action<InventoryData>? InventoryUpdated;
     public event Action<FishResultData>? FishResult;
+    public event Action<GatherResultData>? GatherResult;
+    public event Action<NodeStateData>? NodeState;
     public event Action<CookResultData>? CookResult;
     public event Action<WorldItemRemovedData>? WorldItemRemoved;
     public event Action<WorldItemDropState>? WorldItemAdded;
@@ -107,6 +115,22 @@ public sealed class GameClient : IDisposable
             if (!resp.IsSuccessStatusCode)
                 return null;
             return await resp.Content.ReadFromJsonAsync<HighscoreResponse>(JsonOpts);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Recent deaths on the server, newest first. Returns null on any failure.</summary>
+    public async Task<FallenResponse?> GetFallenAsync(int limit = 20)
+    {
+        try
+        {
+            using var resp = await _http.GetAsync($"{Config.HttpBase}/fallen?limit={limit}");
+            if (!resp.IsSuccessStatusCode)
+                return null;
+            return await resp.Content.ReadFromJsonAsync<FallenResponse>(JsonOpts);
         }
         catch
         {
@@ -384,6 +408,12 @@ public sealed class GameClient : IDisposable
         Send("farm_action", new { action, tileX, tileY, itemId, slot, animalId });
     }
 
+    public void SendGather(long nodeId)
+    {
+        if (LocalCharacterId < 0 || nodeId <= 0) return;
+        Send("gather", new { nodeId });
+    }
+
     public void SendFishAction(string action, int tileX, int tileY)
     {
         if (LocalCharacterId < 0 || string.IsNullOrEmpty(action)) return;
@@ -571,6 +601,8 @@ public sealed class GameClient : IDisposable
                 SpawnSkills = welcome.Skills ?? new Dictionary<string, long>();
                 SpawnTotalXp = welcome.TotalXp;
                 SpawnInventory = welcome.Inventory ?? [];
+                SpawnNodes = welcome.Nodes ?? [];
+                SpawnZones = welcome.Zones ?? [];
                 SpawnHp = (float)welcome.Hp;
                 SpawnHpMax = (float)welcome.HpMax;
                 if (welcome.HpMax > 0)
@@ -675,6 +707,14 @@ public sealed class GameClient : IDisposable
             case "inventory":
                 var inventory = env.Data.Deserialize<InventoryData>(JsonOpts);
                 if (inventory != null) InventoryUpdated?.Invoke(inventory);
+                break;
+            case "gather_result":
+                var gathered = env.Data.Deserialize<GatherResultData>(JsonOpts);
+                if (gathered != null) GatherResult?.Invoke(gathered);
+                break;
+            case "node_state":
+                var nodeState = env.Data.Deserialize<NodeStateData>(JsonOpts);
+                if (nodeState != null) NodeState?.Invoke(nodeState);
                 break;
             case "fish_result":
                 var fishResult = env.Data.Deserialize<FishResultData>(JsonOpts);

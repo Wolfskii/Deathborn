@@ -12,8 +12,7 @@ import (
 // ErrDuplicateEmail is returned when an account already exists for an email.
 var ErrDuplicateEmail = errors.New("email already registered")
 
-// Account is the persistent identity. PasswordHash is nil for OAuth-only
-// accounts (not used in M0).
+// Account is the persistent identity. PasswordHash is nil when no password is set.
 type Account struct {
 	ID           int64
 	Email        string

@@ -19,6 +19,7 @@ const (
 )
 
 type foliageCircle struct {
+	kind         foliageKind
 	x, y, radius float64
 	// trunkSortY is the tree trunk-base line; entity feet north of this pass through canopy.
 	// Zero for rocks.
@@ -117,6 +118,7 @@ func (idx *foliageIndex) add(kind foliageKind, x, y float64, tx, ty int) {
 	}
 
 	idx.circles = append(idx.circles, foliageCircle{
+		kind:         kind,
 		x:            x,
 		y:            centerY,
 		radius:       radius,

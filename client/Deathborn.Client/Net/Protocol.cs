@@ -65,6 +65,12 @@ public sealed class TokenResponse
 
 public sealed class WelcomeData
 {
+    [JsonPropertyName("nodes")]
+    public List<ResourceNodeState>? Nodes { get; set; }
+
+    [JsonPropertyName("zones")]
+    public List<ZoneInfoDto>? Zones { get; set; }
+
     [JsonPropertyName("characterId")]
     public long CharacterId { get; set; }
 
@@ -723,6 +729,87 @@ public sealed class HighscoreEntry
     public long Value { get; set; }
 }
 
+
+/// <summary>A named region from the server's zones.json. Position and size are world pixels.</summary>
+public sealed class ZoneInfoDto
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "";
+
+    [JsonPropertyName("safe")]
+    public bool Safe { get; set; }
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("halfW")]
+    public double HalfW { get; set; }
+
+    [JsonPropertyName("halfH")]
+    public double HalfH { get; set; }
+}
+
+/// <summary>A gatherable tree or rock. Positions are world pixels; Depleted is updated by node_state.</summary>
+public sealed class ResourceNodeState
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "";
+
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("depleted")]
+    public bool Depleted { get; set; }
+}
+
+public sealed class GatherResultData
+{
+    [JsonPropertyName("nodeId")]
+    public long NodeId { get; set; }
+
+    [JsonPropertyName("itemId")]
+    public string ItemId { get; set; } = "";
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+
+    [JsonPropertyName("skill")]
+    public string Skill { get; set; } = "";
+
+    [JsonPropertyName("xp")]
+    public long Xp { get; set; }
+
+    [JsonPropertyName("level")]
+    public int Level { get; set; }
+
+    [JsonPropertyName("leveledUp")]
+    public bool LeveledUp { get; set; }
+}
+
+public sealed class NodeStateData
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("depleted")]
+    public bool Depleted { get; set; }
+}
+
 public sealed class PlayerHealData
 {
     [JsonPropertyName("playerId")]
@@ -805,4 +892,32 @@ public sealed class PmData
 
     [JsonPropertyName("outgoing")]
     public bool Outgoing { get; set; }
+}
+
+/// <summary>Response from GET /fallen: the most recent deaths, newest first.</summary>
+public sealed class FallenResponse
+{
+    [JsonPropertyName("deaths")]
+    public List<FallenDeath> Deaths { get; set; } = [];
+}
+
+public sealed class FallenDeath
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+
+    [JsonPropertyName("killerName")]
+    public string KillerName { get; set; } = "";
+
+    [JsonPropertyName("epitaph")]
+    public string Epitaph { get; set; } = "";
+
+    [JsonPropertyName("survivalSeconds")]
+    public long SurvivalSeconds { get; set; }
+
+    [JsonPropertyName("diedAt")]
+    public DateTime DiedAt { get; set; }
 }

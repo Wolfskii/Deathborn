@@ -43,6 +43,7 @@ type npcDef struct {
 	hitHalfW    float64 // body AABB half-width at 16px tile ref
 	hitHalfH    float64 // body AABB half-height at 16px tile ref
 	hitCenterY  float64 // Y offset from feet anchor (negative = up)
+	drops       []dropEntry
 }
 
 var npcDefs = map[string]npcDef{
@@ -52,6 +53,7 @@ var npcDefs = map[string]npcDef{
 		radius: 14, wander: true, leash: 96,
 		aggro: true, aggroRange: 40, meleeDamage: 3, meleeReach: 8,
 		hitHalfW: 13, hitHalfH: 8, hitCenterY: -45,
+		drops: []dropEntry{{itemID: "bone", chance: 0.7, min: 1, max: 2}},
 	},
 	"forest_slime": {
 		id: "forest_slime", name: "Slime", category: NpcCategoryMonster,
@@ -59,6 +61,7 @@ var npcDefs = map[string]npcDef{
 		radius: 12, wander: true, leash: 72,
 		aggro: true, aggroRange: 48, meleeDamage: 2, meleeReach: 6,
 		hitHalfW: 8, hitHalfH: 6, hitCenterY: -12,
+		drops: []dropEntry{{itemID: "slime_gel", chance: 0.6, min: 1, max: 2}},
 	},
 	"forest_orc": {
 		id: "forest_orc", name: "Orc", category: NpcCategoryMonster,
@@ -66,6 +69,10 @@ var npcDefs = map[string]npcDef{
 		radius: 16, wander: true, leash: 110,
 		aggro: true, aggroRange: 32, meleeDamage: 4, meleeReach: 10,
 		hitHalfW: 11, hitHalfH: 8, hitCenterY: -45,
+		drops: []dropEntry{
+			{itemID: "orc_tusk", chance: 0.4, min: 1, max: 1},
+			{itemID: "health_potion", chance: 0.15, min: 1, max: 1},
+		},
 	},
 	"wild_bat": {
 		id: "wild_bat", name: "Bat", category: NpcCategoryWildAnimal,
@@ -74,6 +81,7 @@ var npcDefs = map[string]npcDef{
 		aggro: true, aggroRange: 72, meleeDamage: 3, meleeReach: 8,
 		// Tall AABB covers the flying body down toward the foot/shadow so under-hits register.
 		hitHalfW: 14, hitHalfH: 28, hitCenterY: -30,
+		drops: []dropEntry{{itemID: "bat_wing", chance: 0.5, min: 1, max: 1}},
 	},
 	"town_guard": {
 		id: "town_guard", name: "Town Guard", category: NpcCategoryGuard,

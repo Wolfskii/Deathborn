@@ -56,6 +56,46 @@ public static class ItemCatalog
             Id = "antidote", Name = "Antidote", MaxStack = 10, Cooldown = 1f,
             Description = "Cures poison and minor toxins.",
         },
+        ["slime_gel"] = new()
+        {
+            Id = "slime_gel", Name = "Slime Gel", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "Sticky gel from a slime. Crafting material.",
+        },
+        ["bat_wing"] = new()
+        {
+            Id = "bat_wing", Name = "Bat Wing", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "A leathery wing. Crafting material.",
+        },
+        ["bone"] = new()
+        {
+            Id = "bone", Name = "Bone", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "A brittle bone from a skeleton. Crafting material.",
+        },
+        ["orc_tusk"] = new()
+        {
+            Id = "orc_tusk", Name = "Orc Tusk", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "A broken tusk. Crafting material.",
+        },
+        ["boss_trophy"] = new()
+        {
+            Id = "boss_trophy", Name = "Boss Trophy", MaxStack = 5, Kind = ItemKind.Produce,
+            Description = "Proof that a world boss has fallen.",
+        },
+        ["logs"] = new()
+        {
+            Id = "logs", Name = "Logs", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "Chopped wood from a tree.",
+        },
+        ["copper_ore"] = new()
+        {
+            Id = "copper_ore", Name = "Copper Ore", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "Raw copper ore from a rock.",
+        },
+        ["iron_ore"] = new()
+        {
+            Id = "iron_ore", Name = "Iron Ore", MaxStack = 40, Kind = ItemKind.Produce,
+            Description = "Heavy iron ore. Needs a mining level of 15.",
+        },
         ["house_key"] = new()
         {
             Id = "house_key", Name = "Homestead Key", Kind = ItemKind.Key, MaxStack = 1, Cooldown = 0f,

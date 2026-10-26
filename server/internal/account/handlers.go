@@ -146,3 +146,36 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
+
+type fallenJSON struct {
+	Name            string    `json:"name"`
+	Reason          string    `json:"reason"`
+	KillerName      string    `json:"killerName"`
+	Epitaph         string    `json:"epitaph"`
+	SurvivalSeconds int64     `json:"survivalSeconds"`
+	DiedAt          time.Time `json:"diedAt"`
+}
+
+// Fallen returns the most recent deaths on the server, newest first. Public:
+// it shows names, causes and last words, never account ids.
+func (h *Handler) Fallen(w http.ResponseWriter, r *http.Request) {
+	if !requireGET(w, r) {
+		return
+	}
+	limit := parseLimit(r.URL.Query().Get("limit"), 20, 1, 50)
+
+	rows, err := h.db.ListRecentDeaths(r.Context(), limit)
+	if err != nil {
+		log.Printf("fallen: %v", err)
+		writeError(w, http.StatusInternalServerError, "could not load the hall of the fallen")
+		return
+	}
+	deaths := make([]fallenJSON, 0, len(rows))
+	for _, row := range rows {
+		deaths = append(deaths, fallenJSON{
+			Name: row.Name, Reason: row.Reason, KillerName: row.KillerName, Epitaph: row.Epitaph,
+			SurvivalSeconds: row.SurvivalSeconds, DiedAt: row.DiedAt,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deaths": deaths})
+}
