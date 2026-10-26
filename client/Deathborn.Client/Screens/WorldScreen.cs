@@ -104,6 +104,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private int _fishCastTx;
     private int _fishCastTy;
     private bool _fishAwaitingResult;
+    /// <summary>A server error this soon after casting means the cast itself was rejected.</summary>
+    private const float FishStartErrorWindowSeconds = 1.5f;
+    private float _fishStartErrorWindow;
 
     private enum ExteriorDrawableKind : byte { Foliage, Player, Npc, FarmAnimal, Cottage, Fence }
 
@@ -232,6 +235,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         UpdateBuildHouseEnabled();
         _fishing.Caught += OnFishCaught;
         _fishing.Cancelled += OnFishingCancelled;
+        _fishing.Escaped += OnFishEscaped;
+        _fishing.BiteStarted += OnFishBite;
+        _fishing.ReeledInEarly += OnFishReeledInEarly;
 
         MusicPlayer.PlayPlaylist(DeathbornGame.Instance.Content, GameMusic.Get(GameMusic.StartingArea));
     }
@@ -281,6 +287,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _playerContextMenu.ItemChosen -= OnPlayerContextMenu;
         _fishing.Caught -= OnFishCaught;
         _fishing.Cancelled -= OnFishingCancelled;
+        _fishing.Escaped -= OnFishEscaped;
+        _fishing.BiteStarted -= OnFishBite;
+        _fishing.ReeledInEarly -= OnFishReeledInEarly;
         _chat.Submitted -= OnChatSubmitted;
         _chat.TypingChanged -= OnChatTypingChanged;
         if (_chat.IsOpen) _chat.Close(submit: false);
@@ -324,6 +333,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (_housePlacing)
         {
             CancelHousePlacement();
+            return true;
+        }
+
+        if (_fishing.IsActive)
+        {
+            _fishing.Cancel();
             return true;
         }
 
@@ -453,8 +468,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         UpdateHousePlacement(localEntity, mouse, blockGameplay, uiCapturesMouse, windowActive);
         TryAutoDoorTransition(localEntity, blockGameplay);
         UpdateDoorTransition(dt, localEntity);
+        _fishStartErrorWindow = MathF.Max(0f, _fishStartErrorWindow - dt);
         if (fishingActive)
             _fishing.Update(dt, kb, _prevKb, mouse, _prevMouse);
+        UpdateFishingWorldCues(dt, localEntity);
+        UpdateCatchShow(dt, localEntity);
         SyncLocalFishingPose(localEntity);
 
         DevPerfLog.Mark("move");
@@ -800,6 +818,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         HouseRenderer.Draw(sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses);
         DrawFarmTileHover(sb, transformZoom);
         DrawFishingHover(sb, transformZoom, gameTime);
+        DrawFishingLine(sb, transformZoom);
 
         foreach (var obj in _interactables)
             obj.Draw(sb, font, WorldToScreen(obj.Position), visualZoom);
@@ -826,6 +845,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             effect.Draw(sb, WorldToScreen(effect.Position), visualZoom);
 
         _feedback.DrawWorld(sb, font, WorldToScreen, visualZoom, _players, _npcs);
+        DrawCatchShow(sb, font, transformZoom);
+        DrawFishingBiteMark(sb, font, visualZoom);
 
         if (_ghostMode && _ghost != null)
             _ghost.Draw(sb, WorldToScreen(_ghost.Position), visualZoom);
@@ -1837,7 +1858,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         else if (_farmHoverOk)
             _interactPrompt = FarmHoverPrompt();
         else if (_fishHoverOk)
-            _interactPrompt = "[Click] Cast into the water";
+            _interactPrompt = "[Click] Cast your line";
         else if (_hovered != null)
         {
             _interactPrompt = _hovered.IsInRange(_camera)
@@ -2785,6 +2806,155 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _status = "You set the hook...";
     }
 
+    /// <summary>A fish bites: "!" over the player and a startled little hop.</summary>
+    private void OnFishBite()
+    {
+        _fishHopTimer = FishHopSeconds;
+        _status = "Something is biting! Click to hook it!";
+    }
+
+    /// <summary>Clicked before anything bit: the line comes back empty.</summary>
+    private void OnFishReeledInEarly()
+    {
+        _screens.Net.SendFishAction("cancel", _fishCastTx, _fishCastTy);
+        _fishAwaitingResult = false;
+        _status = "You reel in an empty line.";
+    }
+
+    private const float FishHopSeconds = 0.38f;
+    private float _fishHopTimer;
+
+    /// <summary>Bite hop height (sprite px) and the fishing prompt shown under the hotbar.</summary>
+    private void UpdateFishingWorldCues(float dt, PlayerEntity? local)
+    {
+        if (_fishHopTimer > 0f)
+            _fishHopTimer = MathF.Max(0f, _fishHopTimer - dt);
+        if (local != null)
+            local.HopHeight = _fishHopTimer > 0f ? MathF.Sin((1f - _fishHopTimer / FishHopSeconds) * MathF.PI) * 6f : 0f;
+
+        if (_fishing.IsWaiting)
+            _interactPrompt = "Waiting for a bite...  [Click] reel in  |  [Esc] stop";
+        else if (_fishing.IsBiting)
+            _interactPrompt = "[Click] Hook it!";
+    }
+
+    /// <summary>Bobber in the water, the line from the rod tip, ripples and bite splashes.</summary>
+    private void DrawFishingLine(SpriteBatch sb, float positionZoom)
+    {
+        if (!(_fishing.IsWaiting || _fishing.IsBiting || _fishing.IsReeling)) return;
+        var local = FindLocalPlayer();
+        if (local == null || local.InsideHouseId > 0) return;
+
+        var t = (float)(Environment.TickCount64 / 1000.0);
+        var water = FarmCatalog.TileCenter(_fishCastTx, _fishCastTy);
+        var bobberScreen = WorldToScreen(water);
+        var bobScale = MathF.Max(0.6f, positionZoom * 0.28f);
+
+        var under = false;
+        if (_fishing.IsWaiting)
+        {
+            bobberScreen.Y += MathF.Sin(t * 2.6f) * 1.2f * bobScale;
+            if (_fishing.PhaseTime < 0.3f)
+            {
+                // Still flying from the rod tip to the water.
+                var k = _fishing.PhaseTime / 0.3f;
+                var from = WorldToScreen(local.Position + local.FishingRodTipOffset());
+                bobberScreen = Vector2.Lerp(from, bobberScreen, k) - new Vector2(0, MathF.Sin(k * MathF.PI) * 14f * bobScale);
+            }
+        }
+        else if (_fishing.IsBiting)
+        {
+            // Yanked under in short tugs.
+            var tug = MathF.Sin(t * 26f);
+            under = tug > 0.2f;
+            bobberScreen.Y += (under ? 3f : 0f) * bobScale;
+            bobberScreen.X += MathF.Sin(t * 41f) * 1.2f * bobScale;
+        }
+        else
+        {
+            bobberScreen += new Vector2(MathF.Sin(t * 17f) * 2f, MathF.Cos(t * 13f) * 1.4f) * bobScale;
+        }
+
+        // Ripples.
+        var landed = !_fishing.IsWaiting || _fishing.PhaseTime >= 0.3f;
+        if (landed)
+        {
+            var rings = _fishing.IsBiting ? 3 : 2;
+            var speed = _fishing.IsWaiting ? 0.6f : 1.6f;
+            for (var i = 0; i < rings; i++)
+            {
+                var phase = (t * speed + i / (float)rings) % 1f;
+                var r = (4f + phase * (_fishing.IsWaiting ? 9f : 16f)) * bobScale;
+                DrawPrimitives.DrawEllipseOutline(sb, bobberScreen + new Vector2(0, 3f * bobScale), r, r * 0.42f,
+                    new Color(220, 245, 255) * (0.8f * (1f - phase)), 24, MathF.Max(1f, bobScale * 0.8f));
+            }
+        }
+
+        // Line from the rod tip with a little sag.
+        var tip = WorldToScreen(local.Position + local.FishingRodTipOffset());
+        var sag = _fishing.IsReeling || _fishing.IsBiting ? 2f : 10f;
+        var mid = (tip + bobberScreen) * 0.5f + new Vector2(0, sag * bobScale);
+        var lineColor = new Color(245, 245, 235) * 0.85f;
+        var thickness = MathF.Max(1f, bobScale * 0.45f);
+        DrawPrimitives.DrawLine(sb, tip, mid, lineColor, thickness);
+        DrawPrimitives.DrawLine(sb, mid, bobberScreen, lineColor, thickness);
+
+        if (_fishing.IsBiting || _fishing.IsReeling)
+        {
+            // Splash droplets thrown up around the bobber.
+            for (var i = 0; i < 6; i++)
+            {
+                var phase = (t * 2.2f + i / 6f) % 1f;
+                var angle = -MathF.PI * (0.15f + 0.7f * ((i * 0.37f) % 1f));
+                var dist = phase * 12f * bobScale;
+                var drop = bobberScreen + new Vector2(MathF.Cos(angle) * dist, MathF.Sin(angle) * dist + phase * phase * 10f * bobScale);
+                DrawPrimitives.FillCircle(sb, drop, MathF.Max(1f, bobScale * 0.9f * (1f - phase)), new Color(225, 245, 255) * (1f - phase), 8);
+            }
+        }
+
+        Ui.FishingMinigameOverlay.DrawBobber(sb, bobberScreen, bobScale * 0.55f, under ? 0.45f : 1f);
+    }
+
+    /// <summary>"!" bubble over the player's head while a fish bites (drawn above everything).</summary>
+    private void DrawFishingBiteMark(SpriteBatch sb, SpriteFont font, float visualZoom)
+    {
+        if (!_fishing.IsBiting) return;
+        var local = FindLocalPlayer();
+        if (local == null) return;
+
+        // Farm RPG "!" speech bubble with its tail just above the head. Positions are in sprite
+        // pixels so it stays above the character at any zoom and follows the bite hop.
+        var artToScreen = Rendering.Characters.CharacterAnimationCatalog.GetDrawScale(
+            Rendering.Characters.CharacterAnimationCatalog.FarmRpg) * visualZoom;
+        const float headTopArtPx = 21f;
+        var pop = MathF.Min(1f, _fishing.PhaseTime / 0.12f);
+        var bounce = MathF.Sin(_fishing.PhaseTime * 9f) * 1f;
+        var tailTip = WorldToScreen(local.Position)
+            - new Vector2(0, (headTopArtPx + local.HopHeight + 1f + bounce) * artToScreen);
+        var bubbleScale = artToScreen * (0.55f + 0.45f * pop);
+        if (!EmoteSprites.TryDraw(sb, EmoteSprites.Exclamation, tailTip, bubbleScale, Color.White))
+        {
+            var fallback = font.MeasureString("!");
+            sb.DrawString(font, "!", tailTip - new Vector2(fallback.X * 0.5f, fallback.Y), new Color(196, 52, 40));
+        }
+
+        // Countdown above the bubble so a missed bite never feels random.
+        var bubbleH = EmoteSprites.Exclamation.Height * bubbleScale;
+        var barW = (int)(EmoteSprites.Exclamation.Width * bubbleScale * 1.2f);
+        var barH = Math.Max(3, (int)(artToScreen * 1.5f));
+        var bar = new Rectangle((int)tailTip.X - barW / 2, (int)(tailTip.Y - bubbleH) - barH - 3, barW, barH);
+        DrawPrimitives.FillRect(sb, bar, new Color(54, 40, 34) * 0.8f);
+        DrawPrimitives.FillRect(sb, new Rectangle(bar.X, bar.Y, (int)(bar.Width * _fishing.BiteTimeLeft01), bar.Height), new Color(244, 196, 72));
+    }
+
+    /// <summary>Missed bite or lost fight: end the cast on the server so others stop seeing the pose.</summary>
+    private void OnFishEscaped()
+    {
+        _screens.Net.SendFishAction("cancel", _fishCastTx, _fishCastTy);
+        _fishAwaitingResult = false;
+        _status = "The fish got away.";
+    }
+
     private void OnFishingCancelled()
     {
         _screens.Net.SendFishAction("cancel", _fishCastTx, _fishCastTy);
@@ -2808,8 +2978,144 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             local.FishingReeling = false;
         }
         var bait = data.BaitUsed ? " (used bait)" : "";
-        _status = $"You caught {data.Name}!{bait}";
-        _notifications.Push("Catch", $"You caught a {data.Name}.", NotificationKind.Success);
+        _status = $"You caught a {data.Name}! {FormatFishWeight(data.WeightKg)}{bait}";
+
+        // The fish leaps out of the water at the bobber and arcs over to the player.
+        FishIconAtlas.TryGet(data.ItemId, out var icon);
+        _catchShow = new CatchShow
+        {
+            Name = string.IsNullOrEmpty(data.Name) ? data.ItemId : data.Name,
+            WeightKg = data.WeightKg,
+            Icon = icon,
+            From = FarmCatalog.TileCenter(_fishCastTx, _fishCastTy),
+        };
+    }
+
+    // ---- Catch reveal: fish flies out to the player, who holds it up with its name and weight.
+
+    private sealed class CatchShow
+    {
+        public string Name = "";
+        public double WeightKg;
+        public Texture2D? Icon;
+        public Vector2 From;
+        public float Time;
+        public bool Landed;
+    }
+
+    private const float CatchFlySeconds = 0.7f;
+    private const float CatchHoldSeconds = 2.6f;
+    private CatchShow? _catchShow;
+
+    private static string FormatFishWeight(double kg) =>
+        kg <= 0 ? ""
+        : kg < 1 ? $"{Math.Round(kg * 1000):0} g".Replace(',', '.')
+        : string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{kg:0.00} kg");
+
+    /// <summary>Where the fish sits while held overhead, relative to the feet.</summary>
+    private static readonly Vector2 HeldFishOffset = new(0, -27f);
+
+    private void UpdateCatchShow(float dt, PlayerEntity? local)
+    {
+        if (_catchShow is not { } show) return;
+        if (local == null || local.IsDead || local.InsideHouseId > 0)
+        {
+            _catchShow = null;
+            return;
+        }
+
+        show.Time += dt;
+        if (!show.Landed && show.Time >= CatchFlySeconds)
+        {
+            show.Landed = true;
+            local.StartHoldUp(CatchHoldSeconds);
+            SfxPlayer.PlayFishingCatch();
+            var weight = FormatFishWeight(show.WeightKg);
+            _notifications.Push("Caught!", weight.Length > 0 ? $"{show.Name} - {weight}" : show.Name, NotificationKind.Success);
+        }
+
+        // Done when the pose ends (or the player walks off early).
+        if (show.Landed && (show.Time >= CatchFlySeconds + CatchHoldSeconds || !local.IsHoldingUp))
+            _catchShow = null;
+    }
+
+    private void DrawCatchShow(SpriteBatch sb, SpriteFont font, float positionZoom)
+    {
+        if (_catchShow is not { } show) return;
+        var local = FindLocalPlayer();
+        if (local == null) return;
+
+        var held = local.Position + HeldFishOffset;
+        Vector2 world;
+        float spin;
+        if (!show.Landed)
+        {
+            // Half an ellipse from the water to over the player's head.
+            var k = Math.Clamp(show.Time / CatchFlySeconds, 0f, 1f);
+            var mid = (show.From + held) * 0.5f;
+            var height = 22f + Vector2.Distance(show.From, held) * 0.35f;
+            world = mid + (show.From - mid) * MathF.Cos(k * MathF.PI) + new Vector2(0, -height * MathF.Sin(k * MathF.PI));
+            spin = k * MathF.Tau * 1.5f;
+
+            // Water thrown up where it left.
+            if (show.Time < 0.35f)
+            {
+                var from = WorldToScreen(show.From);
+                for (var i = 0; i < 7; i++)
+                {
+                    var phase = show.Time / 0.35f;
+                    var angle = -MathF.PI * (0.1f + 0.8f * i / 6f);
+                    var dist = phase * 9f * positionZoom * 0.5f;
+                    var drop = from + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * dist + new Vector2(0, phase * phase * 6f * positionZoom * 0.5f);
+                    DrawPrimitives.FillCircle(sb, drop, MathF.Max(1f, positionZoom * 0.45f * (1f - phase)), new Color(225, 245, 255) * (1f - phase), 8);
+                }
+            }
+        }
+        else
+        {
+            world = held + new Vector2(0, MathF.Sin(show.Time * 5f) * 1.2f);
+            spin = 0f;
+        }
+
+        var screen = WorldToScreen(world);
+        var size = 20f * positionZoom * 0.5f;
+        if (show.Landed)
+        {
+            // Soft sparkle ring behind the trophy.
+            for (var i = 0; i < 6; i++)
+            {
+                var a = i / 6f * MathF.Tau + show.Time * 2.5f;
+                var r = size * (0.85f + 0.08f * MathF.Sin(show.Time * 8f + i));
+                DrawPrimitives.FillCircle(sb, screen + new Vector2(MathF.Cos(a), MathF.Sin(a)) * r,
+                    MathF.Max(1.5f, size * 0.07f), new Color(255, 226, 120), 8);
+            }
+        }
+        if (show.Icon != null)
+        {
+            var origin = new Vector2(show.Icon.Width * 0.5f, show.Icon.Height * 0.5f);
+            sb.Draw(show.Icon, screen, null, Color.White, spin, origin, size / MathF.Max(1, show.Icon.Width), SpriteEffects.None, 0f);
+        }
+        else
+        {
+            DrawPrimitives.FillCircle(sb, screen, size * 0.35f, new Color(236, 150, 70), 16);
+        }
+
+        if (!show.Landed) return;
+
+        // Name and weight above the fish.
+        var weight = FormatFishWeight(show.WeightKg);
+        var label = SpriteFontSafe.Filter(weight.Length > 0 ? $"{show.Name}  {weight}" : show.Name);
+        const float textScale = 0.8f;
+        var textSize = SpriteFontSafe.MeasureString(font, label) * textScale;
+        var pop = MathF.Min(1f, (show.Time - CatchFlySeconds) / 0.15f);
+        var plate = new Rectangle(
+            (int)(screen.X - textSize.X * 0.5f - 12),
+            (int)(screen.Y - size * 0.75f - textSize.Y - 14 - (1f - pop) * 6),
+            (int)textSize.X + 24,
+            (int)textSize.Y + 10);
+        FarmRpgUi.DrawCompactPanel(sb, plate, 0.96f * pop);
+        SpriteFontSafe.DrawString(sb, font, label,
+            new Vector2(plate.X + 12, plate.Y + 5), FarmRpgUi.Ink * pop, 0f, Vector2.Zero, textScale, SpriteEffects.None, 0f);
     }
 
     private void OnCookResult(CookResultData data)
@@ -3257,6 +3563,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void OnServerError(string message)
     {
         _status = message;
+        // Only fishing errors end the minigame: a rejected cast (just after starting) or a
+        // rejected catch. Unrelated errors (rate limits, farming, doors) must not cancel a fight.
+        var fishingError = _fishStartErrorWindow > 0f || _fishAwaitingResult;
+        if (!fishingError) return;
         if (_fishing.IsActive)
             _fishing.Dismiss();
         if (!_fishAwaitingResult && FindLocalPlayer() is not { IsFishing: true }) return;
@@ -4332,6 +4642,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             local.MoveDir = PlayerEntity.CardinalFacing(dir);
     }
 
+    /// <summary>Rod in hand and facing water: show the cast prompt (no tile highlight; casting aims by facing).</summary>
     private void UpdateFishingHover(Point mouseScreen)
     {
         _fishHoverOk = false;
@@ -4339,37 +4650,42 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!FishCatalog.IsRod(SelectedHotbarItemId())) return;
         var local = FindLocalPlayer();
         if (local == null || local.IsDead) return;
-        var world = ScreenToWorld(mouseScreen);
-        var tx = FarmCatalog.WorldTileX(world.X);
-        var ty = FarmCatalog.WorldTileY(world.Y);
-        if (!CanFishTile(local, tx, ty)) return;
-        _fishHoverTx = tx;
-        _fishHoverTy = ty;
+        if (FindCastTile(local) is not { } tile) return;
+        (_fishHoverTx, _fishHoverTy) = tile;
         _fishHoverOk = true;
     }
 
     private void DrawFishingHover(SpriteBatch sb, float zoom, GameTime gameTime)
     {
-        if (_fishing.IsActive || _fishAwaitingResult)
-        {
-            FishingFx.DrawBobber(sb, _fishCastTx, _fishCastTy, _camera, ScreenCenter, zoom,
-                (float)gameTime.TotalGameTime.TotalSeconds);
-            return;
-        }
-        if (!_fishHoverOk) return;
-        FishingFx.DrawTileHighlight(
-            sb, _fishHoverTx, _fishHoverTy, _camera, ScreenCenter, zoom,
-            new Color(0.35f, 0.7f, 1f, 0.18f), new Color(0.55f, 0.85f, 1f, 0.9f));
+        // The bobber, line and ripples are drawn by DrawFishingLine; casting needs no tile highlight.
     }
 
-    private bool TryFishSelectedRod()
+    /// <summary>
+    /// Where a cast in the facing direction lands: the farthest water tile straight ahead that is
+    /// still in casting range (server validateFishingCast), so the bobber goes out into the water.
+    /// </summary>
+    private (int Tx, int Ty)? FindCastTile(PlayerEntity local)
     {
-        var local = FindLocalPlayer();
-        if (local == null) return false;
         var dir = GetAimDirection();
-        return TryFishAtWorld(local.Position + dir * FishCatalog.TileSize);
+        var stepX = Math.Sign(MathF.Round(dir.X));
+        var stepY = Math.Sign(MathF.Round(dir.Y));
+        if (stepX == 0 && stepY == 0) return null;
+        var ptx = FarmCatalog.WorldTileX(local.Position.X);
+        var pty = FarmCatalog.WorldTileY(local.Position.Y);
+        (int, int)? best = null;
+        for (var step = 1; step <= FishCatalog.MaxChebyshev; step++)
+        {
+            var tx = ptx + stepX * step;
+            var ty = pty + stepY * step;
+            if (CanFishTile(local, tx, ty))
+                best = (tx, ty);
+        }
+        return best;
     }
 
+    private bool TryFishSelectedRod() => TryFishAtWorld(Vector2.Zero);
+
+    /// <summary>Casts in the facing direction; <paramref name="world"/> (the click point) is not used for aiming.</summary>
     private bool TryFishAtWorld(Vector2 world)
     {
         if (_fishing.IsActive) return true;
@@ -4382,13 +4698,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return true;
         }
 
-        var tx = FarmCatalog.WorldTileX(world.X);
-        var ty = FarmCatalog.WorldTileY(world.Y);
-        if (!CanFishTile(local, tx, ty))
+        if (FindCastTile(local) is not { } cast)
         {
-            _status = "Stand on the shore and click the water.";
+            _status = "Face the water from the shore to cast.";
             return true;
         }
+        var (tx, ty) = cast;
 
         _fishCastTx = tx;
         _fishCastTy = ty;
@@ -4397,6 +4712,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         FishIconAtlas.TryGet(preview?.Id, out var icon);
         _screens.Net.SendFishAction("start", tx, ty);
         _fishing.Start($"water_{tx}_{ty}", map.IsSea(tx, ty) ? "the sea" : "the lake", _skills.Level("fishing"), icon);
+        _fishStartErrorWindow = FishStartErrorWindowSeconds;
         _status = "You cast a line.";
         SyncLocalFishingPose(local);
         return true;

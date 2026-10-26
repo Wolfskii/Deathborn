@@ -365,9 +365,10 @@ type CookActionSendData struct {
 
 // FishResultData tells the caster which fish they landed.
 type FishResultData struct {
-	ItemID   string `json:"itemId"`
-	Name     string `json:"name"`
-	BaitUsed bool   `json:"baitUsed,omitempty"`
+	ItemID   string  `json:"itemId"`
+	Name     string  `json:"name"`
+	WeightKg float64 `json:"weightKg,omitempty"`
+	BaitUsed bool    `json:"baitUsed,omitempty"`
 }
 
 // CookResultData tells the cook which meal they made.

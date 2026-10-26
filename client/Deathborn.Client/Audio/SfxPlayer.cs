@@ -26,6 +26,7 @@ public static class SfxPlayer
 
     public static void ClearCache()
     {
+        StopLoop();
         foreach (var entry in Cache.Values)
         {
             foreach (var instance in entry.Pool)
@@ -49,6 +50,11 @@ public static class SfxPlayer
         Preload(GameSfx.BushRustle);
         Preload(GameSfx.DoorOpen);
         Preload(GameSfx.DoorClose);
+        Preload(GameSfx.FishingCast);
+        Preload(GameSfx.FishingBite);
+        Preload(GameSfx.FishingHook);
+        Preload(GameSfx.FishingCatch);
+        Preload(GameSfx.FishingEscape);
     }
 
     public static void Update(float dt)
@@ -143,6 +149,76 @@ public static class SfxPlayer
             maxDuration ?? GameSfx.BushRustleMaxDuration);
 
     public static void StopBushRustle() => Stop(GameSfx.BushRustle);
+
+    // ---- Looped ambience (one at a time), e.g. the fishing reel during the minigame.
+
+    private static SoundEffectInstance? _loop;
+    private static SoundEffect? _loopEffect;
+    private static string? _loopPath;
+    private static float _loopVolumeScale = 1f;
+
+    /// <summary>Starts (or keeps) a looping sound. Only one loop plays at a time.</summary>
+    public static void PlayLoop(string path, float volumeScale = 1f)
+    {
+        if (_content is null) return;
+        if (_loopPath == path && _loop is { State: SoundState.Playing })
+        {
+            SetLoopVolume(volumeScale);
+            return;
+        }
+
+        StopLoop();
+        if (AudioSettings.SfxMuted) return;
+        try
+        {
+            _loopEffect = _content.Load<SoundEffect>(path);
+        }
+        catch
+        {
+            return;
+        }
+        _loop = _loopEffect.CreateInstance();
+        _loop.IsLooped = true;
+        _loopPath = path;
+        SetLoopVolume(volumeScale);
+        _loop.Play();
+    }
+
+    public static void SetLoopVolume(float volumeScale)
+    {
+        _loopVolumeScale = volumeScale;
+        if (_loop != null)
+            _loop.Volume = Math.Clamp(volumeScale, 0f, 1f) * AudioSettings.SfxVolume;
+    }
+
+    /// <summary>Pitch in MonoGame units (-1..1, 1 = one octave up).</summary>
+    public static void SetLoopPitch(float pitch)
+    {
+        if (_loop != null)
+            _loop.Pitch = Math.Clamp(pitch, -1f, 1f);
+    }
+
+    public static void StopLoop()
+    {
+        if (_loop != null)
+        {
+            _loop.Stop();
+            _loop.Dispose();
+        }
+        _loop = null;
+        _loopEffect = null;
+        _loopPath = null;
+    }
+
+    public static void PlayFishingCast() => Play(GameSfx.FishingCast, 0.75f, FishingPitches, FishingVolumes);
+    public static void PlayFishingBite() => Play(GameSfx.FishingBite, 0.95f, FishingPitches, FishingVolumes);
+    public static void PlayFishingHook() => Play(GameSfx.FishingHook, 0.9f, FishingPitches, FishingVolumes);
+    public static void PlayFishingCatch() => Play(GameSfx.FishingCatch, 0.85f, NoPitch, FishingVolumes);
+    public static void PlayFishingEscape() => Play(GameSfx.FishingEscape, 0.7f, NoPitch, FishingVolumes);
+
+    private static readonly float[] FishingPitches = [-0.06f, 0f, 0.06f];
+    private static readonly float[] FishingVolumes = [0.95f, 1f];
+    private static readonly float[] NoPitch = [0f];
 
     /// <summary>Play door-open and return clip duration in seconds (for transition timing).</summary>
     public static float PlayDoorOpen()

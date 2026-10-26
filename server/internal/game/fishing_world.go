@@ -2,6 +2,7 @@ package game
 
 import (
 	"math"
+	"math/rand/v2"
 
 	"github.com/deathborn/server/internal/skills"
 )
@@ -11,6 +12,7 @@ type FishActionResult struct {
 	Inventory    []InventoryItem
 	ItemID       string
 	ItemName     string
+	WeightKg     float64
 	BaitUsed     bool
 	GrantedXP    int64
 	Skill        string
@@ -92,6 +94,7 @@ func (w *World) ApplyFishAction(playerID int64, action string, tileX, tileY int)
 			Inventory:    append([]InventoryItem(nil), p.inventory...),
 			ItemID:       def.id,
 			ItemName:     def.name,
+			WeightKg:     rollFishWeight(def.id, level, rand.Float64),
 			BaitUsed:     baited,
 			GrantedXP:    def.xp,
 			Skill:        skills.Fishing,

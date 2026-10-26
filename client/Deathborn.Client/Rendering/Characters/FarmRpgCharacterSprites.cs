@@ -83,6 +83,7 @@ public static class FarmRpgCharacterSprites
         CharacterClip.FishReel => "fish_reel",
         CharacterClip.Hoe or CharacterClip.Plant => "hoe",
         CharacterClip.Water => "water",
+        CharacterClip.HoldUp => "hold_up",
         _ => "idle",
     };
 }

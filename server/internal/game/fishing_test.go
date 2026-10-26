@@ -56,3 +56,22 @@ func TestFishingItemStacks(t *testing.T) {
 		t.Fatal("fish item detection")
 	}
 }
+
+func TestRollFishWeightStaysInRange(t *testing.T) {
+	r := fishWeightKg["pike"]
+	for _, v := range []float64{0, 0.25, 0.5, 0.999} {
+		v := v
+		kg := rollFishWeight("pike", 30, func() float64 { return v })
+		if kg < r[0] || kg > r[1] {
+			t.Fatalf("pike weight %.2f outside %v", kg, r)
+		}
+	}
+	if kg := rollFishWeight("unknown_fish", 1, func() float64 { return 0 }); kg <= 0 {
+		t.Fatalf("unknown fish weight %.2f, want a positive fallback", kg)
+	}
+	for id := range fishByID {
+		if _, ok := fishWeightKg[id]; !ok {
+			t.Errorf("fish %s has no weight range", id)
+		}
+	}
+}

@@ -1,22 +1,25 @@
 package game
 
-import "math/rand/v2"
+import (
+	"math"
+	"math/rand/v2"
+)
 
 const (
-	FishTileSize    = 16.0
-	FishActionRange = 48.0
-	FishMinWaitSec  = 1.1
+	FishTileSize     = 16.0
+	FishActionRange  = 48.0
+	FishMinWaitSec   = 1.1
 	FishMaxChebyshev = 3
 )
 
 type fishDef struct {
-	id      string
-	name    string
-	sea     bool
-	level   int
-	xp      int64
-	weight  int
-	rare    bool
+	id     string
+	name   string
+	sea    bool
+	level  int
+	xp     int64
+	weight int
+	rare   bool
 }
 
 var fishDefs = []fishDef{
@@ -40,6 +43,32 @@ var fishDefs = []fishDef{
 	{id: "pufferfish", name: "Pufferfish", sea: true, level: 11, xp: 58, weight: 5},
 	{id: "albacore", name: "Albacore", sea: true, level: 12, xp: 62, weight: 4},
 	{id: "anglerfish", name: "Anglerfish", sea: true, level: 20, xp: 100, weight: 1, rare: true},
+}
+
+// fishWeightKg is the min and max weight a catch of each fish can have.
+var fishWeightKg = map[string][2]float64{
+	"sunfish": {0.1, 0.5}, "chub": {0.2, 1.2}, "perch": {0.2, 1.5}, "carp": {1.0, 8.0},
+	"largemouth_bass": {0.8, 4.5}, "pike": {1.5, 12.0}, "tiger_trout": {0.8, 5.0},
+	"walleye": {0.7, 5.5}, "sturgeon": {6.0, 40.0}, "golden_fish": {0.4, 2.0},
+	"anchovy": {0.02, 0.08}, "sardine": {0.05, 0.2}, "herring": {0.1, 0.6}, "salmon": {2.0, 12.0},
+	"red_snapper": {1.0, 9.0}, "tuna": {8.0, 60.0}, "flounder": {0.5, 3.0}, "pufferfish": {0.3, 2.0},
+	"albacore": {6.0, 30.0}, "anglerfish": {2.0, 25.0},
+}
+
+// rollFishWeight picks a catch weight in kg (two decimals). Small fish are common, trophies
+// rare, and higher fishing levels nudge the roll up a little.
+func rollFishWeight(id string, level int, rng func() float64) float64 {
+	r, ok := fishWeightKg[id]
+	if !ok {
+		r = [2]float64{0.2, 2.0}
+	}
+	t := rng() * rng() // skewed toward the light end
+	t += float64(min(level, 30)) * 0.006 * rng()
+	if t > 1 {
+		t = 1
+	}
+	kg := r[0] + (r[1]-r[0])*t
+	return math.Round(kg*100) / 100
 }
 
 var fishByID = func() map[string]fishDef {

@@ -7,10 +7,12 @@ import shutil
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-PACK = (
+MODEL_PACK = REPO / "client/Deathborn.Client/Models/Farm RPG - Tiny Asset Pack - (All in One)"
+LEGACY_PACK = (
     REPO
     / "client/Deathborn.Client/Content/Characters/Farm RPG - Tiny Asset Pack - (All in One)"
 )
+PACK = MODEL_PACK if MODEL_PACK.is_dir() else LEGACY_PACK
 OUT = REPO / "client/Deathborn.Client/Content/Ui/FarmRpg"
 MGCB = REPO / "client/Deathborn.Client/Content/Content.mgcb"
 
@@ -24,6 +26,8 @@ UI_FILES = {
     "Ui/FarmRpg/book.png": "UI/Inventory/Book.png",
     "Ui/FarmRpg/bars.png": "UI/Bars.png",
     "Ui/FarmRpg/buttons.png": "UI/button.png",
+    # Speech bubbles and emoji reactions (16 px cells; the "!" bubble sits at 48,192).
+    "Ui/FarmRpg/emotes.png": "UI/speech bubble, emojis, reaction.png",
 }
 
 MGCB_BLOCK = """#begin {mgcb_path}

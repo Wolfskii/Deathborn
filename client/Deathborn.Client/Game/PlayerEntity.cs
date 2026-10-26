@@ -205,6 +205,33 @@ public sealed class PlayerEntity
     public bool IsAttacking => _visual.Controller.IsAttackPlaying;
     public bool IsCasting => _abilityLockTimer > 0f;
     public bool IsFishing { get; set; }
+
+    /// <summary>Arms raised overhead (showing off a catch). Moving puts the arms down.</summary>
+    public bool IsHoldingUp => _visual.Controller.IsHoldUpPlaying;
+
+    public void StartHoldUp(float seconds) => _visual.Controller.StartHoldUp(seconds);
+
+    public void StopHoldUp() => _visual.Controller.StopHoldUp();
+
+    /// <summary>Little jump in sprite pixels (fish bite reaction); 0 = on the ground.</summary>
+    public float HopHeight { get; set; }
+
+    /// <summary>
+    /// Rod tip relative to the feet in world units for the current fishing pose. Measured from
+    /// the Farm RPG rod frames (64 px, origin 32,48); facing up the rod hides behind the head.
+    /// </summary>
+    public Vector2 FishingRodTipOffset()
+    {
+        var f = CardinalFacing(FacingDir);
+        Vector2 art;
+        if (FishingReeling)
+            art = f.X > 0.5f ? new(28, 19) : f.X < -0.5f ? new(36, 19) : new(33, 18);
+        else
+            art = f.X > 0.5f ? new(45, 34) : f.X < -0.5f ? new(19, 34) : f.Y < -0.5f ? new(32, 22) : new(33, 35);
+        var worldPerArt = Rendering.Characters.CharacterAnimationCatalog.GetDrawScale(
+            Rendering.Characters.CharacterAnimationCatalog.FarmRpg) / Config.ExteriorTerrainFocusScale;
+        return (art - new Vector2(32, 48)) * worldPerArt;
+    }
     public bool FishingReeling { get; set; }
     public bool IsDashing => _isDashing;
     public bool IsPostDashSettling => _postDashSettle > 0f;
@@ -634,6 +661,10 @@ public sealed class PlayerEntity
 
         var prevPos = Position;
 
+        // Walking off puts the arms down (catch reveal).
+        if (IsLocal && IsHoldingUp && InputDir.LengthSquared() > 0.01f)
+            StopHoldUp();
+
         if (_postDashSettle > 0f)
         {
             _postDashSettle = MathF.Max(0f, _postDashSettle - dt);
@@ -737,6 +768,7 @@ public sealed class PlayerEntity
     {
         var tint = IsLocal ? Color.White : new Color(0.92f, 0.82f, 0.78f);
         var scale = VisualDrawScale * zoom;
+        screenPos.Y -= HopHeight * scale;
 
         if (IsDead)
         {

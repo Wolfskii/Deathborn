@@ -182,6 +182,7 @@ public sealed class DeathbornGame : Game
         CookIconAtlas.Load(Content);
         MaterialIconAtlas.Load(Content);
         FurnitureSprites.Load(Content);
+        EmoteSprites.Load(Content);
         FishingFx.Load(Content);
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);

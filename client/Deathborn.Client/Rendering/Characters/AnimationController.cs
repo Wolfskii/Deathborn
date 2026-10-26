@@ -35,6 +35,10 @@ public sealed class AnimationController
   private int _fishingFrame;
   private FacingDirection _fishingFacing = FacingDirection.Down;
 
+  private float _holdUpRemaining;
+  private float _holdUpTimer;
+  private int _holdUpFrame;
+
   private bool _hurtPlaying;
   private float _hurtTimer;
   private int _hurtFrame;
@@ -53,6 +57,7 @@ public sealed class AnimationController
   }
 
   public bool IsAttackPlaying => _attackPlaying;
+  public bool IsHoldUpPlaying => _holdUpRemaining > 0f;
   public bool IsCastPlaying => _castPlaying;
   public bool IsFishingPlaying => _fishingPlaying;
   public bool IsHurtPlaying => _hurtPlaying;
@@ -107,6 +112,19 @@ public sealed class AnimationController
     _hurtPlaying = false;
   }
 
+  /// <summary>Arms up, facing the camera, for <paramref name="seconds"/> (catch reveal).</summary>
+  public void StartHoldUp(float seconds)
+  {
+    _holdUpRemaining = seconds;
+    _holdUpTimer = 0;
+    _holdUpFrame = 0;
+    _attackPlaying = false;
+    _castPlaying = false;
+    _fishingPlaying = false;
+  }
+
+  public void StopHoldUp() => _holdUpRemaining = 0f;
+
   public void StartFishing(Vector2 facingDir, bool reeling)
   {
     _fishingFacing = ResolveFacing(facingDir);
@@ -155,6 +173,19 @@ public sealed class AnimationController
 
     if (_hurtPlaying)
       UpdateHurt(dt);
+
+    if (_holdUpRemaining > 0f)
+    {
+      _holdUpRemaining -= dt;
+      var holdSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.HoldUp);
+      _holdUpTimer += dt;
+      while (_holdUpTimer >= holdSpec.FrameDuration)
+      {
+        _holdUpTimer -= holdSpec.FrameDuration;
+        _holdUpFrame = (_holdUpFrame + 1) % holdSpec.FramesPerDirection;
+      }
+      return;
+    }
 
     if (input.IsWhirlwinding || input.IsDashing)
     {
@@ -209,6 +240,12 @@ public sealed class AnimationController
     {
       var hurtSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.Hurt);
       return new AnimationDrawState(CharacterClip.Hurt, hurtSpec, _hurtFrame, _hurtFacing);
+    }
+
+    if (_holdUpRemaining > 0f)
+    {
+      var holdSpec = CharacterAnimationCatalog.GetSpec(_bodyTypeId, CharacterClip.HoldUp);
+      return new AnimationDrawState(CharacterClip.HoldUp, holdSpec, _holdUpFrame, FacingDirection.Down);
     }
 
     if (_attackPlaying)

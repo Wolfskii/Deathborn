@@ -41,6 +41,8 @@ CLIP_FOLDERS: dict[str, str] = {
     "fish_reel": "12.3. Fishing - Reel",
     "hoe": "4. Pickaxe, Hoe and Catching insects",
     "water": "7. Watering",
+    # Arms raised overhead (used to show off a fresh catch).
+    "hold_up": "13. Carrying - Idle",
 }
 
 # Starter modular character — Josh + farm overalls + sword (character-creator-ready ids).
@@ -197,6 +199,7 @@ def write_manifest(installed: dict[str, list[str]]) -> None:
             "fish_reel": {"frames": 4, "folder": "12.3. Fishing - Reel"},
             "hoe": {"frames": 6, "folder": "4. Pickaxe, Hoe and Catching insects"},
             "water": {"frames": 8, "folder": "7. Watering"},
+            "hold_up": {"frames": 4, "folder": "13. Carrying - Idle"},
         },
         "starter_appearance": {
             "skin_layer": "skin-1",
@@ -232,6 +235,29 @@ def copy_magic_fx() -> str | None:
     return "Characters/FarmRpg/Effects/magic.png"
 
 
+# The pack's fishing rod frames (64 px, body centred at 16,16) include a short line and a float
+# right next to the player. The game draws its own line out to a bobber in the water, so only
+# the rod's own colours are kept.
+ROD_COLOURS = {(50, 19, 30), (138, 54, 37), (74, 33, 35), (174, 73, 36)}
+
+
+def strip_rod_line(layer_id: str) -> None:
+    if Image is None:
+        return
+    for clip in ("fish_wait", "fish_reel"):
+        path = OUT / "layers" / layer_id / f"{clip}.png"
+        if not path.exists():
+            continue
+        im = Image.open(path).convert("RGBA")
+        px = im.load()
+        for y in range(im.height):
+            for x in range(im.width):
+                r, g, b, a = px[x, y]
+                if a and (r, g, b) not in ROD_COLOURS:
+                    px[x, y] = (0, 0, 0, 0)
+        im.save(path)
+
+
 def main() -> None:
     if not PACK.is_dir():
         raise SystemExit(f"Farm RPG pack not found: {PACK}")
@@ -242,6 +268,8 @@ def main() -> None:
         paths = copy_layer(layer_id, spec)
         installed[layer_id] = paths
         all_paths.extend(paths)
+
+    strip_rod_line("weapon-fishing-rod")
 
     magic_path = copy_magic_fx()
     if magic_path:

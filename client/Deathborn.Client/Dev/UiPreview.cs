@@ -190,6 +190,29 @@ public static class UiPreview
             var behind = new PlayerEntity { Id = 2, Name = "Akiru", IsLocal = true, Position = new(6, -30) };
             behind.Draw(sb, font, screenCenter + (behind.Position - camera) * positionZoom, visualZoom);
             Rendering.HouseRenderer.DrawCottage(sb, house.Center, camera, screenCenter, positionZoom, visualZoom, 0.45f);
+
+            // Fish bite: Farm RPG "!" bubble above the head (same placement as WorldScreen).
+            var biter = new PlayerEntity { Id = 4, Name = "Akiru", IsLocal = true, Position = new(40, 40) };
+            var biterScreen = screenCenter + (biter.Position - camera) * positionZoom;
+            biter.Draw(sb, font, biterScreen, visualZoom);
+            var artToScreen = Rendering.Characters.CharacterAnimationCatalog.GetDrawScale(
+                Rendering.Characters.CharacterAnimationCatalog.FarmRpg) * visualZoom;
+            Rendering.EmoteSprites.TryDraw(sb, Rendering.EmoteSprites.Exclamation,
+                biterScreen - new Vector2(0, 22f * artToScreen), artToScreen, Color.White);
+
+            // Catch reveal pose (arms up), with a fish held overhead.
+            var holder = new PlayerEntity { Id = 3, Name = "Akiru", IsLocal = true, Position = new(-40, 40) };
+            holder.StartHoldUp(2f);
+            holder.Update(0.2f);
+            var holderScreen = screenCenter + (holder.Position - camera) * positionZoom;
+            holder.Draw(sb, font, holderScreen, visualZoom);
+            if (Rendering.FishIconAtlas.TryGet("pike", out var pike) && pike != null)
+            {
+                var size = 20f * positionZoom * 0.5f;
+                var fishScreen = holderScreen + new Vector2(0, -27f * positionZoom);
+                sb.Draw(pike, fishScreen, null, Color.White, 0f, new Vector2(pike.Width * 0.5f, pike.Height * 0.5f),
+                    size / pike.Width, SpriteEffects.None, 0f);
+            }
         });
     }
 
@@ -221,10 +244,8 @@ public static class UiPreview
         {
             var fishing = new FishingMinigameOverlay();
             fishing.Start("spot", "Riverbank", 6);
+            fishing.PreviewPlaying(bobber: 0.62f, fish: 0.7f, progress: 0.55f);
             fishing.Draw(sb, font);
-            var decorate = new HousingDecorateOverlay();
-            decorate.Activate();
-            decorate.Draw(sb, font);
         });
 
         Render(game, Path.Combine(dir, "7-death.png"), (sb, font) =>

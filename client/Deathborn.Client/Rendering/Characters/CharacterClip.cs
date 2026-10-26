@@ -19,4 +19,6 @@ public enum CharacterClip
     /// <summary>Same body strip as <see cref="Hoe"/> but empty-handed (planting, feeding).</summary>
     Plant,
     Water,
+    /// <summary>Both arms raised overhead (Farm RPG "Carrying - Idle"), e.g. showing off a catch.</summary>
+    HoldUp,
 }

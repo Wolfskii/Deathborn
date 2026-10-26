@@ -828,7 +828,7 @@ func (c *Client) readPump(database *db.DB) {
 			}
 			if result.ItemID != "" {
 				c.safeSend(encode("fish_result", FishResultData{
-					ItemID: result.ItemID, Name: result.ItemName, BaitUsed: result.BaitUsed,
+					ItemID: result.ItemID, Name: result.ItemName, WeightKg: result.WeightKg, BaitUsed: result.BaitUsed,
 				}))
 			}
 			if result.PlayerAction != "" {

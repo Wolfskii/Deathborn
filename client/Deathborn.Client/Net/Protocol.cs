@@ -140,6 +140,9 @@ public sealed class FishResultData
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
+    [JsonPropertyName("weightKg")]
+    public double WeightKg { get; set; }
+
     [JsonPropertyName("baitUsed")]
     public bool BaitUsed { get; set; }
 }

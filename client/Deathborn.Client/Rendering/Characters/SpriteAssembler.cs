@@ -34,7 +34,7 @@ public sealed class SpriteAssembler
             TryAddFarmTexture("tool-hoe", clip, CharacterLayerId.Weapon);
         else if (clip == CharacterClip.Water)
             TryAddFarmTexture("tool-watering", clip, CharacterLayerId.Weapon);
-        else if (clip == CharacterClip.Plant)
+        else if (clip is CharacterClip.Plant or CharacterClip.HoldUp)
         {
             // Empty-handed farm gesture: no weapon or tool layer.
         }

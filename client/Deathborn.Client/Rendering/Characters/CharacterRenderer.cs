@@ -24,9 +24,36 @@ public static class CharacterRenderer
     if (clip is CharacterClip.Attack or CharacterClip.ShieldBash && frameIndex < 0) return;
     if (clip == CharacterClip.Hurt && frameIndex < 0) return;
 
-    var (src, origin, effects) = GetFrameRect(spec, frameIndex, facing);
     foreach (var layer in layers)
+    {
+      var (src, origin, effects) = GetLayerFrameRect(spec, frameIndex, facing, layer.Texture);
       sb.Draw(layer.Texture, screenPos, src, Multiply(tint, layer.Tint), 0f, origin, scale, effects, 0f);
+    }
+  }
+
+  /// <summary>
+  /// Frame rect for one layer. Most sheets use the clip's frame size, but some props are drawn on
+  /// larger frames (the fishing rod uses 64 px frames with the 32 px body centred in them), so
+  /// the frame size comes from the texture and the origin is shifted to keep the body aligned.
+  /// </summary>
+  public static (Rectangle Source, Vector2 Origin, SpriteEffects Effects) GetLayerFrameRect(
+    in AnimationSpecification spec,
+    int frameIndex,
+    FacingDirection facing,
+    Texture2D texture)
+  {
+    var frames = spec.FramesPerDirection * spec.Directions;
+    var frameW = frames > 0 ? texture.Width / frames : spec.FrameWidth;
+    var frameH = texture.Height;
+    if (frameW == spec.FrameWidth && frameH == spec.FrameHeight)
+      return GetFrameRect(spec, frameIndex, facing);
+
+    var dir = FarmRpgAnimationSpecs.DirectionIndex(facing);
+    var frame = Math.Clamp(frameIndex, 0, spec.FramesPerDirection - 1);
+    var col = dir * spec.FramesPerDirection + frame;
+    var src = new Rectangle(col * frameW, 0, frameW, frameH);
+    var origin = spec.Origin + new Vector2((frameW - spec.FrameWidth) * 0.5f, (frameH - spec.FrameHeight) * 0.5f);
+    return (src, origin, SpriteEffects.None);
   }
 
   public static void DrawOutline(
@@ -45,9 +72,11 @@ public static class CharacterRenderer
     if (clip is CharacterClip.Attack or CharacterClip.ShieldBash && frameIndex < 0) return;
     if (clip == CharacterClip.Hurt && frameIndex < 0) return;
 
-    var (src, origin, effects) = GetFrameRect(spec, frameIndex, facing);
     foreach (var layer in layers)
+    {
+      var (src, origin, _) = GetLayerFrameRect(spec, frameIndex, facing, layer.Texture);
       SpriteOutlineDraw.Draw(sb, layer.Texture, screenPos, src, origin, outline, scale, thickness);
+    }
   }
 
   public static (Rectangle Source, Vector2 Origin, SpriteEffects Effects) GetFrameRect(
