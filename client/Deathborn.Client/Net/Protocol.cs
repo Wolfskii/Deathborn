@@ -295,6 +295,18 @@ public sealed class FarmCropState
 
     [JsonPropertyName("maxStage")]
     public int MaxStage { get; set; }
+
+    /// <summary>Planted, still growing, and the soil is dry: it will not grow until watered.</summary>
+    [JsonPropertyName("thirsty")]
+    public bool Thirsty { get; set; }
+
+    /// <summary>Thirsty for a long time (server FarmWiltAfter). Watering revives it.</summary>
+    [JsonPropertyName("wilted")]
+    public bool Wilted { get; set; }
+
+    /// <summary>Progress through the current growth stage, 0..1.</summary>
+    [JsonPropertyName("growth")]
+    public double Growth { get; set; }
 }
 
 public sealed class FarmAnimalState

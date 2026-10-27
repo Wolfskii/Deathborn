@@ -160,6 +160,16 @@ public static class UiPreview
                 new() { Type = "fireplace", Position = new(168, -48) },
             ],
         };
+        // One crop in each growth state, for the yard render.
+        house.Crops =
+        [
+            new() { Tx = -3, Ty = 2, Crop = "parsnip", Stage = 2, MaxStage = 4, Thirsty = true },
+            new() { Tx = -2, Ty = 2, Crop = "carrot", Stage = 3, MaxStage = 5, Thirsty = true, Wilted = true },
+            new() { Tx = -1, Ty = 2, Crop = "potato", Stage = 3, MaxStage = 5, Watered = true, Growth = 0.4 },
+            new() { Tx = 1, Ty = 2, Crop = "tomato", Stage = 6, MaxStage = 6, Ready = true },
+            new() { Tx = 2, Ty = 2, Crop = "", Watered = true },
+            new() { Tx = 1, Ty = 3, Crop = "wheat", Stage = 0, MaxStage = 5, Thirsty = true },
+        ];
         var player = new PlayerEntity { Id = 1, Name = "Akiru", IsLocal = true, Position = new(24, 60) };
 
         Render(game, Path.Combine(dir, "9-interior.png"), (sb, font) =>

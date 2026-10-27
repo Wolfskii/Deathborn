@@ -47,6 +47,8 @@ func decodeFarm(raw json.RawMessage) FarmPersist {
 }
 
 func (w *World) TickFarm(dt float64) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.housing == nil {
 		return false
 	}
@@ -141,7 +143,10 @@ func (w *World) ApplyFarmAction(characterID int64, action string, tileX, tileY i
 		if math.Hypot(player.x-cx, player.y-cy) > FarmActionRange {
 			return FarmActionResult{}, "Move closer to that soil.", false
 		}
-		if !plot.tileFarmable(tileX, tileY) {
+		// A crop already in the ground can always be tended, even if the cottage wall now sits next to
+		// it (crops planted before the wall collider changed). Only new planting needs farmable soil.
+		planted := plot.findCrop(tileX, tileY)
+		if (planted < 0 || plot.crops[planted].crop == "") && !plot.tileFarmable(tileX, tileY) {
 			return FarmActionResult{}, "Till soil in your fenced yard, not on the cottage.", false
 		}
 		if w.terrain != nil && !w.CanWalk(cx, cy) {
@@ -185,9 +190,20 @@ func (w *World) ApplyFarmAction(characterID int64, action string, tileX, tileY i
 		if idx < 0 {
 			return FarmActionResult{}, "Till the soil before watering.", false
 		}
-		plot.crops[idx].wateredUntil = now + FarmWaterDuration
+		t := &plot.crops[idx]
+		// Long enough to finish the current growth stage; tickFarm dries the soil when it does.
+		wetFor := FarmWaterDuration
+		if d, ok := cropDefs[t.crop]; ok {
+			wetFor = math.Max(wetFor, d.stageSec+5)
+		}
+		wasWilted := t.wilted(now)
+		t.wateredUntil = now + wetFor
+		t.dryFor = 0
 		plot.markFarmDirty()
 		result.Message = "You water the soil."
+		if wasWilted {
+			result.Message = "You water the wilted plant. It perks back up."
+		}
 		result.PlayerAction = "water"
 
 	case "plant":
@@ -210,6 +226,7 @@ func (w *World) ApplyFarmAction(characterID int64, action string, tileX, tileY i
 		plot.crops[idx].crop = def.id
 		plot.crops[idx].stage = 0
 		plot.crops[idx].growAccum = 0
+		plot.crops[idx].dryFor = 0
 		plot.markFarmDirty()
 		result.Message = "You plant " + def.name + " seeds."
 		result.PlayerAction = "hoe"
@@ -228,7 +245,7 @@ func (w *World) ApplyFarmAction(characterID int64, action string, tileX, tileY i
 		result.Message = msg
 		result.GrantedXP = xp
 		result.Skill = skills.Farming
-		result.PlayerAction = "hoe"
+		// No swing: the client shows the pickup itself, and a hoe swing would lock movement until it ends.
 
 	case "place_animal":
 		def, ok := animalDefByItem(itemID)

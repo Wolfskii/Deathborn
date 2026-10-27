@@ -25,6 +25,12 @@ public sealed class BuildingDoorTransition
     private const float AwaitTimeoutSeconds = 2f;
 
     /// <summary>
+    /// How long the door swings before the request goes out. The house fades in once the server
+    /// confirms, so this only has to cover the door starting to open, not the whole door sound.
+    /// </summary>
+    private const float DoorOpenSeconds = 0.08f;
+
+    /// <summary>
     /// After a transition ends, walking cannot start another one for this long (matches the
     /// server's house transition cooldown). Without it, holding a direction at the door
     /// re-triggered a failed transition every frame and froze the player in place.
@@ -68,7 +74,8 @@ public sealed class BuildingDoorTransition
         _pendingBuildingId = buildingId;
         _frozenFeet = exteriorFeet;
         VisualInsideOverride = 0;
-        _openRemaining = MathF.Max(0.15f, SfxPlayer.PlayDoorOpen());
+        SfxPlayer.PlayDoorOpen();
+        _openRemaining = DoorOpenSeconds;
         return true;
     }
 
@@ -80,7 +87,8 @@ public sealed class BuildingDoorTransition
         _pendingBuildingId = currentBuildingId;
         _frozenFeet = interiorFeet;
         VisualInsideOverride = currentBuildingId;
-        _openRemaining = MathF.Max(0.15f, SfxPlayer.PlayDoorOpen());
+        SfxPlayer.PlayDoorOpen();
+        _openRemaining = DoorOpenSeconds;
         return true;
     }
 

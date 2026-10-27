@@ -8,7 +8,7 @@ import (
 
 const (
 	PickupRange        = 48.0
-	InventorySlotCount = 20
+	InventorySlotCount = 200
 )
 
 // InventoryItem is one stack in a fixed inventory slot.

@@ -24,6 +24,22 @@ public static class FarmIconAtlas
         }
     }
 
+    public static bool TryGet(string? id, out Texture2D texture)
+    {
+        if (string.IsNullOrEmpty(id)) { texture = null!; return false; }
+        return Icons.TryGetValue(id, out texture!);
+    }
+
+    /// <summary>Draws the icon centred on <paramref name="center"/> at <paramref name="scale"/> screen px per icon px (cursors).</summary>
+    public static bool TryDrawAt(SpriteBatch sb, string? id, Vector2 center, float scale, float alpha = 1f)
+    {
+        if (string.IsNullOrEmpty(id) || !Icons.TryGetValue(id, out var tex))
+            return false;
+        var origin = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
+        sb.Draw(tex, center, null, Color.White * alpha, 0f, origin, scale, SpriteEffects.None, 0f);
+        return true;
+    }
+
     public static bool TryDraw(SpriteBatch sb, string? id, Rectangle dest)
     {
         if (string.IsNullOrEmpty(id) || !Icons.TryGetValue(id, out var tex))

@@ -183,6 +183,7 @@ public sealed class DeathbornGame : Game
         MaterialIconAtlas.Load(Content);
         FurnitureSprites.Load(Content);
         EmoteSprites.Load(Content);
+        FarmRpgBrazier.Load(Content);
         FishingFx.Load(Content);
         ProjectileSprites.Load(Content);
         TinySwordsUi.Load(Content);

@@ -55,6 +55,11 @@ public static class SfxPlayer
         Preload(GameSfx.FishingHook);
         Preload(GameSfx.FishingCatch);
         Preload(GameSfx.FishingEscape);
+        Preload(GameSfx.FarmTillSoil);
+        Preload(GameSfx.FarmTillSoil2);
+        Preload(GameSfx.FarmSeedPlant);
+        Preload(GameSfx.FarmWatering);
+        Preload(GameSfx.FarmHarvestPop);
     }
 
     public static void Update(float dt)
@@ -216,6 +221,18 @@ public static class SfxPlayer
     public static void PlayFishingCatch() => Play(GameSfx.FishingCatch, 0.85f, NoPitch, FishingVolumes);
     public static void PlayFishingEscape() => Play(GameSfx.FishingEscape, 0.7f, NoPitch, FishingVolumes);
 
+    /// <summary>Hoe breaking the soil; alternates between the two hoe takes.</summary>
+    public static void PlayFarmTill() =>
+        Play(Random.Shared.Next(2) == 0 ? GameSfx.FarmTillSoil : GameSfx.FarmTillSoil2, 0.8f, FarmPitches, FishingVolumes);
+
+    public static void PlayFarmSeedPlant() => Play(GameSfx.FarmSeedPlant, 0.8f, FarmPitches, FishingVolumes);
+
+    public static void PlayFarmHarvest() => Play(GameSfx.FarmHarvestPop, 0.85f, FarmPitches, FishingVolumes);
+
+    /// <summary>Watering can pour.</summary>
+    public static void PlayWatering() => Play(GameSfx.FarmWatering, 0.7f, FarmPitches, FishingVolumes);
+
+    private static readonly float[] FarmPitches = [-0.04f, 0f, 0.04f];
     private static readonly float[] FishingPitches = [-0.06f, 0f, 0.06f];
     private static readonly float[] FishingVolumes = [0.95f, 1f];
     private static readonly float[] NoPitch = [0f];

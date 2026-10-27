@@ -98,6 +98,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private int _farmHoverTx;
     private int _farmHoverTy;
     private bool _farmHoverOk;
+    /// <summary>False when the hovered soil is past the reach used by the farm actions (faded highlight).</summary>
+    private bool _farmHoverInRange;
     private int _fishHoverTx;
     private int _fishHoverTy;
     private bool _fishHoverOk;
@@ -477,6 +479,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         DevPerfLog.Mark("move");
         _moveDir = blockGameplay ? Vector2.Zero : ReadMoveDir(kb);
+        CancelHarvestOnInput(mouse, kb);
         var wantsRun = kb.IsKeyDown(Keys.LeftShift) || kb.IsKeyDown(Keys.RightShift);
         if (localEntity is { IsDead: false })
         {
@@ -830,10 +833,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             corpse.Draw(sb, WorldToScreen(corpse.Position), visualZoom);
 
         DrawExteriorFoliageAndPlayers(sb, font, transformZoom, visualZoom, gameTime);
-        // After the Y-sorted pass, which now draws the cottage itself.
-        HouseRenderer.DrawDoorHighlights(
-            sb, _camera, ScreenCenter, transformZoom, visualZoom, WorldZones.Houses, _hoveredDoorHouse);
-
         if (_housePlacing)
             HouseRenderer.DrawPlacementGhost(
                 sb, _housePlacePos, _camera, ScreenCenter, transformZoom, visualZoom, _housePlaceValid);
@@ -847,6 +846,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _feedback.DrawWorld(sb, font, WorldToScreen, visualZoom, _players, _npcs);
         DrawCatchShow(sb, font, transformZoom);
         DrawFishingBiteMark(sb, font, visualZoom);
+        DrawDoorEnterHint(sb, font, visualZoom, gameTime);
 
         if (_ghostMode && _ghost != null)
             _ghost.Draw(sb, WorldToScreen(_ghost.Position), visualZoom);
@@ -1198,7 +1198,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         if (insideId > 0)
-            _interiorFade = MathF.Min(1f, _interiorFade + dt * 2.8f);
+            _interiorFade = MathF.Min(1f, _interiorFade + dt * 6f);
     }
 
     private HousePlotZone? InteriorHouse()
@@ -1251,8 +1251,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     }
 
     /// <summary>
-    /// Walk into exterior door (north) or interior exit (south) starts the same SFX transition as E/click.
-    /// Server auto-enter often wins the race otherwise and skips client audio entirely.
+    /// Walking south through the interior exit starts the same SFX transition as E/click. Entering the
+    /// cottage is E or a click on the door only, so walking past the door never enters by accident.
     /// </summary>
     private void TryAutoDoorTransition(PlayerEntity? local, bool inputBlocked)
     {
@@ -1272,28 +1272,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
-        // Entering: in door approach / near door and moving north (negative Y).
-        var moveY = local.InputDir.Y;
-        if (moveY > -0.08f) return;
-
-        HousePlotZone? best = null;
-        var bestDist = float.MaxValue;
-        foreach (var house in WorldZones.Houses)
-        {
-            var near = HousingCollision.InDoorApproach(local.Position, house.Center)
-                || HousingConstants.IsNearDoor(local.Position, house.Center);
-            if (!near) continue;
-            var d = Vector2.DistanceSquared(local.Position, HousingConstants.DoorWorldPosition(house.Center));
-            if (d < bestDist)
-            {
-                bestDist = d;
-                best = house;
-            }
-        }
-
-        if (best == null) return;
-        if (_doorTransition.TryBeginEnter(best.Id, local.Position))
-            _status = $"Entering {best.DisplayName(_screens.Net.LocalCharacterId)}...";
     }
 
     private bool TryHouseDoorInteract(Vector2? worldPos = null)
@@ -1314,7 +1292,10 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return true;
         }
 
-        var doorHouse = HousingConstants.FindDoorAt(WorldZones.Houses, world);
+        // A click enters only from the door plate; E also works from the approach zone in front of it.
+        var doorHouse = worldPos == null
+            ? HousingConstants.FindDoorAt(WorldZones.Houses, world)
+            : HousingConstants.FindDoorPlateAt(WorldZones.Houses, world);
         if (doorHouse == null) return false;
         var doorPos = HousingConstants.DoorWorldPosition(doorHouse.Center);
         if (HousingCollision.InDoorApproach(local.Position, doorHouse.Center))
@@ -1636,9 +1617,33 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             else
                 UiCursorTheme.DrawSlotOverlay(sb, rect);
         }
-        UiCursorTheme.DrawCursor(sb, mouse, cursorKind);
+        // The tool or crop itself is the cursor over soil; the pointer shows everywhere else.
+        var farmIcon = FarmCursorIcon(out var farmAlpha);
+        if (farmIcon == null || !FarmIconAtlas.TryDrawAt(sb, farmIcon, new Vector2(mouse.X, mouse.Y), FarmCursorScale, farmAlpha))
+            UiCursorTheme.DrawCursor(sb, mouse, cursorKind);
         sb.End();
     }
+
+    /// <summary>
+    /// Icon beside the pointer for the farm action under it: the crop to harvest, or the tool or seeds
+    /// in hand. Faded when the soil is out of reach, so it reads as "not from here".
+    /// </summary>
+    private string? FarmCursorIcon(out float alpha)
+    {
+        alpha = _farmHoverInRange ? 1f : 0.4f;
+        if (!_farmHoverOk)
+        {
+            alpha = 1f;
+            return null;
+        }
+        if (FindFarmTile(_farmHoverTx, _farmHoverTy) is { Ready: true } tile)
+            return tile.Crop;
+        var itemId = SelectedHotbarItemId();
+        return FarmCatalog.IsTool(itemId) || FarmCatalog.IsSeed(itemId) ? itemId : null;
+    }
+
+    /// <summary>Same 2x scale as the pointer, so the tool cursor takes the pointer's place.</summary>
+    private const float FarmCursorScale = 2f;
 
     private bool IsEntryBlocked(Dictionary<string, object> entry, int? hotbarIndex, int? inventoryIndex)
     {
@@ -1812,7 +1817,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (underMouse is { Kind: InteractableKind.FarmPlot })
             underMouse = null;
         _hoveredDoorHouse = InteriorHouse() == null
-            ? HousingConstants.FindDoorAt(WorldZones.Houses, mouseWorld)
+            ? HousingConstants.FindDoorPlateAt(WorldZones.Houses, mouseWorld)
             : null;
 
         if (_focused != nearest)
@@ -1844,12 +1849,17 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return;
         }
 
-        if (_hoveredDoorHouse != null
-            && (HousingConstants.InDoorHit(_camera, _hoveredDoorHouse.Center)
-                || HousingCollision.InDoorApproach(_camera, _hoveredDoorHouse.Center)
-                || Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(_hoveredDoorHouse.Center)) <= Config.InteractRange))
+        var atDoor = HousingConstants.FindDoorAt(WorldZones.Houses, _camera);
+        if (atDoor != null)
         {
-            _interactPrompt = $"Walk into the door to enter {_hoveredDoorHouse.DisplayName(_screens.Net.LocalCharacterId)}";
+            _interactPrompt = $"[E] Enter {atDoor.DisplayName(_screens.Net.LocalCharacterId)}  (or click the door)";
+            return;
+        }
+
+        if (_hoveredDoorHouse != null
+            && Vector2.Distance(_camera, HousingConstants.DoorWorldPosition(_hoveredDoorHouse.Center)) <= Config.InteractRange)
+        {
+            _interactPrompt = $"Click to enter {_hoveredDoorHouse.DisplayName(_screens.Net.LocalCharacterId)}";
             return;
         }
 
@@ -1857,6 +1867,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             _interactPrompt = $"[E] Interact with {_focused.DisplayName}  (or click)";
         else if (_farmHoverOk)
             _interactPrompt = FarmHoverPrompt();
+        else if (local != null && NearestReadyCrop(local.Position) is { } ready)
+            _interactPrompt = $"[E] Harvest {FarmCatalog.Crop(ready.Crop)?.Name ?? ready.Crop}  (or click)";
         else if (_fishHoverOk)
             _interactPrompt = "[Click] Cast your line";
         else if (_hovered != null)
@@ -1977,7 +1989,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void TryInteractNearest()
     {
+        CancelHarvestPickup();
         if (TryHouseDoorInteract()) return;
+        if (TryHarvestNearbyCrop()) return;
         var target = FindNearestInRange(_camera);
         if (target == null) { _status = "Nothing in range to interact with."; return; }
         PerformInteract(target);
@@ -1985,6 +1999,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void HandleLeftClick(Point mouseScreen)
     {
+        CancelHarvestPickup();
         var world = ScreenToWorld(mouseScreen);
         if (TryHouseDoorInteract(world)) return;
         if (TryFarmAtWorld(world, fromClick: true)) return;
@@ -1999,6 +2014,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private void TryUseSelectedHotbarSlot()
     {
+        CancelHarvestPickup();
         if (_ghostMode || IsLocalDyingOrDead()) return;
 
         var idx = _hotbar.SelectedIndex;
@@ -2915,6 +2931,44 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         Ui.FishingMinigameOverlay.DrawBobber(sb, bobberScreen, bobScale * 0.55f, under ? 0.45f : 1f);
     }
 
+    /// <summary>
+    /// Bobbing [E] keycap above the door when the mouse is over it or the player stands where E enters.
+    /// Faded when the door is out of reach, like the farming hover.
+    /// </summary>
+    private void DrawDoorEnterHint(SpriteBatch sb, SpriteFont font, float visualZoom, GameTime gameTime)
+    {
+        if (_doorTransition.IsBusy) return;
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead || local.InsideHouseId > 0) return;
+        var zoneHouse = HousingConstants.FindDoorAt(WorldZones.Houses, local.Position);
+        var house = zoneHouse ?? _hoveredDoorHouse;
+        if (house == null) return;
+        var inReach = zoneHouse != null
+            || Vector2.Distance(local.Position, HousingConstants.DoorWorldPosition(house.Center)) <= Config.InteractRange;
+        var alpha = inReach ? 1f : 0.35f;
+
+        // Sized in sprite pixels like the "!" bubble so the two read as one UI.
+        var artToScreen = Rendering.Characters.CharacterAnimationCatalog.GetDrawScale(
+            Rendering.Characters.CharacterAnimationCatalog.FarmRpg) * visualZoom;
+        HousingConstants.DoorHitBounds(house.Center, out _, out _, out var doorTop, out _);
+        var doorX = HousingConstants.DoorWorldPosition(house.Center).X;
+        var bob = MathF.Sin((float)gameTime.TotalGameTime.TotalSeconds * 4f) * 1.5f;
+
+        var size = 10f * artToScreen;
+        var anchor = WorldToScreen(new Vector2(doorX, doorTop));
+        var center = new Vector2(anchor.X, anchor.Y - size * 0.9f + bob * artToScreen);
+        var rect = new Rectangle((int)(center.X - size / 2f), (int)(center.Y - size / 2f), (int)size, (int)size);
+        var rim = Math.Max(1, (int)artToScreen);
+        var ink = new Color(54, 40, 34) * alpha;
+        DrawPrimitives.FillRect(sb, rect, ink);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X + rim, rect.Y + rim, Math.Max(1, rect.Width - 2 * rim), Math.Max(1, rect.Height - 3 * rim)), new Color(248, 240, 216) * alpha);
+        DrawPrimitives.FillRect(sb, new Rectangle(rect.X + rim, rect.Bottom - 2 * rim, Math.Max(1, rect.Width - 2 * rim), rim), new Color(196, 176, 140) * alpha);
+
+        var letter = font.MeasureString("E");
+        var letterScale = size * 0.6f / Math.Max(1f, letter.Y);
+        sb.DrawString(font, "E", center - new Vector2(0, rim * 0.5f), ink, 0f, letter * 0.5f, letterScale, SpriteEffects.None, 0f);
+    }
+
     /// <summary>"!" bubble over the player's head while a fish bites (drawn above everything).</summary>
     private void DrawFishingBiteMark(SpriteBatch sb, SpriteFont font, float visualZoom)
     {
@@ -2995,17 +3049,46 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
     private sealed class CatchShow
     {
+        public string Title = "Caught!";
         public string Name = "";
         public double WeightKg;
         public Texture2D? Icon;
         public Vector2 From;
         public float Time;
         public bool Landed;
+        /// <summary>When the item reached the hold pose (0 for a harvest, which has no flight).</summary>
+        public float LandedAt;
+        public float HoldSeconds = CatchHoldSeconds;
+        /// <summary>A harvest pickup, which a click, E or Space can cut short.</summary>
+        public bool Harvest;
     }
 
     private const float CatchFlySeconds = 0.7f;
     private const float CatchHoldSeconds = 2.6f;
+    private const float HarvestHoldSeconds = 0.8f;
     private CatchShow? _catchShow;
+
+    /// <summary>
+    /// Walking, a new key press (hotbar, sword, E) or a new mouse click ends a harvest pickup
+    /// before the input does its own action, so the action is not held up by the pose.
+    /// </summary>
+    private void CancelHarvestOnInput(MouseState mouse, KeyboardState kb)
+    {
+        if (_catchShow is not { Harvest: true }) return;
+        var newKey = kb.GetPressedKeys().Any(k => !_prevKb.IsKeyDown(k));
+        var newClick = mouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released
+            || mouse.RightButton == ButtonState.Pressed && _prevMouse.RightButton == ButtonState.Released;
+        if (_moveDir.LengthSquared() > 0.0001f || newKey || newClick)
+            CancelHarvestPickup();
+    }
+
+    /// <summary>A click, E or Space ends a harvest pickup at once; the key or click still does its own action.</summary>
+    private void CancelHarvestPickup()
+    {
+        if (_catchShow is not { Harvest: true }) return;
+        _catchShow = null;
+        FindLocalPlayer()?.StopHoldUp();
+    }
 
     private static string FormatFishWeight(double kg) =>
         kg <= 0 ? ""
@@ -3028,14 +3111,15 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         if (!show.Landed && show.Time >= CatchFlySeconds)
         {
             show.Landed = true;
-            local.StartHoldUp(CatchHoldSeconds);
+            show.LandedAt = show.Time;
+            local.StartHoldUp(show.HoldSeconds);
             SfxPlayer.PlayFishingCatch();
             var weight = FormatFishWeight(show.WeightKg);
-            _notifications.Push("Caught!", weight.Length > 0 ? $"{show.Name} - {weight}" : show.Name, NotificationKind.Success);
+            _notifications.Push(show.Title, weight.Length > 0 ? $"{show.Name} - {weight}" : show.Name, NotificationKind.Success);
         }
 
         // Done when the pose ends (or the player walks off early).
-        if (show.Landed && (show.Time >= CatchFlySeconds + CatchHoldSeconds || !local.IsHoldingUp))
+        if (show.Landed && (show.Time >= show.LandedAt + show.HoldSeconds || !local.IsHoldingUp))
             _catchShow = null;
     }
 
@@ -3078,7 +3162,9 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
 
         var screen = WorldToScreen(world);
-        var size = 20f * positionZoom * 0.5f;
+        // Pops in when it reaches the hold pose.
+        var pop = MathF.Min(1f, (show.Time - show.LandedAt) / 0.15f);
+        var size = 20f * positionZoom * 0.5f * (show.Landed ? 0.6f + 0.4f * pop : 1f);
         if (show.Landed)
         {
             // Soft sparkle ring behind the trophy.
@@ -3107,7 +3193,6 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         var label = SpriteFontSafe.Filter(weight.Length > 0 ? $"{show.Name}  {weight}" : show.Name);
         const float textScale = 0.8f;
         var textSize = SpriteFontSafe.MeasureString(font, label) * textScale;
-        var pop = MathF.Min(1f, (show.Time - CatchFlySeconds) / 0.15f);
         var plate = new Rectangle(
             (int)(screen.X - textSize.X * 0.5f - 12),
             (int)(screen.Y - size * 0.75f - textSize.Y - 14 - (1f - pop) * 6),
@@ -3435,7 +3520,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         }
     }
 
-    private void OnHouseUpdated(HouseUpdatedData data) => UpsertHouse(data.House);
+    private void OnHouseUpdated(HouseUpdatedData data)
+    {
+        var previous = _houses.FirstOrDefault(h => h.Id == data.House.Id);
+        UpsertHouse(data.House);
+        if (previous != null) RevealHarvests(previous, data.House);
+    }
 
     private void OnInventoryUpdated(InventoryData data)
     {
@@ -3563,6 +3653,12 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void OnServerError(string message)
     {
         _status = message;
+        // A refused harvest gives no other feedback, so say why in a notification.
+        if (_harvestPendingUntil > Environment.TickCount64 / 1000.0)
+        {
+            _harvestPendingUntil = 0;
+            _notifications.Push("Harvest refused", SpriteFontSafe.Filter(message), NotificationKind.Warning);
+        }
         // Only fishing errors end the minigame: a rejected cast (just after starting) or a
         // rejected catch. Unrelated errors (rate limits, farming, doors) must not cancel a fight.
         var fishingError = _fishStartErrorWindow > 0f || _fishAwaitingResult;
@@ -3946,7 +4042,7 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
                     else if (p.InputDir.LengthSquared() > 0.0001f)
                         p.MoveDir = PlayerEntity.CardinalFacing(p.InputDir);
 
-                    // Server auto-enter/exit can beat the client transition — still play door cues.
+                    // Server enter/exit can beat the client transition — still play door cues.
                     if (p.IsLocal && !_doorTransition.IsBusy && wasInside != nowInside)
                         _doorTransition.PlayCatchUpSfx(entered: nowInside);
                 }
@@ -4402,17 +4498,20 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
         _farmHoverOk = false;
         if (InteriorHouse() != null) return;
         var itemId = SelectedHotbarItemId();
-        if (!FarmCatalog.IsTool(itemId) && !FarmCatalog.IsSeed(itemId))
-            return;
         var house = LocalHomestead();
         if (house == null) return;
         var world = ScreenToWorld(mouseScreen);
-        var tx = FarmCatalog.WorldTileX(world.X);
-        var ty = FarmCatalog.WorldTileY(world.Y);
+        var crop = ReadyCropUnder(world);
+        var tx = crop?.Tx ?? FarmCatalog.WorldTileX(world.X);
+        var ty = crop?.Ty ?? FarmCatalog.WorldTileY(world.Y);
         var center = FarmCatalog.TileCenter(tx, ty);
         if (!HousingConstants.TileInsideFence(tx, ty, house.Center)) return;
-        if (HousingCollision.OverlapsHouseBody(center, 4f, house.Center)) return;
-        if (HousingCollision.InDoorApproach(center, house.Center)) return;
+        if (HousingCollision.OverlapsHouseWall(center, house.Center)) return;
+        // With no farm tool or seed in hand, only a ready crop is worth hovering (to harvest it).
+        if (!FarmCatalog.IsTool(itemId) && !FarmCatalog.IsSeed(itemId) && FindFarmTile(tx, ty) is not { Ready: true })
+            return;
+        var local = FindLocalPlayer();
+        _farmHoverInRange = local != null && Vector2.Distance(local.Position, center) <= FarmCatalog.ActionRange;
         _farmHoverTx = tx;
         _farmHoverTy = ty;
         _farmHoverOk = true;
@@ -4422,21 +4521,145 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         var itemId = SelectedHotbarItemId();
         var tile = FindFarmTile(_farmHoverTx, _farmHoverTy);
+        var status = tile != null ? CropStatus(tile) : "";
+        string With(string action) => status.Length > 0 ? $"{action}  |  {status}" : action;
+
+        if (tile is { Ready: true }) return With("[Click or E] Harvest");
         if (itemId == "hoe")
         {
             if (tile == null) return "[Click] Till soil";
-            if (tile.Ready) return "[Click] Harvest crop";
-            return "Soil is already tilled";
+            return status.Length > 0 ? status : "Soil is tilled - plant some seeds";
         }
         if (itemId == "watering_can")
-            return tile == null ? "Till soil first" : "[Click] Water soil";
+        {
+            if (tile == null) return "Till soil first";
+            if (tile.Watered && string.IsNullOrEmpty(tile.Crop)) return "Soil is already wet";
+            return With("[Click] Water");
+        }
         if (FarmCatalog.IsSeed(itemId))
         {
             if (tile == null) return "Till soil before planting";
-            if (!string.IsNullOrEmpty(tile.Crop)) return "Something is already growing here";
+            if (!string.IsNullOrEmpty(tile.Crop)) return status;
             return $"[Click] Plant {ItemCatalog.Get(itemId ?? "")?.Name ?? "seeds"}";
         }
-        return "";
+        return status;
+    }
+
+    /// <summary>"Parsnip 2/5 - needs water" style line for a tilled tile ("" when nothing is planted).</summary>
+    private static string CropStatus(FarmCropState tile)
+    {
+        if (string.IsNullOrEmpty(tile.Crop))
+            return tile.Watered ? "Wet soil" : "Dry soil";
+        var name = FarmCatalog.Crop(tile.Crop)?.Name ?? tile.Crop;
+        if (tile.Ready) return $"{name} - ready to harvest!";
+        var step = $"{name} {tile.Stage + 1}/{tile.MaxStage + 1}";
+        if (tile.Wilted) return $"{step} - wilted, water it!";
+        if (tile.Thirsty) return $"{step} - needs water";
+        return $"{step} - growing {(int)Math.Round(tile.Growth * 100)}%";
+    }
+
+    /// <summary>Harvests a ready crop within reach, then holds the produce up like a caught fish.</summary>
+    private bool TryHarvestCrop(FarmCropState tile)
+    {
+        var local = FindLocalPlayer();
+        if (local == null || local.IsDead || local.InsideHouseId > 0) return false;
+        if (Vector2.Distance(local.Position, FarmCatalog.TileCenter(tile.Tx, tile.Ty)) > FarmCatalog.ActionRange)
+        {
+            _status = "Move closer to that crop.";
+            return true;
+        }
+
+        // One request per crop until the server answers. The reveal waits for the house update that
+        // shows the crop gone (OnHouseUpdated), so a refused or repeated click shows nothing.
+        var now = Environment.TickCount64 / 1000.0;
+        if (_harvestPendingTile == (tile.Tx, tile.Ty) && now < _harvestPendingUntil) return true;
+        _harvestPendingTile = (tile.Tx, tile.Ty);
+        _harvestPendingUntil = now + HarvestPendingSeconds;
+        SendFarmAction("harvest", tile.Tx, tile.Ty);
+        return true;
+    }
+
+    private (int Tx, int Ty) _harvestPendingTile;
+    private double _harvestPendingUntil;
+    private const double HarvestPendingSeconds = 1.0;
+
+    /// <summary>Holds the harvested produce up above the player, like a caught fish but without the flight.</summary>
+    private void StartHarvestReveal(FarmCropState tile)
+    {
+        var local = FindLocalPlayer();
+        if (local == null) return;
+        var crop = FarmCatalog.Crop(tile.Crop);
+        var name = crop?.Name ?? tile.Crop;
+        FarmIconAtlas.TryGet(tile.Crop, out var icon);
+        _catchShow = new CatchShow
+        {
+            Title = "Harvested!",
+            Name = name,
+            Icon = icon,
+            Landed = true,
+            Harvest = true,
+            HoldSeconds = HarvestHoldSeconds,
+        };
+        local.StartHoldUp(HarvestHoldSeconds);
+        SfxPlayer.PlayFarmHarvest();
+        SfxPlayer.PlayFishingCatch();
+        _notifications.Push("Harvested!", name, NotificationKind.Success);
+        _status = $"You harvest the {name.ToLowerInvariant()}.";
+    }
+
+    /// <summary>A crop that was ready and no longer is has been harvested (crops only leave the ready state that way).</summary>
+    private void RevealHarvests(HouseState previous, HouseState updated)
+    {
+        _harvestPendingUntil = 0;
+        if (updated.OwnerId != _screens.Net.LocalCharacterId) return;
+        foreach (var before in previous.Crops)
+        {
+            if (!before.Ready) continue;
+            var after = updated.Crops.FirstOrDefault(c => c.Tx == before.Tx && c.Ty == before.Ty);
+            if (after is { Ready: true }) continue;
+            StartHarvestReveal(before);
+            return;
+        }
+    }
+
+    /// <summary>E harvests the nearest ready crop in reach before other interactables.</summary>
+    private bool TryHarvestNearbyCrop()
+    {
+        var local = FindLocalPlayer();
+        if (local == null || local.InsideHouseId > 0) return false;
+        var ready = NearestReadyCrop(local.Position);
+        return ready != null && TryHarvestCrop(ready);
+    }
+
+    /// <summary>
+    /// The ready crop under the cursor. Crops are drawn growing up from their tile, so the tile below
+    /// the cursor counts too: otherwise clicking the top of a crop waters the empty soil above it.
+    /// </summary>
+    private FarmCropState? ReadyCropUnder(Vector2 world)
+    {
+        var tx = FarmCatalog.WorldTileX(world.X);
+        var ty = FarmCatalog.WorldTileY(world.Y);
+        var here = FindFarmTile(tx, ty);
+        if (here is { Ready: true }) return here;
+        var below = FindFarmTile(tx, ty + 1);
+        return below is { Ready: true } ? below : null;
+    }
+
+    private FarmCropState? NearestReadyCrop(Vector2 from)
+    {
+        var house = LocalHomestead();
+        if (house == null) return null;
+        FarmCropState? best = null;
+        var bestDist = FarmCatalog.ActionRange;
+        foreach (var tile in house.Crops)
+        {
+            if (!tile.Ready) continue;
+            var d = Vector2.Distance(from, FarmCatalog.TileCenter(tile.Tx, tile.Ty));
+            if (d > bestDist) continue;
+            bestDist = d;
+            best = tile;
+        }
+        return best;
     }
 
     private FarmCropState? FindFarmTile(int tx, int ty)
@@ -4451,9 +4674,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void DrawFarmTileHover(SpriteBatch sb, float zoom)
     {
         if (!_farmHoverOk) return;
+        // Faded when out of reach: the action would say "Move closer", so the hover looks unavailable.
+        var reach = _farmHoverInRange ? 1f : 0.35f;
         FarmRenderer.DrawTileHighlight(
             sb, _farmHoverTx, _farmHoverTy, _camera, ScreenCenter, zoom,
-            new Color(1f, 0.95f, 0.4f, 0.18f), new Color(1f, 0.92f, 0.4f, 0.9f));
+            new Color(1f, 0.95f, 0.4f, 0.07f) * reach, new Color(1f, 0.92f, 0.4f, 0.45f) * reach);
     }
 
     private bool TryFarmSelectedTool()
@@ -4469,17 +4694,8 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     {
         var itemId = SelectedHotbarItemId();
         var farmItem = FarmCatalog.IsFarmHotbarItem(itemId);
-        if (!farmItem && fromClick)
-        {
-            var tile = FindFarmTile(FarmCatalog.WorldTileX(world.X), FarmCatalog.WorldTileY(world.Y));
-            if (tile is { Ready: true })
-            {
-                SendFarmAction("harvest", FarmCatalog.WorldTileX(world.X), FarmCatalog.WorldTileY(world.Y));
-                _status = "You harvest the crop.";
-                return true;
-            }
-            return false;
-        }
+        // A ready crop is harvested by a click with any item in hand (the bucket, a sword, nothing).
+        if (ReadyCropUnder(world) is { } ready) return TryHarvestCrop(ready);
         if (!farmItem) return false;
 
         var local = FindLocalPlayer();
@@ -4522,19 +4738,11 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             return true;
         }
 
-        var existing = FindFarmTile(tx, ty);
         if (itemId == "hoe")
         {
-            if (existing is { Ready: true })
-            {
-                SendFarmAction("harvest", tx, ty);
-                _status = "You harvest the crop.";
-            }
-            else
-            {
-                SendFarmAction("till", tx, ty);
-                _status = "You till the soil.";
-            }
+            SendFarmAction("till", tx, ty);
+            _status = "You till the soil.";
+            SfxPlayer.PlayFarmTill();
             PlayLocalFarmSwing();
             return true;
         }
@@ -4543,12 +4751,14 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
             SendFarmAction("water", tx, ty);
             _status = "You water the soil.";
             PlayLocalFarmSwing();
+            PlayWateringFeedback(tx, ty);
             return true;
         }
         if (FarmCatalog.IsSeed(itemId))
         {
             SendFarmAction("plant", tx, ty, itemId, slot);
             _status = $"You plant {ItemCatalog.Get(itemId ?? "")?.Name ?? "seeds"}.";
+            SfxPlayer.PlayFarmSeedPlant();
             PlayLocalFarmSwing();
             return true;
         }
@@ -4583,29 +4793,33 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
 
         if (!FarmCatalog.TryParseCropInteract(target.Id, out _, out var tx, out var ty))
             return;
+        var tile = FindFarmTile(tx, ty);
+        if (tile is { Ready: true })
+        {
+            TryHarvestCrop(tile);
+            return;
+        }
         if (itemId == "watering_can")
         {
             SendFarmAction("water", tx, ty);
             _status = "You water the soil.";
+            PlayWateringFeedback(tx, ty);
         }
         else if (FarmCatalog.IsSeed(itemId))
         {
             SendFarmAction("plant", tx, ty, itemId, SelectedHotbarInventorySlot());
             _status = $"You plant {ItemCatalog.Get(itemId ?? "")?.Name ?? "seeds"}.";
+            SfxPlayer.PlayFarmSeedPlant();
+        }
+        else if (itemId == "hoe")
+        {
+            SendFarmAction("till", tx, ty);
+            _status = "You till the soil.";
+            SfxPlayer.PlayFarmTill();
         }
         else
         {
-            var tile = FindFarmTile(tx, ty);
-            if (tile is { Ready: true } || itemId == "hoe")
-            {
-                SendFarmAction(tile is { Ready: true } ? "harvest" : "till", tx, ty);
-                _status = tile is { Ready: true } ? "You harvest the crop." : "You till the soil.";
-            }
-            else
-            {
-                SendFarmAction("harvest", tx, ty);
-                _status = target.InteractMessage();
-            }
+            _status = target.InteractMessage();
         }
         PlayLocalFarmSwing();
     }
@@ -4613,6 +4827,13 @@ public sealed class WorldScreen : IScreen, IDebugInfoScreen
     private void SendFarmAction(string action, int tileX = 0, int tileY = 0, string? itemId = null, int slot = -1, long animalId = 0)
     {
         _screens.Net.SendFarmAction(action, tileX, tileY, itemId, slot, animalId);
+    }
+
+    /// <summary>Droplets on the tile and a soft splash while the server confirms the watering.</summary>
+    private static void PlayWateringFeedback(int tx, int ty)
+    {
+        FarmRenderer.AddWaterSplash(FarmCatalog.TileCenter(tx, ty));
+        SfxPlayer.PlayWatering();
     }
 
     private void PlayLocalFarmSwing()

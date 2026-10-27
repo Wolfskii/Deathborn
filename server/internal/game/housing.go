@@ -488,18 +488,17 @@ func playerCollisionY(feetY, ry float64) float64 {
 	return feetY - 7*1.5*1.35/2 - ry + 1
 }
 
+// overlapsHouseBody is the cottage wall as a solid. The door is part of the wall: the player
+// stops in front of it and enters with E or a click on the door, never by walking through.
 func overlapsHouseBody(x, y, centerX, centerY float64) bool {
-	return overlapsHouseBodyEx(x, y, 6, 8, centerX, centerY, true)
+	return overlapsHouseBodyEx(x, y, 6, 8, centerX, centerY)
 }
 
 func overlapsHouseBodyForBuild(x, y, rx, ry, centerX, centerY float64) bool {
-	return overlapsHouseBodyEx(x, y, rx, ry, centerX, centerY, false)
+	return overlapsHouseBodyEx(x, y, rx, ry, centerX, centerY)
 }
 
-func overlapsHouseBodyEx(x, y, rx, ry, centerX, centerY float64, allowDoorApproach bool) bool {
-	if allowDoorApproach && inDoorApproach(x, y, centerX, centerY) {
-		return false
-	}
+func overlapsHouseBodyEx(x, y, rx, ry, centerX, centerY float64) bool {
 	left := centerX - houseBodyHalfW
 	right := centerX + houseBodyHalfW
 	wallTop := centerY + houseRoofEave
@@ -598,9 +597,25 @@ func ellipseOverlapsHouseRect(ex, ey, rx, ry, left, right, top, bottom float64) 
 	return nx*nx+ny*ny <= 1
 }
 
+// houseWallFootRx and houseWallFootRy size the collider the wall blocks: a small ellipse at the
+// feet (client HousingCollision.OverlapsHouseWall), so the player walks right up to the door.
+const (
+	houseWallFootRx = 6.0
+	houseWallFootRy = 3.0
+)
+
+// overlapsHouseWall reports whether feet at (x, y) hit the cottage wall.
+func overlapsHouseWall(x, y, centerX, centerY float64) bool {
+	left := centerX - houseBodyHalfW
+	right := centerX + houseBodyHalfW
+	wallTop := centerY + houseRoofEave
+	bottom := centerY + houseBodyBottom
+	return ellipseOverlapsHouseRect(x, y-houseWallFootRy, houseWallFootRx, houseWallFootRy, left, right, wallTop, bottom)
+}
+
 func (h *HousingIndex) blocksFeet(x, y float64) bool {
 	for _, p := range h.byID {
-		if overlapsHouseBody(x, y, p.centerX, p.centerY) {
+		if overlapsHouseWall(x, y, p.centerX, p.centerY) {
 			return true
 		}
 		if overlapsHomesteadFence(x, y, p.centerX, p.centerY) {

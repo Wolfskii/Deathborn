@@ -13,6 +13,9 @@ const (
 	FarmWaterDuration  = 90.0
 	FarmProductReadyIn = 75.0
 	FarmFeedDuration   = 180.0
+	// FarmWiltAfter is how long a planted crop can stand in dry soil before it wilts. Wilted
+	// crops do not die; they look droopy and keep waiting for water.
+	FarmWiltAfter = 240.0
 )
 
 // FarmCropState is the wire view of one tilled homestead tile.
@@ -24,6 +27,12 @@ type FarmCropState struct {
 	Watered  bool   `json:"watered"`
 	Ready    bool   `json:"ready,omitempty"`
 	MaxStage int    `json:"maxStage,omitempty"`
+	// Thirsty: planted, still growing, and the soil is dry, so it will not grow until watered.
+	Thirsty bool `json:"thirsty,omitempty"`
+	// Wilted: thirsty for longer than FarmWiltAfter.
+	Wilted bool `json:"wilted,omitempty"`
+	// Growth is progress through the current stage, 0..1.
+	Growth float64 `json:"growth,omitempty"`
 }
 
 // FarmAnimalState is the wire view of a homestead animal.
@@ -42,6 +51,8 @@ type farmTile struct {
 	stage        int
 	growAccum    float64
 	wateredUntil float64
+	// dryFor counts seconds a planted, growing crop has stood in dry soil.
+	dryFor float64
 }
 
 type farmAnimal struct {
@@ -143,14 +154,29 @@ func (t farmTile) ready() bool {
 	return t.stage >= d.stages-1
 }
 
+// thirsty reports a planted, still-growing crop in dry soil.
+func (t farmTile) thirsty(now float64) bool {
+	return t.crop != "" && !t.ready() && !t.wateredAt(now)
+}
+
+func (t farmTile) wilted(now float64) bool {
+	return t.thirsty(now) && t.dryFor >= FarmWiltAfter
+}
+
 func (t farmTile) wire(now float64) FarmCropState {
 	max := 0
+	growth := 0.0
 	if d, ok := cropDefs[t.crop]; ok {
 		max = d.stages - 1
+		if d.stageSec > 0 && !t.ready() {
+			growth = math.Min(1, t.growAccum/d.stageSec)
+		}
 	}
 	return FarmCropState{
 		Tx: t.tx, Ty: t.ty, Crop: t.crop, Stage: t.stage,
 		Watered: t.wateredAt(now), Ready: t.ready(), MaxStage: max,
+		Thirsty: t.thirsty(now), Wilted: t.wilted(now),
+		Growth: math.Round(growth*100) / 100,
 	}
 }
 
@@ -215,25 +241,25 @@ func (p *housePlot) tileFarmable(tx, ty int) bool {
 	if !p.tileInsideFence(tx, ty) {
 		return false
 	}
-	// Keep the cottage footprint and door approach clear.
-	if overlapsHouseBody(cx, cy, p.centerX, p.centerY) {
-		return false
-	}
-	if inDoorApproach(cx, cy, p.centerX, p.centerY) {
+	// Keep the cottage footprint clear. The soil in front of the door is farmable.
+	if overlapsHouseWall(cx, cy, p.centerX, p.centerY) {
 		return false
 	}
 	return true
 }
 
+// tickFarm grows crops. A watering carries a crop through exactly one growth stage: when the
+// stage completes the soil dries out and the crop waits (thirsty) for the next watering.
+// Crops left dry too long wilt but never die.
 func (p *housePlot) tickFarm(dt, now float64) bool {
 	changed := false
 	for i := range p.crops {
 		t := &p.crops[i]
-		wasWet := t.wateredAt(now - dt)
+		wet := t.wateredAt(now)
+		if t.wateredAt(now-dt) && !wet {
+			changed = true
+		}
 		if t.crop == "" {
-			if wasWet && !t.wateredAt(now) {
-				changed = true
-			}
 			continue
 		}
 		d, ok := cropDefs[t.crop]
@@ -241,21 +267,23 @@ func (p *housePlot) tickFarm(dt, now float64) bool {
 			continue
 		}
 		if t.stage >= d.stages-1 {
-			if wasWet && !t.wateredAt(now) {
+			t.dryFor = 0
+			continue
+		}
+		if !wet {
+			wasWilted := t.dryFor >= FarmWiltAfter
+			t.dryFor += dt
+			if !wasWilted && t.dryFor >= FarmWiltAfter {
 				changed = true
 			}
 			continue
 		}
-		if !t.wateredAt(now) {
-			if wasWet {
-				changed = true
-			}
-			continue
-		}
+		t.dryFor = 0
 		t.growAccum += dt
-		for t.stage < d.stages-1 && t.growAccum >= d.stageSec {
-			t.growAccum -= d.stageSec
+		if t.growAccum >= d.stageSec {
+			t.growAccum = 0
 			t.stage++
+			t.wateredUntil = now
 			changed = true
 		}
 	}
@@ -313,6 +341,7 @@ type farmTilePersist struct {
 	Stage        int     `json:"stage,omitempty"`
 	GrowAccum    float64 `json:"growAccum,omitempty"`
 	WateredUntil float64 `json:"wateredUntil,omitempty"`
+	DryFor       float64 `json:"dryFor,omitempty"`
 }
 
 type farmAnimalPersist struct {
@@ -330,7 +359,7 @@ func (p *housePlot) farmPersist() FarmPersist {
 	for i, t := range p.crops {
 		crops[i] = farmTilePersist{
 			Tx: t.tx, Ty: t.ty, Crop: t.crop, Stage: t.stage,
-			GrowAccum: t.growAccum, WateredUntil: t.wateredUntil,
+			GrowAccum: t.growAccum, WateredUntil: t.wateredUntil, DryFor: t.dryFor,
 		}
 	}
 	animals := make([]farmAnimalPersist, len(p.animals))
@@ -352,7 +381,7 @@ func (p *housePlot) loadFarm(data FarmPersist) {
 		}
 		p.crops = append(p.crops, farmTile{
 			tx: t.Tx, ty: t.Ty, crop: t.Crop, stage: t.Stage,
-			growAccum: t.GrowAccum, wateredUntil: t.WateredUntil,
+			growAccum: t.GrowAccum, wateredUntil: t.WateredUntil, dryFor: t.DryFor,
 		})
 	}
 	p.animals = p.animals[:0]

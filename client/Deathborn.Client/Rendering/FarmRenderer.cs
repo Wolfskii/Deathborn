@@ -112,8 +112,18 @@ public static class FarmRenderer
 
     private static readonly Color DrySoil = new(193, 111, 72);
     private static readonly Color DrySoilEdge = new(118, 60, 40);
-    private static readonly Color WetSoil = new(120, 127, 222);
-    private static readonly Color WetSoilEdge = new(48, 48, 108);
+    private static readonly Color WetSoil = new(122, 70, 46);
+    private static readonly Color WetSoilEdge = new(70, 34, 36);
+
+    /// <summary>Last seen stage per tile and when it changed, for the little "grew" pop.</summary>
+    private static readonly Dictionary<(int, int), (int Stage, double ChangedAt)> SeenStages = [];
+    private const double GrowPopSeconds = 0.35;
+
+    private static readonly Color WiltTint = new(196, 164, 112);
+    private static readonly Color DropFill = new(92, 170, 236);
+    private static readonly Color DropLight = new(200, 236, 255);
+    private static readonly Color DropEdge = new(32, 66, 110);
+    private static readonly Color Sparkle = new(255, 238, 140);
 
     public static void DrawCrops(
         SpriteBatch sb,
@@ -122,10 +132,108 @@ public static class FarmRenderer
         Vector2 screenCenter,
         float zoom)
     {
+        var now = Environment.TickCount64 / 1000.0;
         foreach (var tile in house.Crops)
         {
-            if (string.IsNullOrEmpty(tile.Crop)) continue;
-            DrawCrop(sb, tile, camera, screenCenter, zoom, Color.White);
+            if (string.IsNullOrEmpty(tile.Crop))
+            {
+                SeenStages.Remove((tile.Tx, tile.Ty));
+                continue;
+            }
+
+            // Pop when the server reports a new stage (not on the first sighting after load).
+            var key = (tile.Tx, tile.Ty);
+            if (!SeenStages.TryGetValue(key, out var seen))
+                SeenStages[key] = seen = (tile.Stage, double.NegativeInfinity);
+            else if (seen.Stage != tile.Stage)
+                SeenStages[key] = seen = (tile.Stage, now);
+            var popT = (now - seen.ChangedAt) / GrowPopSeconds;
+            var pop = popT is >= 0 and < 1 ? 1f + 0.28f * MathF.Sin((float)popT * MathF.PI) : 1f;
+
+            // Wilted plants droop (squashed) and turn straw-coloured.
+            var scale = new Vector2(pop, tile.Wilted ? pop * 0.82f : pop);
+            DrawCrop(sb, tile, camera, screenCenter, zoom, tile.Wilted ? WiltTint : Color.White, scale);
+
+            var top = CropTopScreen(tile, camera, screenCenter, zoom);
+            if (tile.Thirsty)
+                DrawThirstyDrop(sb, top, zoom, (float)now + tile.Tx * 0.37f, tile.Wilted);
+            else if (tile.Ready)
+                DrawReadySparkle(sb, top, zoom, (float)now + tile.Ty * 0.53f);
+        }
+    }
+
+    /// <summary>Screen point just above the crop sprite's top edge.</summary>
+    private static Vector2 CropTopScreen(FarmCropState tile, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var center = FarmCatalog.TileCenter(tile.Tx, tile.Ty);
+        var bottom = WorldToScreen(new Vector2(center.X, center.Y + FarmCatalog.TileSize * 0.5f), camera, screenCenter, zoom);
+        var sheet = FarmCropSprites.Get(tile.Crop);
+        var height = FarmCropSprites.VisibleHeight(tile.Crop, tile.Stage, sheet?.Height ?? 16);
+        // The visible top of this growth stage, so the marker sits above the leaves, not in them.
+        return bottom - new Vector2(0, (height + 1) * zoom);
+    }
+
+    /// <summary>Bobbing water drop over a crop that needs watering (red-rimmed when wilted).</summary>
+    private static void DrawThirstyDrop(SpriteBatch sb, Vector2 anchor, float zoom, float time, bool urgent)
+    {
+        // Floats above the plant's top leaves (anchor), small enough not to hide the crop.
+        var bob = MathF.Sin(time * 3.2f) * 0.8f * zoom;
+        var c = anchor + new Vector2(0, -7f * zoom + bob);
+        var r = 1.8f * zoom;
+        var edge = urgent ? new Color(170, 52, 40) : DropEdge;
+        DrawPrimitives.FillCircle(sb, c, r + MathF.Max(1f, zoom * 0.5f), edge, 12);
+        DrawPrimitives.FillTriangle(sb,
+            c + new Vector2(-r - zoom * 0.5f, -r * 0.2f), c + new Vector2(r + zoom * 0.5f, -r * 0.2f),
+            c + new Vector2(0, -r * 2.6f), edge);
+        DrawPrimitives.FillCircle(sb, c, r, DropFill, 12);
+        DrawPrimitives.FillTriangle(sb,
+            c + new Vector2(-r, -r * 0.2f), c + new Vector2(r, -r * 0.2f), c + new Vector2(0, -r * 2.3f), DropFill);
+        DrawPrimitives.FillCircle(sb, c + new Vector2(-r * 0.35f, -r * 0.3f), MathF.Max(1f, r * 0.3f), DropLight, 8);
+    }
+
+    /// <summary>Twinkling star over a crop that is ready to harvest.</summary>
+    private static void DrawReadySparkle(SpriteBatch sb, Vector2 anchor, float zoom, float time)
+    {
+        var twinkle = 0.5f + 0.5f * MathF.Sin(time * 4f);
+        if (twinkle < 0.15f) return;
+        var c = anchor + new Vector2(3f * zoom, -3f * zoom);
+        var arm = (1.6f + 1.4f * twinkle) * zoom;
+        var thick = MathF.Max(1f, zoom * 0.7f);
+        var color = Sparkle * (0.5f + 0.5f * twinkle);
+        DrawPrimitives.DrawLine(sb, c - new Vector2(arm, 0), c + new Vector2(arm, 0), color, thick);
+        DrawPrimitives.DrawLine(sb, c - new Vector2(0, arm), c + new Vector2(0, arm), color, thick);
+    }
+
+    // ---- Watering splash (local feedback while the server confirms).
+
+    private static readonly List<(Vector2 World, double StartedAt)> Splashes = [];
+    private const double SplashSeconds = 0.5;
+
+    public static void AddWaterSplash(Vector2 worldCenter) =>
+        Splashes.Add((worldCenter, Environment.TickCount64 / 1000.0));
+
+    /// <summary>Droplets falling onto the tile from the watering can.</summary>
+    public static void DrawWaterSplashes(SpriteBatch sb, Vector2 camera, Vector2 screenCenter, float zoom)
+    {
+        var now = Environment.TickCount64 / 1000.0;
+        Splashes.RemoveAll(s => now - s.StartedAt > SplashSeconds);
+        foreach (var (world, started) in Splashes)
+        {
+            var t = (float)((now - started) / SplashSeconds);
+            var center = WorldToScreen(world, camera, screenCenter, zoom);
+            for (var i = 0; i < 7; i++)
+            {
+                var x = ((i * 0.618f) % 1f - 0.5f) * 11f * zoom;
+                var startY = -14f * zoom - (i % 3) * 2f * zoom;
+                var y = startY + t * 16f * zoom;
+                var a = 1f - t;
+                DrawPrimitives.FillRect(sb,
+                    new Rectangle((int)(center.X + x), (int)(center.Y + y), Math.Max(1, (int)zoom), Math.Max(2, (int)(2.5f * zoom))),
+                    DropLight * a);
+            }
+            var ring = (2f + t * 6f) * zoom;
+            DrawPrimitives.DrawEllipseOutline(sb, center + new Vector2(0, 2f * zoom), ring, ring * 0.45f, DropLight * (1f - t), 16,
+                MathF.Max(1f, zoom * 0.5f));
         }
     }
 
@@ -135,7 +243,18 @@ public static class FarmRenderer
         Vector2 camera,
         Vector2 screenCenter,
         float zoom,
-        Color tint)
+        Color tint) =>
+        DrawCrop(sb, tile, camera, screenCenter, zoom, tint, Vector2.One);
+
+    /// <summary>Crop sprite on its tile; <paramref name="scale"/> stretches it around the base (pop / droop).</summary>
+    public static void DrawCrop(
+        SpriteBatch sb,
+        FarmCropState tile,
+        Vector2 camera,
+        Vector2 screenCenter,
+        float zoom,
+        Color tint,
+        Vector2 scale)
     {
         var center = FarmCatalog.TileCenter(tile.Tx, tile.Ty);
         var screen = WorldToScreen(new Vector2(center.X, center.Y + FarmCatalog.TileSize * 0.5f), camera, screenCenter, zoom);
@@ -152,7 +271,7 @@ public static class FarmRenderer
         var stage = Math.Clamp(tile.Stage, 0, stages - 1);
         var src = new Rectangle(stage * 16, 0, 16, sheet.Height);
         var origin = new Vector2(8f, sheet.Height);
-        sb.Draw(sheet, screen, src, tint, 0f, origin, zoom, SpriteEffects.None, 0f);
+        sb.Draw(sheet, screen, src, tint, 0f, origin, scale * zoom, SpriteEffects.None, 0f);
     }
 
     public static void DrawTileHighlight(

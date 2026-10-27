@@ -141,6 +141,18 @@ public static class HousingConstants
         return Vector2.Distance(world, door) <= 26f * Hs;
     }
 
+    /// <summary>Door plate under a world point (mouse). Unlike <see cref="FindDoorAt"/> it ignores the approach zone,
+    /// so clicking the soil in front of a door farms it instead of entering.</summary>
+    public static HousePlotZone? FindDoorPlateAt(IEnumerable<HousePlotZone> houses, Vector2 world)
+    {
+        foreach (var house in houses)
+        {
+            if (InDoorHit(world, house.Center))
+                return house;
+        }
+        return null;
+    }
+
     public static HousePlotZone? FindDoorAt(IEnumerable<HousePlotZone> houses, Vector2 world)
     {
         HousePlotZone? best = null;

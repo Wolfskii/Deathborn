@@ -2,26 +2,6 @@ package game
 
 import "testing"
 
-// Walking north into the cottage must reach the door zone before the house body stops
-// the player, otherwise the player bumps the wall and never goes in.
-func TestWalkingNorthIntoDoorEntersHouse(t *testing.T) {
-	const cx, cy = 500.0, 300.0
-	h := NewHousingIndex()
-	h.byID[7] = &housePlot{id: 7, characterID: 1, centerX: cx, centerY: cy}
-	dx, dy := HouseDoorPosition(cx, cy)
-
-	for _, offsetX := range []float64{-1, 0, 4, 8} {
-		p := &player{x: dx + offsetX, y: dy + 50, dirY: -1}
-		for i := 0; i < 120 && p.insideHouseID == 0; i++ {
-			p.x, p.y = h.ResolveAgainstHouses(p.x, p.y, p.x, p.y-1.5)
-			tryAutoEnterHouse(p, h)
-		}
-		if p.insideHouseID != 7 {
-			t.Fatalf("walking north at door x%+v stopped at (%.1f,%.1f) without entering", offsetX, p.x-cx, p.y-cy)
-		}
-	}
-}
-
 // After entering, the player must be able to walk around the room and back out.
 func TestInteriorSpawnCanMoveAndExit(t *testing.T) {
 	const cx, cy = 500.0, 300.0

@@ -10,12 +10,17 @@ namespace Deathborn.Client.Ui;
 public sealed class InventoryWindow : UiWindow
 {
     private const int GridPad = 10;
+    private const int RowStep = PlayerInventory.CellSize + PlayerInventory.CellGap;
     private const int GridWidth = PlayerInventory.Columns * PlayerInventory.CellSize
         + (PlayerInventory.Columns - 1) * PlayerInventory.CellGap;
-    private const int GridRows = PlayerInventory.SlotCount / PlayerInventory.Columns;
-    private const int GridHeight = GridRows * PlayerInventory.CellSize + (GridRows - 1) * PlayerInventory.CellGap;
+    private const int GridTotalHeight = PlayerInventory.SlotCount / PlayerInventory.Columns * RowStep
+        - PlayerInventory.CellGap;
+    private const int VisibleRows = 5;
+    private const int ViewHeight = VisibleRows * RowStep - PlayerInventory.CellGap;
+    private const int MaxScroll = GridTotalHeight - ViewHeight;
     private const int Width = GridWidth + GridPad * 2 + 40;
-    private const int Height = 360;
+    // Title bar, hint and padding around the visible rows.
+    private const int Height = 166 + ViewHeight;
     private const string Hint = "Drag items to the hotbar, or out of the window to drop them.";
 
     private DragDropManager? _dragDrop;
@@ -23,6 +28,8 @@ public sealed class InventoryWindow : UiWindow
     private int? _hoverSlot;
     private int? _pendingDragSlot;
     private Point _dragStartMouse;
+    private int _scrollY;
+    private Rectangle _view;
     private readonly List<Rectangle> _cellRects = new(PlayerInventory.SlotCount);
 
     public event Action<int>? SlotClicked;
@@ -42,10 +49,17 @@ public sealed class InventoryWindow : UiWindow
         LayoutCells();
         if (_dragDrop.IsDragging) return;
 
+        var wheel = mouse.ScrollWheelValue - prevMouse.ScrollWheelValue;
+        if (wheel != 0 && _view.Contains(mouse.Position))
+        {
+            _scrollY = Math.Clamp(_scrollY - wheel / 120 * RowStep, 0, MaxScroll);
+            LayoutCells();
+        }
+
         _hoverSlot = null;
         for (var i = 0; i < _cellRects.Count; i++)
         {
-            if (!_cellRects[i].Contains(mouse.Position)) continue;
+            if (!IsVisible(_cellRects[i]) || !_cellRects[i].Contains(mouse.Position)) continue;
             _hoverSlot = i;
             break;
         }
@@ -102,6 +116,8 @@ public sealed class InventoryWindow : UiWindow
         for (var i = 0; i < _cellRects.Count; i++)
         {
             var rect = _cellRects[i];
+            if (!IsVisible(rect)) continue;
+
             var slot = _inventory.Slots[i];
             var hover = _hoverSlot == i;
             DrawCell(sb, rect, hover);
@@ -129,6 +145,8 @@ public sealed class InventoryWindow : UiWindow
             }
         }
 
+        DrawScrollbar(sb);
+
         if (_dragDrop?.IsDragging != true
             && _hoverSlot is int hs && !_inventory.Slots[hs].IsEmpty)
         {
@@ -140,14 +158,14 @@ public sealed class InventoryWindow : UiWindow
     }
 
     protected override int? MeasureContentHeight(SpriteFont font) =>
-        GridHeight + GridPad * 2 + 12 + UiText.Wrap(font, Hint, Width - 40).Count * font.LineSpacing;
+        ViewHeight + GridPad * 2 + 12 + UiText.Wrap(font, Hint, Width - 40).Count * font.LineSpacing;
 
     public bool TryGetSlotAt(Point p, out int index)
     {
         LayoutCells();
         for (var i = 0; i < _cellRects.Count; i++)
         {
-            if (!_cellRects[i].Contains(p)) continue;
+            if (!IsVisible(_cellRects[i]) || !_cellRects[i].Contains(p)) continue;
             index = i;
             return true;
         }
@@ -160,7 +178,7 @@ public sealed class InventoryWindow : UiWindow
         LayoutCells();
         for (var i = 0; i < _cellRects.Count; i++)
         {
-            if (!_cellRects[i].Contains(p)) continue;
+            if (!IsVisible(_cellRects[i]) || !_cellRects[i].Contains(p)) continue;
             index = i;
             rect = _cellRects[i];
             return true;
@@ -170,31 +188,39 @@ public sealed class InventoryWindow : UiWindow
         return false;
     }
 
-    private Rectangle GridBounds()
-    {
-        if (_cellRects.Count == 0) return Rectangle.Empty;
-        var bounds = _cellRects[0];
-        for (var i = 1; i < _cellRects.Count; i++)
-            bounds = Rectangle.Union(bounds, _cellRects[i]);
-        return new Rectangle(bounds.X - GridPad, bounds.Y - GridPad, bounds.Width + GridPad * 2, bounds.Height + GridPad * 2);
-    }
+    /// <summary>A cell counts only when it lies fully inside the scrolled view, so partly hidden rows are neither drawn nor clickable.</summary>
+    private bool IsVisible(Rectangle cell) => _view.Contains(cell);
+
+    private Rectangle GridBounds() =>
+        new(_view.X - GridPad, _view.Y - GridPad, _view.Width + GridPad * 2, _view.Height + GridPad * 2);
 
     private void LayoutCells()
     {
         _cellRects.Clear();
         var cols = PlayerInventory.Columns;
-        var rows = PlayerInventory.SlotCount / cols;
         var content = ContentBounds;
         var x0 = content.X + (content.Width - GridWidth) / 2;
         var y0 = content.Y + GridPad;
+        _view = new Rectangle(x0, y0, GridWidth, ViewHeight);
+        _scrollY = Math.Clamp(_scrollY, 0, MaxScroll);
 
-        for (var row = 0; row < rows; row++)
-        for (var col = 0; col < cols; col++)
+        for (var i = 0; i < PlayerInventory.SlotCount; i++)
         {
-            var x = x0 + col * (PlayerInventory.CellSize + PlayerInventory.CellGap);
-            var y = y0 + row * (PlayerInventory.CellSize + PlayerInventory.CellGap);
+            var row = i / cols;
+            var col = i % cols;
+            var x = x0 + col * RowStep;
+            var y = y0 + row * RowStep - _scrollY;
             _cellRects.Add(new Rectangle(x, y, PlayerInventory.CellSize, PlayerInventory.CellSize));
         }
+    }
+
+    private void DrawScrollbar(SpriteBatch sb)
+    {
+        if (MaxScroll <= 0) return;
+        var track = new Rectangle(_view.Right + 6, _view.Y, 8, _view.Height);
+        var thumbH = Math.Max(20, track.Height * ViewHeight / GridTotalHeight);
+        var thumbY = track.Y + (int)((track.Height - thumbH) * (_scrollY / (float)MaxScroll));
+        FarmRpgUi.DrawScrollbar(sb, track, new Rectangle(track.X, thumbY, track.Width, thumbH));
     }
 
     private static void DrawCell(SpriteBatch sb, Rectangle rect, bool hover)

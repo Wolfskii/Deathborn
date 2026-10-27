@@ -60,16 +60,26 @@ public static class HousingCollision
             && world.Y <= bodyBottom + DoorApproachSouth;
     }
 
-    public static bool OverlapsHouseBody(Vector2 feet, float radius, Vector2 center) =>
-        OverlapsHouseBody(feet, center, PlayerEntity.CollisionRadiusX, PlayerEntity.CollisionRadiusY, allowDoorApproach: true);
+    /// <summary>Half-size of the feet collider the wall blocks (server houseWallFootRx / houseWallFootRy).</summary>
+    private const float WallFootRx = 6f;
+    private const float WallFootRy = 3f;
 
-    /// <param name="allowDoorApproach">When false (homestead placement), the door pad counts as solid.</param>
-    public static bool OverlapsHouseBody(
-        Vector2 feet, Vector2 center, float rx, float ry, bool allowDoorApproach = true)
+    /// <summary>
+    /// The wall blocks the player's feet, not the whole body: a small ellipse sits at the feet, so the
+    /// player walks right up to the door instead of stopping with the head against it.
+    /// </summary>
+    public static bool OverlapsHouseWall(Vector2 feet, Vector2 center)
     {
-        if (allowDoorApproach && InDoorApproach(feet, center))
-            return false;
+        WallBounds(center, out var left, out var right, out var wallTop, out var bottom);
+        var c = new Vector2(feet.X, feet.Y - WallFootRy);
+        return PlayerEntity.EllipseOverlapsRect(c, WallFootRx, WallFootRy, left, right, wallTop, bottom);
+    }
 
+    /// <summary>
+    /// The cottage wall is solid, door included: the player stops in front of it and enters with E or a click.
+    /// </summary>
+    public static bool OverlapsHouseBody(Vector2 feet, Vector2 center, float rx, float ry)
+    {
         var c = PlayerEntity.CollisionCenter(feet);
 
         WallBounds(center, out var left, out var right, out var wallTop, out var bottom);
@@ -144,7 +154,7 @@ public static class HousingCollision
     {
         foreach (var house in houses)
         {
-            if (OverlapsHouseBody(feet, radius, house.Center))
+            if (OverlapsHouseWall(feet, house.Center))
                 return true;
             if (HomesteadFence.Overlaps(feet, house.Center))
                 return true;

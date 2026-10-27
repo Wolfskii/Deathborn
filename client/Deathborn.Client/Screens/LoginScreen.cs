@@ -46,8 +46,8 @@ public sealed class LoginScreen : IScreen
     private Song? _theme;
     private Rectangle _panel;
     private Rectangle _logoBounds;
-    private readonly PixelBrazier _leftBrazier = new();
-    private readonly PixelBrazier _rightBrazier = new();
+    private readonly FarmRpgBrazier _leftBrazier = new();
+    private readonly FarmRpgBrazier _rightBrazier = new();
     private int _leftBrazierX;
     private int _rightBrazierX;
     private int _brazierBottomY;

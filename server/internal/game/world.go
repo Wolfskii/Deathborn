@@ -198,10 +198,6 @@ func (w *World) Step(dt float64) []HealEvent {
 			p.x += dx
 			p.y += dy
 		}
-		if p.insideHouseID <= 0 && w.housing != nil {
-			tryAutoEnterHouse(p, w.housing)
-		}
-
 		if p.insideHouseID > 0 && w.housing != nil {
 			if plot := w.housing.byID[p.insideHouseID]; plot != nil {
 				tryAutoExitHouse(p, plot)

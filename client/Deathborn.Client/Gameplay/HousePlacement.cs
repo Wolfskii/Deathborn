@@ -93,7 +93,7 @@ public static class HousePlacement
 
     private static bool EntityOverlapsPlot(Vector2 center, Vector2 feet, float rx, float ry)
     {
-        if (HousingCollision.OverlapsHouseBody(feet, center, rx, ry, allowDoorApproach: false))
+        if (HousingCollision.OverlapsHouseBody(feet, center, rx, ry))
             return true;
         return HomesteadFence.Overlaps(feet, center, rx, ry);
     }

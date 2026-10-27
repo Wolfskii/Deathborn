@@ -221,41 +221,6 @@ func (w *World) HousingBlocksMonsters(x, y float64) bool {
 	return w.housing != nil && w.housing.Contains(x, y)
 }
 
-func tryAutoEnterHouse(p *player, housing *HousingIndex) {
-	if p.insideHouseID > 0 || p.dead || !canAutoHouseTransition(p) {
-		return
-	}
-	// Approach the exterior door from the south (walk north into the doorway).
-	if p.dirY >= -0.08 {
-		return
-	}
-	if p.dirX*p.dirX+p.dirY*p.dirY < 0.01 {
-		return
-	}
-	var best *housePlot
-	bestDist := math.MaxFloat64
-	for _, plot := range housing.byID {
-		near := NearHouseDoor(p.x, p.y, plot.centerX, plot.centerY) ||
-			inDoorApproach(p.x, p.y, plot.centerX, plot.centerY)
-		if !near {
-			continue
-		}
-		dx, dy := HouseDoorPosition(plot.centerX, plot.centerY)
-		d := math.Hypot(p.x-dx, p.y-dy)
-		if d < bestDist {
-			bestDist = d
-			best = plot
-		}
-	}
-	if best == nil {
-		return
-	}
-	p.insideHouseID = best.id
-	p.x, p.y = HouseInteriorSpawn(best.centerX, best.centerY)
-	p.dirX, p.dirY = 0, -1 // face into the room (north / up)
-	p.lockHouseTransition()
-}
-
 func tryAutoExitHouse(p *player, plot *housePlot) {
 	if p.dead || !canAutoHouseTransition(p) || p.dirY < 0.12 {
 		return

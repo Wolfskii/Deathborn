@@ -84,7 +84,7 @@ Existing legacy paths that still contain `FarmRpg` / vendor folders are historic
 
 | Kind | Destination under `Content/` | Notes |
 |------|------------------------------|--------|
-| Sound effects | `Audio/Sfx/<Category>/` | Categories today: `Battle`, `Heal`, `World`. Add a new category folder only when none fit. Prefer `*-sfx.mp3` (or match neighbors). |
+| Sound effects | `Audio/Sfx/<Category>/` | Categories today: `Battle`, `Farming`, `Fishing`, `Heal`, `World`. Add a new category folder only when none fit. Prefer `*-sfx.mp3` (or match neighbors). |
 | Music | `Audio/Songs/` | Full tracks / loops. |
 | Fonts | `Fonts/` | `.ttf` / `.otf` + license file; SpriteFont defs as `.spritefont` when needed. |
 | Player / NPC / enemy sprites | `Characters/…` | By role: layers, enemies, buildings, npcs — **no pack name in path**. |
@@ -194,7 +194,7 @@ Homestead exterior uses the **2nd bottom** Tiny House example (orange cottage) p
 - **Furniture:** `python scripts/install_farm_rpg_furniture.py` crops beds, sofas, shelves, curtains etc. into `Content/Furniture/`. Placeable ids must match server `furnitureTypes` (`game/housing.go`) and `FurnitureSprites.PlaceableTypes`.
 - **Runtime:** `tiny_house_orange.png`, `fence_wood.png`, `tileset_house.png`
 - **Client:** `FarmRpgHouseSprites`, `FarmRpgFenceSprites`, `FarmRpgHouseInteriorTiles`, `HouseInteriorRenderer`, `FurnitureSprites`, `HousingCollision`
-- **Enter:** click door when in range, or walk north into the door
+- **Enter:** press E in the door approach, or click the door plate when in range. Walking into the door does not enter (it was too easy to trigger by accident)
 - **Interior layout:** 26 x 15 tiles, bedroom | hall | kitchen, defined twice and kept in sync: server `game/interior_layout.go` and client `Gameplay/HouseInteriorLayout.cs` (walls, doorways, exit gap)
 - **Decorate:** H inside your own house; Tab / wheel picks a piece, left click places (snapped to 8 px), right click removes (`remove_furniture`)
 - **Collision:** cottage body blocks movement except door approach; interior walls come from the layout above

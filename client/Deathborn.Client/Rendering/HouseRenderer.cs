@@ -29,10 +29,16 @@ public static class HouseRenderer
             FarmRenderer.DrawSoil(sb, house, camera, screenCenter, positionZoom);
             FarmRenderer.DrawCrops(sb, house, camera, screenCenter, positionZoom);
         }
+        FarmRenderer.DrawWaterSplashes(sb, camera, screenCenter, positionZoom);
     }
 
-    /// <summary>Depth-sort Y for the cottage: a little above its foot so a player at the door stays in front.</summary>
-    public static float CottageSortY(Vector2 center) => center.Y - 4f;
+    /// <summary>
+    /// Depth-sort Y for the cottage. A player's sort Y is about 14 units above their feet
+    /// (PlayerEntity.SortYFromFeet), and feet stop 8 units below the cottage base at the door, so
+    /// the base minus 12 keeps a player at the door in front (opaque) and only players north of the
+    /// house behind it (see-through).
+    /// </summary>
+    public static float CottageSortY(Vector2 center) => center.Y - 12f;
 
     /// <summary>Cottage sprite; <paramref name="alpha"/> below 1 fades it while the player is behind it.</summary>
     public static void DrawCottage(
@@ -64,39 +70,6 @@ public static class HouseRenderer
             var interior = new Rectangle((int)tl.X, (int)tl.Y, (int)(br.X - tl.X), (int)(br.Y - tl.Y));
             DrawPrimitives.FillRect(sb, interior, new Color(0.42f, 0.36f, 0.28f, 0.92f));
             DrawBorder(sb, interior, new Color(0.28f, 0.22f, 0.16f), Math.Max(1, (int)(2 * zoom)));
-        }
-    }
-
-    public static void DrawDoorHighlights(
-        SpriteBatch sb,
-        Vector2 camera,
-        Vector2 screenCenter,
-        float positionZoom,
-        float visualZoom,
-        IEnumerable<HousePlotZone> houses,
-        HousePlotZone? hovered)
-    {
-        foreach (var house in houses)
-        {
-            HousingConstants.DoorHitBounds(house.Center, out var left, out var right, out var top, out var bottom);
-            var highlight = hovered?.Id == house.Id;
-            var edge = highlight
-                ? new Color(1f, 0.92f, 0.45f) * 0.9f
-                : new Color(1f, 1f, 1f) * 0.22f;
-            var fill = highlight
-                ? new Color(1f, 0.92f, 0.45f) * 0.18f
-                : new Color(1f, 1f, 1f) * 0.05f;
-            DrawPrimitives.DrawWorldRectOutline(
-                sb, left, top, right, bottom, camera, screenCenter, positionZoom, edge,
-                highlight ? Math.Max(2f, 2.5f * visualZoom) : Math.Max(1.5f, 1.5f * visualZoom));
-            var tl = WorldToScreen(new Vector2(left, top), camera, screenCenter, positionZoom);
-            var br = WorldToScreen(new Vector2(right, bottom), camera, screenCenter, positionZoom);
-            var rect = new Rectangle(
-                (int)MathF.Floor(tl.X),
-                (int)MathF.Floor(tl.Y),
-                Math.Max(1, (int)MathF.Ceiling(br.X - tl.X)),
-                Math.Max(1, (int)MathF.Ceiling(br.Y - tl.Y)));
-            DrawPrimitives.FillRect(sb, rect, fill);
         }
     }
 

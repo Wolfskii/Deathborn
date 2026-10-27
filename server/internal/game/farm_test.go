@@ -1,6 +1,9 @@
 package game
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestHarvestReadyCrop(t *testing.T) {
 	plot := &housePlot{centerX: 100, centerY: 100, nextAnimalID: 1}
@@ -78,5 +81,28 @@ func TestSeedLookup(t *testing.T) {
 	}
 	if !IsFarmTool("hoe") || !IsFarmAnimalItem("chicken") {
 		t.Fatal("tool/animal item checks failed")
+	}
+}
+
+// Harvesting must not send a tool swing: the swing locks movement until it finishes.
+func TestHarvestSendsNoToolSwing(t *testing.T) {
+	const cx, cy = 500.0, 300.0
+	w := &World{players: make(map[int64]*player)}
+	w.housing = NewHousingIndex()
+	plot := &housePlot{id: 7, characterID: 1, centerX: cx, centerY: cy}
+	tx := int(math.Floor((cx + 40) / FarmTileSize))
+	ty := int(math.Floor((cy + 30) / FarmTileSize))
+	plot.crops = []farmTile{{tx: tx, ty: ty, crop: "carrot", stage: 5}}
+	w.housing.byID[7] = plot
+	w.housing.byCharacter[1] = plot
+	px, py := tileCenter(tx, ty)
+	w.players[1] = &player{id: 1, x: px - 12, y: py}
+
+	res, msg, ok := w.ApplyFarmAction(1, "harvest", tx, ty, "", -1, 0)
+	if !ok {
+		t.Fatalf("harvest refused: %s", msg)
+	}
+	if res.PlayerAction != "" {
+		t.Fatalf("harvest sent player action %q, want none", res.PlayerAction)
 	}
 }

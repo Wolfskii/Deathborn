@@ -13,7 +13,7 @@ public sealed class InventorySlot
 
 public sealed class PlayerInventory
 {
-    public const int SlotCount = 20;
+    public const int SlotCount = 200;
     public const int Columns = 5;
     public const int CellSize = 44;
     public const int CellGap = 6;

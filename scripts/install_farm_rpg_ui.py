@@ -28,6 +28,8 @@ UI_FILES = {
     "Ui/FarmRpg/buttons.png": "UI/button.png",
     # Speech bubbles and emoji reactions (16 px cells; the "!" bubble sits at 48,192).
     "Ui/FarmRpg/emotes.png": "UI/speech bubble, emojis, reaction.png",
+    # Animated brazier for the login screen: six 16x32 frames (Mine and Dungeon folder).
+    "Ui/FarmRpg/brazier.png": "Objects/Exterior/Mine and Dungeon/bonfire.png",
 }
 
 MGCB_BLOCK = """#begin {mgcb_path}

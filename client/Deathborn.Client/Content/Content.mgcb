@@ -8728,3 +8728,56 @@
 
 #end Ui/FarmRpg/emotes.png
 
+#begin Audio/Sfx/Farming/farming-seed-plant.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Farming/farming-seed-plant.wav
+
+#end Audio/Sfx/Farming/farming-seed-plant.wav
+
+#begin Audio/Sfx/Farming/farming-watering.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Farming/farming-watering.wav
+
+#end Audio/Sfx/Farming/farming-watering.wav
+
+#begin Audio/Sfx/Farming/farming-harvest-pop.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Farming/farming-harvest-pop.wav
+
+#end Audio/Sfx/Farming/farming-harvest-pop.wav
+#begin Audio/Sfx/Farming/farming-till-soil.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Farming/farming-till-soil.wav
+
+#end Audio/Sfx/Farming/farming-till-soil.wav
+
+#begin Audio/Sfx/Farming/farming-till-soil-2.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/Sfx/Farming/farming-till-soil-2.wav
+
+#end Audio/Sfx/Farming/farming-till-soil-2.wav
+
+#begin Ui/FarmRpg/brazier.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Ui/FarmRpg/brazier.png
+
+#end Ui/FarmRpg/brazier.png
+

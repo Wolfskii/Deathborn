@@ -23,6 +23,15 @@ public static class GameSfx
     public const string FishingCatch = "Audio/Sfx/Fishing/fishing-catch";
     public const string FishingEscape = "Audio/Sfx/Fishing/fishing-escape";
 
+    // Tilling: a trowel in soft soil ("Digging Into Soft Soil with Small Trowell" by dhallcomposer, CC0; scripts/install_tilling_sfx.py).
+    public const string FarmTillSoil = "Audio/Sfx/Farming/farming-till-soil";
+    public const string FarmTillSoil2 = "Audio/Sfx/Farming/farming-till-soil-2";
+    // Seed planting and harvest pop ("Cozy Farm SFX" by Bramble & Byte, CC-BY 4.0 - credit when shipping; scripts/install_farming_sfx.py).
+    public const string FarmSeedPlant = "Audio/Sfx/Farming/farming-seed-plant";
+    // Watering can pour ("Watering with a Watering Can" by Bricklover, CC0; scripts/install_watering_sfx.py).
+    public const string FarmWatering = "Audio/Sfx/Farming/farming-watering";
+    public const string FarmHarvestPop = "Audio/Sfx/Farming/farming-harvest-pop";
+
     /// <summary>Source files have long silent tails — stop playback early.</summary>
     public const float HealMaxDuration = 2f;
     public const float IceShardMaxDuration = 3f;
